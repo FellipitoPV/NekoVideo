@@ -6,9 +6,11 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -26,7 +28,25 @@ class MediaPlaybackService : MediaSessionService() {
     }
 
     private fun initializePlayer() {
-        player = ExoPlayer.Builder(this).build()
+        player = ExoPlayer.Builder(this).build().apply {
+            repeatMode = Player.REPEAT_MODE_OFF // Garante avanço para o próximo vídeo
+            addListener(object : Player.Listener {
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    Log.e("MediaPlaybackService", "Player error: ${error.message}")
+                }
+
+                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    Log.d("MediaPlaybackService", "Transition to media item: ${mediaItem?.mediaId}, reason: $reason")
+                }
+
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    Log.d("MediaPlaybackService", "Playback state changed: $playbackState")
+                    if (playbackState == Player.STATE_ENDED && hasNextMediaItem()) {
+                        seekToNextMediaItem()
+                    }
+                }
+            })
+        }
         mediaSession = MediaSession.Builder(this, player!!).build()
     }
 

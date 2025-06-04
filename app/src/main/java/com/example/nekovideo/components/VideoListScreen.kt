@@ -67,26 +67,26 @@ fun getVideosAndSubfolders(context: Context, folderPath: String, recursive: Bool
     val mediaItems = mutableListOf<MediaItem>()
     val folder = File(folderPath)
 
-    // Adicionar subpastas (apenas para exibição, se não for recursivo)
-    if (!recursive) {
-        folder.listFiles { file -> file.isDirectory() && file.listFiles { subFile ->
-            subFile.isFile && subFile.extension in listOf("mp4", "mkv", "avi", "mov") }?.isNotEmpty() ?: false }?.forEach { subfolder ->
+    // Adicionar subpastas que contêm vídeos
+    folder.listFiles { file -> file.isDirectory }?.forEach { subfolder ->
+        val hasVideos = context.contentResolver.query(
+            MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+            arrayOf(MediaStore.Video.Media.DATA),
+            "${MediaStore.Video.Media.DATA} LIKE ?",
+            arrayOf("${subfolder.absolutePath}/%"),
+            null
+        )?.use { cursor ->
+            cursor.moveToFirst()
+        } ?: false
+        if (hasVideos) {
             mediaItems.add(MediaItem(subfolder.absolutePath, uri = null, isFolder = true))
         }
     }
 
-    // Adicionar vídeos
+    // Adicionar vídeos diretamente na pasta
     val projection = arrayOf(MediaStore.Video.Media.DATA, MediaStore.Video.Media._ID)
-    val selection = if (recursive) {
-        "${MediaStore.Video.Media.DATA} LIKE ?"
-    } else {
-        "${MediaStore.Video.Media.DATA} LIKE ? AND ${MediaStore.Video.Media.DATA} NOT LIKE ?"
-    }
-    val selectionArgs = if (recursive) {
-        arrayOf("$folderPath/%")
-    } else {
-        arrayOf("$folderPath/%", "$folderPath%/%/%")
-    }
+    val selection = "${MediaStore.Video.Media.DATA} LIKE ? AND ${MediaStore.Video.Media.DATA} NOT LIKE ?"
+    val selectionArgs = arrayOf("$folderPath/%", "$folderPath%/%/%")
     val cursor = context.contentResolver.query(
         MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
         projection,
@@ -100,16 +100,16 @@ fun getVideosAndSubfolders(context: Context, folderPath: String, recursive: Bool
         while (it.moveToNext()) {
             val path = it.getString(dataColumn)
             val id = it.getLong(idColumn)
-            if (!recursive || path.startsWith(folderPath)) {
+            if (path.startsWith(folderPath)) {
                 val uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
                 mediaItems.add(MediaItem(path, uri = uri, isFolder = false))
             }
         }
     }
 
-    // Buscar vídeos em subpastas recursivamente
+    // Buscar vídeos em subpastas recursivamente, se necessário
     if (recursive) {
-        folder.listFiles { file -> file.isDirectory() }?.toList()?.forEach { subfolder ->
+        folder.listFiles { file -> file.isDirectory }?.forEach { subfolder ->
             mediaItems.addAll(getVideosAndSubfolders(context, subfolder.absolutePath, recursive))
         }
     }

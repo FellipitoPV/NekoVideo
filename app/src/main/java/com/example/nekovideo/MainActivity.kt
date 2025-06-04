@@ -2,6 +2,7 @@ package com.example.nekovideo
 
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -31,9 +32,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallTopAppBar
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.max
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -65,6 +67,8 @@ import kotlinx.coroutines.withContext
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Definir orientação padrão como retrato
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         enableEdgeToEdge()
         setContent {
             NekoVideoTheme {
@@ -161,109 +165,106 @@ fun MainScreen() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    if (selectedItems.isNotEmpty()) {
-                        Text(
-                            text = "${selectedItems.size} item(s) selected",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    } else if (currentRoute == "video_folders") {
-                        Text(
-                            text = "NekoVideo",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    } else if (currentRoute == "video_player") {
-                        Text(
-                            text = "Playing Video",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    } else {
-                        val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
-                        val relativePath = folderPath.removePrefix(rootPath).trim('/')
-                        val pathSegments = relativePath.split('/').filter { it.isNotEmpty() }
-                        Row {
-                            pathSegments.forEachIndexed { index, segment ->
-                                Text(
-                                    text = segment,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    textDecoration = TextDecoration.Underline,
-                                    modifier = Modifier
-                                        .clickable {
-                                            val targetPath = "$rootPath/${pathSegments.take(index + 1).joinToString("/")}"
-                                            val encodedPath = Uri.encode(targetPath)
-                                            println("Navigating to: video_list/$encodedPath, targetPath: $targetPath")
-                                            try {
-                                                navController.navigate("video_list/$encodedPath") {
-                                                    popUpTo("video_folders") { inclusive = false }
-                                                    launchSingleTop = true
-                                                }
-                                            } catch (e: Exception) {
-                                                println("Navigation error: ${e.message}")
-                                            }
-                                        }
-                                        .padding(end = 4.dp)
-                                )
-                                if (index < pathSegments.size - 1) {
+            if (currentRoute != "video_player") {
+                SmallTopAppBar(
+                    title = {
+                        if (selectedItems.isNotEmpty()) {
+                            Text(
+                                text = "${selectedItems.size} item(s) selected",
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                        } else if (currentRoute == "video_folders") {
+                            Text(
+                                text = "NekoVideo",
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                        } else {
+                            val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
+                            val relativePath = folderPath.removePrefix(rootPath).trim('/')
+                            val pathSegments = relativePath.split('/').filter { it.isNotEmpty() }
+                            Row {
+                                pathSegments.forEachIndexed { index, segment ->
                                     Text(
-                                        text = "/",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        modifier = Modifier.padding(end = 4.dp)
+                                        text = segment,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        textDecoration = TextDecoration.Underline,
+                                        modifier = Modifier
+                                            .clickable {
+                                                val targetPath = "$rootPath/${pathSegments.take(index + 1).joinToString("/")}"
+                                                val encodedPath = Uri.encode(targetPath)
+                                                println("Navigating to: video_list/$encodedPath, targetPath: $targetPath")
+                                                try {
+                                                    navController.navigate("video_list/$encodedPath") {
+                                                        popUpTo("video_folders") { inclusive = false }
+                                                        launchSingleTop = true
+                                                    }
+                                                } catch (e: Exception) {
+                                                    println("Navigation error: ${e.message}")
+                                                }
+                                            }
+                                            .padding(end = 4.dp)
                                     )
+                                    if (index < pathSegments.size - 1) {
+                                        Text(
+                                            text = "/",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            modifier = Modifier.padding(end = 4.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
-                },
-                navigationIcon = {
-                    if (selectedItems.isNotEmpty()) {
-                        IconButton(onClick = {
-                            println("Cancel selection clicked")
-                            selectedItems.clear()
-                            showFabMenu = false
-                            showRenameDialog = false
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Cancel,
-                                contentDescription = "Cancel Selection"
-                            )
-                        }
-                    } else if (currentRoute == "video_list" || currentRoute == "video_player") {
-                        IconButton(onClick = {
-                            println("Back button clicked")
-                            if (selectedItems.isNotEmpty()) {
+                    },
+                    navigationIcon = {
+                        if (selectedItems.isNotEmpty()) {
+                            IconButton(onClick = {
+                                println("Cancel selection clicked")
                                 selectedItems.clear()
                                 showFabMenu = false
                                 showRenameDialog = false
-                                println("Selection cleared")
-                            } else {
-                                navController.popBackStack()
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Cancel,
+                                    contentDescription = "Cancel Selection"
+                                )
                             }
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Back"
-                            )
+                        } else if (currentRoute == "video_list") {
+                            IconButton(onClick = {
+                                println("Back button clicked")
+                                if (selectedItems.isNotEmpty()) {
+                                    selectedItems.clear()
+                                    showFabMenu = false
+                                    showRenameDialog = false
+                                    println("Selection cleared")
+                                } else {
+                                    navController.popBackStack()
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowBack,
+                                    contentDescription = "Back"
+                                )
+                            }
+                        }
+                    },
+                    actions = {
+                        if (selectedItems.isNotEmpty() && currentRoute == "video_list") {
+                            IconButton(onClick = {
+                                println("Select all clicked")
+                                val allItems = getVideosAndSubfolders(context, folderPath)
+                                selectedItems.clear()
+                                selectedItems.addAll(allItems.map { it.path })
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.SelectAll,
+                                    contentDescription = "Select All"
+                                )
+                            }
                         }
                     }
-                },
-                actions = {
-                    if (selectedItems.isNotEmpty() && currentRoute == "video_list") {
-                        IconButton(onClick = {
-                            println("Select all clicked")
-                            val allItems = getVideosAndSubfolders(context, folderPath)
-                            selectedItems.clear()
-                            selectedItems.addAll(allItems.map { it.path })
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.SelectAll,
-                                contentDescription = "Select All"
-                            )
-                        }
-                    }
-                }
-            )
+                )
+            }
         },
         floatingActionButton = {
             if (currentRoute != "video_player") {
@@ -337,10 +338,10 @@ fun MainScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    top = paddingValues.calculateTopPadding() - 42.dp,
+                    top = if (currentRoute == "video_player") 0.dp else max(0.dp, paddingValues.calculateTopPadding() - 16.dp),
                     bottom = paddingValues.calculateBottomPadding(),
                     start = paddingValues.calculateStartPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
-                    end = paddingValues.calculateEndPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
+                    end = paddingValues.calculateEndPadding(androidx.compose.ui.unit.LayoutDirection.Ltr)
                 )
         ) {
             NavHost(

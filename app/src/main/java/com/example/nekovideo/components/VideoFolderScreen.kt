@@ -300,7 +300,7 @@ private fun getVideoFolders(context: Context): List<String> {
             val parent = File(path).parent
             if (parent != null && parent.startsWith(rootPath)) {
                 val relativePath = parent.removePrefix(rootPath).trim('/')
-                // Extrai a pasta pai logo após /storage/emulated/0
+                // Extrai a pasta de primeiro nível após /storage/emulated/0
                 val parentFolder = relativePath.split('/').firstOrNull() ?: ""
                 if (parentFolder.isNotEmpty()) {
                     folders.add("$rootPath/$parentFolder")
@@ -328,7 +328,8 @@ private fun getItemCount(context: Context, folderPath: String): Int {
         val dataColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
         while (it.moveToNext()) {
             val path = it.getString(dataColumn)
-            if (File(path).parent == folderPath) { // Apenas vídeos diretamente na pasta
+            // Contar vídeos em qualquer subpasta
+            if (path.startsWith(folderPath)) {
                 count++
             }
         }
@@ -336,7 +337,16 @@ private fun getItemCount(context: Context, folderPath: String): Int {
     // Contar subpastas com vídeos
     val folder = File(folderPath)
     folder.listFiles { file -> file.isDirectory }?.forEach { subfolder ->
-        if (subfolder.listFiles { f -> f.isFile && f.extension in listOf("mp4", "mkv", "avi", "mov") }?.isNotEmpty() == true) {
+        val hasVideos = context.contentResolver.query(
+            MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+            arrayOf(MediaStore.Video.Media.DATA),
+            "${MediaStore.Video.Media.DATA} LIKE ?",
+            arrayOf("${subfolder.absolutePath}/%"),
+            null
+        )?.use { subCursor ->
+            subCursor.moveToFirst()
+        } ?: false
+        if (hasVideos) {
             count++
         }
     }
