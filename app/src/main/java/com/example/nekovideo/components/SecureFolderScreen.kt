@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.util.LruCache
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,11 +22,13 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -38,13 +41,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.nekovideo.R
@@ -138,8 +146,8 @@ fun SecureFolderScreen(
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         contentPadding = PaddingValues(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp), // Aumentado para 12.dp
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize().safeDrawingPadding(),
         state = lazyGridState
     ) {
@@ -194,29 +202,48 @@ fun SecureMediaItemCard(
                     onTap = { onTap() }
                 )
             }
+            .clip(RoundedCornerShape(16.dp)) // Cantos arredondados
+            .shadow(4.dp, RoundedCornerShape(16.dp)) // Sombra suave
+            .border(
+                width = if (isSelected) 2.dp else 0.dp,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                shape = RoundedCornerShape(16.dp)
+            ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             if (mediaItem.isFolder) {
                 Column(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f)),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
                         imageVector = Icons.Default.Folder,
                         contentDescription = "Folder Icon",
-                        modifier = Modifier.fillMaxWidth().weight(1f)
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .size(48.dp) // Ícone menor
+                            .weight(1f)
                     )
                     Text(
                         text = File(mediaItem.path).name,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium,
+                            shadow = Shadow(
+                                color = Color.Black.copy(alpha = 0.3f),
+                                offset = androidx.compose.ui.geometry.Offset(2f, 2f),
+                                blurRadius = 4f
+                            )
+                        ),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.Black.copy(alpha = 0.5f))
-                            .padding(4.dp)
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
             } else {
@@ -234,20 +261,36 @@ fun SecureMediaItemCard(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxSize()
-                            .alpha(if (isSelected) 0.5f else 1.0f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .alpha(if (isSelected) 0.7f else 1.0f)
                     )
                     if (!isSelected) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Play Icon",
-                            tint = Color.White.copy(alpha = 0.7f),
+                        Box(
                             modifier = Modifier
                                 .align(Alignment.Center)
-                                .size(24.dp)
-                        )
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.4f))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Play Icon",
+                                tint = Color.White,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .align(Alignment.Center)
+                            )
+                        }
                         Text(
                             text = File(mediaItem.path).name,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Medium,
+                                shadow = Shadow(
+                                    color = Color.Black.copy(alpha = 0.3f),
+                                    offset = androidx.compose.ui.geometry.Offset(2f, 2f),
+                                    blurRadius = 4f
+                                )
+                            ),
                             color = Color.White,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -255,18 +298,23 @@ fun SecureMediaItemCard(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .fillMaxWidth()
-                                .background(Color.Black.copy(alpha = 0.5f))
-                                .padding(4.dp)
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         )
                         mediaItem.duration?.let {
                             Text(
                                 text = it,
-                                style = MaterialTheme.typography.labelSmall,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Light
+                                ),
                                 color = Color.White,
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
-                                    .background(Color.Black.copy(alpha = 0.5f))
-                                    .padding(4.dp)
+                                    .padding(8.dp)
+                                    .background(
+                                        Color.Black.copy(alpha = 0.4f),
+                                        shape = RoundedCornerShape(4.dp)
+                                    )
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
                     }
@@ -276,8 +324,9 @@ fun SecureMediaItemCard(
                             contentDescription = "Selected",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(4.dp)
+                                .align(Alignment.BottomEnd) // Movido para canto inferior
+                                .padding(8.dp)
+                                .size(20.dp) // Ícone menor
                         )
                     }
                 }

@@ -63,6 +63,7 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.session)
+    implementation(libs.material.icons.extended.v168)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -11,6 +11,7 @@ import android.util.Base64
 
 object FilesManager {
 
+    // Existing renameSelectedItems function (unchanged)
     fun renameSelectedItems(
         context: Context,
         selectedItems: List<String>,
@@ -61,6 +62,7 @@ object FilesManager {
         }
     }
 
+    // Existing moveSelectedItems function (unchanged)
     fun moveSelectedItems(
         context: Context,
         selectedItems: List<String>,
@@ -76,8 +78,11 @@ object FilesManager {
 
         val destinationDir = File(destinationPath)
         if (!destinationDir.exists() || !destinationDir.isDirectory) {
-            onError("Destination folder doesn't exist")
-            return
+            // Attempt to create the destination directory if it doesn't exist
+            if (!destinationDir.mkdirs()) {
+                onError("Failed to create destination folder")
+                return
+            }
         }
 
         var movedCount = 0
@@ -125,6 +130,111 @@ object FilesManager {
         return false
     }
 
+    // New helper function to ensure the unlocked folder exists
+    fun ensureUnlockedFolderExists(): Boolean {
+        val unlockedFolder = File("/storage/emulated/0/DCIM/Unlooked")
+        return try {
+            if (!unlockedFolder.exists()) {
+                unlockedFolder.mkdirs()
+            }
+            unlockedFolder.exists() && unlockedFolder.isDirectory
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun deleteSelectedItems(
+        context: Context,
+        selectedItems: List<String>,
+        onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
+        onError: (message: String) -> Unit = { _ -> },
+        onSuccess: (message: String) -> Unit = { _ -> }
+    ) {
+        if (selectedItems.isEmpty()) {
+            onError("No items selected")
+            return
+        }
+
+        var deletedCount = 0
+        val totalItems = selectedItems.size
+
+        selectedItems.forEachIndexed { index, path ->
+            val file = File(path)
+            if (!file.exists()) {
+                onError("Item not found: ${file.name}")
+                return@forEachIndexed
+            }
+
+            try {
+                if (file.deleteRecursively()) {
+                    deletedCount++
+                } else {
+                    onError("Failed to delete ${file.name}")
+                }
+            } catch (e: Exception) {
+                onError("Error deleting ${file.name}: ${e.message}")
+            }
+
+            onProgress(index + 1, totalItems)
+        }
+
+        if (deletedCount == 0) {
+            onError("No items were deleted")
+        } else {
+            onSuccess("Deleted $deletedCount items")
+        }
+    }
+
+    fun deleteSecureSelectedItems(
+        context: Context,
+        selectedItems: List<String>,
+        secureFolderPath: String,
+        onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
+        onError: (message: String) -> Unit = { _ -> },
+        onSuccess: (message: String) -> Unit = { _ -> }
+    ) {
+        if (selectedItems.isEmpty()) {
+            onError("No items selected")
+            return
+        }
+
+        // Verifica se todos os itens estão dentro da pasta segura
+        val invalidItems = selectedItems.filterNot { it.startsWith(secureFolderPath) }
+        if (invalidItems.isNotEmpty()) {
+            onError("Some items are not in the secure folder")
+            return
+        }
+
+        var deletedCount = 0
+        val totalItems = selectedItems.size
+
+        selectedItems.forEachIndexed { index, path ->
+            val file = File(path)
+            if (!file.exists()) {
+                onError("Item not found: ${file.name}")
+                return@forEachIndexed
+            }
+
+            try {
+                if (file.deleteRecursively()) {
+                    deletedCount++
+                } else {
+                    onError("Failed to delete secure item ${file.name}")
+                }
+            } catch (e: Exception) {
+                onError("Error deleting secure item ${file.name}: ${e.message}")
+            }
+
+            onProgress(index + 1, totalItems)
+        }
+
+        if (deletedCount == 0) {
+            onError("No secure items were deleted")
+        } else {
+            onSuccess("Deleted $deletedCount secure items")
+        }
+    }
+
     object SecureStorage {
         private const val SECURE_FOLDER_NAME = ".secure_videos"
         private const val NOMEDIA_FILE = ".nomedia"
@@ -132,7 +242,25 @@ object FilesManager {
         private const val PREF_PASSWORD_KEY = "secure_password"
 
         fun getSecureFolderPath(context: Context): String {
-            return File(context.getExternalFilesDir(null), SECURE_FOLDER_NAME).absolutePath
+            return File("/storage/emulated/0", SECURE_FOLDER_NAME).absolutePath
+        }
+
+        fun getSecureVideosRecursively(context: Context, folderPath: String): List<String> {
+            val videoPaths = mutableListOf<String>()
+            val folder = File(folderPath)
+
+            if (!folder.exists() || !folder.isDirectory) return emptyList()
+
+            folder.listFiles()?.forEach { file ->
+                if (file.name == ".nomedia") return@forEach // Ignorar .nomedia
+                if (file.isDirectory) {
+                    videoPaths.addAll(getSecureVideosRecursively(context, file.absolutePath))
+                } else if (file.isFile && file.extension.lowercase() in listOf("mp4", "mkv", "avi", "mov", "wmv")) {
+                    videoPaths.add(file.absolutePath)
+                }
+            }
+
+            return videoPaths
         }
 
         fun ensureSecureFolderExists(context: Context): Boolean {
@@ -142,7 +270,7 @@ object FilesManager {
                     secureFolder.mkdirs()
                     File(secureFolder, NOMEDIA_FILE).createNewFile()
                 }
-                true
+                secureFolder.exists() && secureFolder.isDirectory
             } catch (e: Exception) {
                 false
             }
