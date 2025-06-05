@@ -1,10 +1,8 @@
 package com.example.nekovideo.components
 
-import android.content.ContentUris
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
-import android.provider.MediaStore
 import android.util.LruCache
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -50,70 +48,34 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.nekovideo.R
+import com.example.nekovideo.components.helpers.FilesManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
 
-data class MediaItem(
+data class SecureMediaItem(
     val path: String,
-    val uri: Uri?,
     val isFolder: Boolean,
     val duration: String? = null
 )
 
-fun getVideosAndSubfolders(context: Context, folderPath: String, recursive: Boolean = false): List<MediaItem> {
-    val mediaItems = mutableListOf<MediaItem>()
+fun getSecureFolderContents(context: Context, folderPath: String): List<SecureMediaItem> {
+    val mediaItems = mutableListOf<SecureMediaItem>()
     val folder = File(folderPath)
 
-    // Adicionar subpastas
-    folder.listFiles { file -> file.isDirectory }?.forEach { subfolder ->
-        val hasVideos = context.contentResolver.query(
-            MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-            arrayOf(MediaStore.Video.Media.DATA),
-            "${MediaStore.Video.Media.DATA} LIKE ?",
-            arrayOf("${subfolder.absolutePath}/%"),
-            null
-        )?.use { cursor -> cursor.count > 0 } ?: false
-
-        // Verificar se é uma pasta criada pelo app (tem o arquivo marcador)
-        val isAppCreatedFolder = File(subfolder, ".nekovideo").exists()
-
-        // Mostrar pasta se tiver vídeos OU for criada pelo app
-        if (hasVideos || isAppCreatedFolder) {
-            mediaItems.add(MediaItem(subfolder.absolutePath, uri = null, isFolder = true))
-        }
+    if (!folder.exists() || !folder.isDirectory) {
+        return mediaItems
     }
 
-    // Adicionar vídeos diretamente na pasta
-    val projection = arrayOf(MediaStore.Video.Media.DATA, MediaStore.Video.Media._ID)
-    val selection = "${MediaStore.Video.Media.DATA} LIKE ? AND ${MediaStore.Video.Media.DATA} NOT LIKE ?"
-    val selectionArgs = arrayOf("$folderPath/%", "$folderPath%/%/%")
-    val cursor = context.contentResolver.query(
-        MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-        projection,
-        selection,
-        selectionArgs,
-        null
-    )
-    cursor?.use {
-        val dataColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-        val idColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-        while (it.moveToNext()) {
-            val path = it.getString(dataColumn)
-            val id = it.getLong(idColumn)
-            if (path.startsWith(folderPath)) {
-                val uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
-                mediaItems.add(MediaItem(path, uri = uri, isFolder = false))
-            }
-        }
-    }
-
-    // Buscar vídeos em subpastas recursivamente, se necessário
-    if (recursive) {
-        folder.listFiles { file -> file.isDirectory }?.forEach { subfolder ->
-            mediaItems.addAll(getVideosAndSubfolders(context, subfolder.absolutePath, recursive))
+    // Listar subpastas e arquivos
+    folder.listFiles()?.forEach { file ->
+        if (file.name == ".nomedia") return@forEach // Ignorar .nomedia
+        if (file.isDirectory) {
+            mediaItems.add(SecureMediaItem(path = file.absolutePath, isFolder = true))
+        } else if (file.isFile && file.extension.lowercase() in listOf("mp4", "mkv", "avi", "mov", "wmv")) {
+            mediaItems.add(SecureMediaItem(path = file.absolutePath, isFolder = false))
         }
     }
 
@@ -122,11 +84,10 @@ fun getVideosAndSubfolders(context: Context, folderPath: String, recursive: Bool
 
 private val thumbnailCache = LruCache<String, Bitmap?>(50)
 private val durationCache = LruCache<String, String?>(50)
-
 private val thumbnailSemaphore = Semaphore(6)
 
 @Composable
-fun VideoListScreen(
+fun SecureFolderScreen(
     folderPath: String,
     onFolderClick: (String) -> Unit,
     selectedItems: MutableList<String>,
@@ -134,12 +95,12 @@ fun VideoListScreen(
     renameTrigger: Int
 ) {
     val context = LocalContext.current
-    val mediaItems = remember { mutableStateListOf<MediaItem>() }
+    val mediaItems = remember { mutableStateListOf<SecureMediaItem>() }
     val lazyGridState = rememberLazyGridState()
 
     LaunchedEffect(folderPath, renameTrigger) {
         val items = withContext(Dispatchers.IO) {
-            getVideosAndSubfolders(context, folderPath)
+            getSecureFolderContents(context, folderPath)
         }
         mediaItems.clear()
         mediaItems.addAll(items)
@@ -156,7 +117,7 @@ fun VideoListScreen(
                     thumbnailSemaphore.withPermit {
                         withContext(Dispatchers.IO) {
                             try {
-                                val thumb = ThumbnailManager.getVideoThumbnail(context, mediaItem.path, mediaItem.uri)
+                                val thumb = ThumbnailManager.getVideoThumbnail(context, mediaItem.path, null)
                                 thumbnailCache.put(mediaItem.path, thumb)
                                 val dur = ThumbnailManager.getVideoDuration(context, mediaItem.path)
                                 durationCache.put(mediaItem.path, dur)
@@ -183,7 +144,7 @@ fun VideoListScreen(
         state = lazyGridState
     ) {
         items(mediaItems, key = { it.path }) { mediaItem ->
-            MediaItemCard(
+            SecureMediaItemCard(
                 mediaItem = mediaItem,
                 isSelected = mediaItem.path in selectedItems,
                 onClick = { if (selectedItems.isEmpty()) onFolderClick(mediaItem.path) },
@@ -215,8 +176,8 @@ fun VideoListScreen(
 }
 
 @Composable
-fun MediaItemCard(
-    mediaItem: MediaItem,
+fun SecureMediaItemCard(
+    mediaItem: SecureMediaItem,
     isSelected: Boolean,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
