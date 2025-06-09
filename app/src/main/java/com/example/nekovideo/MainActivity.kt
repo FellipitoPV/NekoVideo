@@ -32,7 +32,7 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen // Novo ícone para desbloqueio
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -179,7 +179,7 @@ fun MainScreen() {
                             val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
 
                             val isAtRoot = (currentRoute == "video_list" && folderPath == rootPath) ||
-                                    (currentRoute == "secure_folder" && folderPath == secureFolderPath)
+                                    (currentRoute == "secure_ssfolder" && folderPath == secureFolderPath)
 
                             if (isAtRoot) {
                                 navController.navigate("video_folders") {
@@ -526,7 +526,7 @@ fun MainScreen() {
                                 },
                                 onClick = {
                                     coroutineScope.launch {
-                                        val unlockedPath = "/storage/emulated/0/DCIM/Unlooked"
+                                        val unlockedPath = "/storage/emulated/0/DCIM/Unlocked"
                                         if (FilesManager.ensureUnlockedFolderExists()) {
                                             FilesManager.moveSelectedItems(
                                                 context = context,
@@ -806,14 +806,27 @@ fun MainScreen() {
                     VideoListScreen(
                         folderPath = folderPath,
                         onFolderClick = { itemPath ->
-                            val item = getVideosAndSubfolders(context, folderPath).find { it.path == itemPath }
+                            val items = getVideosAndSubfolders(context, folderPath)
+                            val item = items.find { it.path == itemPath }
                             if (item?.isFolder == true) {
                                 val encodedSubPath = Uri.encode(itemPath)
                                 navController.navigate("video_list/$encodedSubPath")
                             } else {
-                                val videoUri = "file://$itemPath"
-                                val encodedPlaylist = Uri.encode(videoUri)
-                                navController.navigate("video_player/$encodedPlaylist")
+                                // Criar a playlist com todos os vídeos da pasta
+                                val videos = items.filter { !it.isFolder }.map { "file://${it.path}" }
+                                val clickedVideoIndex = videos.indexOf("file://$itemPath")
+                                if (clickedVideoIndex >= 0) {
+                                    // Reorganizar a lista para começar com o vídeo clicado
+                                    val orderedPlaylist = videos.subList(clickedVideoIndex, videos.size) +
+                                            videos.subList(0, clickedVideoIndex)
+                                    val encodedPlaylist = Uri.encode(orderedPlaylist.joinToString(","))
+                                    navController.navigate("video_player/$encodedPlaylist")
+                                } else {
+                                    // Fallback para apenas o vídeo clicado
+                                    val videoUri = "file://$itemPath"
+                                    val encodedPlaylist = Uri.encode(videoUri)
+                                    navController.navigate("video_player/$encodedPlaylist")
+                                }
                             }
                         },
                         selectedItems = selectedItems,
@@ -836,14 +849,27 @@ fun MainScreen() {
                     SecureFolderScreen(
                         folderPath = folderPath,
                         onFolderClick = { itemPath ->
-                            val item = getSecureFolderContents(context, folderPath).find { it.path == itemPath }
+                            val items = getSecureFolderContents(context, folderPath)
+                            val item = items.find { it.path == itemPath }
                             if (item?.isFolder == true) {
                                 val encodedSubPath = Uri.encode(itemPath)
                                 navController.navigate("secure_folder/$encodedSubPath")
                             } else {
-                                val videoUri = "file://$itemPath"
-                                val encodedPlaylist = Uri.encode(videoUri)
-                                navController.navigate("video_player/$encodedPlaylist")
+                                // Criar a playlist com todos os vídeos da pasta segura
+                                val videos = items.filter { !it.isFolder }.map { "file://${it.path}" }
+                                val clickedVideoIndex = videos.indexOf("file://$itemPath")
+                                if (clickedVideoIndex >= 0) {
+                                    // Reorganizar a lista para começar com o vídeo clicado
+                                    val orderedPlaylist = videos.subList(clickedVideoIndex, videos.size) +
+                                            videos.subList(0, clickedVideoIndex)
+                                    val encodedPlaylist = Uri.encode(orderedPlaylist.joinToString(","))
+                                    navController.navigate("video_player/$encodedPlaylist")
+                                } else {
+                                    // Fallback para apenas o vídeo clicado
+                                    val videoUri = "file://$itemPath"
+                                    val encodedPlaylist = Uri.encode(videoUri)
+                                    navController.navigate("video_player/$encodedPlaylist")
+                                }
                             }
                         },
                         selectedItems = selectedItems,
