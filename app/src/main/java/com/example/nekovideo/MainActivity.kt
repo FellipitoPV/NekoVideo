@@ -2,6 +2,7 @@ package com.example.nekovideo
 
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
@@ -107,7 +108,22 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainScreen()
+                    MainScreen(intent)
+                }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent) // Update the intent
+        setContent {
+            NekoVideoTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    MainScreen(intent)
                 }
             }
         }
@@ -125,7 +141,7 @@ fun Context.findActivity(): ComponentActivity? {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(intent: Intent?) {
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route?.substringBefore("/{folderPath}")?.substringBefore("/{playlist}")
@@ -145,6 +161,23 @@ fun MainScreen() {
 
     var tapCount by remember { mutableStateOf(0) }
     val maxTapInterval = 500L // 500ms interval for triple tap
+
+    // Verificar se o intent contém a ação para abrir o player
+    LaunchedEffect(intent) {
+        if (intent?.action == "OPEN_PLAYER") {
+            val playlist = intent.getStringArrayListExtra("PLAYLIST") ?: emptyList()
+            val initialIndex = intent.getIntExtra("INITIAL_INDEX", 0)
+            if (playlist.isNotEmpty()) {
+                val encodedPlaylist = Uri.encode(playlist.joinToString(","))
+                navController.navigate("video_player/$encodedPlaylist") {
+                    popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                    launchSingleTop = true
+                }
+                // Limpar a ação para evitar repetição
+                intent.action = null
+            }
+        }
+    }
 
     LaunchedEffect(currentRoute, folderPath, selectedItems, isMoveMode) {
         val activity = context.findActivity()
@@ -179,7 +212,7 @@ fun MainScreen() {
                             val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
 
                             val isAtRoot = (currentRoute == "video_list" && folderPath == rootPath) ||
-                                    (currentRoute == "secure_ssfolder" && folderPath == secureFolderPath)
+                                    (currentRoute == "secure_folder" && folderPath == secureFolderPath)
 
                             if (isAtRoot) {
                                 navController.navigate("video_folders") {
@@ -746,7 +779,7 @@ fun MainScreen() {
                     }
                 }
             }
-        }
+        },
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -812,17 +845,14 @@ fun MainScreen() {
                                 val encodedSubPath = Uri.encode(itemPath)
                                 navController.navigate("video_list/$encodedSubPath")
                             } else {
-                                // Criar a playlist com todos os vídeos da pasta
                                 val videos = items.filter { !it.isFolder }.map { "file://${it.path}" }
                                 val clickedVideoIndex = videos.indexOf("file://$itemPath")
                                 if (clickedVideoIndex >= 0) {
-                                    // Reorganizar a lista para começar com o vídeo clicado
                                     val orderedPlaylist = videos.subList(clickedVideoIndex, videos.size) +
                                             videos.subList(0, clickedVideoIndex)
                                     val encodedPlaylist = Uri.encode(orderedPlaylist.joinToString(","))
                                     navController.navigate("video_player/$encodedPlaylist")
                                 } else {
-                                    // Fallback para apenas o vídeo clicado
                                     val videoUri = "file://$itemPath"
                                     val encodedPlaylist = Uri.encode(videoUri)
                                     navController.navigate("video_player/$encodedPlaylist")
@@ -855,17 +885,14 @@ fun MainScreen() {
                                 val encodedSubPath = Uri.encode(itemPath)
                                 navController.navigate("secure_folder/$encodedSubPath")
                             } else {
-                                // Criar a playlist com todos os vídeos da pasta segura
                                 val videos = items.filter { !it.isFolder }.map { "file://${it.path}" }
                                 val clickedVideoIndex = videos.indexOf("file://$itemPath")
                                 if (clickedVideoIndex >= 0) {
-                                    // Reorganizar a lista para começar com o vídeo clicado
                                     val orderedPlaylist = videos.subList(clickedVideoIndex, videos.size) +
                                             videos.subList(0, clickedVideoIndex)
                                     val encodedPlaylist = Uri.encode(orderedPlaylist.joinToString(","))
                                     navController.navigate("video_player/$encodedPlaylist")
                                 } else {
-                                    // Fallback para apenas o vídeo clicado
                                     val videoUri = "file://$itemPath"
                                     val encodedPlaylist = Uri.encode(videoUri)
                                     navController.navigate("video_player/$encodedPlaylist")

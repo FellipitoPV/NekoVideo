@@ -6,7 +6,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
-import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,6 +19,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -39,6 +39,7 @@ fun Context.findActivity(): Activity? {
     return null
 }
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @SuppressLint("OpaqueUnitKey")
 @OptIn(UnstableApi::class)
 @Composable
@@ -57,6 +58,9 @@ fun VideoPlayerScreen(
         PlayerView(context).apply {
             useController = true // Mantém controles padrão
             setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+            // Garantir que o botão "previous" seja visível
+            controllerShowTimeoutMs = 5000 // Controles visíveis por 5 segundos
+            controllerAutoShow = true // Mostrar controles automaticamente
         }
     }
 
@@ -75,7 +79,6 @@ fun VideoPlayerScreen(
                 ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             }
 
-            // Apenas mudar a orientação se for diferente da atual
             if (currentOrientation != newOrientation) {
                 activity.requestedOrientation = newOrientation
             }
@@ -88,7 +91,6 @@ fun VideoPlayerScreen(
         val window = activity.window
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
 
-        // Entrar no modo imersivo
         WindowCompat.setDecorFitsSystemWindows(window, false)
         insetsController.apply {
             hide(WindowInsetsCompat.Type.systemBars())
@@ -96,7 +98,6 @@ fun VideoPlayerScreen(
         }
 
         onDispose {
-            // Restaurar barras do sistema ao sair
             WindowCompat.setDecorFitsSystemWindows(window, true)
             insetsController.show(WindowInsetsCompat.Type.systemBars())
         }
@@ -104,15 +105,28 @@ fun VideoPlayerScreen(
 
     // Iniciar o serviço com a nova playlist e vincular o PlayerView
     DisposableEffect(playlist, initialIndex) {
+        // Iniciar o serviço com a playlist
         MediaPlaybackService.startWithPlaylist(context, playlist, initialIndex)
 
         val listener = Runnable {
             controllerFuture.get()?.let { controller ->
                 playerView.player = controller
 
-                // Configurar o player para avançar automaticamente na playlist
-                controller.repeatMode = Player.REPEAT_MODE_OFF // Garante que não repita um único vídeo
-                controller.shuffleModeEnabled = false // Desativa shuffle, se não desejado
+                // Configurar o player para a playlist
+                controller.repeatMode = Player.REPEAT_MODE_OFF // Não repetir um único vídeo
+                controller.shuffleModeEnabled = false // Desativar shuffle
+
+                // Garantir que a playlist está carregada
+                if (controller.mediaItemCount == 0 && playlist.isNotEmpty()) {
+                    val mediaItems = playlist.map { uri -> MediaItem.fromUri(uri) }
+                    controller.setMediaItems(mediaItems, initialIndex, 0L)
+                    controller.prepare()
+                }
+
+                // Avançar para o vídeo inicial, se necessário
+                if (controller.currentMediaItemIndex != initialIndex) {
+                    controller.seekTo(initialIndex, 0L)
+                }
 
                 // Atualizar orientação inicial
                 updateOrientation(controller)
@@ -126,23 +140,33 @@ fun VideoPlayerScreen(
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         if (playbackState == Player.STATE_ENDED && controller.hasNextMediaItem()) {
                             controller.seekToNextMediaItem()
-                            updateOrientation(controller) // Atualizar orientação para o próximo vídeo
+                            updateOrientation(controller)
                         }
                     }
 
-                    override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
-                        updateOrientation(controller) // Atualizar orientação quando houver transição
+                    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                        updateOrientation(controller)
+                    }
+
+                    override fun onEvents(player: Player, events: Player.Events) {
+                        // Garantir que o botão "previous" funcione corretamente
+                        if (events.contains(Player.EVENT_POSITION_DISCONTINUITY) ||
+                            events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)
+                        ) {
+                            updateOrientation(controller)
+                        }
                     }
                 }
                 controller.addListener(playerListener)
 
-                // Remover o listener e liberar recursos ao destruir
+                // Iniciar a reprodução
+                controller.playWhenReady = true
+
                 onDispose {
                     controller.removeListener(playerListener)
                     controller.release()
                     MediaController.releaseFuture(controllerFuture)
                     playerView.player = null
-                    // Restaurar orientação para retrato ao sair da tela
                     context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                 }
             }
@@ -150,7 +174,6 @@ fun VideoPlayerScreen(
         controllerFuture.addListener(listener, MoreExecutors.directExecutor())
 
         onDispose {
-            // Garantir que a orientação seja restaurada caso o listener não seja chamado
             context.findActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
     }
@@ -159,7 +182,7 @@ fun VideoPlayerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black) // Fundo preto para a área do vídeo
+            .background(Color.Black)
     ) {
         AndroidView(
             factory = { playerView },
