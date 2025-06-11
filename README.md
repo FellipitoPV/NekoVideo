@@ -24,7 +24,7 @@ Bem-vindo ao **NekoVideo**, um player de vídeo moderno e intuitivo para Android
 ### Instalação
 1. **Clone o Repositório**:
    ```bash
-   git clone https://github.com/seu-usuario/neko-video.git
+   git clone https://github.com/FellipitoPV/NekoVideo.git
    cd neko-video
    ```
 2. **Abra no Android Studio**:
