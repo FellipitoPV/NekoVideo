@@ -100,12 +100,14 @@ fun SecureFolderScreen(
     onFolderClick: (String) -> Unit,
     selectedItems: MutableList<String>,
     onSelectionChange: (List<String>) -> Unit,
-    renameTrigger: Int
+    renameTrigger: Int,
+    deletedVideoPath: String? = null // Novo parâmetro para vídeo deletado
 ) {
     val context = LocalContext.current
     val mediaItems = remember { mutableStateListOf<SecureMediaItem>() }
     val lazyGridState = rememberLazyGridState()
 
+    // Recarregar lista quando há mudanças
     LaunchedEffect(folderPath, renameTrigger) {
         val items = withContext(Dispatchers.IO) {
             getSecureFolderContents(context, folderPath)
@@ -114,6 +116,20 @@ fun SecureFolderScreen(
         mediaItems.addAll(items)
     }
 
+    // Remover item deletado da lista
+    LaunchedEffect(deletedVideoPath) {
+        deletedVideoPath?.let { deletedPath ->
+            val indexToRemove = mediaItems.indexOfFirst { it.path == deletedPath }
+            if (indexToRemove != -1) {
+                mediaItems.removeAt(indexToRemove)
+                // Também remover dos itens selecionados se estiver lá
+                selectedItems.remove(deletedPath)
+                onSelectionChange(selectedItems.toList())
+            }
+        }
+    }
+
+    // Resto do código permanece igual...
     LaunchedEffect(lazyGridState) {
         snapshotFlow {
             lazyGridState.layoutInfo.visibleItemsInfo to lazyGridState.firstVisibleItemIndex
@@ -146,7 +162,7 @@ fun SecureFolderScreen(
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         contentPadding = PaddingValues(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp), // Aumentado para 12.dp
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize().safeDrawingPadding(),
         state = lazyGridState

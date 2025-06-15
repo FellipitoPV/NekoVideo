@@ -18,9 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
@@ -48,7 +46,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 import androidx.navigation.compose.NavHost
@@ -56,16 +53,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.nekovideo.components.RenameDialog
 import com.example.nekovideo.components.VideoFolderScreen
 import com.example.nekovideo.components.VideoListScreen
-import com.example.nekovideo.components.VideoPlayerScreen
 import com.example.nekovideo.components.getVideosAndSubfolders
 import com.example.nekovideo.ui.theme.NekoVideoTheme
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.height
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.compose.composable
@@ -78,9 +71,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
-import java.io.File
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -89,13 +80,16 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
+import com.example.nekovideo.components.MiniPlayer
 import com.example.nekovideo.components.getSecureFolderContents
-import com.example.nekovideo.components.helpers.FilesManager.SecureStorage.getSecureVideosRecursively
+import com.example.nekovideo.components.player.VideoPlayerOverlay
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -154,6 +148,10 @@ fun MainScreen(intent: Intent?) {
     val coroutineScope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
 
+    var showPlayerOverlay by remember { mutableStateOf(false) }
+    var deletedVideoPath by remember { mutableStateOf<String?>(null) }
+
+
     var isMoveMode by remember { mutableStateOf(false) }
     var itemsToMove by remember { mutableStateOf<List<String>>(emptyList()) }
     var showFolderActions by remember { mutableStateOf(false) }
@@ -162,39 +160,46 @@ fun MainScreen(intent: Intent?) {
     var tapCount by remember { mutableStateOf(0) }
     val maxTapInterval = 500L // 500ms interval for triple tap
 
-    // Verificar se o intent contém a ação para abrir o player
+    // Modificar o LaunchedEffect do intent para mostrar overlay
     LaunchedEffect(intent) {
         if (intent?.action == "OPEN_PLAYER") {
             val playlist = intent.getStringArrayListExtra("PLAYLIST") ?: emptyList()
             val initialIndex = intent.getIntExtra("INITIAL_INDEX", 0)
             if (playlist.isNotEmpty()) {
-                val encodedPlaylist = Uri.encode(playlist.joinToString(","))
-                navController.navigate("video_player/$encodedPlaylist") {
-                    popUpTo(navController.graph.startDestinationId) { inclusive = false }
-                    launchSingleTop = true
-                }
-                // Limpar a ação para evitar repetição
-                intent.action = null
+                // Ao invés de navegar, apenas mostrar o overlay
+                showPlayerOverlay = true
             }
+            // Limpar a ação para evitar repetição
+            intent.action = null
         }
     }
 
-    LaunchedEffect(currentRoute, folderPath, selectedItems, isMoveMode) {
+    // Substitua o LaunchedEffect que controla o back press por este código corrigido
+    LaunchedEffect(currentRoute, folderPath, selectedItems, isMoveMode, showPlayerOverlay) { // Adicionar showPlayerOverlay
         val activity = context.findActivity()
         if (activity != null) {
             activity.onBackPressedDispatcher.addCallback(object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
+                    // PRIMEIRA PRIORIDADE: Overlay visível
+                    if (showPlayerOverlay) {
+                        showPlayerOverlay = false
+                        return
+                    }
+
+                    // SEGUNDA PRIORIDADE: Move mode ativo
                     if (isMoveMode) {
                         isMoveMode = false
                         itemsToMove = emptyList()
                         return
                     }
 
+                    // TERCEIRA PRIORIDADE: Ações de pasta abertas
                     if (showFolderActions) {
                         showFolderActions = false
                         return
                     }
 
+                    // QUARTA PRIORIDADE: Itens selecionados
                     if (selectedItems.isNotEmpty()) {
                         selectedItems.clear()
                         showFabMenu = false
@@ -202,6 +207,7 @@ fun MainScreen(intent: Intent?) {
                         return
                     }
 
+                    // NAVEGAÇÃO NORMAL: Apenas se nada acima estiver ativo
                     when {
                         currentRoute == "video_player" -> {
                             navController.popBackStack()
@@ -304,7 +310,7 @@ fun MainScreen(intent: Intent?) {
 
     Scaffold(
         topBar = {
-            if (currentRoute != "video_player") {
+            if (currentRoute != "video_player" && !showPlayerOverlay) {
                 SmallTopAppBar(
                     title = {
                         if (selectedItems.isNotEmpty()) {
@@ -477,7 +483,7 @@ fun MainScreen(intent: Intent?) {
             }
         },
         floatingActionButton = {
-            if (currentRoute != "video_player") {
+            if (currentRoute != "video_player" && !showPlayerOverlay) {
                 Box {
                     val fabScale by animateFloatAsState(
                         targetValue = if (showFabMenu || showFolderActions) 1.15f else 1.0f,
@@ -754,8 +760,9 @@ fun MainScreen(intent: Intent?) {
                                         }
                                     }
                                     if (videos.isNotEmpty()) {
-                                        val encodedPlaylist = Uri.encode(videos.joinToString(","))
-                                        navController.navigate("video_player/$encodedPlaylist")
+                                        // Ao invés de navegar, iniciar o serviço e mostrar overlay
+                                        MediaPlaybackService.startWithPlaylist(context, videos, 0)
+                                        showPlayerOverlay = true
                                     } else {
                                         Toast.makeText(context, "No videos found", Toast.LENGTH_SHORT).show()
                                     }
@@ -777,6 +784,23 @@ fun MainScreen(intent: Intent?) {
                             }
                         )
                     }
+                }
+            }
+        },
+        bottomBar = {
+            // Só mostrar bottomBar se overlay não estiver visível
+            if (currentRoute != "video_player" && !showPlayerOverlay) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .safeDrawingPadding()
+                ) {
+                    MiniPlayer(
+                        onOpenPlayer = {
+                            // Ao invés de navegar, mostrar overlay
+                            showPlayerOverlay = true
+                        }
+                    )
                 }
             }
         },
@@ -845,17 +869,18 @@ fun MainScreen(intent: Intent?) {
                                 val encodedSubPath = Uri.encode(itemPath)
                                 navController.navigate("video_list/$encodedSubPath")
                             } else {
+                                // Ao invés de navegar, iniciar o serviço e mostrar overlay
                                 val videos = items.filter { !it.isFolder }.map { "file://${it.path}" }
                                 val clickedVideoIndex = videos.indexOf("file://$itemPath")
                                 if (clickedVideoIndex >= 0) {
                                     val orderedPlaylist = videos.subList(clickedVideoIndex, videos.size) +
                                             videos.subList(0, clickedVideoIndex)
-                                    val encodedPlaylist = Uri.encode(orderedPlaylist.joinToString(","))
-                                    navController.navigate("video_player/$encodedPlaylist")
+                                    MediaPlaybackService.startWithPlaylist(context, orderedPlaylist, 0)
+                                    showPlayerOverlay = true
                                 } else {
                                     val videoUri = "file://$itemPath"
-                                    val encodedPlaylist = Uri.encode(videoUri)
-                                    navController.navigate("video_player/$encodedPlaylist")
+                                    MediaPlaybackService.startWithPlaylist(context, listOf(videoUri), 0)
+                                    showPlayerOverlay = true
                                 }
                             }
                         },
@@ -866,13 +891,9 @@ fun MainScreen(intent: Intent?) {
                             showFabMenu = false
                             showRenameDialog = false
                         },
-                        renameTrigger = renameTrigger
+                        renameTrigger = renameTrigger,
+                        deletedVideoPath = deletedVideoPath // Adicionar este parâmetro
                     )
-                }
-                composable("video_player/{playlist}") { backStackEntry ->
-                    val playlist = backStackEntry.arguments?.getString("playlist")?.let { Uri.decode(it) }
-                        ?.split(",") ?: emptyList()
-                    VideoPlayerScreen(playlist = playlist)
                 }
                 composable("secure_folder/{folderPath}") { backStackEntry ->
                     val folderPath = backStackEntry.arguments?.getString("folderPath")?.let { Uri.decode(it) } ?: ""
@@ -885,17 +906,18 @@ fun MainScreen(intent: Intent?) {
                                 val encodedSubPath = Uri.encode(itemPath)
                                 navController.navigate("secure_folder/$encodedSubPath")
                             } else {
+                                // Ao invés de navegar, iniciar o serviço e mostrar overlay
                                 val videos = items.filter { !it.isFolder }.map { "file://${it.path}" }
                                 val clickedVideoIndex = videos.indexOf("file://$itemPath")
                                 if (clickedVideoIndex >= 0) {
                                     val orderedPlaylist = videos.subList(clickedVideoIndex, videos.size) +
                                             videos.subList(0, clickedVideoIndex)
-                                    val encodedPlaylist = Uri.encode(orderedPlaylist.joinToString(","))
-                                    navController.navigate("video_player/$encodedPlaylist")
+                                    MediaPlaybackService.startWithPlaylist(context, orderedPlaylist, 0)
+                                    showPlayerOverlay = true
                                 } else {
                                     val videoUri = "file://$itemPath"
-                                    val encodedPlaylist = Uri.encode(videoUri)
-                                    navController.navigate("video_player/$encodedPlaylist")
+                                    MediaPlaybackService.startWithPlaylist(context, listOf(videoUri), 0)
+                                    showPlayerOverlay = true
                                 }
                             }
                         },
@@ -906,10 +928,23 @@ fun MainScreen(intent: Intent?) {
                             showFabMenu = false
                             showRenameDialog = false
                         },
-                        renameTrigger = renameTrigger
+                        renameTrigger = renameTrigger,
+                        deletedVideoPath = deletedVideoPath // Adicionar este parâmetro também
                     )
                 }
             }
         }
+        VideoPlayerOverlay(
+            isVisible = showPlayerOverlay,
+            onDismiss = { showPlayerOverlay = false },
+            onVideoDeleted = { deletedPath ->
+                deletedVideoPath = deletedPath
+                // Reset após um frame para trigger o LaunchedEffect
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                    kotlinx.coroutines.delay(100)
+                    deletedVideoPath = null
+                }
+            }
+        )
     }
 }
