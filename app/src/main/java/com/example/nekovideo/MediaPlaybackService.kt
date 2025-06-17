@@ -43,6 +43,13 @@ class MediaPlaybackService : MediaSessionService() {
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     Log.d("MediaPlaybackService", "Playback state changed: $playbackState")
+
+                    // Enviar broadcast do estado
+                    val isPlaying = player?.isPlaying ?: false
+                    val intent = Intent("PLAYBACK_STATE_CHANGED")
+                    intent.putExtra("IS_PLAYING", isPlaying)
+                    sendBroadcast(intent)
+
                     if (playbackState == Player.STATE_ENDED && hasNextMediaItem()) {
                         seekToNextMediaItem()
                     }

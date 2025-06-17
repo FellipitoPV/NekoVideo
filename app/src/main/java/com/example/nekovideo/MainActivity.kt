@@ -1,11 +1,15 @@
 package com.example.nekovideo
 
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -87,11 +91,13 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.core.content.ContextCompat
 import com.example.nekovideo.components.MiniPlayer
 import com.example.nekovideo.components.getSecureFolderContents
 import com.example.nekovideo.components.player.VideoPlayerOverlay
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -106,6 +112,43 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun keepScreenOn(keep: Boolean) {
+        if (keep) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
+    private val playbackReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "PLAYBACK_STATE_CHANGED") {
+                val isPlaying = intent.getBooleanExtra("IS_PLAYING", false)
+                keepScreenOn(isPlaying)
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        ContextCompat.registerReceiver(
+            this,
+            playbackReceiver,
+            IntentFilter("PLAYBACK_STATE_CHANGED"),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+    }
+
+    override fun onPause() {
+        super.onPause()
+        try {
+            unregisterReceiver(playbackReceiver)
+        } catch (e: IllegalArgumentException) {
+            // Receiver já foi removido
+        }
+        keepScreenOn(false)
     }
 
     override fun onNewIntent(intent: Intent) {
