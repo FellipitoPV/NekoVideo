@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -157,7 +158,7 @@ fun MiniPlayer(
                 .fillMaxWidth()
                 .height(80.dp)
                 .clickable { onOpenPlayer() },
-            color = MaterialTheme.colorScheme.surface,
+            color = MaterialTheme.colorScheme.primary, // Cor primária
             shadowElevation = 8.dp
         ) {
             Row(
@@ -195,7 +196,7 @@ fun MiniPlayer(
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Medium
                         ),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -205,7 +206,7 @@ fun MiniPlayer(
                     Text(
                         text = "${formatTime(currentPosition)} / ${formatTime(duration)}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color.White.copy(alpha = 0.8f),
                         fontSize = 12.sp
                     )
                 }
@@ -232,8 +233,7 @@ fun MiniPlayer(
                         Icon(
                             imageVector = Icons.Default.SkipPrevious,
                             contentDescription = "Previous",
-                            tint = if (hasPrevious) MaterialTheme.colorScheme.onSurface
-                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                            tint = if (hasPrevious) Color.White else Color.White.copy(alpha = 0.3f),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -254,7 +254,7 @@ fun MiniPlayer(
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = MaterialTheme.colorScheme.onSurface,
+                            tint = Color.White,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -274,8 +274,7 @@ fun MiniPlayer(
                         Icon(
                             imageVector = Icons.Default.SkipNext,
                             contentDescription = "Next",
-                            tint = if (hasNext) MaterialTheme.colorScheme.onSurface
-                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                            tint = if (hasNext) Color.White else Color.White.copy(alpha = 0.3f),
                             modifier = Modifier.size(20.dp)
                         )
                     }

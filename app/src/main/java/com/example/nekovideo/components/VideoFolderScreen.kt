@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -137,8 +136,7 @@ fun VideoFolderScreen(
     if (!hasStoragePermission && needsAllFilesAccess && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .safeDrawingPadding(),
+                .fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -174,8 +172,7 @@ fun VideoFolderScreen(
     } else if (!hasMediaPermission) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .safeDrawingPadding(),
+                .fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             Text("Storage permission required")
@@ -183,12 +180,11 @@ fun VideoFolderScreen(
     } else {
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(8.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier
                 .fillMaxSize()
-                .safeDrawingPadding()
         ) {
             items(videoFolders) { folderPath ->
                 FolderItem(
@@ -350,7 +346,7 @@ private fun getVideoFolders(context: Context): List<String> {
             }
         }
     }
-    return folders.sorted()
+    return folders.sortedWith(naturalOrderComparator())
 }
 
 private fun getItemCount(context: Context, folderPath: String): Int {
@@ -393,4 +389,36 @@ private fun getItemCount(context: Context, folderPath: String): Int {
         }
     }
     return count
+}
+
+private fun naturalOrderComparator(): Comparator<String> {
+    return Comparator { a, b ->
+        val nameA = File(a).name
+        val nameB = File(b).name
+        compareNatural(nameA, nameB)
+    }
+}
+
+fun compareNatural(a: String, b: String): Int {
+    val regex = Regex("(\\d+|\\D+)")
+    val partsA = regex.findAll(a).map { it.value }.toList()
+    val partsB = regex.findAll(b).map { it.value }.toList()
+
+    for (i in 0 until minOf(partsA.size, partsB.size)) {
+        val partA = partsA[i]
+        val partB = partsB[i]
+
+        val numA = partA.toIntOrNull()
+        val numB = partB.toIntOrNull()
+
+        val comparison = if (numA != null && numB != null) {
+            numA.compareTo(numB)
+        } else {
+            partA.compareTo(partB)
+        }
+
+        if (comparison != 0) return comparison
+    }
+
+    return partsA.size.compareTo(partsB.size)
 }

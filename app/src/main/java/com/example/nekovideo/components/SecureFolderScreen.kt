@@ -69,6 +69,20 @@ data class SecureMediaItem(
     val duration: String? = null
 )
 
+val videoExtensions = listOf(
+    // Formatos modernos mais comuns
+    "mp4", "mkv", "webm", "avi", "mov", "wmv",
+
+    // Formatos HD/4K
+    "m4v", "mpg", "mpeg", "mp2", "mpe", "mpv",
+
+    // Formatos comprimidos
+    "3gp", "3g2", "flv", "f4v",
+
+    // Formatos menos comuns mas ainda usados
+    "asf", "rm", "rmvb", "vob", "ogv", "drc", "mxf"
+)
+
 fun getSecureFolderContents(context: Context, folderPath: String): List<SecureMediaItem> {
     val mediaItems = mutableListOf<SecureMediaItem>()
     val folder = File(folderPath)
@@ -77,17 +91,21 @@ fun getSecureFolderContents(context: Context, folderPath: String): List<SecureMe
         return mediaItems
     }
 
-    // Listar subpastas e arquivos
     folder.listFiles()?.forEach { file ->
-        if (file.name == ".nomedia") return@forEach // Ignorar .nomedia
+        // Ignorar arquivos de sistema e marcadores
+        if (file.name in listOf(".nomedia", ".nekovideo")) return@forEach
+
         if (file.isDirectory) {
             mediaItems.add(SecureMediaItem(path = file.absolutePath, isFolder = true))
-        } else if (file.isFile && file.extension.lowercase() in listOf("mp4", "mkv", "avi", "mov", "wmv")) {
+        } else if (file.isFile && file.extension.lowercase() in videoExtensions) {
             mediaItems.add(SecureMediaItem(path = file.absolutePath, isFolder = false))
         }
     }
 
-    return mediaItems.sortedWith(compareBy({ !it.isFolder }, { it.path }))
+    return mediaItems.sortedWith(compareBy<SecureMediaItem> { !it.isFolder }
+        .thenComparator { a, b ->
+            compareNatural(File(a.path).name, File(b.path).name)
+        })
 }
 
 private val thumbnailCache = LruCache<String, Bitmap?>(50)
@@ -161,10 +179,10 @@ fun SecureFolderScreen(
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(4.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize().safeDrawingPadding(),
+        modifier = Modifier.fillMaxSize(),
         state = lazyGridState
     ) {
         items(mediaItems, key = { it.path }) { mediaItem ->
@@ -350,3 +368,4 @@ fun SecureMediaItemCard(
         }
     }
 }
+

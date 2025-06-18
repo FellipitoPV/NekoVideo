@@ -92,6 +92,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.ContextCompat
+import com.example.nekovideo.components.DeleteConfirmationDialog
 import com.example.nekovideo.components.MiniPlayer
 import com.example.nekovideo.components.getSecureFolderContents
 import com.example.nekovideo.components.player.VideoPlayerOverlay
@@ -114,7 +115,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun keepScreenOn(keep: Boolean) {
+    fun keepScreenOn(keep: Boolean) {
         if (keep) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else {
@@ -193,7 +194,7 @@ fun MainScreen(intent: Intent?) {
 
     var showPlayerOverlay by remember { mutableStateOf(false) }
     var deletedVideoPath by remember { mutableStateOf<String?>(null) }
-
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
     var isMoveMode by remember { mutableStateOf(false) }
     var itemsToMove by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -312,6 +313,15 @@ fun MainScreen(intent: Intent?) {
         }
     }
 
+    // Adicionar este LaunchedEffect após os existentes no MainScreen
+    LaunchedEffect(showPlayerOverlay) {
+        val activity = context.findActivity()
+        if (activity is MainActivity) {
+            activity.keepScreenOn(showPlayerOverlay)
+        }
+    }
+
+    // DIALOGS
     if (showRenameDialog) {
         RenameDialog(
             selectedItems = selectedItems.toList(),
@@ -347,6 +357,56 @@ fun MainScreen(intent: Intent?) {
             onFolderCreated = {
                 renameTrigger++
                 Toast.makeText(context, "Folder created", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    if (showDeleteConfirmDialog) {
+        DeleteConfirmationDialog(
+            itemCount = selectedItems.size,
+            onDismiss = { showDeleteConfirmDialog = false },
+            onConfirm = {
+                showDeleteConfirmDialog = false
+                coroutineScope.launch {
+                    if (currentRoute == "secure_folder") {
+                        FilesManager.deleteSecureSelectedItems(
+                            context = context,
+                            selectedItems = selectedItems.toList(),
+                            secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context),
+                            onError = { message ->
+                                launch(Dispatchers.Main) {
+                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            onSuccess = { message ->
+                                launch(Dispatchers.Main) {
+                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                }
+                                selectedItems.clear()
+                                showFabMenu = false
+                                renameTrigger++
+                            }
+                        )
+                    } else {
+                        FilesManager.deleteSelectedItems(
+                            context = context,
+                            selectedItems = selectedItems.toList(),
+                            onError = { message ->
+                                launch(Dispatchers.Main) {
+                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            onSuccess = { message ->
+                                launch(Dispatchers.Main) {
+                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                }
+                                selectedItems.clear()
+                                showFabMenu = false
+                                renameTrigger++
+                            }
+                        )
+                    }
+                }
             }
         )
     }
@@ -686,48 +746,7 @@ fun MainScreen(intent: Intent?) {
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
-                            onClick = {
-                                coroutineScope.launch {
-                                    if (currentRoute == "secure_folder") {
-                                        FilesManager.deleteSecureSelectedItems(
-                                            context = context,
-                                            selectedItems = selectedItems.toList(),
-                                            secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context),
-                                            onError = { message ->
-                                                launch(Dispatchers.Main) {
-                                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                                }
-                                            },
-                                            onSuccess = { message ->
-                                                launch(Dispatchers.Main) {
-                                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                                }
-                                                selectedItems.clear()
-                                                showFabMenu = false
-                                                renameTrigger++
-                                            }
-                                        )
-                                    } else {
-                                        FilesManager.deleteSelectedItems(
-                                            context = context,
-                                            selectedItems = selectedItems.toList(),
-                                            onError = { message ->
-                                                launch(Dispatchers.Main) {
-                                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                                }
-                                            },
-                                            onSuccess = { message ->
-                                                launch(Dispatchers.Main) {
-                                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                                }
-                                                selectedItems.clear()
-                                                showFabMenu = false
-                                                renameTrigger++
-                                            }
-                                        )
-                                    }
-                                }
-                            }
+                            onClick = { showDeleteConfirmDialog = true }
                         )
                         DropdownMenuItem(
                             text = { Text("Rename", fontSize = 14.sp) },
@@ -831,18 +850,12 @@ fun MainScreen(intent: Intent?) {
             }
         },
         bottomBar = {
-            // Só mostrar bottomBar se overlay não estiver visível
             if (currentRoute != "video_player" && !showPlayerOverlay) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .safeDrawingPadding()
+                    modifier = Modifier.safeDrawingPadding()
                 ) {
                     MiniPlayer(
-                        onOpenPlayer = {
-                            // Ao invés de navegar, mostrar overlay
-                            showPlayerOverlay = true
-                        }
+                        onOpenPlayer = { showPlayerOverlay = true }
                     )
                 }
             }
@@ -851,12 +864,7 @@ fun MainScreen(intent: Intent?) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(
-                    top = if (currentRoute == "video_player") 0.dp else max(0.dp, paddingValues.calculateTopPadding() - 16.dp),
-                    bottom = paddingValues.calculateBottomPadding(),
-                    start = paddingValues.calculateStartPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
-                    end = paddingValues.calculateEndPadding(androidx.compose.ui.unit.LayoutDirection.Ltr)
-                )
+                .padding(paddingValues)
         ) {
             NavHost(
                 navController = navController,

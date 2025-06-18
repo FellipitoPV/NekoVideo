@@ -123,7 +123,10 @@ fun getVideosAndSubfolders(context: Context, folderPath: String, recursive: Bool
         }
     }
 
-    return mediaItems.sortedWith(compareBy({ !it.isFolder }, { it.path }))
+    return mediaItems.sortedWith(compareBy<MediaItem> { !it.isFolder }
+        .thenComparator { a, b ->
+            compareNatural(File(a.path).name, File(b.path).name)
+        })
 }
 
 private val thumbnailCache = LruCache<String, Bitmap?>(50)
@@ -198,10 +201,10 @@ fun VideoListScreen(
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize().safeDrawingPadding(),
+        modifier = Modifier.fillMaxSize(),
         state = lazyGridState
     ) {
         items(mediaItems, key = { it.path }) { mediaItem ->

@@ -8,6 +8,7 @@ import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 import android.util.Base64
+import com.example.nekovideo.components.videoExtensions
 
 object FilesManager {
 
@@ -255,7 +256,7 @@ object FilesManager {
                 if (file.name == ".nomedia") return@forEach // Ignorar .nomedia
                 if (file.isDirectory) {
                     videoPaths.addAll(getSecureVideosRecursively(context, file.absolutePath))
-                } else if (file.isFile && file.extension.lowercase() in listOf("mp4", "mkv", "avi", "mov", "wmv")) {
+                } else if (file.isFile && file.extension.lowercase() in videoExtensions) {
                     videoPaths.add(file.absolutePath)
                 }
             }

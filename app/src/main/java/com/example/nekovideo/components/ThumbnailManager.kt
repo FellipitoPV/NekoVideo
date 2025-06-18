@@ -20,25 +20,26 @@ object ThumbnailManager {
         }
 
         return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && videoUri != null) {
-                val signal = CancellationSignal()
-                context.contentResolver.loadThumbnail(
-                    videoUri,
-                    Size(96, 96),
-                    signal
-                )
-            } else {
-                val retriever = MediaMetadataRetriever()
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(videoPath)
+
+                // Obter duração e capturar na metade
+                val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                val duration = durationStr?.toLongOrNull() ?: 0L
+                val timeUs = if (duration > 0) (duration * 1000 / 2) else 3000000L
+
+                // Thumbnail com qualidade reduzida
+                retriever.getScaledFrameAtTime(
+                    timeUs,
+                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                    120, 120
+                ) ?: throw Exception("Failed to generate thumbnail")
+            } finally {
                 try {
-                    retriever.setDataSource(videoPath)
-                    retriever.getFrameAtTime(3_000_000, MediaMetadataRetriever.OPTION_CLOSEST)
-                        ?: throw Exception("Failed to generate thumbnail")
-                } finally {
-                    try {
-                        retriever.release()
-                    } catch (e: Exception) {
-                        println("ThumbnailManager: Error releasing retriever for $videoPath: ${e.message}")
-                    }
+                    retriever.release()
+                } catch (e: Exception) {
+                    println("ThumbnailManager: Error releasing retriever for $videoPath: ${e.message}")
                 }
             }
         } catch (e: Exception) {
