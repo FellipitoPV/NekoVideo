@@ -1,4 +1,4 @@
-package com.example.nekovideo.components
+package com.example.nekovideo.components.player
 
 import android.content.ComponentName
 import android.graphics.Bitmap

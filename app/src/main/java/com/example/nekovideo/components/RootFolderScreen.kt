@@ -12,37 +12,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,13 +40,14 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 @Composable
-fun VideoFolderScreen(
+fun RootFolderScreen(
     onFolderClick: (String) -> Unit,
     selectedItems: MutableList<String>,
     onSelectionChange: (List<String>) -> Unit
 ) {
     val context = LocalContext.current
-    val videoFolders = remember { mutableStateListOf<String>() }
+    val videoFolders = remember { mutableStateListOf<FolderData>() }
+    val gridState = rememberLazyGridState()
     var hasStoragePermission by remember { mutableStateOf(false) }
     var needsAllFilesAccess by remember { mutableStateOf(false) }
     var hasMediaPermission by remember { mutableStateOf(false) }
@@ -100,17 +79,15 @@ fun VideoFolderScreen(
     }
 
     LaunchedEffect(Unit) {
-        // Verificar MANAGE_EXTERNAL_STORAGE para API 30+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             hasStoragePermission = Environment.isExternalStorageManager()
             if (!hasStoragePermission) {
                 needsAllFilesAccess = true
             }
         } else {
-            hasStoragePermission = true // Para APIs menores, usamos READ/WRITE_EXTERNAL_STORAGE
+            hasStoragePermission = true
         }
 
-        // Verificar READ_MEDIA_VIDEO ou READ_EXTERNAL_STORAGE
         if (ContextCompat.checkSelfPermission(
                 context,
                 requiredPermission
@@ -125,90 +102,64 @@ fun VideoFolderScreen(
     LaunchedEffect(hasStoragePermission, hasMediaPermission) {
         if (hasStoragePermission && hasMediaPermission) {
             val folders = withContext(Dispatchers.IO) {
-                getVideoFolders(context)
+                getOptimizedVideoFolders(context)
             }
-            println("Folders found: $folders")
             videoFolders.clear()
             videoFolders.addAll(folders)
         }
     }
 
     if (!hasStoragePermission && needsAllFilesAccess && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "All files access required",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Button(
-                    onClick = {
-                        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                            data = Uri.parse("package:${context.packageName}")
-                        }
-                        settingsLauncher.launch(intent)
-                    },
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp)),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
-                ) {
-                    Text(
-                        text = "Grant Access",
-                        style = MaterialTheme.typography.labelLarge
-                    )
+        PermissionScreen(
+            title = "All files access required",
+            buttonText = "Grant Access",
+            onGrantClick = {
+                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                    data = Uri.parse("package:${context.packageName}")
                 }
+                settingsLauncher.launch(intent)
             }
-        }
+        )
     } else if (!hasMediaPermission) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("Storage permission required")
-        }
+        PermissionScreen(
+            title = "Storage permission required",
+            buttonText = "Grant Permission",
+            onGrantClick = { permissionLauncher.launch(requiredPermission) }
+        )
     } else {
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
+            state = gridState,
             contentPadding = PaddingValues(8.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
-            items(videoFolders) { folderPath ->
+            items(
+                items = videoFolders,
+                key = { folder -> folder.path }
+            ) { folderData ->
                 FolderItem(
-                    folderPath = folderPath,
-                    isSelected = folderPath in selectedItems,
-                    onClick = { onFolderClick(folderPath) },
+                    folderData = folderData,
+                    isSelected = folderData.path in selectedItems,
                     onLongPress = {
-                        if (folderPath in selectedItems) {
-                            selectedItems.remove(folderPath)
+                        if (folderData.path in selectedItems) {
+                            selectedItems.remove(folderData.path)
                         } else {
-                            selectedItems.add(folderPath)
+                            selectedItems.add(folderData.path)
                         }
                         onSelectionChange(selectedItems.toList())
                     },
                     onTap = {
                         if (selectedItems.isNotEmpty()) {
-                            if (folderPath in selectedItems) {
-                                selectedItems.remove(folderPath)
+                            if (folderData.path in selectedItems) {
+                                selectedItems.remove(folderData.path)
                             } else {
-                                selectedItems.add(folderPath)
+                                selectedItems.add(folderData.path)
                             }
                             onSelectionChange(selectedItems.toList())
                         } else {
-                            onFolderClick(folderPath)
+                            onFolderClick(folderData.path)
                         }
                     }
                 )
@@ -218,28 +169,55 @@ fun VideoFolderScreen(
 }
 
 @Composable
+private fun PermissionScreen(
+    title: String,
+    buttonText: String,
+    onGrantClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Button(
+                onClick = onGrantClick,
+                modifier = Modifier.clip(RoundedCornerShape(12.dp)),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Text(
+                    text = buttonText,
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun FolderItem(
-    folderPath: String,
+    folderData: FolderData,
     isSelected: Boolean,
-    onClick: () -> Unit,
     onLongPress: () -> Unit,
     onTap: () -> Unit
 ) {
-    val context = LocalContext.current
-    val folderName = File(folderPath).name
-    val itemCount = remember { mutableStateOf(0) }
-
-    LaunchedEffect(folderPath) {
-        withContext(Dispatchers.IO) {
-            itemCount.value = getItemCount(context, folderPath)
-        }
-    }
+    val folderName = File(folderData.path).name
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .pointerInput(Unit) {
+            .pointerInput(folderData.path) {
                 detectTapGestures(
                     onLongPress = { onLongPress() },
                     onTap = { onTap() }
@@ -264,14 +242,22 @@ fun FolderItem(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    imageVector = Icons.Default.Folder,
-                    contentDescription = "Folder Icon",
-                    tint = MaterialTheme.colorScheme.primary,
+                // Ícone de pasta fixo
+                Box(
                     modifier = Modifier
-                        .size(48.dp) // Ícone menor
-                        .weight(1f)
-                )
+                        .size(60.dp)
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Folder,
+                        contentDescription = "Folder Icon",
+                        tint = MaterialTheme.colorScheme.primary, // Ícone azul fixo
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+
+                // Nome da pasta
                 Text(
                     text = folderName,
                     style = MaterialTheme.typography.bodyLarge.copy(
@@ -290,28 +276,32 @@ fun FolderItem(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 )
             }
+
+            // Badge com contagem
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(8.dp)
-                    .size(20.dp) // Círculo menor
+                    .size(20.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f))
             ) {
                 Text(
-                    text = itemCount.value.toString(),
+                    text = folderData.itemCount.toString(),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.White,
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
+
+            // Ícone de seleção
             if (isSelected) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = "Selected",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
-                        .align(Alignment.BottomEnd) // Movido para canto inferior
+                        .align(Alignment.BottomEnd)
                         .padding(8.dp)
                         .size(20.dp)
                 )
@@ -320,84 +310,61 @@ fun FolderItem(
     }
 }
 
-private fun getVideoFolders(context: Context): List<String> {
-    val projection = arrayOf(MediaStore.Video.Media.DATA)
-    val cursor = context.contentResolver.query(
-        MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-        projection,
-        null,
-        null,
-        null
-    )
-    val folders = mutableSetOf<String>()
-    val rootPath = Environment.getExternalStorageDirectory().absolutePath // ex.: /storage/emulated/0
-    cursor?.use {
-        val dataColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-        while (it.moveToNext()) {
-            val path = it.getString(dataColumn)
-            val parent = File(path).parent
-            if (parent != null && parent.startsWith(rootPath)) {
-                val relativePath = parent.removePrefix(rootPath).trim('/')
-                // Extrai a pasta de primeiro nível após /storage/emulated/0
-                val parentFolder = relativePath.split('/').firstOrNull() ?: ""
-                if (parentFolder.isNotEmpty()) {
-                    folders.add("$rootPath/$parentFolder")
+data class FolderData(
+    val path: String,
+    val itemCount: Int,
+    val lastModified: Long
+)
+
+private suspend fun getOptimizedVideoFolders(context: Context): List<FolderData> =
+    withContext(Dispatchers.IO) {
+        val projection = arrayOf(
+            MediaStore.Video.Media.DATA,
+            MediaStore.Video.Media.DATE_MODIFIED
+        )
+
+        val cursor = context.contentResolver.query(
+            MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            null,
+            null,
+            "${MediaStore.Video.Media.DATE_MODIFIED} DESC"
+        )
+
+        val folderMap = mutableMapOf<String, MutableList<Long>>()
+        val rootPath = Environment.getExternalStorageDirectory().absolutePath
+
+        cursor?.use {
+            val dataColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+            val modifiedColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
+
+            while (it.moveToNext()) {
+                val path = it.getString(dataColumn)
+                val modified = it.getLong(modifiedColumn)
+
+                val parent = File(path).parent
+                if (parent != null && parent.startsWith(rootPath)) {
+                    val relativePath = parent.removePrefix(rootPath).trim('/')
+                    val parentFolder = relativePath.split('/').firstOrNull() ?: ""
+                    if (parentFolder.isNotEmpty()) {
+                        val folderPath = "$rootPath/$parentFolder"
+                        folderMap.getOrPut(folderPath) { mutableListOf() }.add(modified)
+                    }
                 }
             }
         }
-    }
-    return folders.sortedWith(naturalOrderComparator())
-}
 
-private fun getItemCount(context: Context, folderPath: String): Int {
-    var count = 0
-    // Contar vídeos usando MediaStore
-    val projection = arrayOf(MediaStore.Video.Media.DATA)
-    val selection = "${MediaStore.Video.Media.DATA} LIKE ?"
-    val selectionArgs = arrayOf("$folderPath/%")
-    val cursor = context.contentResolver.query(
-        MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-        projection,
-        selection,
-        selectionArgs,
-        null
-    )
-    cursor?.use {
-        val dataColumn = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-        while (it.moveToNext()) {
-            val path = it.getString(dataColumn)
-            // Contar vídeos em qualquer subpasta
-            if (path.startsWith(folderPath)) {
-                count++
-            }
+        folderMap.map { (folderPath, videos) ->
+            val lastModified = videos.maxOrNull() ?: 0L
+            FolderData(
+                path = folderPath,
+                itemCount = videos.size,
+                lastModified = lastModified
+            )
+        }.sortedWith { a, b ->
+            compareNatural(File(a.path).name, File(b.path).name)
         }
     }
-    // Contar subpastas com vídeos
-    val folder = File(folderPath)
-    folder.listFiles { file -> file.isDirectory }?.forEach { subfolder ->
-        val hasVideos = context.contentResolver.query(
-            MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-            arrayOf(MediaStore.Video.Media.DATA),
-            "${MediaStore.Video.Media.DATA} LIKE ?",
-            arrayOf("${subfolder.absolutePath}/%"),
-            null
-        )?.use { subCursor ->
-            subCursor.moveToFirst()
-        } ?: false
-        if (hasVideos) {
-            count++
-        }
-    }
-    return count
-}
-
-private fun naturalOrderComparator(): Comparator<String> {
-    return Comparator { a, b ->
-        val nameA = File(a).name
-        val nameB = File(b).name
-        compareNatural(nameA, nameB)
-    }
-}
 
 fun compareNatural(a: String, b: String): Int {
     val regex = Regex("(\\d+|\\D+)")

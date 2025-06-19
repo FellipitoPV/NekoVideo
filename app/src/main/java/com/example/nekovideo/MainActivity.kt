@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import android.widget.Toast
@@ -51,18 +50,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.max
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.nekovideo.components.RenameDialog
-import com.example.nekovideo.components.VideoFolderScreen
-import com.example.nekovideo.components.VideoListScreen
 import com.example.nekovideo.components.getVideosAndSubfolders
 import com.example.nekovideo.ui.theme.NekoVideoTheme
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.compose.composable
@@ -84,7 +78,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Delete
@@ -93,7 +86,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.ContextCompat
 import com.example.nekovideo.components.DeleteConfirmationDialog
-import com.example.nekovideo.components.MiniPlayer
+import com.example.nekovideo.components.RootFolderScreen
+import com.example.nekovideo.components.SubFolderScreen
+import com.example.nekovideo.components.player.MiniPlayer
 import com.example.nekovideo.components.getSecureFolderContents
 import com.example.nekovideo.components.player.VideoPlayerOverlay
 
@@ -895,7 +890,7 @@ fun MainScreen(intent: Intent?) {
                 }
             ) {
                 composable("video_folders") {
-                    VideoFolderScreen(
+                    RootFolderScreen(
                         onFolderClick = { folderPath ->
                             val encodedPath = Uri.encode(folderPath)
                             navController.navigate("video_list/$encodedPath")
@@ -911,7 +906,7 @@ fun MainScreen(intent: Intent?) {
                 }
                 composable("video_list/{folderPath}") { backStackEntry ->
                     val folderPath = backStackEntry.arguments?.getString("folderPath")?.let { Uri.decode(it) } ?: ""
-                    VideoListScreen(
+                    SubFolderScreen(
                         folderPath = folderPath,
                         onFolderClick = { itemPath ->
                             val items = getVideosAndSubfolders(context, folderPath)
