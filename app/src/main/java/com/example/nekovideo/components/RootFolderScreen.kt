@@ -9,6 +9,11 @@ import android.provider.MediaStore
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -23,11 +28,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -36,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -51,6 +61,7 @@ fun RootFolderScreen(
     var hasStoragePermission by remember { mutableStateOf(false) }
     var needsAllFilesAccess by remember { mutableStateOf(false) }
     var hasMediaPermission by remember { mutableStateOf(false) }
+    var isLoaded by remember { mutableStateOf(false) }
 
     val requiredPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         android.Manifest.permission.READ_MEDIA_VIDEO
@@ -106,6 +117,8 @@ fun RootFolderScreen(
             }
             videoFolders.clear()
             videoFolders.addAll(folders)
+            delay(100) // Pequeno delay para animação
+            isLoaded = true
         }
     }
 
@@ -127,42 +140,75 @@ fun RootFolderScreen(
             onGrantClick = { permissionLauncher.launch(requiredPermission) }
         )
     } else {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            state = gridState,
-            contentPadding = PaddingValues(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            items(
-                items = videoFolders,
-                key = { folder -> folder.path }
-            ) { folderData ->
-                FolderItem(
-                    folderData = folderData,
-                    isSelected = folderData.path in selectedItems,
-                    onLongPress = {
-                        if (folderData.path in selectedItems) {
-                            selectedItems.remove(folderData.path)
-                        } else {
-                            selectedItems.add(folderData.path)
-                        }
-                        onSelectionChange(selectedItems.toList())
-                    },
-                    onTap = {
-                        if (selectedItems.isNotEmpty()) {
-                            if (folderData.path in selectedItems) {
-                                selectedItems.remove(folderData.path)
-                            } else {
-                                selectedItems.add(folderData.path)
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Background gradient
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.background,
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
+                            )
+                        )
+                    )
+            )
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                state = gridState,
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                itemsIndexed(
+                    items = videoFolders,
+                    key = { _, folder -> folder.path }
+                ) { index, folderData ->
+                    AnimatedVisibility(
+                        visible = isLoaded,
+                        enter = fadeIn(
+                            animationSpec = tween(
+                                durationMillis = 500,
+                                delayMillis = index * 100
+                            )
+                        ) + scaleIn(
+                            animationSpec = tween(
+                                durationMillis = 500,
+                                delayMillis = index * 100
+                            ),
+                            initialScale = 0.8f
+                        )
+                    ) {
+                        GlassFolderItem(
+                            folderData = folderData,
+                            isSelected = folderData.path in selectedItems,
+                            animationIndex = index,
+                            onLongPress = {
+                                if (folderData.path in selectedItems) {
+                                    selectedItems.remove(folderData.path)
+                                } else {
+                                    selectedItems.add(folderData.path)
+                                }
+                                onSelectionChange(selectedItems.toList())
+                            },
+                            onTap = {
+                                if (selectedItems.isNotEmpty()) {
+                                    if (folderData.path in selectedItems) {
+                                        selectedItems.remove(folderData.path)
+                                    } else {
+                                        selectedItems.add(folderData.path)
+                                    }
+                                    onSelectionChange(selectedItems.toList())
+                                } else {
+                                    onFolderClick(folderData.path)
+                                }
                             }
-                            onSelectionChange(selectedItems.toList())
-                        } else {
-                            onFolderClick(folderData.path)
-                        }
+                        )
                     }
-                )
+                }
             }
         }
     }
@@ -205,106 +251,210 @@ private fun PermissionScreen(
 }
 
 @Composable
-fun FolderItem(
+fun GlassFolderItem(
     folderData: FolderData,
     isSelected: Boolean,
+    animationIndex: Int,
     onLongPress: () -> Unit,
     onTap: () -> Unit
 ) {
     val folderName = File(folderData.path).name
+    var isPressed by remember { mutableStateOf(false) }
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(dampingRatio = 0.4f)
+    )
+
+    val cardColors = listOf(
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+    )
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
+            .scale(scale)
             .pointerInput(folderData.path) {
                 detectTapGestures(
+                    onPress = {
+                        isPressed = true
+                        tryAwaitRelease()
+                        isPressed = false
+                    },
                     onLongPress = { onLongPress() },
                     onTap = { onTap() }
                 )
             }
-            .clip(RoundedCornerShape(16.dp))
-            .shadow(4.dp, RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(20.dp))
+            .shadow(
+                elevation = if (isSelected) 12.dp else 8.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+            )
             .border(
-                width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                shape = RoundedCornerShape(16.dp)
+                width = if (isSelected) 2.dp else 1.dp,
+                brush = if (isSelected) {
+                    Brush.linearGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                        )
+                    )
+                } else {
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.3f),
+                            Color.White.copy(alpha = 0.1f)
+                        )
+                    )
+                },
+                shape = RoundedCornerShape(20.dp)
             ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(8.dp)
+                .background(
+                    Brush.radialGradient(
+                        colors = cardColors,
+                        radius = 200f
+                    )
+                )
+                .graphicsLayer {
+                    if (!isSelected) {
+                        // Subtle blur effect for glass morphism
+                        alpha = 0.95f
+                    }
+                }
         ) {
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Ícone de pasta fixo
+                // Animated folder icon
+                val iconScale by animateFloatAsState(
+                    targetValue = if (isSelected) 1.2f else 1f,
+                    animationSpec = spring(dampingRatio = 0.6f)
+                )
+
                 Box(
                     modifier = Modifier
-                        .size(60.dp)
-                        .weight(1f),
+                        .size(64.dp)
+                        .weight(1f)
+                        .scale(iconScale),
                     contentAlignment = Alignment.Center
                 ) {
+                    // Glow effect behind icon
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                CircleShape
+                            )
+                            .blur(8.dp)
+                    )
+
                     Icon(
                         imageVector = Icons.Default.Folder,
                         contentDescription = "Folder Icon",
-                        tint = MaterialTheme.colorScheme.primary, // Ícone azul fixo
-                        modifier = Modifier.size(48.dp)
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(52.dp)
                     )
                 }
 
-                // Nome da pasta
+                // Folder name with glass effect
                 Text(
                     text = folderName,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
                         shadow = Shadow(
-                            color = Color.Black.copy(alpha = 0.3f),
-                            offset = Offset(2f, 2f),
-                            blurRadius = 4f
+                            color = Color.Black.copy(alpha = 0.2f),
+                            offset = Offset(1f, 1f),
+                            blurRadius = 3f
                         )
                     ),
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 4.dp, vertical = 8.dp)
                 )
             }
 
-            // Badge com contagem
+            // Animated count badge
+            val badgeScale by animateFloatAsState(
+                targetValue = if (isSelected) 1.1f else 1f,
+                animationSpec = spring(dampingRatio = 0.7f)
+            )
+
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .size(20.dp)
+                    .padding(12.dp)
+                    .size(24.dp)
+                    .scale(badgeScale)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                            )
+                        )
+                    )
+                    .border(
+                        1.dp,
+                        Color.White.copy(alpha = 0.4f),
+                        CircleShape
+                    )
             ) {
                 Text(
                     text = folderData.itemCount.toString(),
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
                     color = Color.White,
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
 
-            // Ícone de seleção
-            if (isSelected) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "Selected",
-                    tint = MaterialTheme.colorScheme.primary,
+            // Selection indicator with animation
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isSelected,
+                enter = scaleIn(spring(dampingRatio = 0.5f)) + fadeIn(),
+                exit = ExitTransition.None,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(12.dp)
+            ) {
+                Box(
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp)
-                        .size(20.dp)
-                )
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+                        )
+                        .border(2.dp, Color.White, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Selected",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(20.dp)
+                    )
+                }
             }
         }
     }

@@ -192,6 +192,16 @@ private fun SecureMediaItemRow(
     onFolderClick: (String) -> Unit,
     onSelectionChange: (List<String>) -> Unit
 ) {
+    // Determina o tipo de seleção baseado no primeiro item selecionado
+    val selectionType = remember(selectedItems.size) {
+        if (selectedItems.isEmpty()) {
+            null
+        } else {
+            // Busca o primeiro item selecionado para determinar se é pasta ou vídeo
+            items.find { it.path in selectedItems }?.isFolder
+        }
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -204,7 +214,8 @@ private fun SecureMediaItemRow(
                 modifier = Modifier.weight(1f),
                 onClick = { if (selectedItems.isEmpty()) onFolderClick(mediaItem.path) },
                 onLongPress = {
-                    if (!mediaItem.isFolder) {
+                    // Permite seleção apenas se não há itens selecionados ou se é do mesmo tipo
+                    if (selectedItems.isEmpty() || selectionType == mediaItem.isFolder) {
                         if (mediaItem.path in selectedItems) {
                             selectedItems.remove(mediaItem.path)
                         } else {
@@ -214,14 +225,19 @@ private fun SecureMediaItemRow(
                     }
                 },
                 onTap = {
-                    if (selectedItems.isNotEmpty() && !mediaItem.isFolder) {
-                        if (mediaItem.path in selectedItems) {
-                            selectedItems.remove(mediaItem.path)
-                        } else {
-                            selectedItems.add(mediaItem.path)
+                    if (selectedItems.isNotEmpty()) {
+                        // Se há itens selecionados, verifica se pode selecionar este item
+                        if (selectionType == mediaItem.isFolder) {
+                            if (mediaItem.path in selectedItems) {
+                                selectedItems.remove(mediaItem.path)
+                            } else {
+                                selectedItems.add(mediaItem.path)
+                            }
+                            onSelectionChange(selectedItems.toList())
                         }
-                        onSelectionChange(selectedItems.toList())
+                        // Se não for do mesmo tipo, ignora o clique
                     } else {
+                        // Comportamento normal quando não há seleção
                         onFolderClick(mediaItem.path)
                     }
                 }

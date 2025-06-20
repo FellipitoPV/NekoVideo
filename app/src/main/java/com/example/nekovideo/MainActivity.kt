@@ -11,31 +11,27 @@ import android.os.Bundle
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.OnBackPressedCallback
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material.icons.filled.CreateNewFolder
-import androidx.compose.material.icons.filled.DriveFileMove
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,54 +39,44 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallTopAppBar
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.dp
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.currentBackStackEntryAsState
-import com.example.nekovideo.components.RenameDialog
-import com.example.nekovideo.components.getVideosAndSubfolders
-import com.example.nekovideo.ui.theme.NekoVideoTheme
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.example.nekovideo.components.CreateFolderDialog
-import com.example.nekovideo.components.PasswordDialog
-import com.example.nekovideo.components.SecureFolderScreen
-import com.example.nekovideo.components.helpers.FilesManager
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.delay
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.background
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.sp
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.example.nekovideo.components.CircularMenuAction
+import com.example.nekovideo.components.CircularMenuFAB
+import com.example.nekovideo.components.CreateFolderDialog
 import com.example.nekovideo.components.DeleteConfirmationDialog
+import com.example.nekovideo.components.PasswordDialog
+import com.example.nekovideo.components.RenameDialog
 import com.example.nekovideo.components.RootFolderScreen
+import com.example.nekovideo.components.SecureFolderScreen
 import com.example.nekovideo.components.SubFolderScreen
-import com.example.nekovideo.components.player.MiniPlayer
 import com.example.nekovideo.components.getSecureFolderContents
+import com.example.nekovideo.components.getVideosAndSubfolders
+import com.example.nekovideo.components.helpers.FilesManager
+import com.example.nekovideo.components.player.MiniPlayer
 import com.example.nekovideo.components.player.VideoPlayerOverlay
+import com.example.nekovideo.ui.theme.NekoVideoTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -582,191 +568,101 @@ fun MainScreen(intent: Intent?) {
         },
         floatingActionButton = {
             if (currentRoute != "video_player" && !showPlayerOverlay) {
-                Box {
-                    val fabScale by animateFloatAsState(
-                        targetValue = if (showFabMenu || showFolderActions) 1.15f else 1.0f,
-                        animationSpec = tween(300)
-                    )
-                    val fabRotation by animateFloatAsState(
-                        targetValue = if (showFabMenu || showFolderActions) 45f else 0f,
-                        animationSpec = tween(300)
-                    )
-                    FloatingActionButton(
-                        onClick = {
-                            when {
-                                isMoveMode -> {
-                                    coroutineScope.launch {
+                CircularMenuFAB(
+                    isExpanded = when {
+                        isMoveMode -> false
+                        selectedItems.isNotEmpty() -> showFabMenu
+                        else -> showFolderActions
+                    },
+                    isMoveMode = isMoveMode,
+                    hasSelectedItems = selectedItems.isNotEmpty(),
+                    currentRoute = currentRoute ?: "",
+                    onMainClick = {
+                        when {
+                            isMoveMode -> {
+                                coroutineScope.launch {
+                                    FilesManager.moveSelectedItems(
+                                        context = context,
+                                        selectedItems = itemsToMove,
+                                        destinationPath = folderPath,
+                                        onError = { message ->
+                                            launch(Dispatchers.Main) {
+                                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        onSuccess = { message ->
+                                            launch(Dispatchers.Main) {
+                                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    )
+                                    itemsToMove = emptyList()
+                                    isMoveMode = false
+                                    renameTrigger++
+                                }
+                            }
+                            selectedItems.isNotEmpty() -> showFabMenu = !showFabMenu
+                            else -> showFolderActions = !showFolderActions
+                        }
+                    },
+                    onActionClick = { action ->
+                        when (action) {
+                            CircularMenuAction.UNLOCK -> {
+                                coroutineScope.launch {
+                                    val unlockedPath = "/storage/emulated/0/DCIM/Unlocked"
+                                    if (FilesManager.ensureUnlockedFolderExists()) {
                                         FilesManager.moveSelectedItems(
                                             context = context,
-                                            selectedItems = itemsToMove,
-                                            destinationPath = folderPath,
+                                            selectedItems = selectedItems.toList(),
+                                            destinationPath = unlockedPath,
                                             onError = { message ->
                                                 launch(Dispatchers.Main) {
-                                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "Error: $message", Toast.LENGTH_SHORT).show()
                                                 }
                                             },
                                             onSuccess = { message ->
                                                 launch(Dispatchers.Main) {
-                                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "Files unlocked!", Toast.LENGTH_SHORT).show()
                                                 }
+                                                selectedItems.clear()
+                                                showFabMenu = false
+                                                renameTrigger++
                                             }
                                         )
-                                        itemsToMove = emptyList()
-                                        isMoveMode = false
-                                        renameTrigger++
                                     }
                                 }
-                                selectedItems.isNotEmpty() -> showFabMenu = !showFabMenu
-                                else -> showFolderActions = !showFolderActions
                             }
-                        },
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .size(48.dp)
-                            .shadow(6.dp, RoundedCornerShape(16.dp))
-                            .clip(RoundedCornerShape(16.dp))
-                            .graphicsLayer(scaleX = fabScale, scaleY = fabScale, rotationZ = fabRotation),
-                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ) {
-                        Icon(
-                            imageVector = when {
-                                isMoveMode -> Icons.Default.ContentPaste
-                                selectedItems.isNotEmpty() -> Icons.Default.FolderOpen
-                                else -> Icons.Default.Settings
-                            },
-                            contentDescription = when {
-                                isMoveMode -> "Paste Items"
-                                selectedItems.isNotEmpty() -> "Folder Actions"
-                                else -> "Folder Options"
-                            },
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    DropdownMenu(
-                        expanded = showFabMenu && selectedItems.isNotEmpty() && !isMoveMode,
-                        onDismissRequest = { showFabMenu = false },
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
-                            .clip(RoundedCornerShape(12.dp))
-                    ) {
-                        if (currentRoute == "secure_folder") {
-                            DropdownMenuItem(
-                                text = { Text("Unlock Files", fontSize = 14.sp) },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.LockOpen,
-                                        contentDescription = "Unlock Files",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
-                                onClick = {
-                                    coroutineScope.launch {
-                                        val unlockedPath = "/storage/emulated/0/DCIM/Unlocked"
-                                        if (FilesManager.ensureUnlockedFolderExists()) {
-                                            FilesManager.moveSelectedItems(
-                                                context = context,
-                                                selectedItems = selectedItems.toList(),
-                                                destinationPath = unlockedPath,
-                                                onError = { message ->
-                                                    launch(Dispatchers.Main) {
-                                                        Toast.makeText(context, "Error: $message", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                },
-                                                onSuccess = { message ->
-                                                    launch(Dispatchers.Main) {
-                                                        Toast.makeText(context, "Files unlocked!", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                    selectedItems.clear()
-                                                    showFabMenu = false
-                                                    renameTrigger++
+                            CircularMenuAction.SECURE -> {
+                                coroutineScope.launch {
+                                    val securePath = FilesManager.SecureStorage.getSecureFolderPath(context)
+                                    if (FilesManager.SecureStorage.ensureSecureFolderExists(context)) {
+                                        FilesManager.moveSelectedItems(
+                                            context = context,
+                                            selectedItems = selectedItems.toList(),
+                                            destinationPath = securePath,
+                                            onError = { message ->
+                                                launch(Dispatchers.Main) {
+                                                    Toast.makeText(context, "Error: $message", Toast.LENGTH_SHORT).show()
                                                 }
-                                            )
-                                        } else {
-                                            launch(Dispatchers.Main) {
-                                                Toast.makeText(context, "Failed to create unlocked folder", Toast.LENGTH_SHORT).show()
+                                            },
+                                            onSuccess = { message ->
+                                                launch(Dispatchers.Main) {
+                                                    Toast.makeText(context, "Files secured!", Toast.LENGTH_SHORT).show()
+                                                }
+                                                selectedItems.clear()
+                                                showFabMenu = false
+                                                renameTrigger++
                                             }
-                                        }
+                                        )
                                     }
                                 }
-                            )
-                        } else {
-                            DropdownMenuItem(
-                                text = { Text("Secure Files", fontSize = 14.sp) },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.Lock,
-                                        contentDescription = "Secure Files",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
-                                onClick = {
-                                    coroutineScope.launch {
-                                        val securePath = FilesManager.SecureStorage.getSecureFolderPath(context)
-                                        if (FilesManager.SecureStorage.ensureSecureFolderExists(context)) {
-                                            FilesManager.moveSelectedItems(
-                                                context = context,
-                                                selectedItems = selectedItems.toList(),
-                                                destinationPath = securePath,
-                                                onError = { message ->
-                                                    launch(Dispatchers.Main) {
-                                                        Toast.makeText(context, "Error: $message", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                },
-                                                onSuccess = { message ->
-                                                    launch(Dispatchers.Main) {
-                                                        Toast.makeText(context, "Files secured!", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                    selectedItems.clear()
-                                                    showFabMenu = false
-                                                    renameTrigger++
-                                                }
-                                            )
-                                        } else {
-                                            launch(Dispatchers.Main) {
-                                                Toast.makeText(context, "Failed to access secure storage", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                        DropdownMenuItem(
-                            text = { Text("Delete", fontSize = 14.sp) },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Delete",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            onClick = { showDeleteConfirmDialog = true }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Rename", fontSize = 14.sp) },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Edit,
-                                    contentDescription = "Rename",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            onClick = {
+                            }
+                            CircularMenuAction.DELETE -> showDeleteConfirmDialog = true
+                            CircularMenuAction.RENAME -> {
                                 showRenameDialog = true
                                 showFabMenu = false
                             }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Move", fontSize = 14.sp) },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.DriveFileMove,
-                                    contentDescription = "Move",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            onClick = {
+                            CircularMenuAction.MOVE -> {
                                 itemsToMove = selectedItems.toList()
                                 selectedItems.clear()
                                 isMoveMode = true
@@ -782,26 +678,7 @@ fun MainScreen(intent: Intent?) {
                                     navController.navigate("video_folders")
                                 }
                             }
-                        )
-                    }
-
-                    DropdownMenu(
-                        expanded = showFolderActions && selectedItems.isEmpty() && !isMoveMode,
-                        onDismissRequest = { showFolderActions = false },
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
-                            .clip(RoundedCornerShape(12.dp))
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Shuffle Play", fontSize = 14.sp) },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Shuffle,
-                                    contentDescription = "Shuffle Play",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            onClick = {
+                            CircularMenuAction.SHUFFLE_PLAY -> {
                                 showFolderActions = false
                                 coroutineScope.launch {
                                     val videos = withContext(Dispatchers.IO) {
@@ -817,7 +694,6 @@ fun MainScreen(intent: Intent?) {
                                         }
                                     }
                                     if (videos.isNotEmpty()) {
-                                        // Ao invés de navegar, iniciar o serviço e mostrar overlay
                                         MediaPlaybackService.startWithPlaylist(context, videos, 0)
                                         showPlayerOverlay = true
                                     } else {
@@ -825,23 +701,17 @@ fun MainScreen(intent: Intent?) {
                                     }
                                 }
                             }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Create Folder", fontSize = 14.sp) },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.CreateNewFolder,
-                                    contentDescription = "Create Folder",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            onClick = {
+                            CircularMenuAction.CREATE_FOLDER -> {
                                 showFolderActions = false
                                 showCreateFolderDialog = true
                             }
-                        )
+                        }
+                    },
+                    onDismiss = {
+                        showFabMenu = false
+                        showFolderActions = false
                     }
-                }
+                )
             }
         },
         bottomBar = {
