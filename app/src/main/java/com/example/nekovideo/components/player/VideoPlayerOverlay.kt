@@ -10,6 +10,7 @@ import android.util.Log
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,6 +52,21 @@ import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
+// Novos imports para a interface customizada
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import kotlin.math.roundToLong
+
 @androidx.annotation.OptIn(UnstableApi::class)
 @SuppressLint("OpaqueUnitKey")
 @OptIn(UnstableApi::class)
@@ -58,7 +74,7 @@ import kotlinx.coroutines.withContext
 fun VideoPlayerOverlay(
     isVisible: Boolean,
     onDismiss: () -> Unit,
-    onVideoDeleted: (String) -> Unit = {} // Callback para notificar deleção
+    onVideoDeleted: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
@@ -68,18 +84,44 @@ fun VideoPlayerOverlay(
     var overlayActuallyVisible by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var currentVideoPath by remember { mutableStateOf("") }
+
+    // Estados para controles customizados
     var controlsVisible by remember { mutableStateOf(true) }
+    var isPlaying by remember { mutableStateOf(false) }
+    var currentPosition by remember { mutableStateOf(0L) }
+    var duration by remember { mutableStateOf(0L) }
+    var currentVideoTitle by remember { mutableStateOf("") }
+    var isSeekingActive by remember { mutableStateOf(false) }
+
     val coroutineScope = rememberCoroutineScope()
 
-    // PlayerView que será reutilizado
+    // PlayerView sem controles nativos
     val playerView = remember {
         Log.d("VideoPlayer", "Criando PlayerView")
         PlayerView(context).apply {
-            useController = true
+            useController = false // Desabilitar controles nativos
             setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
-            controllerShowTimeoutMs = 5000
-            controllerAutoShow = true
             resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+        }
+    }
+
+    // Efeito para atualizar posição do vídeo
+    LaunchedEffect(mediaController, isSeekingActive) {
+        if (mediaController != null && !isSeekingActive) {
+            while (overlayActuallyVisible) {
+                currentPosition = mediaController!!.currentPosition
+                duration = mediaController!!.duration.takeIf { it > 0 } ?: 0L
+                isPlaying = mediaController!!.isPlaying
+                delay(100)
+            }
+        }
+    }
+
+    // Função para esconder controles automaticamente
+    LaunchedEffect(controlsVisible) {
+        if (controlsVisible && isPlaying) {
+            delay(4000)
+            controlsVisible = false
         }
     }
 
@@ -88,7 +130,7 @@ fun VideoPlayerOverlay(
         AlertDialog(
             onDismissRequest = {
                 showDeleteDialog = false
-                mediaController?.play() // Retomar reprodução se cancelar
+                mediaController?.play()
             },
             title = {
                 Text(
@@ -117,14 +159,14 @@ fun VideoPlayerOverlay(
                         }
                     }
                 ) {
-                    Text("Delete", color = androidx.compose.material3.MaterialTheme.colorScheme.error)
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = {
                         showDeleteDialog = false
-                        mediaController?.play() // Retomar reprodução
+                        mediaController?.play()
                     }
                 ) {
                     Text("Cancel")
@@ -133,10 +175,9 @@ fun VideoPlayerOverlay(
         )
     }
 
-    // Conectar ao MediaController uma única vez
+    // Conectar ao MediaController
     LaunchedEffect(Unit) {
         Log.d("VideoPlayer", "Conectando ao MediaController")
-
         val sessionToken = SessionToken(context, ComponentName(context, MediaPlaybackService::class.java))
         val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
 
@@ -150,20 +191,16 @@ fun VideoPlayerOverlay(
         }, MoreExecutors.directExecutor())
     }
 
-    // Controlar overlay - refresh apenas uma vez quando fica visível
+    // Controlar overlay
     LaunchedEffect(isVisible) {
         if (isVisible && mediaController != null && !hasRefreshed) {
             Log.d("VideoPlayer", "Overlay visível - fazendo refresh único do serviço")
             hasRefreshed = true
             overlayActuallyVisible = true
 
-            // 1. Fazer refresh do serviço
             MediaPlaybackService.refreshPlayer(context)
-
-            // 2. Aguardar refresh
             delay(800)
 
-            // 3. Reconectar MediaController
             val sessionToken = SessionToken(context, ComponentName(context, MediaPlaybackService::class.java))
             val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
 
@@ -171,17 +208,13 @@ fun VideoPlayerOverlay(
                 try {
                     val newController = controllerFuture.get()
                     mediaController = newController
-
-                    // 4. Conectar PlayerView
-                    Log.d("VideoPlayer", "Conectando PlayerView ao MediaController refreshado")
                     playerView.player = newController
 
-                    // Atualizar caminho do vídeo atual
                     newController.currentMediaItem?.localConfiguration?.uri?.let { uri ->
                         currentVideoPath = uri.path?.removePrefix("file://") ?: ""
+                        currentVideoTitle = File(currentVideoPath).nameWithoutExtension
                     }
 
-                    // 5. Configurar orientação APENAS se overlay estiver visível
                     if (overlayActuallyVisible) {
                         val videoSize = newController.videoSize
                         if (videoSize.width > 0 && videoSize.height > 0) {
@@ -204,23 +237,19 @@ fun VideoPlayerOverlay(
         } else if (!isVisible) {
             Log.d("VideoPlayer", "Overlay oculto - desconectando PlayerView")
             playerView.player = null
-            hasRefreshed = false // Reset para próxima vez que overlay ficar visível
-            overlayActuallyVisible = false // IMPORTANTE: Marcar como realmente oculto
+            hasRefreshed = false
+            overlayActuallyVisible = false
         }
     }
 
-    // Listener para mudanças quando overlay está visível
+    // Listener para mudanças
     DisposableEffect(mediaController, overlayActuallyVisible) {
         var listener: Player.Listener? = null
 
         if (overlayActuallyVisible && mediaController != null) {
             listener = object : Player.Listener {
                 override fun onVideoSizeChanged(videoSize: VideoSize) {
-                    // SÓ atualizar orientação se overlay estiver REALMENTE visível
-                    if (!overlayActuallyVisible) {
-                        Log.d("VideoPlayer", "Video size changed ignorado - overlay não visível")
-                        return
-                    }
+                    if (!overlayActuallyVisible) return
 
                     Log.d("VideoPlayer", "Video size changed: ${videoSize.width}x${videoSize.height}")
                     val activity = context.findActivity()
@@ -235,20 +264,13 @@ fun VideoPlayerOverlay(
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                    // SÓ atualizar orientação se overlay estiver REALMENTE visível
-                    if (!overlayActuallyVisible) {
-                        Log.d("VideoPlayer", "Media transition ignorado - overlay não visível (reason: $reason)")
-                        return
-                    }
+                    if (!overlayActuallyVisible) return
 
-                    Log.d("VideoPlayer", "Media transition - reason: $reason")
-
-                    // Atualizar caminho do vídeo atual
                     mediaItem?.localConfiguration?.uri?.let { uri ->
                         currentVideoPath = uri.path?.removePrefix("file://") ?: ""
+                        currentVideoTitle = File(currentVideoPath).nameWithoutExtension
                     }
 
-                    // Atualizar orientação para novo vídeo
                     val videoSize = mediaController!!.videoSize
                     if (videoSize.width > 0 && videoSize.height > 0) {
                         val activity = context.findActivity()
@@ -269,13 +291,11 @@ fun VideoPlayerOverlay(
                 }
             }
 
-            Log.d("VideoPlayer", "Adicionando listener")
             mediaController!!.addListener(listener)
         }
 
         onDispose {
             listener?.let {
-                Log.d("VideoPlayer", "Removendo listener")
                 mediaController?.removeListener(it)
             }
         }
@@ -306,61 +326,6 @@ fun VideoPlayerOverlay(
         }
     }
 
-    // Overlay animado
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
-        exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black)
-        ) {
-            AndroidView(
-                factory = { playerView },
-                modifier = Modifier.fillMaxSize(),
-                update = { view ->
-                    // Monitorar visibilidade dos controles usando o tipo específico
-                    view.setControllerVisibilityListener(
-                        androidx.media3.ui.PlayerView.ControllerVisibilityListener { visibility ->
-                            controlsVisible = visibility == android.view.View.VISIBLE
-                        }
-                    )
-                }
-            )
-
-            // Botão de deletar no canto superior direito - só visível quando controles estão visíveis
-            if (overlayActuallyVisible && currentVideoPath.isNotEmpty() && controlsVisible) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    IconButton(
-                        onClick = {
-                            // Pausar vídeo e mostrar dialog
-                            mediaController?.pause()
-                            showDeleteDialog = true
-                        },
-                        modifier = Modifier
-                            .background(
-                                Color.Black.copy(alpha = 0.5f),
-                                androidx.compose.foundation.shape.CircleShape
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete Video",
-                            tint = Color.White
-                        )
-                    }
-                }
-            }
-        }
-    }
-
     // Handle back press
     LaunchedEffect(isVisible) {
         if (isVisible && backDispatcher != null) {
@@ -372,6 +337,268 @@ fun VideoPlayerOverlay(
             backDispatcher.addCallback(callback)
         }
     }
+
+    // Overlay animado
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+        exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    controlsVisible = !controlsVisible
+                }
+        ) {
+            // PlayerView em background
+            AndroidView(
+                factory = { playerView },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Interface customizada
+            AnimatedVisibility(
+                visible = controlsVisible,
+                enter = fadeIn(animationSpec = tween(300)),
+                exit = fadeOut(animationSpec = tween(300))
+            ) {
+                CustomVideoControls(
+                    mediaController = mediaController,
+                    currentPosition = currentPosition,
+                    duration = duration,
+                    isPlaying = isPlaying,
+                    videoTitle = currentVideoTitle,
+                    onSeekStart = { isSeekingActive = true },
+                    onSeekEnd = { isSeekingActive = false },
+                    onDeleteClick = {
+                        mediaController?.pause()
+                        showDeleteDialog = true
+                    },
+                    onBackClick = onDismiss
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CustomVideoControls(
+    mediaController: MediaController?,
+    currentPosition: Long,
+    duration: Long,
+    isPlaying: Boolean,
+    videoTitle: String,
+    onSeekStart: () -> Unit,
+    onSeekEnd: () -> Unit,
+    onDeleteClick: () -> Unit,
+    onBackClick: () -> Unit
+) {
+    val controller = mediaController ?: return
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Header com gradiente
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.8f),
+                            Color.Transparent
+                        )
+                    )
+                )
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        .size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Text(
+                    text = videoTitle,
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 16.dp)
+                )
+
+                IconButton(
+                    onClick = onDeleteClick,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        .size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        }
+
+        // Controles centrais
+        Row(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Botão Previous
+            IconButton(
+                onClick = {
+                    if (controller.hasPreviousMediaItem()) {
+                        controller.seekToPreviousMediaItem()
+                    }
+                },
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                    .size(56.dp),
+                enabled = controller.hasPreviousMediaItem()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SkipPrevious,
+                    contentDescription = "Previous",
+                    tint = if (controller.hasPreviousMediaItem()) Color.White else Color.Gray,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+
+            // Botão Play/Pause
+            IconButton(
+                onClick = {
+                    if (isPlaying) {
+                        controller.pause()
+                    } else {
+                        controller.play()
+                    }
+                },
+                modifier = Modifier
+                    .background(Color.White.copy(alpha = 0.9f), CircleShape)
+                    .size(72.dp)
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    tint = Color.Black,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+
+            // Botão Next
+            IconButton(
+                onClick = {
+                    if (controller.hasNextMediaItem()) {
+                        controller.seekToNextMediaItem()
+                    }
+                },
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                    .size(56.dp),
+                enabled = controller.hasNextMediaItem()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SkipNext,
+                    contentDescription = "Next",
+                    tint = if (controller.hasNextMediaItem()) Color.White else Color.Gray,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+        }
+
+        // Bottom controls com gradiente
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.8f)
+                        )
+                    )
+                )
+                .padding(16.dp)
+        ) {
+            // Seek bar
+            if (duration > 0) {
+                var tempPosition by remember { mutableStateOf(currentPosition) }
+                var isDragging by remember { mutableStateOf(false) }
+
+                Slider(
+                    value = if (isDragging) tempPosition.toFloat() else currentPosition.toFloat(),
+                    onValueChange = { newValue ->
+                        tempPosition = newValue.toLong()
+                        if (!isDragging) {
+                            isDragging = true
+                            onSeekStart()
+                        }
+                    },
+                    onValueChangeFinished = {
+                        controller.seekTo(tempPosition)
+                        isDragging = false
+                        onSeekEnd()
+                    },
+                    valueRange = 0f..duration.toFloat(),
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color.White,
+                        activeTrackColor = Color.White,
+                        inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Time display
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = formatTime(if (isDragging) tempPosition else currentPosition),
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = formatTime(duration),
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun formatTime(timeMs: Long): String {
+    val totalSeconds = timeMs / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format("%02d:%02d", minutes, seconds)
 }
 
 // Função auxiliar existente
@@ -398,11 +625,9 @@ private suspend fun deleteCurrentVideo(
 
         Log.d("VideoPlayer", "Deletando vídeo: $videoPath (índice: $currentIndex)")
 
-        // Verificar se é pasta segura
         val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
         val isSecureVideo = videoPath.startsWith(secureFolderPath)
 
-        // Salvar playlist atual (exceto o item que será deletado)
         val updatedPlaylist = mutableListOf<String>()
         for (i in 0 until totalItems) {
             if (i != currentIndex) {
@@ -411,10 +636,8 @@ private suspend fun deleteCurrentVideo(
             }
         }
 
-        // Determinar próximo índice
         val nextIndex = when {
             updatedPlaylist.isEmpty() -> {
-                // Última mídia da playlist
                 Log.d("VideoPlayer", "Última mídia deletada - fechando player")
                 return
             }
@@ -422,7 +645,6 @@ private suspend fun deleteCurrentVideo(
             else -> currentIndex
         }
 
-        // Deletar arquivo físico
         val success = if (isSecureVideo) {
             deleteSecureFile(context, videoPath)
         } else {
@@ -432,12 +654,10 @@ private suspend fun deleteCurrentVideo(
         if (success) {
             Log.d("VideoPlayer", "Arquivo deletado com sucesso")
 
-            // Notificar a UI principal sobre a deleção
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 onVideoDeleted(videoPath)
             }
 
-            // Atualizar playlist no serviço
             if (updatedPlaylist.isNotEmpty()) {
                 Log.d("VideoPlayer", "Atualizando playlist: ${updatedPlaylist.size} itens, próximo índice: $nextIndex")
                 MediaPlaybackService.updatePlaylistAfterDeletion(context, updatedPlaylist, nextIndex)
@@ -452,7 +672,6 @@ private suspend fun deleteCurrentVideo(
         } else {
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 android.widget.Toast.makeText(context, "Failed to delete video", android.widget.Toast.LENGTH_SHORT).show()
-                // Retomar reprodução se falhou
                 controller.play()
             }
         }

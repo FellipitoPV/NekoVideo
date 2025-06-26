@@ -119,8 +119,18 @@ fun SecureFolderScreen(
 ) {
     val context = LocalContext.current
     val mediaItems = remember { mutableStateListOf<SecureMediaItem>() }
-    val lazyListState = rememberLazyListState() // Mudança: LazyColumn em vez de Grid
+    val lazyListState = rememberLazyListState()
     var isScrollingFast by remember { mutableStateOf(false) }
+
+    // NOVA LÓGICA: Calcula o tipo de seleção baseado em TODOS os itens
+    val selectionType = remember(selectedItems.size, mediaItems.size) {
+        if (selectedItems.isEmpty()) {
+            null
+        } else {
+            // Busca em TODOS os mediaItems, não apenas na linha atual
+            mediaItems.find { it.path in selectedItems }?.isFolder
+        }
+    }
 
     // Detecta velocidade de rolagem - otimizado
     LaunchedEffect(lazyListState) {
@@ -161,7 +171,7 @@ fun SecureFolderScreen(
         }
     }
 
-    // LazyColumn com Row manual (mais performático que Grid)
+    // LazyColumn com Row manual
     LazyColumn(
         state = lazyListState,
         contentPadding = PaddingValues(8.dp),
@@ -171,11 +181,12 @@ fun SecureFolderScreen(
         val chunkedItems = mediaItems.chunked3()
         items(
             items = chunkedItems,
-            key = { chunk -> chunk.joinToString(",") { it.id } } // Key otimizada
+            key = { chunk -> chunk.joinToString(",") { it.id } }
         ) { rowItems ->
             SecureMediaItemRow(
                 items = rowItems,
                 selectedItems = selectedItems,
+                selectionType = selectionType, // PASSA O TIPO CALCULADO GLOBALMENTE
                 isScrollingFast = isScrollingFast,
                 onFolderClick = onFolderClick,
                 onSelectionChange = onSelectionChange
@@ -188,19 +199,12 @@ fun SecureFolderScreen(
 private fun SecureMediaItemRow(
     items: List<SecureMediaItem>,
     selectedItems: MutableList<String>,
+    selectionType: Boolean?, // RECEBE O TIPO JÁ CALCULADO
     isScrollingFast: Boolean,
     onFolderClick: (String) -> Unit,
     onSelectionChange: (List<String>) -> Unit
 ) {
-    // Determina o tipo de seleção baseado no primeiro item selecionado
-    val selectionType = remember(selectedItems.size) {
-        if (selectedItems.isEmpty()) {
-            null
-        } else {
-            // Busca o primeiro item selecionado para determinar se é pasta ou vídeo
-            items.find { it.path in selectedItems }?.isFolder
-        }
-    }
+    // REMOVE A LÓGICA ANTERIOR DO selectionType
 
     Row(
         modifier = Modifier.fillMaxWidth(),

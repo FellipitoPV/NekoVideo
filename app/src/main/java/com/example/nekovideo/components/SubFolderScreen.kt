@@ -156,6 +156,16 @@ fun SubFolderScreen(
     val lazyListState = rememberLazyListState()
     var isScrollingFast by remember { mutableStateOf(false) }
 
+    // NOVA LÓGICA: Calcula o tipo de seleção baseado em TODOS os itens
+    val selectionType = remember(selectedItems.size, mediaItems.size) {
+        if (selectedItems.isEmpty()) {
+            null
+        } else {
+            // Busca em TODOS os mediaItems, não apenas na linha atual
+            mediaItems.find { it.path in selectedItems }?.isFolder
+        }
+    }
+
     // Detecta velocidade de rolagem - otimizado
     LaunchedEffect(lazyListState) {
         snapshotFlow {
@@ -190,7 +200,7 @@ fun SubFolderScreen(
         }
     }
 
-    // LazyColumn com Row manual (copiado do SecureFolderScreen)
+    // LazyColumn com Row manual
     LazyColumn(
         state = lazyListState,
         contentPadding = PaddingValues(8.dp),
@@ -205,6 +215,7 @@ fun SubFolderScreen(
             MediaItemRow(
                 items = rowItems,
                 selectedItems = selectedItems,
+                selectionType = selectionType, // PASSA O TIPO CALCULADO GLOBALMENTE
                 isScrollingFast = isScrollingFast,
                 showThumb = showThumb,
                 onFolderClick = onFolderClick,
@@ -218,20 +229,13 @@ fun SubFolderScreen(
 private fun MediaItemRow(
     items: List<MediaItem>,
     selectedItems: MutableList<String>,
+    selectionType: Boolean?, // RECEBE O TIPO JÁ CALCULADO
     isScrollingFast: Boolean,
     showThumb: Boolean,
     onFolderClick: (String) -> Unit,
     onSelectionChange: (List<String>) -> Unit
 ) {
-    // Determina o tipo de seleção baseado no primeiro item selecionado
-    val selectionType = remember(selectedItems.size) {
-        if (selectedItems.isEmpty()) {
-            null
-        } else {
-            // Busca o primeiro item selecionado para determinar se é pasta ou vídeo
-            items.find { it.path in selectedItems }?.isFolder
-        }
-    }
+    // REMOVE A LÓGICA ANTERIOR DO selectionType
 
     Row(
         modifier = Modifier.fillMaxWidth(),

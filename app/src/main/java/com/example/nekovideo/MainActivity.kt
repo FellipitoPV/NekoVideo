@@ -58,9 +58,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.nekovideo.components.CircularMenuAction
-import com.example.nekovideo.components.CircularMenuFAB
 import com.example.nekovideo.components.CreateFolderDialog
+import com.example.nekovideo.components.CustomTopAppBar
 import com.example.nekovideo.components.DeleteConfirmationDialog
 import com.example.nekovideo.components.PasswordDialog
 import com.example.nekovideo.components.RenameDialog
@@ -70,8 +69,14 @@ import com.example.nekovideo.components.SubFolderScreen
 import com.example.nekovideo.components.getSecureFolderContents
 import com.example.nekovideo.components.getVideosAndSubfolders
 import com.example.nekovideo.components.helpers.FilesManager
-import com.example.nekovideo.components.player.MiniPlayer
+import com.example.nekovideo.components.layout.ActionBottomSheetFAB
+import com.example.nekovideo.components.layout.ActionType
+import com.example.nekovideo.components.player.MiniPlayerImproved
 import com.example.nekovideo.components.player.VideoPlayerOverlay
+import com.example.nekovideo.components.settings.AboutSettingsScreen
+import com.example.nekovideo.components.settings.InterfaceSettingsScreen
+import com.example.nekovideo.components.settings.PlaybackSettingsScreen
+import com.example.nekovideo.components.settings.SettingsScreen
 import com.example.nekovideo.ui.theme.NekoVideoTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -238,6 +243,10 @@ fun MainScreen(intent: Intent?) {
                             navController.popBackStack()
                         }
 
+                        currentRoute == "settings" || currentRoute?.startsWith("settings/") == true -> {
+                            navController.popBackStack()
+                        }
+
                         currentRoute == "video_list" || currentRoute == "secure_folder" -> {
                             val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
                             val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
@@ -395,219 +404,44 @@ fun MainScreen(intent: Intent?) {
     Scaffold(
         topBar = {
             if (currentRoute != "video_player" && !showPlayerOverlay) {
-                SmallTopAppBar(
-                    title = {
-                        if (selectedItems.isNotEmpty()) {
-                            Text(
-                                text = "${selectedItems.size} item(s) selected",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                        } else if (currentRoute == "video_folders") {
-                            Text(
-                                text = "NekoVideo",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier
-                                    .clickable(
-                                        enabled = true,
-                                        onClick = { /* Handled by pointerInput */ }
-                                    )
-                                    .pointerInput(Unit) {
-                                        detectTapGestures { _ ->
-                                            tapCount++
-                                            if (tapCount == 1) {
-                                                coroutineScope.launch {
-                                                    delay(maxTapInterval)
-                                                    if (tapCount < 3) {
-                                                        tapCount = 0
-                                                    }
-                                                }
-                                            }
-                                            if (tapCount >= 3) {
-                                                tapCount = 0
-                                                showPasswordDialog = true
-                                            }
-                                        }
-                                    }
-                            )
-                        } else {
-                            val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
-                            val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
-                            val basePath = if (currentRoute == "secure_folder") secureFolderPath else rootPath
-                            val relativePath = folderPath.removePrefix(basePath).trim('/')
-                            val pathSegments = relativePath.split('/').filter { it.isNotEmpty() }
-                            val displayPath = if (currentRoute == "secure_folder" && relativePath.isEmpty()) listOf("secure_video") else {
-                                if (currentRoute == "secure_folder") listOf("secure_video") + pathSegments else pathSegments
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                displayPath.forEachIndexed { index, segment ->
-                                    AnimatedVisibility(
-                                        visible = true,
-                                        enter = fadeIn(animationSpec = tween(300)),
-                                        exit = fadeOut(animationSpec = tween(300))
-                                    ) {
-                                        Text(
-                                            text = segment,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Medium,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier
-                                                .clickable {
-                                                    val targetPath = if (currentRoute == "secure_folder" && index == 0) {
-                                                        secureFolderPath
-                                                    } else {
-                                                        val segmentsUpToIndex = displayPath.take(index + 1)
-                                                        val prefix = if (currentRoute == "secure_folder") secureFolderPath else rootPath
-                                                        if (currentRoute == "secure_folder" && segmentsUpToIndex[0] == "secure_video") {
-                                                            "$secureFolderPath/${segmentsUpToIndex.drop(1).joinToString("/")}"
-                                                        } else {
-                                                            "$prefix/${segmentsUpToIndex.joinToString("/")}"
-                                                        }
-                                                    }
-                                                    val encodedPath = Uri.encode(targetPath)
-                                                    val targetRoute = if (currentRoute == "secure_folder") "secure_folder" else "video_list"
-                                                    navController.navigate("$targetRoute/$encodedPath") {
-                                                        popUpTo("video_folders") { inclusive = false }
-                                                        launchSingleTop = true
-                                                    }
-                                                }
-                                                .padding(end = 8.dp)
-                                        )
-                                    }
-                                    if (index < displayPath.size - 1) {
-                                        Text(
-                                            text = ">",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(end = 8.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                CustomTopAppBar(
+                    currentRoute = currentRoute,
+                    selectedItems = selectedItems.toList(),
+                    folderPath = folderPath,
+                    context = context,
+                    navController = navController,
+                    onPasswordDialog = { showPasswordDialog = true },
+                    onSelectionClear = {
+                        selectedItems.clear()
+                        showFabMenu = false
+                        showRenameDialog = false
                     },
-                    navigationIcon = {
-                        if (selectedItems.isNotEmpty()) {
-                            IconButton(onClick = {
-                                selectedItems.clear()
-                                showFabMenu = false
-                                showRenameDialog = false
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.Cancel,
-                                    contentDescription = "Cancel Selection",
-                                    tint = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        } else if (currentRoute == "video_list" || currentRoute == "secure_folder") {
-                            val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
-                            val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
-                            if (currentRoute == "video_list" && folderPath == rootPath) {
-                                IconButton(onClick = {
-                                    navController.navigate("video_folders") {
-                                        popUpTo("video_folders") { inclusive = true }
-                                        launchSingleTop = true
-                                    }
-                                }) {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowBack,
-                                        contentDescription = "Back",
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            } else if (currentRoute == "secure_folder" && folderPath == secureFolderPath) {
-                                IconButton(onClick = {
-                                    navController.navigate("video_folders") {
-                                        popUpTo("video_folders") { inclusive = true }
-                                        launchSingleTop = true
-                                    }
-                                }) {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowBack,
-                                        contentDescription = "Back",
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            } else {
-                                IconButton(onClick = {
-                                    navController.popBackStack()
-                                }) {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowBack,
-                                        contentDescription = "Back",
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
+                    onSelectAll = {
+                        if (currentRoute == "video_list") {
+                            val allItems = getVideosAndSubfolders(context, folderPath)
+                            selectedItems.clear()
+                            selectedItems.addAll(allItems.map { it.path })
+                        } else if (currentRoute == "secure_folder") {
+                            val allItems = getSecureFolderContents(context, folderPath)
+                            selectedItems.clear()
+                            selectedItems.addAll(allItems.map { it.path })
                         }
-                    },
-                    actions = {
-                        if (selectedItems.isNotEmpty() && currentRoute == "video_list") {
-                            IconButton(onClick = {
-                                val allItems = getVideosAndSubfolders(context, folderPath)
-                                selectedItems.clear()
-                                selectedItems.addAll(allItems.map { it.path })
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.SelectAll,
-                                    contentDescription = "Select All",
-                                    tint = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.smallTopAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        titleContentColor = MaterialTheme.colorScheme.onSurface,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-                        actionIconContentColor = MaterialTheme.colorScheme.onSurface
-                    )
+                    }
                 )
             }
         },
         floatingActionButton = {
-            if (currentRoute != "video_player" && !showPlayerOverlay) {
-                CircularMenuFAB(
-                    isExpanded = when {
-                        isMoveMode -> false
-                        selectedItems.isNotEmpty() -> showFabMenu
-                        else -> showFolderActions
-                    },
-                    isMoveMode = isMoveMode,
+            if (currentRoute != "video_player" && currentRoute?.startsWith("settings") != true && !showPlayerOverlay) {
+                ActionBottomSheetFAB(
                     hasSelectedItems = selectedItems.isNotEmpty(),
+                    isMoveMode = isMoveMode,
                     currentRoute = currentRoute ?: "",
-                    onMainClick = {
-                        when {
-                            isMoveMode -> {
-                                coroutineScope.launch {
-                                    FilesManager.moveSelectedItems(
-                                        context = context,
-                                        selectedItems = itemsToMove,
-                                        destinationPath = folderPath,
-                                        onError = { message ->
-                                            launch(Dispatchers.Main) {
-                                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                            }
-                                        },
-                                        onSuccess = { message ->
-                                            launch(Dispatchers.Main) {
-                                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    )
-                                    itemsToMove = emptyList()
-                                    isMoveMode = false
-                                    renameTrigger++
-                                }
-                            }
-                            selectedItems.isNotEmpty() -> showFabMenu = !showFabMenu
-                            else -> showFolderActions = !showFolderActions
-                        }
-                    },
                     onActionClick = { action ->
                         when (action) {
-                            CircularMenuAction.UNLOCK -> {
+                            ActionType.SETTINGS -> {
+                                navController.navigate("settings")
+                            }
+                            ActionType.UNLOCK -> {
                                 coroutineScope.launch {
                                     val unlockedPath = "/storage/emulated/0/DCIM/Unlocked"
                                     if (FilesManager.ensureUnlockedFolderExists()) {
@@ -625,14 +459,13 @@ fun MainScreen(intent: Intent?) {
                                                     Toast.makeText(context, "Files unlocked!", Toast.LENGTH_SHORT).show()
                                                 }
                                                 selectedItems.clear()
-                                                showFabMenu = false
                                                 renameTrigger++
                                             }
                                         )
                                     }
                                 }
                             }
-                            CircularMenuAction.SECURE -> {
+                            ActionType.SECURE -> {
                                 coroutineScope.launch {
                                     val securePath = FilesManager.SecureStorage.getSecureFolderPath(context)
                                     if (FilesManager.SecureStorage.ensureSecureFolderExists(context)) {
@@ -650,23 +483,18 @@ fun MainScreen(intent: Intent?) {
                                                     Toast.makeText(context, "Files secured!", Toast.LENGTH_SHORT).show()
                                                 }
                                                 selectedItems.clear()
-                                                showFabMenu = false
                                                 renameTrigger++
                                             }
                                         )
                                     }
                                 }
                             }
-                            CircularMenuAction.DELETE -> showDeleteConfirmDialog = true
-                            CircularMenuAction.RENAME -> {
-                                showRenameDialog = true
-                                showFabMenu = false
-                            }
-                            CircularMenuAction.MOVE -> {
+                            ActionType.DELETE -> showDeleteConfirmDialog = true
+                            ActionType.RENAME -> showRenameDialog = true
+                            ActionType.MOVE -> {
                                 itemsToMove = selectedItems.toList()
                                 selectedItems.clear()
                                 isMoveMode = true
-                                showFabMenu = false
                                 if (currentRoute == "secure_folder") {
                                     val securePath = FilesManager.SecureStorage.getSecureFolderPath(context)
                                     val encodedPath = Uri.encode(securePath)
@@ -678,8 +506,7 @@ fun MainScreen(intent: Intent?) {
                                     navController.navigate("video_folders")
                                 }
                             }
-                            CircularMenuAction.SHUFFLE_PLAY -> {
-                                showFolderActions = false
+                            ActionType.SHUFFLE_PLAY -> {
                                 coroutineScope.launch {
                                     val videos = withContext(Dispatchers.IO) {
                                         if (currentRoute == "secure_folder") {
@@ -701,25 +528,18 @@ fun MainScreen(intent: Intent?) {
                                     }
                                 }
                             }
-                            CircularMenuAction.CREATE_FOLDER -> {
-                                showFolderActions = false
-                                showCreateFolderDialog = true
-                            }
+                            ActionType.CREATE_FOLDER -> showCreateFolderDialog = true
                         }
-                    },
-                    onDismiss = {
-                        showFabMenu = false
-                        showFolderActions = false
                     }
                 )
             }
         },
         bottomBar = {
-            if (currentRoute != "video_player" && !showPlayerOverlay) {
+            if (currentRoute != "video_player" && currentRoute?.startsWith("settings") != true && !showPlayerOverlay) {
                 Box(
                     modifier = Modifier.safeDrawingPadding()
                 ) {
-                    MiniPlayer(
+                    MiniPlayerImproved(
                         onOpenPlayer = { showPlayerOverlay = true }
                     )
                 }
@@ -847,6 +667,18 @@ fun MainScreen(intent: Intent?) {
                         renameTrigger = renameTrigger,
                         deletedVideoPath = deletedVideoPath // Adicionar este parâmetro também
                     )
+                }
+                composable("settings") {
+                    SettingsScreen(navController)
+                }
+                composable("settings/playback") {
+                    PlaybackSettingsScreen()
+                }
+                composable("settings/interface") {
+                    InterfaceSettingsScreen()
+                }
+                composable("settings/about") {
+                    AboutSettingsScreen()
                 }
             }
         }
