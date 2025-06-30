@@ -1,4 +1,4 @@
-package com.example.nekovideo.components
+package com.example.nekovideo.components.layout
 
 import android.content.Context
 import android.net.Uri
@@ -8,8 +8,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
@@ -31,11 +34,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.nekovideo.components.helpers.FilesManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
+
+// Função para detectar secure folder
+private fun isSecureFolder(folderPath: String, context: Context): Boolean {
+    val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
+    return folderPath.startsWith(secureFolderPath) ||
+            folderPath.contains("/.private/") ||
+            folderPath.contains("/secure/") ||
+            folderPath.contains(".secure_videos") ||
+            folderPath.endsWith(".secure_videos") ||
+            File(folderPath, ".secure").exists() ||
+            File(folderPath, ".nomedia").exists()
+}
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -120,63 +137,83 @@ fun CustomTopAppBar(
                             }
                     )
                 }
-                else -> {
+                currentRoute == "folder" -> {
                     val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
                     val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
-                    val basePath = if (currentRoute == "secure_folder") secureFolderPath else rootPath
+                    val isSecure = isSecureFolder(folderPath, context)
+                    val basePath = if (isSecure) secureFolderPath else rootPath
                     val relativePath = folderPath.removePrefix(basePath).trim('/')
                     val pathSegments = relativePath.split('/').filter { it.isNotEmpty() }
-                    val displayPath = if (currentRoute == "secure_folder" && relativePath.isEmpty()) {
+                    val displayPath = if (isSecure && relativePath.isEmpty()) {
                         listOf("secure_video")
                     } else {
-                        if (currentRoute == "secure_folder") listOf("secure_video") + pathSegments else pathSegments
+                        if (isSecure) listOf("secure_video") + pathSegments else pathSegments
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        displayPath.forEachIndexed { index, segment ->
+                    // LazyRow para breadcrumb scrollable
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        itemsIndexed(displayPath) { index, segment ->
                             AnimatedVisibility(
                                 visible = true,
                                 enter = fadeIn(animationSpec = tween(300)),
                                 exit = fadeOut(animationSpec = tween(300))
                             ) {
-                                Text(
-                                    text = segment,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier
-                                        .clickable {
-                                            val targetPath = if (currentRoute == "secure_folder" && index == 0) {
-                                                secureFolderPath
-                                            } else {
-                                                val segmentsUpToIndex = displayPath.take(index + 1)
-                                                val prefix = if (currentRoute == "secure_folder") secureFolderPath else rootPath
-                                                if (currentRoute == "secure_folder" && segmentsUpToIndex[0] == "secure_video") {
-                                                    "$secureFolderPath/${segmentsUpToIndex.drop(1).joinToString("/")}"
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = segment,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                            .clickable {
+                                                val targetPath = if (isSecure && index == 0) {
+                                                    secureFolderPath
                                                 } else {
-                                                    "$prefix/${segmentsUpToIndex.joinToString("/")}"
+                                                    val segmentsUpToIndex = displayPath.take(index + 1)
+                                                    val prefix = if (isSecure) secureFolderPath else rootPath
+                                                    if (isSecure && segmentsUpToIndex[0] == "secure_video") {
+                                                        if (segmentsUpToIndex.size == 1) {
+                                                            secureFolderPath
+                                                        } else {
+                                                            "$secureFolderPath/${segmentsUpToIndex.drop(1).joinToString("/")}"
+                                                        }
+                                                    } else {
+                                                        "$prefix/${segmentsUpToIndex.joinToString("/")}"
+                                                    }
+                                                }
+                                                val encodedPath = Uri.encode(targetPath)
+                                                navController.navigate("folder/$encodedPath") {
+                                                    popUpTo("video_folders") { inclusive = false }
+                                                    launchSingleTop = true
                                                 }
                                             }
-                                            val encodedPath = Uri.encode(targetPath)
-                                            val targetRoute = if (currentRoute == "secure_folder") "secure_folder" else "video_list"
-                                            navController.navigate("$targetRoute/$encodedPath") {
-                                                popUpTo("video_folders") { inclusive = false }
-                                                launchSingleTop = true
-                                            }
-                                        }
-                                        .padding(end = 8.dp)
-                                )
-                            }
-                            if (index < displayPath.size - 1) {
-                                Text(
-                                    text = ">",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(end = 8.dp)
-                                )
+                                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                                    )
+
+                                    if (index < displayPath.size - 1) {
+                                        Text(
+                                            text = ">",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 4.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
+                }
+                else -> {
+                    Text(
+                        text = "NekoVideo",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         },
@@ -200,12 +237,14 @@ fun CustomTopAppBar(
                         )
                     }
                 }
-                currentRoute == "video_list" || currentRoute == "secure_folder" -> {
+                currentRoute == "folder" -> {
                     val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
                     val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
+                    val isSecure = isSecureFolder(folderPath, context)
+                    val basePath = if (isSecure) secureFolderPath else rootPath
 
-                    if ((currentRoute == "video_list" && folderPath == rootPath) ||
-                        (currentRoute == "secure_folder" && folderPath == secureFolderPath)) {
+                    if (folderPath == basePath) {
+                        // Está na raiz - voltar para video_folders
                         IconButton(onClick = {
                             navController.navigate("video_folders") {
                                 popUpTo("video_folders") { inclusive = true }
@@ -219,6 +258,7 @@ fun CustomTopAppBar(
                             )
                         }
                     } else {
+                        // Está em subpasta - voltar para pasta anterior
                         IconButton(onClick = {
                             navController.popBackStack()
                         }) {
@@ -233,9 +273,7 @@ fun CustomTopAppBar(
             }
         },
         actions = {
-            // AGORA FUNCIONA TANTO PARA video_list QUANTO secure_folder
-            if (selectedItems.isNotEmpty() &&
-                (currentRoute == "video_list" || currentRoute == "secure_folder")) {
+            if (selectedItems.isNotEmpty() && currentRoute == "folder") {
                 IconButton(onClick = onSelectAll) {
                     Icon(
                         imageVector = Icons.Default.SelectAll,

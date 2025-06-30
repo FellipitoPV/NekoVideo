@@ -1,6 +1,12 @@
 // Arquivo: ActionBottomSheetFAB.kt
 package com.example.nekovideo.components.layout
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,7 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 enum class ActionType {
-    UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS
+    UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS, PASTE
 }
 
 data class ActionItem(
@@ -66,7 +72,14 @@ fun ActionBottomSheetFAB(
 
     // FAB Principal
     FloatingActionButton(
-        onClick = { showBottomSheet = true },
+        onClick = {
+            if (isMoveMode) {
+                // Executar ação de colar diretamente
+                onActionClick(ActionType.PASTE)
+            } else {
+                showBottomSheet = true
+            }
+        },
         modifier = Modifier.size(56.dp),
         containerColor = MaterialTheme.colorScheme.primary,
         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -86,7 +99,7 @@ fun ActionBottomSheetFAB(
         )
     }
 
-    // Bottom Sheet Modal
+    // Bottom Sheet Modal com animações
     if (showBottomSheet) {
         ModalBottomSheet(
             onDismissRequest = { showBottomSheet = false },
@@ -101,33 +114,45 @@ fun ActionBottomSheetFAB(
                 }
             }
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                // Header
-                Text(
-                    text = if (hasSelectedItems) "Ações dos Itens" else "Opções",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            AnimatedVisibility(
+                visible = showBottomSheet,
+                enter = fadeIn(animationSpec = tween(50)) + slideInVertically(
+                    animationSpec = tween(50),
+                    initialOffsetY = { it / 4 }
+                ),
+                exit = fadeOut(animationSpec = tween(50)) + slideOutVertically(
+                    animationSpec = tween(50),
+                    targetOffsetY = { it / 4 }
                 )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                ) {
+                    // Header
+                    Text(
+                        text = if (hasSelectedItems) "Ações dos Itens" else "Opções",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
 
-                Divider(modifier = Modifier.padding(horizontal = 16.dp))
+                    Divider(modifier = Modifier.padding(horizontal = 16.dp))
 
-                Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                // Lista de ações
-                LazyColumn {
-                    items(actions) { action ->
-                        ActionListItem(
-                            action = action,
-                            onClick = {
-                                onActionClick(action.type)
-                                showBottomSheet = false
-                            }
-                        )
+                    // Lista de ações
+                    LazyColumn {
+                        items(actions) { action ->
+                            ActionListItem(
+                                action = action,
+                                onClick = {
+                                    onActionClick(action.type)
+                                    showBottomSheet = false
+                                }
+                            )
+                        }
                     }
                 }
             }

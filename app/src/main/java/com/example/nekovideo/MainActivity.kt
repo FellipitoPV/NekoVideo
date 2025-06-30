@@ -14,32 +14,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallTopAppBar
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,25 +33,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.nekovideo.components.CreateFolderDialog
-import com.example.nekovideo.components.CustomTopAppBar
+import com.example.nekovideo.components.layout.CustomTopAppBar
 import com.example.nekovideo.components.DeleteConfirmationDialog
 import com.example.nekovideo.components.PasswordDialog
 import com.example.nekovideo.components.RenameDialog
 import com.example.nekovideo.components.RootFolderScreen
-import com.example.nekovideo.components.SecureFolderScreen
 import com.example.nekovideo.components.SubFolderScreen
-import com.example.nekovideo.components.getSecureFolderContents
 import com.example.nekovideo.components.getVideosAndSubfolders
 import com.example.nekovideo.components.helpers.FilesManager
 import com.example.nekovideo.components.layout.ActionBottomSheetFAB
@@ -79,9 +58,9 @@ import com.example.nekovideo.components.settings.PlaybackSettingsScreen
 import com.example.nekovideo.components.settings.SettingsScreen
 import com.example.nekovideo.ui.theme.NekoVideoTheme
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 class MainActivity : ComponentActivity() {
 
@@ -190,6 +169,17 @@ fun MainScreen(intent: Intent?) {
     var tapCount by remember { mutableStateOf(0) }
     val maxTapInterval = 500L // 500ms interval for triple tap
 
+    fun isSecureFolder(folderPath: String): Boolean {
+        val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
+        return folderPath.startsWith(secureFolderPath) ||
+                folderPath.contains("/.private/") ||
+                folderPath.contains("/secure/") ||
+                folderPath.contains(".secure_videos") ||
+                folderPath.endsWith(".secure_videos") ||
+                File(folderPath, ".secure").exists() ||
+                File(folderPath, ".nomedia").exists()
+    }
+
     // Modificar o LaunchedEffect do intent para mostrar overlay
     LaunchedEffect(intent) {
         if (intent?.action == "OPEN_PLAYER") {
@@ -204,32 +194,27 @@ fun MainScreen(intent: Intent?) {
         }
     }
 
-    // Substitua o LaunchedEffect que controla o back press por este código corrigido
-    LaunchedEffect(currentRoute, folderPath, selectedItems, isMoveMode, showPlayerOverlay) { // Adicionar showPlayerOverlay
+    LaunchedEffect(currentRoute, folderPath, selectedItems, isMoveMode, showPlayerOverlay) {
         val activity = context.findActivity()
         if (activity != null) {
             activity.onBackPressedDispatcher.addCallback(object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    // PRIMEIRA PRIORIDADE: Overlay visível
                     if (showPlayerOverlay) {
                         showPlayerOverlay = false
                         return
                     }
 
-                    // SEGUNDA PRIORIDADE: Move mode ativo
                     if (isMoveMode) {
                         isMoveMode = false
                         itemsToMove = emptyList()
                         return
                     }
 
-                    // TERCEIRA PRIORIDADE: Ações de pasta abertas
                     if (showFolderActions) {
                         showFolderActions = false
                         return
                     }
 
-                    // QUARTA PRIORIDADE: Itens selecionados
                     if (selectedItems.isNotEmpty()) {
                         selectedItems.clear()
                         showFabMenu = false
@@ -237,22 +222,18 @@ fun MainScreen(intent: Intent?) {
                         return
                     }
 
-                    // NAVEGAÇÃO NORMAL: Apenas se nada acima estiver ativo
                     when {
-                        currentRoute == "video_player" -> {
-                            navController.popBackStack()
-                        }
-
                         currentRoute == "settings" || currentRoute?.startsWith("settings/") == true -> {
                             navController.popBackStack()
                         }
 
-                        currentRoute == "video_list" || currentRoute == "secure_folder" -> {
+                        currentRoute == "folder" -> {
                             val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
                             val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
+                            val isSecure = isSecureFolder(folderPath)
+                            val basePath = if (isSecure) secureFolderPath else rootPath
 
-                            val isAtRoot = (currentRoute == "video_list" && folderPath == rootPath) ||
-                                    (currentRoute == "secure_folder" && folderPath == secureFolderPath)
+                            val isAtRoot = folderPath == basePath
 
                             if (isAtRoot) {
                                 navController.navigate("video_folders") {
@@ -260,20 +241,14 @@ fun MainScreen(intent: Intent?) {
                                     launchSingleTop = true
                                 }
                             } else {
-                                val basePath = if (currentRoute == "secure_folder") secureFolderPath else rootPath
                                 val relativePath = folderPath.removePrefix(basePath).trim('/')
                                 val pathSegments = relativePath.split('/').filter { it.isNotEmpty() }
 
                                 if (pathSegments.isNotEmpty()) {
-                                    val parentPath = if (currentRoute == "secure_folder") {
-                                        if (pathSegments.dropLast(1).isEmpty()) secureFolderPath
-                                        else "$secureFolderPath/${pathSegments.dropLast(1).joinToString("/")}"
-                                    } else {
-                                        if (pathSegments.dropLast(1).isEmpty()) rootPath
-                                        else "$rootPath/${pathSegments.dropLast(1).joinToString("/")}"
-                                    }
+                                    val parentPath = if (pathSegments.dropLast(1).isEmpty()) basePath
+                                    else "$basePath/${pathSegments.dropLast(1).joinToString("/")}"
 
-                                    val isReturningToRootFromNormal = currentRoute == "video_list" &&
+                                    val isReturningToRootFromNormal = !isSecure &&
                                             (parentPath == rootPath || parentPath == "$rootPath/")
 
                                     if (isReturningToRootFromNormal) {
@@ -283,10 +258,8 @@ fun MainScreen(intent: Intent?) {
                                         }
                                     } else {
                                         val encodedParentPath = Uri.encode(parentPath)
-                                        val targetRoute = if (currentRoute == "secure_folder") "secure_folder" else "video_list"
-
-                                        navController.navigate("$targetRoute/$encodedParentPath") {
-                                            popUpTo("$targetRoute/{folderPath}") { inclusive = false }
+                                        navController.navigate("folder/$encodedParentPath") {
+                                            popUpTo("folder/{folderPath}") { inclusive = false }
                                             launchSingleTop = true
                                         }
                                     }
@@ -331,7 +304,7 @@ fun MainScreen(intent: Intent?) {
             onPasswordVerified = {
                 val securePath = FilesManager.SecureStorage.getSecureFolderPath(context)
                 val encodedPath = Uri.encode(securePath)
-                navController.navigate("secure_folder/$encodedPath") {
+                navController.navigate("folder/$encodedPath") {
                     popUpTo("video_folders") { inclusive = false }
                     launchSingleTop = true
                 }
@@ -417,12 +390,9 @@ fun MainScreen(intent: Intent?) {
                         showRenameDialog = false
                     },
                     onSelectAll = {
-                        if (currentRoute == "video_list") {
-                            val allItems = getVideosAndSubfolders(context, folderPath)
-                            selectedItems.clear()
-                            selectedItems.addAll(allItems.map { it.path })
-                        } else if (currentRoute == "secure_folder") {
-                            val allItems = getSecureFolderContents(context, folderPath)
+                        if (currentRoute == "folder") {
+                            val isSecure = isSecureFolder(folderPath)
+                            val allItems = getVideosAndSubfolders(context, folderPath, isSecureMode = isSecure)
                             selectedItems.clear()
                             selectedItems.addAll(allItems.map { it.path })
                         }
@@ -495,26 +465,23 @@ fun MainScreen(intent: Intent?) {
                                 itemsToMove = selectedItems.toList()
                                 selectedItems.clear()
                                 isMoveMode = true
-                                if (currentRoute == "secure_folder") {
-                                    val securePath = FilesManager.SecureStorage.getSecureFolderPath(context)
-                                    val encodedPath = Uri.encode(securePath)
-                                    navController.navigate("secure_folder/$encodedPath") {
-                                        popUpTo("secure_folder/{folderPath}") { inclusive = false }
-                                        launchSingleTop = true
-                                    }
-                                } else {
-                                    navController.navigate("video_folders")
+                                val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
+                                val encodedPath = Uri.encode(rootPath)
+                                navController.navigate("folder/$encodedPath") {
+                                    popUpTo("folder/{folderPath}") { inclusive = false }
+                                    launchSingleTop = true
                                 }
                             }
                             ActionType.SHUFFLE_PLAY -> {
                                 coroutineScope.launch {
                                     val videos = withContext(Dispatchers.IO) {
-                                        if (currentRoute == "secure_folder") {
+                                        val isSecure = isSecureFolder(folderPath)
+                                        if (isSecure) {
                                             FilesManager.SecureStorage.getSecureVideosRecursively(context, folderPath)
                                                 .map { "file://$it" }
                                                 .shuffled()
                                         } else {
-                                            getVideosAndSubfolders(context, folderPath, recursive = true)
+                                            getVideosAndSubfolders(context, folderPath, recursive = true, isSecureMode = false)
                                                 .filter { !it.isFolder }
                                                 .map { "file://${it.path}" }
                                                 .shuffled()
@@ -529,6 +496,28 @@ fun MainScreen(intent: Intent?) {
                                 }
                             }
                             ActionType.CREATE_FOLDER -> showCreateFolderDialog = true
+                            ActionType.PASTE -> {
+                                coroutineScope.launch {
+                                    FilesManager.moveSelectedItems(
+                                        context = context,
+                                        selectedItems = itemsToMove,
+                                        destinationPath = folderPath,
+                                        onError = { message ->
+                                            launch(Dispatchers.Main) {
+                                                Toast.makeText(context, "Error: $message", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        onSuccess = { message ->
+                                            launch(Dispatchers.Main) {
+                                                Toast.makeText(context, "Items moved!", Toast.LENGTH_SHORT).show()
+                                            }
+                                            itemsToMove = emptyList()
+                                            isMoveMode = false
+                                            renameTrigger++
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 )
@@ -583,7 +572,7 @@ fun MainScreen(intent: Intent?) {
                     RootFolderScreen(
                         onFolderClick = { folderPath ->
                             val encodedPath = Uri.encode(folderPath)
-                            navController.navigate("video_list/$encodedPath")
+                            navController.navigate("folder/$encodedPath")
                         },
                         selectedItems = selectedItems,
                         onSelectionChange = { newSelection ->
@@ -594,18 +583,21 @@ fun MainScreen(intent: Intent?) {
                         }
                     )
                 }
-                composable("video_list/{folderPath}") { backStackEntry ->
+                // Substitua ambas as rotas por uma única:
+                composable("folder/{folderPath}") { backStackEntry ->
                     val folderPath = backStackEntry.arguments?.getString("folderPath")?.let { Uri.decode(it) } ?: ""
+                    val isSecure = isSecureFolder(folderPath)
+
                     SubFolderScreen(
                         folderPath = folderPath,
+                        isSecureMode = isSecure,
                         onFolderClick = { itemPath ->
-                            val items = getVideosAndSubfolders(context, folderPath)
+                            val items = getVideosAndSubfolders(context, folderPath, isSecureMode = isSecure)
                             val item = items.find { it.path == itemPath }
                             if (item?.isFolder == true) {
                                 val encodedSubPath = Uri.encode(itemPath)
-                                navController.navigate("video_list/$encodedSubPath")
+                                navController.navigate("folder/$encodedSubPath")
                             } else {
-                                // Ao invés de navegar, iniciar o serviço e mostrar overlay
                                 val videos = items.filter { !it.isFolder }.map { "file://${it.path}" }
                                 val clickedVideoIndex = videos.indexOf("file://$itemPath")
                                 if (clickedVideoIndex >= 0) {
@@ -628,44 +620,7 @@ fun MainScreen(intent: Intent?) {
                             showRenameDialog = false
                         },
                         renameTrigger = renameTrigger,
-                        deletedVideoPath = deletedVideoPath // Adicionar este parâmetro
-                    )
-                }
-                composable("secure_folder/{folderPath}") { backStackEntry ->
-                    val folderPath = backStackEntry.arguments?.getString("folderPath")?.let { Uri.decode(it) } ?: ""
-                    SecureFolderScreen(
-                        folderPath = folderPath,
-                        onFolderClick = { itemPath ->
-                            val items = getSecureFolderContents(context, folderPath)
-                            val item = items.find { it.path == itemPath }
-                            if (item?.isFolder == true) {
-                                val encodedSubPath = Uri.encode(itemPath)
-                                navController.navigate("secure_folder/$encodedSubPath")
-                            } else {
-                                // Ao invés de navegar, iniciar o serviço e mostrar overlay
-                                val videos = items.filter { !it.isFolder }.map { "file://${it.path}" }
-                                val clickedVideoIndex = videos.indexOf("file://$itemPath")
-                                if (clickedVideoIndex >= 0) {
-                                    val orderedPlaylist = videos.subList(clickedVideoIndex, videos.size) +
-                                            videos.subList(0, clickedVideoIndex)
-                                    MediaPlaybackService.startWithPlaylist(context, orderedPlaylist, 0)
-                                    showPlayerOverlay = true
-                                } else {
-                                    val videoUri = "file://$itemPath"
-                                    MediaPlaybackService.startWithPlaylist(context, listOf(videoUri), 0)
-                                    showPlayerOverlay = true
-                                }
-                            }
-                        },
-                        selectedItems = selectedItems,
-                        onSelectionChange = { newSelection ->
-                            selectedItems.clear()
-                            selectedItems.addAll(newSelection)
-                            showFabMenu = false
-                            showRenameDialog = false
-                        },
-                        renameTrigger = renameTrigger,
-                        deletedVideoPath = deletedVideoPath // Adicionar este parâmetro também
+                        deletedVideoPath = deletedVideoPath
                     )
                 }
                 composable("settings") {

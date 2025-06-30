@@ -16,6 +16,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.io.File
+import java.text.DecimalFormat
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
@@ -27,71 +28,46 @@ enum class ThumbnailState {
 
 data class VideoMetadata(
     val thumbnail: Bitmap?,
-    val duration: String?
+    val duration: String?,
+    val fileSize: String?
 )
 
 object OptimizedThumbnailManager {
-    // ===== CONFIGURAÇÕES DE THUMBNAIL =====
-    // Altere aqui para mudar o tamanho das thumbnails
-    private const val DEFAULT_THUMBNAIL_SIZE = 120 // pixels (RECOMENDADO)
-
-    // Configurações alternativas e seus benefícios:
-    // private const val THUMBNAIL_SIZE = 96   // 🚀 PERFORMANCE: +40% mais rápido, -30% memória
-    // private const val THUMBNAIL_SIZE = 120  // ⚖️ BALANCEADO: Boa qualidade + boa performance
-    // private const val THUMBNAIL_SIZE = 150  // 🖼️ QUALIDADE: Melhor visual, +25% mais lento
-    // private const val THUMBNAIL_SIZE = 200  // 📱 HD: Para telas grandes, +50% mais lento
-
-    // DICA: Para listas com 100+ vídeos, use 96px. Para qualidade visual, use 150px.
-    //
-    // COMO USAR DINAMICAMENTE:
-    // OptimizedThumbnailManager.setThumbnailSize(96)  // Define tamanho específico
-    // OptimizedThumbnailManager.setThumbnailQuality("performance")  // Usa preset
-    // OptimizedThumbnailManager.setThumbnailSize(ThumbnailSizes.QUALITY)  // Usa constante
-    // =======================================
-
-    // Tamanho atual (pode ser alterado dinamicamente)
-    private var currentThumbnailSize = DEFAULT_THUMBNAIL_SIZE
-
     private val thumbnailSemaphore = Semaphore(4)
     private val activeJobs = ConcurrentHashMap<String, Job>()
     private val loadedThumbnails = ConcurrentHashMap<String, Boolean>()
     private val pendingCancellations = ConcurrentHashMap<String, Job>()
     private val thumbnailStates = ConcurrentHashMap<String, ThumbnailState>()
-    private val thumbnailCache = ConcurrentHashMap<String, Bitmap>()
-    private val durationCache = LruCache<String, String>(100)
-    private val activeTargets = ConcurrentHashMap<String, CustomTarget<Bitmap>>() // Para limpeza adequada
+    val thumbnailCache = ConcurrentHashMap<String, Bitmap>()
+    val durationCache = LruCache<String, String>(100)
+    val fileSizeCache = LruCache<String, String>(100)
+    private val activeTargets = ConcurrentHashMap<String, CustomTarget<Bitmap>>()
 
-    // Função para obter o tamanho configurado (útil para outros componentes)
-    fun getThumbnailSize(): Int = currentThumbnailSize
-
-    // Função para alterar o tamanho das thumbnails dinamicamente
-    fun setThumbnailSize(size: Int) {
-        currentThumbnailSize = when {
-            size < 64 -> 64   // Mínimo para legibilidade
-            size > 300 -> 300 // Máximo para performance
-            else -> size
+    // Configurações baseadas nas settings
+    private fun getThumbnailSizeFromSettings(context: Context): Int {
+        val prefs = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+        return when (prefs.getString("thumbnail_quality", "medium")) {
+            "low" -> 96
+            "medium" -> 120
+            "high" -> 150
+            "original" -> 200
+            else -> 120
         }
-        // Limpa cache ao mudar tamanho (thumbnails antigas ficam obsoletas)
-        clearCache()
     }
 
-    // Tamanhos predefinidos para facilitar uso
-    object ThumbnailSizes {
-        const val PERFORMANCE = 96    // Máxima velocidade
-        const val BALANCED = 120      // Recomendado
-        const val QUALITY = 150       // Melhor visual
-        const val HD = 200            // Para telas grandes
+    private fun shouldShowThumbnails(context: Context): Boolean {
+        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            .getBoolean("show_thumbnails", true)
     }
 
-    // Função de conveniência para definir qualidade
-    fun setThumbnailQuality(quality: String) {
-        when (quality.lowercase()) {
-            "performance", "fast", "rápido" -> setThumbnailSize(ThumbnailSizes.PERFORMANCE)
-            "balanced", "medium", "médio" -> setThumbnailSize(ThumbnailSizes.BALANCED)
-            "quality", "high", "alto" -> setThumbnailSize(ThumbnailSizes.QUALITY)
-            "hd", "large", "grande" -> setThumbnailSize(ThumbnailSizes.HD)
-            else -> setThumbnailSize(ThumbnailSizes.BALANCED) // Padrão
-        }
+    private fun shouldShowDurations(context: Context): Boolean {
+        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            .getBoolean("show_durations", true)
+    }
+
+    private fun shouldShowFileSizes(context: Context): Boolean {
+        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            .getBoolean("show_file_sizes", false)
     }
 
     // Fake ImageLoader para manter compatibilidade
@@ -135,13 +111,19 @@ object OptimizedThumbnailManager {
             activeTargets.remove(key)
         }
 
-        // Verifica cache em memória
+        // SEMPRE lê configurações para saber tamanho da thumbnail
+        val thumbnailSize = getThumbnailSizeFromSettings(context)
+
+        // Verifica cache em memória - SEMPRE verifica todos os dados
         val cachedThumbnail = thumbnailCache[key]
-        if (cachedThumbnail != null && loadedThumbnails[key] == true) {
+        val cachedDuration = durationCache.get(videoPath)
+        val cachedFileSize = fileSizeCache.get(videoPath)
+
+        // Se todos os dados estão em cache, retorna imediatamente
+        if (cachedThumbnail != null && cachedDuration != null && cachedFileSize != null && loadedThumbnails[key] == true) {
             thumbnailStates[key] = ThumbnailState.LOADED
             onStateChanged(ThumbnailState.LOADED)
-            val duration = durationCache.get(videoPath)
-            onMetadataLoaded(VideoMetadata(cachedThumbnail, duration))
+            onMetadataLoaded(VideoMetadata(cachedThumbnail, cachedDuration, cachedFileSize))
             return
         }
 
@@ -168,78 +150,87 @@ object OptimizedThumbnailManager {
                         return@withPermit
                     }
 
-                    // Carrega duração em paralelo
+                    // SEMPRE carrega todos os metadata em paralelo
                     val durationDeferred = async(Dispatchers.IO) {
-                        durationCache.get(videoPath) ?: getVideoDuration(videoPath)
+                        cachedDuration ?: getVideoDuration(videoPath)
                     }
 
-                    // Carrega thumbnail com Glide
-                    val thumbnail = suspendCancellableCoroutine<Bitmap?> { continuation ->
-                        val target = object : CustomTarget<Bitmap>() {
-                            override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                                activeTargets.remove(key) // Remove da lista ativa
-                                if (continuation.isActive) {
-                                    continuation.resume(resource)
+                    val fileSizeDeferred = async(Dispatchers.IO) {
+                        cachedFileSize ?: getFileSize(videoPath)
+                    }
+
+                    // SEMPRE carrega thumbnail
+                    val thumbnail = if (cachedThumbnail != null) {
+                        cachedThumbnail
+                    } else {
+                        suspendCancellableCoroutine<Bitmap?> { continuation ->
+                            val target = object : CustomTarget<Bitmap>() {
+                                override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                                    activeTargets.remove(key)
+                                    if (continuation.isActive) {
+                                        continuation.resume(resource)
+                                    }
+                                }
+
+                                override fun onLoadFailed(errorDrawable: Drawable?) {
+                                    activeTargets.remove(key)
+                                    if (continuation.isActive) {
+                                        continuation.resume(null)
+                                    }
+                                }
+
+                                override fun onLoadCleared(placeholder: Drawable?) {
+                                    activeTargets.remove(key)
+                                    if (continuation.isActive) {
+                                        continuation.resume(null)
+                                    }
                                 }
                             }
 
-                            override fun onLoadFailed(errorDrawable: Drawable?) {
-                                activeTargets.remove(key) // Remove da lista ativa
-                                if (continuation.isActive) {
-                                    continuation.resume(null)
-                                }
-                            }
+                            activeTargets[key] = target
 
-                            override fun onLoadCleared(placeholder: Drawable?) {
-                                activeTargets.remove(key) // Remove da lista ativa
-                                if (continuation.isActive) {
-                                    continuation.resume(null)
-                                }
-                            }
-                        }
-
-                        // Armazena target para possível cancelamento
-                        activeTargets[key] = target
-
-                        try {
-                            Glide.with(context)
-                                .asBitmap()
-                                .load(videoUri)
-                                .override(currentThumbnailSize, currentThumbnailSize) // Usa tamanho configurável
-                                .diskCacheStrategy(DiskCacheStrategy.ALL)
-                                .centerCrop()
-                                .into(target)
-                        } catch (e: Exception) {
-                            // Se contexto foi destruído, remove target e cancela
-                            activeTargets.remove(key)
-                            if (continuation.isActive) {
-                                continuation.resume(null)
-                            }
-                        }
-
-                        continuation.invokeOnCancellation {
-                            activeTargets[key]?.let { activeTarget ->
-                                try {
-                                    Glide.with(context).clear(activeTarget)
-                                } catch (e: Exception) {
-                                    // Ignora erro se contexto foi destruído
-                                }
+                            try {
+                                Glide.with(context)
+                                    .asBitmap()
+                                    .load(videoUri)
+                                    .override(thumbnailSize, thumbnailSize)
+                                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                    .centerCrop()
+                                    .into(target)
+                            } catch (e: Exception) {
                                 activeTargets.remove(key)
+                                if (continuation.isActive) {
+                                    continuation.resume(null)
+                                }
+                            }
+
+                            continuation.invokeOnCancellation {
+                                activeTargets[key]?.let { activeTarget ->
+                                    try {
+                                        Glide.with(context).clear(activeTarget)
+                                    } catch (e: Exception) {
+                                        // Ignora erro se contexto foi destruído
+                                    }
+                                    activeTargets.remove(key)
+                                }
                             }
                         }
                     }
 
                     val duration = durationDeferred.await()
+                    val fileSize = fileSizeDeferred.await()
 
                     if (isActive && activeJobs[key] == this@launch) {
                         loadedThumbnails[key] = true
                         thumbnailStates[key] = ThumbnailState.LOADED
 
+                        // SEMPRE faz cache de todos os dados
                         thumbnail?.let { thumbnailCache[key] = it }
                         duration?.let { durationCache.put(videoPath, it) }
+                        fileSize?.let { fileSizeCache.put(videoPath, it) }
 
                         onStateChanged(ThumbnailState.LOADED)
-                        onMetadataLoaded(VideoMetadata(thumbnail, duration))
+                        onMetadataLoaded(VideoMetadata(thumbnail, duration, fileSize))
                     }
                 }
             } catch (e: CancellationException) {
@@ -262,13 +253,9 @@ object OptimizedThumbnailManager {
         pendingCancellations[key] = CoroutineScope(Dispatchers.IO).launch {
             delay(300L)
 
-            // Cancela job
             activeJobs[key]?.cancel()
             activeJobs.remove(key)
-
-            // Remove target da lista (Glide limpa automaticamente)
             activeTargets.remove(key)
-
             loadedThumbnails.remove(key)
             thumbnailStates[key] = ThumbnailState.CANCELLED
             pendingCancellations.remove(key)
@@ -276,28 +263,24 @@ object OptimizedThumbnailManager {
     }
 
     fun clearCache() {
-        // Cancela todos os jobs
         activeJobs.values.forEach { it.cancel() }
         activeJobs.clear()
 
-        // Limpa todos os targets do Glide
         activeTargets.values.forEach { target ->
             try {
-                // Tenta limpar, mas ignora erro se contexto foi destruído
-                target.hashCode() // Dummy call para verificar se ainda é válido
+                target.hashCode()
             } catch (e: Exception) {
                 // Target já foi limpo ou contexto destruído
             }
         }
         activeTargets.clear()
 
-        // Limpa caches
         loadedThumbnails.clear()
         thumbnailStates.clear()
         thumbnailCache.clear()
         durationCache.evictAll()
+        fileSizeCache.evictAll()
 
-        // Limpa cancelamentos pendentes
         pendingCancellations.values.forEach { it.cancel() }
         pendingCancellations.clear()
     }
@@ -324,4 +307,29 @@ object OptimizedThumbnailManager {
             }
         }
     }
+
+    private fun getFileSize(videoPath: String): String? {
+        return try {
+            val file = File(videoPath)
+            if (!file.exists()) return null
+
+            val bytes = file.length()
+            val df = DecimalFormat("#.##")
+
+            when {
+                bytes < 1024 -> "${bytes}B"
+                bytes < 1024 * 1024 -> "${df.format(bytes / 1024.0)}KB"
+                bytes < 1024 * 1024 * 1024 -> "${df.format(bytes / (1024.0 * 1024.0))}MB"
+                else -> "${df.format(bytes / (1024.0 * 1024.0 * 1024.0))}GB"
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // Funções utilitárias para acessar configurações
+    fun isShowThumbnailsEnabled(context: Context) = shouldShowThumbnails(context)
+    fun isShowDurationsEnabled(context: Context) = shouldShowDurations(context)
+    fun isShowFileSizesEnabled(context: Context) = shouldShowFileSizes(context)
+    fun getCurrentThumbnailSize(context: Context) = getThumbnailSizeFromSettings(context)
 }
