@@ -110,7 +110,6 @@ fun VideoPlayerOverlay(
     // Função para resetar timer da UI (definida no escopo correto com tipo explícito)
     val resetUITimer: () -> Unit = {
         uiTimer = 4
-        Log.d("VideoPlayer_Timer", "RESET: UI Timer reset to 4 seconds")
     }
 
     // Estados para sliders laterais invisíveis
@@ -133,7 +132,6 @@ fun VideoPlayerOverlay(
 
     // PlayerView sem controles nativos
     val playerView = remember {
-        Log.d("VideoPlayer", "Criando PlayerView")
         PlayerView(context).apply {
             useController = false
             setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
@@ -183,12 +181,10 @@ fun VideoPlayerOverlay(
             while (uiTimer > 0 && controlsVisible && isPlaying) {
                 delay(1000) // Aguarda 1 segundo
                 uiTimer -= 1
-                Log.d("VideoPlayer_Timer", "UI Timer countdown: $uiTimer seconds remaining")
             }
 
             // Se o timer chegou a 0 e os controles ainda estão visíveis
             if (uiTimer <= 0 && controlsVisible) {
-                Log.d("VideoPlayer_Timer", "UI Timer expired - hiding controls")
                 controlsVisible = false
             }
         }
@@ -197,7 +193,6 @@ fun VideoPlayerOverlay(
     LaunchedEffect(controlsVisible) {
         if (controlsVisible) {
             uiTimer = 4 // Inicia com 4 segundos
-            Log.d("VideoPlayer_Timer", "Controls became visible - timer set to 4 seconds")
         }
     }
 
@@ -277,16 +272,13 @@ fun VideoPlayerOverlay(
 
     // Conectar ao MediaController (mesmo código)
     LaunchedEffect(Unit) {
-        Log.d("VideoPlayer", "Conectando ao MediaController")
         val sessionToken = SessionToken(context, ComponentName(context, MediaPlaybackService::class.java))
         val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
 
         controllerFuture.addListener({
             try {
                 mediaController = controllerFuture.get()
-                Log.d("VideoPlayer", "MediaController conectado com sucesso")
             } catch (e: Exception) {
-                Log.e("VideoPlayer", "Erro ao conectar MediaController", e)
             }
         }, MoreExecutors.directExecutor())
     }
@@ -294,7 +286,6 @@ fun VideoPlayerOverlay(
     // Controlar overlay (mesmo código)
     LaunchedEffect(isVisible) {
         if (isVisible && mediaController != null && !hasRefreshed) {
-            Log.d("VideoPlayer", "Overlay visível - fazendo refresh único do serviço")
             hasRefreshed = true
             overlayActuallyVisible = true
 
@@ -328,14 +319,11 @@ fun VideoPlayerOverlay(
                         }
                     }
 
-                    Log.d("VideoPlayer", "PlayerView conectado e configurado")
                 } catch (e: Exception) {
-                    Log.e("VideoPlayer", "Erro ao reconectar MediaController", e)
                 }
             }, MoreExecutors.directExecutor())
 
         } else if (!isVisible) {
-            Log.d("VideoPlayer", "Overlay oculto - desconectando PlayerView")
             playerView.player = null
             hasRefreshed = false
             overlayActuallyVisible = false
@@ -351,7 +339,6 @@ fun VideoPlayerOverlay(
                 override fun onVideoSizeChanged(videoSize: VideoSize) {
                     if (!overlayActuallyVisible) return
 
-                    Log.d("VideoPlayer", "Video size changed: ${videoSize.width}x${videoSize.height}")
                     val activity = context.findActivity()
                     if (activity != null && videoSize.width > 0 && videoSize.height > 0) {
                         val newOrientation = if (videoSize.width > videoSize.height) {
@@ -367,12 +354,10 @@ fun VideoPlayerOverlay(
                     if (!overlayActuallyVisible) return
 
                     val wasPlayerPaused = !mediaController!!.isPlaying
-                    Log.d("VideoPlayer_Timer", "onMediaItemTransition called - wasPlayerPaused: $wasPlayerPaused, reason: $reason")
 
                     mediaItem?.localConfiguration?.uri?.let { uri ->
                         currentVideoPath = uri.path?.removePrefix("file://") ?: ""
                         currentVideoTitle = File(currentVideoPath).nameWithoutExtension
-                        Log.d("VideoPlayer_Timer", "New video loaded: $currentVideoTitle")
                     }
 
                     val videoSize = mediaController!!.videoSize
@@ -388,21 +373,17 @@ fun VideoPlayerOverlay(
 
                     // Resetar timer da UI se estiver visível
                     if (controlsVisible) {
-                        Log.d("VideoPlayer_Timer", "RESET: Media transition detected - resetting timer from listener")
                         resetUITimer()
                     } else {
-                        Log.d("VideoPlayer_Timer", "Media transition detected but controls not visible")
                     }
 
                     // Auto-play se estava pausado antes de pular
                     if (wasPlayerPaused && !mediaController!!.isPlaying) {
-                        Log.d("VideoPlayer_Timer", "Auto-playing video that was previously paused")
                         mediaController!!.play()
                     }
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
-                    Log.d("VideoPlayer", "Playback state: $playbackState")
                     if (playbackState == Player.STATE_ENDED && mediaController!!.hasNextMediaItem()) {
                         mediaController!!.seekToNextMediaItem()
                     }
@@ -853,7 +834,6 @@ private fun CustomVideoControls(
             IconButton(
                 onClick = {
                     if (controller.hasPreviousMediaItem()) {
-                        Log.d("VideoPlayer_Timer", "RESET: Previous button clicked in controls")
                         resetUITimer()
                         controller.seekToPreviousMediaItem()
                     }
@@ -896,7 +876,6 @@ private fun CustomVideoControls(
             IconButton(
                 onClick = {
                     if (controller.hasNextMediaItem()) {
-                        Log.d("VideoPlayer_Timer", "RESET: Next button clicked in controls")
                         resetUITimer()
                         controller.seekToNextMediaItem()
                     }
@@ -1008,8 +987,6 @@ private suspend fun deleteCurrentVideo(
         val currentIndex = controller.currentMediaItemIndex
         val totalItems = controller.mediaItemCount
 
-        Log.d("VideoPlayer", "Deletando vídeo: $videoPath (índice: $currentIndex)")
-
         val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
         val isSecureVideo = videoPath.startsWith(secureFolderPath)
 
@@ -1023,7 +1000,6 @@ private suspend fun deleteCurrentVideo(
 
         val nextIndex = when {
             updatedPlaylist.isEmpty() -> {
-                Log.d("VideoPlayer", "Última mídia deletada - fechando player")
                 return
             }
             currentIndex >= updatedPlaylist.size -> updatedPlaylist.size - 1
@@ -1037,17 +1013,14 @@ private suspend fun deleteCurrentVideo(
         }
 
         if (success) {
-            Log.d("VideoPlayer", "Arquivo deletado com sucesso")
 
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 onVideoDeleted(videoPath)
             }
 
             if (updatedPlaylist.isNotEmpty()) {
-                Log.d("VideoPlayer", "Atualizando playlist: ${updatedPlaylist.size} itens, próximo índice: $nextIndex")
                 MediaPlaybackService.updatePlaylistAfterDeletion(context, updatedPlaylist, nextIndex)
             } else {
-                Log.d("VideoPlayer", "Playlist vazia - parando serviço")
                 MediaPlaybackService.stopService(context)
             }
 
