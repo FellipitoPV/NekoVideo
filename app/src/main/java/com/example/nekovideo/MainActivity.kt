@@ -44,12 +44,13 @@ import com.example.nekovideo.components.layout.CustomTopAppBar
 import com.example.nekovideo.components.DeleteConfirmationDialog
 import com.example.nekovideo.components.PasswordDialog
 import com.example.nekovideo.components.RenameDialog
-import com.example.nekovideo.components.RootFolderScreen
+import com.example.nekovideo.components.SortType
 import com.example.nekovideo.components.SubFolderScreen
-import com.example.nekovideo.components.getVideosAndSubfolders
 import com.example.nekovideo.components.helpers.FilesManager
 import com.example.nekovideo.components.layout.ActionBottomSheetFAB
 import com.example.nekovideo.components.layout.ActionType
+import com.example.nekovideo.components.loadFolderContent
+import com.example.nekovideo.components.loadFolderContentRecursive
 import com.example.nekovideo.components.player.MiniPlayerImproved
 import com.example.nekovideo.components.player.VideoPlayerOverlay
 import com.example.nekovideo.components.settings.AboutSettingsScreen
@@ -419,9 +420,10 @@ fun MainScreen(intent: Intent?) {
                             val isSecure = isSecureFolder(folderPath)
                             val isRoot = isAtRootLevel(folderPath)
 
-                            val allItems = getVideosAndSubfolders(
+                            val allItems = loadFolderContent(
                                 context = context,
                                 folderPath = folderPath,
+                                sortType = SortType.NAME_ASC, // Usar ordenação padrão
                                 isSecureMode = isSecure,
                                 isRootLevel = isRoot,
                                 showPrivateFolders = showPrivateFolders
@@ -580,16 +582,16 @@ fun MainScreen(intent: Intent?) {
                                 coroutineScope.launch {
                                     val videos = withContext(Dispatchers.IO) {
                                         val isSecure = isSecureFolder(folderPath)
-                                        if (isSecure) {
-                                            FilesManager.SecureStorage.getSecureVideosRecursively(context, folderPath)
-                                                .map { "file://$it" }
-                                                .shuffled()
-                                        } else {
-                                            getVideosAndSubfolders(context, folderPath, recursive = true, isSecureMode = false)
-                                                .filter { !it.isFolder }
-                                                .map { "file://${it.path}" }
-                                                .shuffled()
-                                        }
+
+                                        // Usar nossa função recursiva simplificada
+                                        loadFolderContentRecursive(
+                                            context = context,
+                                            folderPath = folderPath,
+                                            isSecureMode = isSecure,
+                                            showPrivateFolders = showPrivateFolders
+                                        ).filter { !it.isFolder }
+                                            .map { "file://${it.path}" }
+                                            .shuffled()
                                     }
                                     if (videos.isNotEmpty()) {
                                         MediaPlaybackService.startWithPlaylist(context, videos, 0)
@@ -693,12 +695,13 @@ fun MainScreen(intent: Intent?) {
                         isRootLevel = isRootLevel,
                         showPrivateFolders = showPrivateFolders, // NOVO: passa o estado
                         onFolderClick = { itemPath ->
-                            val items = getVideosAndSubfolders(
+                            val items = loadFolderContent(
                                 context = context,
                                 folderPath = folderPath,
+                                sortType = SortType.NAME_ASC, // Usar ordenação padrão
                                 isSecureMode = isSecure,
                                 isRootLevel = isRootLevel,
-                                showPrivateFolders = showPrivateFolders // NOVO: passa o estado
+                                showPrivateFolders = showPrivateFolders
                             )
                             val item = items.find { it.path == itemPath }
                             if (item?.isFolder == true) {

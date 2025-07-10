@@ -130,6 +130,11 @@ fun VideoPlayerOverlay(
 
     val coroutineScope = rememberCoroutineScope()
 
+    var lastTapTime by remember { mutableStateOf(0L) }
+    var tapCount by remember { mutableStateOf(0) }
+    val doubleTapTimeWindow = 300L // 300ms para detectar double tap
+
+
     // PlayerView sem controles nativos
     val playerView = remember {
         PlayerView(context).apply {
@@ -449,30 +454,58 @@ fun VideoPlayerOverlay(
                 .background(Color.Black)
                 .pointerInput(Unit) {
                     detectTapGestures(
-                        onDoubleTap = { offset ->
-                            val screenWidth = size.width
-                            val doubleTapSeek = SettingsManager.getDoubleTapSeek(context) * 1000L
+                        onTap = { offset ->
+                            val currentTime = System.currentTimeMillis()
 
-                            mediaController?.let { controller ->
-                                val currentPos = controller.currentPosition
+                            // Se é o primeiro tap ou passou muito tempo desde o último
+                            if (tapCount == 0 || (currentTime - lastTapTime) > doubleTapTimeWindow) {
+                                tapCount = 1
+                                lastTapTime = currentTime
 
-                                if (offset.x < screenWidth / 2) {
-                                    // Lado esquerdo - voltar
-                                    val newPosition = (currentPos - doubleTapSeek).coerceAtLeast(0)
-                                    controller.seekTo(newPosition)
-                                    seekIndicator = "-${doubleTapSeek / 1000}s"
-                                    seekSide = Alignment.CenterStart
-                                } else {
-                                    // Lado direito - avançar
-                                    val newPosition = currentPos + doubleTapSeek
-                                    controller.seekTo(newPosition)
-                                    seekIndicator = "+${doubleTapSeek / 1000}s"
-                                    seekSide = Alignment.CenterEnd
+                                // Toggle da UI imediatamente (sem delay!)
+                                controlsVisible = !controlsVisible
+                                if (controlsVisible) {
+                                    resetUITimer()
+                                }
+
+                                // Inicia timer para detectar se vai ter um segundo tap
+                                coroutineScope.launch {
+                                    delay(doubleTapTimeWindow)
+                                    // Se passou o tempo e ainda é apenas 1 tap, mantém o estado atual
+                                    if (tapCount == 1) {
+                                        tapCount = 0
+                                    }
+                                }
+
+                            } else if (tapCount == 1 && (currentTime - lastTapTime) <= doubleTapTimeWindow) {
+                                // É um double tap!
+                                tapCount = 0
+
+                                // Esconde a UI imediatamente
+                                controlsVisible = false
+
+                                // Executa a lógica de seek
+                                val screenWidth = size.width
+                                val doubleTapSeek = SettingsManager.getDoubleTapSeek(context) * 1000L
+
+                                mediaController?.let { controller ->
+                                    val currentPos = controller.currentPosition
+
+                                    if (offset.x < screenWidth / 2) {
+                                        // Lado esquerdo - voltar
+                                        val newPosition = (currentPos - doubleTapSeek).coerceAtLeast(0)
+                                        controller.seekTo(newPosition)
+                                        seekIndicator = "-${doubleTapSeek / 1000}s"
+                                        seekSide = Alignment.CenterStart
+                                    } else {
+                                        // Lado direito - avançar
+                                        val newPosition = currentPos + doubleTapSeek
+                                        controller.seekTo(newPosition)
+                                        seekIndicator = "+${doubleTapSeek / 1000}s"
+                                        seekSide = Alignment.CenterEnd
+                                    }
                                 }
                             }
-                        },
-                        onTap = {
-                            controlsVisible = !controlsVisible
                         }
                     )
                 }
