@@ -25,7 +25,10 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderSpecial
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RemoveRedEye
+import androidx.compose.material.icons.filled.SafetyCheck
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.VideoFile
 import androidx.compose.material3.*
@@ -46,6 +49,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.nekovideo.components.settings.SettingsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -72,10 +77,19 @@ data class MediaItem(
     val isFolder: Boolean,
     val duration: String? = null,
     val name: String = File(path).name,
+    val displayName: String = getDisplayName(File(path).name), // NOVO CAMPO
     val id: String = path.hashCode().toString(),
     val lastModified: Long = 0L,
     val sizeInBytes: Long = 0L
 )
+
+private fun getDisplayName(fileName: String): String {
+    return if (fileName.startsWith(".") && fileName.length > 1) {
+        fileName.substring(1) // Remove o primeiro caractere "."
+    } else {
+        fileName
+    }
+}
 
 // Cache otimizado
 private val colorCache = LruCache<String, Color>(1000)
@@ -125,8 +139,8 @@ private fun applySorting(items: List<MediaItem>, sortType: SortType): List<Media
     val videos = items.filter { !it.isFolder }
 
     val sortedFolders = when (sortType) {
-        SortType.NAME_ASC -> folders.sortedWith { a, b -> compareNatural(a.name, b.name) }
-        SortType.NAME_DESC -> folders.sortedWith { a, b -> compareNatural(b.name, a.name) }
+        SortType.NAME_ASC -> folders.sortedWith { a, b -> compareNatural(a.displayName, b.displayName) }
+        SortType.NAME_DESC -> folders.sortedWith { a, b -> compareNatural(b.displayName, a.displayName) }
         SortType.DATE_NEWEST -> folders.sortedByDescending { it.lastModified }
         SortType.DATE_OLDEST -> folders.sortedBy { it.lastModified }
         SortType.SIZE_LARGEST -> folders.sortedByDescending { it.sizeInBytes }
@@ -134,8 +148,8 @@ private fun applySorting(items: List<MediaItem>, sortType: SortType): List<Media
     }
 
     val sortedVideos = when (sortType) {
-        SortType.NAME_ASC -> videos.sortedWith { a, b -> compareNatural(a.name, b.name) }
-        SortType.NAME_DESC -> videos.sortedWith { a, b -> compareNatural(b.name, a.name) }
+        SortType.NAME_ASC -> videos.sortedWith { a, b -> compareNatural(a.displayName, b.displayName) }
+        SortType.NAME_DESC -> videos.sortedWith { a, b -> compareNatural(b.displayName, a.displayName) }
         SortType.DATE_NEWEST -> videos.sortedByDescending { it.lastModified }
         SortType.DATE_OLDEST -> videos.sortedBy { it.lastModified }
         SortType.SIZE_LARGEST -> videos.sortedByDescending { it.sizeInBytes }
@@ -151,12 +165,14 @@ fun getVideosAndSubfolders(
     folderPath: String,
     recursive: Boolean = false,
     sortType: SortType = SortType.NAME_ASC,
-    isSecureMode: Boolean = false
+    isSecureMode: Boolean = false,
+    isRootLevel: Boolean = false,
+    showPrivateFolders: Boolean = false // NOVO PARÂMETRO
 ): List<MediaItem> {
     return if (isSecureMode) {
         getSecureFolderContents(context, folderPath, sortType)
     } else {
-        getMediaStoreFolderContents(context, folderPath, recursive, sortType)
+        getMediaStoreFolderContents(context, folderPath, recursive, sortType, isRootLevel, showPrivateFolders)
     }
 }
 
@@ -177,11 +193,14 @@ private fun getSecureFolderContents(
         if (file.name in listOf(".nomedia", ".nekovideo")) return@forEach
 
         if (file.isDirectory) {
+            // INCLUI TODAS as pastas, mesmo as que começam com "."
             mediaItems.add(
                 MediaItem(
                     path = file.absolutePath,
-                    uri = null, // Secure mode não usa Uri
+                    uri = null,
                     isFolder = true,
+                    name = file.name,
+                    displayName = getDisplayName(file.name), // Usa o nome sem "."
                     lastModified = file.lastModified(),
                     sizeInBytes = getFolderSize(file)
                 )
@@ -190,8 +209,10 @@ private fun getSecureFolderContents(
             mediaItems.add(
                 MediaItem(
                     path = file.absolutePath,
-                    uri = null, // Secure mode não usa Uri
+                    uri = null,
                     isFolder = false,
+                    name = file.name,
+                    displayName = file.name, // Vídeos mantêm o nome original
                     lastModified = file.lastModified(),
                     sizeInBytes = file.length()
                 )
@@ -207,13 +228,42 @@ private fun getMediaStoreFolderContents(
     context: Context,
     folderPath: String,
     recursive: Boolean,
-    sortType: SortType
+    sortType: SortType,
+    isRootLevel: Boolean = false,
+    showPrivateFolders: Boolean = false // NOVO PARÂMETRO
 ): List<MediaItem> {
     val mediaItems = mutableListOf<MediaItem>()
     val folder = File(folderPath)
 
     // Busca pastas
     folder.listFiles { file -> file.isDirectory }?.forEach { subfolder ->
+        // Pula pastas especiais
+        if (subfolder.name in listOf(".nomedia", ".nekovideo")) return@forEach
+
+        // NOVA LÓGICA: Filtro baseado no nível e estado da senha
+        if (isRootLevel) {
+            // Na raiz, filtrar pastas com "." baseado no estado da senha
+            if (subfolder.name.startsWith(".") && !showPrivateFolders) {
+                return@forEach // Pular pastas ocultas se não autenticado
+            }
+
+            // Continuar filtrando outros tipos na raiz
+            val hasNomedia = File(subfolder, ".nomedia").exists()
+            val isAppFolder = File(subfolder, ".nekovideo").exists()
+
+            // Se tem .nomedia e NÃO é pasta do app, pular (exceto se for pasta privada com senha)
+            if (hasNomedia && !isAppFolder && !subfolder.name.startsWith(".")) {
+                return@forEach
+            }
+
+            // Filtrar pastas do sistema
+            val systemFolders = setOf(
+                "Android", ".android_secure", "LOST.DIR",
+                ".thumbnails", ".recycle", ".trash"
+            )
+            if (subfolder.name in systemFolders) return@forEach
+        }
+
         val hasVideos = context.contentResolver.query(
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
             arrayOf(MediaStore.Video.Media.DATA),
@@ -224,12 +274,32 @@ private fun getMediaStoreFolderContents(
 
         val isAppCreatedFolder = File(subfolder, ".nekovideo").exists()
 
-        if (hasVideos || isAppCreatedFolder) {
+// NOVA FUNÇÃO: Verificar se há vídeos em subpastas ocultas
+        val hasHiddenVideos = if (showPrivateFolders && isRootLevel) {
+            subfolder.listFiles { file ->
+                file.isDirectory && file.name.startsWith(".")
+            }?.any { hiddenFolder ->
+                hiddenFolder.listFiles { file ->
+                    file.isFile && file.extension.lowercase() in videoExtensions
+                }?.isNotEmpty() == true
+            } ?: false
+        } else false
+
+// LÓGICA CORRIGIDA: Inclui pastas que têm vídeos ocultos
+        val shouldInclude = if (isRootLevel) {
+            hasVideos || isAppCreatedFolder || hasHiddenVideos || (subfolder.name.startsWith(".") && showPrivateFolders)
+        } else {
+            hasVideos || isAppCreatedFolder || subfolder.name.startsWith(".")
+        }
+
+        if (shouldInclude) {
             mediaItems.add(
                 MediaItem(
                     path = subfolder.absolutePath,
                     uri = null,
                     isFolder = true,
+                    name = subfolder.name,
+                    displayName = getDisplayName(subfolder.name),
                     lastModified = subfolder.lastModified(),
                     sizeInBytes = getFolderSize(subfolder)
                 )
@@ -237,7 +307,7 @@ private fun getMediaStoreFolderContents(
         }
     }
 
-    // Busca vídeos com MediaStore
+    // Busca vídeos com MediaStore (sem alterações)
     val projection = arrayOf(
         MediaStore.Video.Media.DATA,
         MediaStore.Video.Media._ID,
@@ -273,6 +343,8 @@ private fun getMediaStoreFolderContents(
                         path = path,
                         uri = uri,
                         isFolder = false,
+                        name = File(path).name,
+                        displayName = File(path).name,
                         lastModified = dateModified,
                         sizeInBytes = size
                     )
@@ -283,7 +355,7 @@ private fun getMediaStoreFolderContents(
 
     if (recursive) {
         folder.listFiles { file -> file.isDirectory }?.forEach { subfolder ->
-            mediaItems.addAll(getMediaStoreFolderContents(context, subfolder.absolutePath, recursive, sortType))
+            mediaItems.addAll(getMediaStoreFolderContents(context, subfolder.absolutePath, recursive, sortType, false, showPrivateFolders))
         }
     }
 
@@ -291,8 +363,8 @@ private fun getMediaStoreFolderContents(
 }
 
 // Função para dividir lista em chunks de 3 itens
-private fun <T> List<T>.chunked3(): List<List<T>> {
-    return this.chunked(3)
+private fun <T> List<T>.chunkedByColumns(columns: Int): List<List<T>> {
+    return this.chunked(columns)
 }
 
 // Composable de filtro
@@ -382,7 +454,9 @@ fun SubFolderScreen(
     onSelectionChange: (List<String>) -> Unit,
     renameTrigger: Int,
     deletedVideoPath: String? = null,
-    isSecureMode: Boolean = false // NOVO PARÂMETRO
+    isSecureMode: Boolean = false,
+    isRootLevel: Boolean = false,
+    showPrivateFolders: Boolean = false // NOVO PARÂMETRO
 ) {
     val context = LocalContext.current
     val mediaItems = remember { mutableStateListOf<MediaItem>() }
@@ -390,7 +464,7 @@ fun SubFolderScreen(
     var isScrollingFast by remember { mutableStateOf(false) }
     var currentSortType by remember { mutableStateOf(SortType.NAME_ASC) }
 
-    // Configurações
+    // Configurações (sem alterações)
     val showThumbnails by remember {
         derivedStateOf { OptimizedThumbnailManager.isShowThumbnailsEnabled(context) }
     }
@@ -399,6 +473,9 @@ fun SubFolderScreen(
     }
     val showFileSizes by remember {
         derivedStateOf { OptimizedThumbnailManager.isShowFileSizesEnabled(context) }
+    }
+    val gridColumns by remember {
+        derivedStateOf { SettingsManager.getGridColumns(context) }
     }
 
     var settingsVersion by remember { mutableStateOf(0) }
@@ -415,7 +492,7 @@ fun SubFolderScreen(
         }
     }
 
-    // Detecta velocidade de rolagem
+    // Detecta velocidade de rolagem (sem alterações)
     LaunchedEffect(lazyListState) {
         snapshotFlow {
             lazyListState.isScrollInProgress to lazyListState.firstVisibleItemScrollOffset
@@ -426,15 +503,17 @@ fun SubFolderScreen(
             }
     }
 
-    // Carregamento unificado
-    LaunchedEffect(folderPath, renameTrigger, currentSortType, isSecureMode) {
-        Log.d("NekoVideo", "Carregando items para $folderPath (secure: $isSecureMode)")
+    // CARREGAMENTO ATUALIZADO: inclui showPrivateFolders
+    LaunchedEffect(folderPath, renameTrigger, currentSortType, isSecureMode, isRootLevel, showPrivateFolders) {
+        Log.d("NekoVideo", "Carregando items para $folderPath (secure: $isSecureMode, root: $isRootLevel, showPrivate: $showPrivateFolders)")
         val items = withContext(Dispatchers.IO) {
             getVideosAndSubfolders(
                 context = context,
                 folderPath = folderPath,
                 sortType = currentSortType,
-                isSecureMode = isSecureMode
+                isSecureMode = isSecureMode,
+                isRootLevel = isRootLevel,
+                showPrivateFolders = showPrivateFolders // NOVO: passa o parâmetro
             )
         }
         mediaItems.clear()
@@ -442,7 +521,7 @@ fun SubFolderScreen(
         Log.d("NekoVideo", "Carregados ${items.size} items")
     }
 
-    // Remoção de item
+    // Remoção de item (sem alterações)
     LaunchedEffect(deletedVideoPath) {
         deletedVideoPath?.let { deletedPath ->
             val indexToRemove = mediaItems.indexOfFirst { it.path == deletedPath }
@@ -455,7 +534,7 @@ fun SubFolderScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Barra de filtros
+        // Barra de filtros (sem alterações)
         SortFilterRow(
             currentSort = currentSortType,
             onSortChange = { newSort ->
@@ -468,20 +547,21 @@ fun SubFolderScreen(
             thickness = 0.5.dp
         )
 
-        // Lista
+        // Lista (sem alterações)
         LazyColumn(
             state = lazyListState,
             contentPadding = PaddingValues(8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            val chunkedItems = mediaItems.chunked3()
+            val chunkedItems = mediaItems.chunkedByColumns(gridColumns)
             items(
                 items = chunkedItems,
                 key = { chunk -> chunk.joinToString(",") { it.id } }
             ) { rowItems ->
                 MediaItemRow(
                     items = rowItems,
+                    gridColumns = gridColumns,
                     selectedItems = selectedItems,
                     selectionType = selectionType,
                     isScrollingFast = isScrollingFast,
@@ -501,6 +581,7 @@ fun SubFolderScreen(
 @Composable
 private fun MediaItemRow(
     items: List<MediaItem>,
+    gridColumns: Int,
     selectedItems: MutableList<String>,
     selectionType: Boolean?,
     isScrollingFast: Boolean,
@@ -519,6 +600,7 @@ private fun MediaItemRow(
         items.forEach { mediaItem ->
             OptimizedMediaItemCard(
                 mediaItem = mediaItem,
+                gridColumns = gridColumns,
                 isSelected = mediaItem.path in selectedItems,
                 isScrollingFast = isScrollingFast,
                 showThumbnails = showThumbnails,
@@ -554,7 +636,7 @@ private fun MediaItemRow(
             )
         }
 
-        repeat(3 - items.size) {
+        repeat(gridColumns - items.size) { // Use gridColumns em vez de 4
             Box(modifier = Modifier.weight(1f))
         }
     }
@@ -563,6 +645,7 @@ private fun MediaItemRow(
 @Composable
 private fun OptimizedMediaItemCard(
     mediaItem: MediaItem,
+    gridColumns: Int,
     isSelected: Boolean,
     isScrollingFast: Boolean,
     showThumbnails: Boolean,
@@ -685,10 +768,11 @@ private fun OptimizedMediaItemCard(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             if (mediaItem.isFolder) {
-                FolderContent(mediaItem.name)
+                FolderContent(mediaItem.displayName, mediaItem.path) // MUDANÇA: passa displayName
             } else {
                 VideoContent(
                     mediaItem = mediaItem,
+                    gridColumns = gridColumns,
                     thumbnailBitmap = thumbnailBitmap,
                     videoDuration = videoDuration,
                     fileSize = fileSize,
@@ -705,32 +789,74 @@ private fun OptimizedMediaItemCard(
 }
 
 @Composable
-private fun FolderContent(name: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f)),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            imageVector = Icons.Default.Folder,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+private fun FolderContent(displayName: String, folderPath: String) {
+    val isAppFolder = File(folderPath, ".nekovideo").exists()
+    val isSecureFolder = File(folderPath).name.startsWith(".") // NOVO: detecta pasta segura
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
             modifier = Modifier
-                .size(40.dp)
-                .weight(1f)
-        )
-        Text(
-            text = name,
-            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 4.dp)
-        )
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f)),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = if (isSecureFolder) Icons.Default.FolderSpecial else Icons.Default.Folder, // NOVO: ícone diferente para pastas seguras
+                contentDescription = null,
+                tint = if (isSecureFolder) Color(0xFFFF6B35) else MaterialTheme.colorScheme.primary, // NOVO: cor diferente
+                modifier = Modifier
+                    .size(40.dp)
+                    .weight(1f)
+            )
+
+            Text(
+                text = displayName, // MUDANÇA: usa displayName em vez de name
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp, vertical = 4.dp)
+            )
+        }
+
+        // Badge para pasta do app
+        if (isAppFolder) {
+            Icon(
+                imageVector = Icons.Default.RemoveRedEye,
+                contentDescription = "Pasta do NekoVideo",
+                tint = Color.White,
+                modifier = Modifier
+                    .size(26.dp)
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = CircleShape
+                    )
+                    .padding(2.dp)
+            )
+        }
+
+        // NOVO: Badge para pasta segura
+        if (isSecureFolder && !isAppFolder) {
+            Icon(
+                imageVector = Icons.Default.SafetyCheck,
+                contentDescription = "Pasta Segura",
+                tint = Color.White,
+                modifier = Modifier
+                    .size(26.dp)
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .background(
+                        color = Color(0xFFFF6B35),
+                        shape = CircleShape
+                    )
+                    .padding(2.dp)
+            )
+        }
     }
 }
 
@@ -745,8 +871,17 @@ private fun VideoContent(
     showThumbnails: Boolean,
     showDurations: Boolean,
     showFileSizes: Boolean,
-    randomColor: Color
+    randomColor: Color,
+    gridColumns: Int
 ) {
+    // Tamanhos específicos baseados no número de colunas
+    val textSizes = when (gridColumns) {
+        2 -> Triple(12.sp, 10.sp, 10.sp) // nome, duração, tamanho
+        3 -> Triple(10.sp, 8.sp, 8.sp)
+        4 -> Triple(8.sp, 7.sp, 7.sp)
+        else -> Triple(10.sp, 8.sp, 8.sp)
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         when {
             !showThumbnails -> {
@@ -820,18 +955,19 @@ private fun VideoContent(
 
             Text(
                 text = mediaItem.name,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontWeight = FontWeight.Medium,
+                fontSize = textSizes.first,
+                fontWeight = FontWeight.Medium,
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                style = LocalTextStyle.current.copy(
                     shadow = Shadow(
                         color = Color.Black.copy(alpha = 0.5f),
                         offset = Offset(1f, 1f),
                         blurRadius = 2f
                     )
                 ),
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
@@ -842,7 +978,7 @@ private fun VideoContent(
             if (showDurations && videoDuration != null) {
                 Text(
                     text = videoDuration,
-                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = textSizes.second,
                     color = Color.White,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -858,7 +994,7 @@ private fun VideoContent(
             if (showFileSizes && fileSize != null) {
                 Text(
                     text = fileSize,
-                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = textSizes.third,
                     color = Color.White,
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -884,25 +1020,4 @@ private fun VideoContent(
             )
         }
     }
-}
-
-// Funções de conveniência para compatibilidade
-@Composable
-fun SecureFolderScreen(
-    folderPath: String,
-    onFolderClick: (String) -> Unit,
-    selectedItems: MutableList<String>,
-    onSelectionChange: (List<String>) -> Unit,
-    renameTrigger: Int,
-    deletedVideoPath: String? = null
-) {
-    SubFolderScreen(
-        folderPath = folderPath,
-        onFolderClick = onFolderClick,
-        selectedItems = selectedItems,
-        onSelectionChange = onSelectionChange,
-        renameTrigger = renameTrigger,
-        deletedVideoPath = deletedVideoPath,
-        isSecureMode = true
-    )
 }

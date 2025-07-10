@@ -53,7 +53,10 @@ import com.example.nekovideo.components.layout.ActionType
 import com.example.nekovideo.components.player.MiniPlayerImproved
 import com.example.nekovideo.components.player.VideoPlayerOverlay
 import com.example.nekovideo.components.settings.AboutSettingsScreen
+import com.example.nekovideo.components.settings.DisplaySettingsScreen
+import com.example.nekovideo.components.settings.FilesSettingsScreen
 import com.example.nekovideo.components.settings.InterfaceSettingsScreen
+import com.example.nekovideo.components.settings.PerformanceSettingsScreen
 import com.example.nekovideo.components.settings.PlaybackSettingsScreen
 import com.example.nekovideo.components.settings.SettingsScreen
 import com.example.nekovideo.ui.theme.NekoVideoTheme
@@ -161,6 +164,8 @@ fun MainScreen(intent: Intent?) {
     var deletedVideoPath by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
+    var showPrivateFolders by remember { mutableStateOf(false) }
+
     var isMoveMode by remember { mutableStateOf(false) }
     var itemsToMove by remember { mutableStateOf<List<String>>(emptyList()) }
     var showFolderActions by remember { mutableStateOf(false) }
@@ -178,6 +183,12 @@ fun MainScreen(intent: Intent?) {
                 folderPath.endsWith(".secure_videos") ||
                 File(folderPath, ".secure").exists() ||
                 File(folderPath, ".nomedia").exists()
+    }
+
+    fun isAtRootLevel(path: String): Boolean {
+        val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
+        val encodedFolderPath = currentBackStackEntry?.arguments?.getString("folderPath") ?: ""
+        return encodedFolderPath == "root" || path == rootPath
     }
 
     // Modificar o LaunchedEffect do intent para mostrar overlay
@@ -236,8 +247,9 @@ fun MainScreen(intent: Intent?) {
                             val isAtRoot = folderPath == basePath
 
                             if (isAtRoot) {
-                                navController.navigate("video_folders") {
-                                    popUpTo("video_folders") { inclusive = true }
+                                // MUDANÇA: usar a nova rota raiz
+                                navController.navigate("folder/root") {
+                                    popUpTo("folder/root") { inclusive = true }
                                     launchSingleTop = true
                                 }
                             } else {
@@ -252,8 +264,9 @@ fun MainScreen(intent: Intent?) {
                                             (parentPath == rootPath || parentPath == "$rootPath/")
 
                                     if (isReturningToRootFromNormal) {
-                                        navController.navigate("video_folders") {
-                                            popUpTo("video_folders") { inclusive = true }
+                                        // MUDANÇA: usar a nova rota raiz
+                                        navController.navigate("folder/root") {
+                                            popUpTo("folder/root") { inclusive = true }
                                             launchSingleTop = true
                                         }
                                     } else {
@@ -302,11 +315,22 @@ fun MainScreen(intent: Intent?) {
         PasswordDialog(
             onDismiss = { showPasswordDialog = false },
             onPasswordVerified = {
-                val securePath = FilesManager.SecureStorage.getSecureFolderPath(context)
-                val encodedPath = Uri.encode(securePath)
-                navController.navigate("folder/$encodedPath") {
-                    popUpTo("video_folders") { inclusive = false }
-                    launchSingleTop = true
+                // CORREÇÃO: Usar detecção mais robusta do root level
+                val encodedFolderPath = currentBackStackEntry?.arguments?.getString("folderPath") ?: ""
+                val isAtRoot = encodedFolderPath == "root" || isAtRootLevel(folderPath)
+
+                if (isAtRoot) {
+                    // MUDANÇA: Toggle das pastas privadas apenas quando está na raiz
+                    showPrivateFolders = !showPrivateFolders
+                    renameTrigger++ // Refresh da lista
+                } else {
+                    // Se não estiver na raiz, navegar para pasta segura (comportamento original)
+                    val securePath = FilesManager.SecureStorage.getSecureFolderPath(context)
+                    val encodedPath = Uri.encode(securePath)
+                    navController.navigate("folder/$encodedPath") {
+                        popUpTo("folder/root") { inclusive = false }
+                        launchSingleTop = true
+                    }
                 }
                 showPasswordDialog = false
             }
@@ -383,6 +407,7 @@ fun MainScreen(intent: Intent?) {
                     folderPath = folderPath,
                     context = context,
                     navController = navController,
+                    showPrivateFolders = showPrivateFolders, // CORRIGIDO: Adicionar parâmetro
                     onPasswordDialog = { showPasswordDialog = true },
                     onSelectionClear = {
                         selectedItems.clear()
@@ -392,7 +417,15 @@ fun MainScreen(intent: Intent?) {
                     onSelectAll = {
                         if (currentRoute == "folder") {
                             val isSecure = isSecureFolder(folderPath)
-                            val allItems = getVideosAndSubfolders(context, folderPath, isSecureMode = isSecure)
+                            val isRoot = isAtRootLevel(folderPath)
+
+                            val allItems = getVideosAndSubfolders(
+                                context = context,
+                                folderPath = folderPath,
+                                isSecureMode = isSecure,
+                                isRootLevel = isRoot,
+                                showPrivateFolders = showPrivateFolders
+                            )
                             selectedItems.clear()
                             selectedItems.addAll(allItems.map { it.path })
                         }
@@ -405,7 +438,7 @@ fun MainScreen(intent: Intent?) {
                 ActionBottomSheetFAB(
                     hasSelectedItems = selectedItems.isNotEmpty(),
                     isMoveMode = isMoveMode,
-                    currentRoute = currentRoute ?: "",
+                    isSecureMode = isSecureFolder(folderPath),
                     onActionClick = { action ->
                         when (action) {
                             ActionType.SETTINGS -> {
@@ -459,15 +492,86 @@ fun MainScreen(intent: Intent?) {
                                     }
                                 }
                             }
+                            ActionType.PRIVATIZE -> {
+                                coroutineScope.launch {
+                                    // Filtrar apenas pastas que podem ser privadas
+                                    val foldersToPrivatize = selectedItems.filter { path ->
+                                        FilesManager.canFolderBePrivatized(path)
+                                    }
+
+                                    if (foldersToPrivatize.isNotEmpty()) {
+                                        withContext(Dispatchers.IO) {
+                                            FilesManager.privatizeFolders(
+                                                context = context,
+                                                selectedFolders = foldersToPrivatize,
+                                                onProgress = { current, total ->
+                                                    // Opcional: mostrar progresso
+                                                },
+                                                onError = { message ->
+                                                    launch(Dispatchers.Main) {
+                                                        Toast.makeText(context, "Erro: $message", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                },
+                                                onSuccess = { message ->
+                                                    launch(Dispatchers.Main) {
+                                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                                    }
+                                                    selectedItems.clear()
+                                                    renameTrigger++
+                                                }
+                                            )
+                                        }
+                                    } else {
+                                        launch(Dispatchers.Main) {
+                                            Toast.makeText(context, "Selecione pastas válidas para privar", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            }
+                            ActionType.UNPRIVATIZE -> {
+                                coroutineScope.launch {
+                                    // Filtrar apenas pastas privadas para desprivar
+                                    val foldersToUnprivatize = selectedItems.filter { path ->
+                                        FilesManager.isFolderPrivate(path)
+                                    }
+
+                                    if (foldersToUnprivatize.isNotEmpty()) {
+                                        withContext(Dispatchers.IO) {
+                                            FilesManager.unprivatizeFolders(
+                                                context = context,
+                                                selectedFolders = foldersToUnprivatize,
+                                                onProgress = { current, total ->
+                                                    // Opcional: mostrar progresso
+                                                },
+                                                onError = { message ->
+                                                    launch(Dispatchers.Main) {
+                                                        Toast.makeText(context, "Erro: $message", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                },
+                                                onSuccess = { message ->
+                                                    launch(Dispatchers.Main) {
+                                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                                    }
+                                                    selectedItems.clear()
+                                                    renameTrigger++
+                                                }
+                                            )
+                                        }
+                                    } else {
+                                        launch(Dispatchers.Main) {
+                                            Toast.makeText(context, "Selecione pastas privadas para desprivar", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            }
                             ActionType.DELETE -> showDeleteConfirmDialog = true
                             ActionType.RENAME -> showRenameDialog = true
                             ActionType.MOVE -> {
                                 itemsToMove = selectedItems.toList()
                                 selectedItems.clear()
                                 isMoveMode = true
-                                val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
-                                val encodedPath = Uri.encode(rootPath)
-                                navController.navigate("folder/$encodedPath") {
+                                // MUDANÇA: usar a nova rota raiz
+                                navController.navigate("folder/root") {
                                     popUpTo("folder/{folderPath}") { inclusive = false }
                                     launchSingleTop = true
                                 }
@@ -542,7 +646,7 @@ fun MainScreen(intent: Intent?) {
         ) {
             NavHost(
                 navController = navController,
-                startDestination = "video_folders",
+                startDestination = "folder/root", // MUDANÇA: começar na raiz unificada
                 enterTransition = {
                     slideInHorizontally(
                         initialOffsetX = { fullWidth -> fullWidth },
@@ -568,31 +672,34 @@ fun MainScreen(intent: Intent?) {
                     )
                 }
             ) {
-                composable("video_folders") {
-                    RootFolderScreen(
-                        onFolderClick = { folderPath ->
-                            val encodedPath = Uri.encode(folderPath)
-                            navController.navigate("folder/$encodedPath")
-                        },
-                        selectedItems = selectedItems,
-                        onSelectionChange = { newSelection ->
-                            selectedItems.clear()
-                            selectedItems.addAll(newSelection)
-                            showFabMenu = false
-                            showRenameDialog = false
-                        }
-                    )
-                }
-                // Substitua ambas as rotas por uma única:
+                // REMOVIDO: A rota "video_folders" não existe mais
+
+                // ROTA UNIFICADA para todas as pastas (raiz e subpastas)
                 composable("folder/{folderPath}") { backStackEntry ->
-                    val folderPath = backStackEntry.arguments?.getString("folderPath")?.let { Uri.decode(it) } ?: ""
+                    val encodedFolderPath = backStackEntry.arguments?.getString("folderPath") ?: "root"
+
+                    val folderPath = if (encodedFolderPath == "root") {
+                        android.os.Environment.getExternalStorageDirectory().absolutePath
+                    } else {
+                        Uri.decode(encodedFolderPath)
+                    }
+
                     val isSecure = isSecureFolder(folderPath)
+                    val isRootLevel = encodedFolderPath == "root"
 
                     SubFolderScreen(
                         folderPath = folderPath,
                         isSecureMode = isSecure,
+                        isRootLevel = isRootLevel,
+                        showPrivateFolders = showPrivateFolders, // NOVO: passa o estado
                         onFolderClick = { itemPath ->
-                            val items = getVideosAndSubfolders(context, folderPath, isSecureMode = isSecure)
+                            val items = getVideosAndSubfolders(
+                                context = context,
+                                folderPath = folderPath,
+                                isSecureMode = isSecure,
+                                isRootLevel = isRootLevel,
+                                showPrivateFolders = showPrivateFolders // NOVO: passa o estado
+                            )
                             val item = items.find { it.path == itemPath }
                             if (item?.isFolder == true) {
                                 val encodedSubPath = Uri.encode(itemPath)
@@ -623,6 +730,7 @@ fun MainScreen(intent: Intent?) {
                         deletedVideoPath = deletedVideoPath
                     )
                 }
+
                 composable("settings") {
                     SettingsScreen(navController)
                 }
@@ -635,6 +743,16 @@ fun MainScreen(intent: Intent?) {
                 composable("settings/about") {
                     AboutSettingsScreen()
                 }
+                composable("settings/display") {
+                    DisplaySettingsScreen()
+                }
+                composable("settings/files") {
+                    FilesSettingsScreen()
+                }
+                composable("settings/performance") {
+                    PerformanceSettingsScreen()
+                }
+                // Removido duplicata: composable("settings/about")
             }
         }
         VideoPlayerOverlay(

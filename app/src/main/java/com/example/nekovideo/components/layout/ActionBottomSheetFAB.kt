@@ -9,20 +9,27 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 enum class ActionType {
-    UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS, PASTE
+    UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS, PASTE,
+    PRIVATIZE, UNPRIVATIZE // NOVAS AÇÕES
 }
 
 data class ActionItem(
@@ -37,35 +44,63 @@ data class ActionItem(
 fun ActionBottomSheetFAB(
     hasSelectedItems: Boolean,
     isMoveMode: Boolean,
-    currentRoute: String,
+    isSecureMode: Boolean,
+    selectedItems: List<String> = emptyList(), // NOVO: para verificar se tem pastas com "."
     onActionClick: (ActionType) -> Unit
 ) {
     var showBottomSheet by remember { mutableStateOf(false) }
     val bottomSheetState = rememberModalBottomSheetState()
 
+    // Verifica se algum item selecionado é pasta privada (começa com ".")
+    val hasPrivateFolders = remember(selectedItems) {
+        selectedItems.any { path ->
+            val file = java.io.File(path)
+            file.isDirectory && file.name.startsWith(".")
+        }
+    }
+
+    // Verifica se algum item selecionado é pasta normal (não começa com ".")
+    val hasNormalFolders = remember(selectedItems) {
+        selectedItems.any { path ->
+            val file = java.io.File(path)
+            file.isDirectory && !file.name.startsWith(".")
+        }
+    }
+
     // Define as ações baseado no contexto
-    val actions = remember(hasSelectedItems, currentRoute) {
+    val actions = remember(hasSelectedItems, isSecureMode, hasPrivateFolders, hasNormalFolders) {
         if (hasSelectedItems) {
-            if (currentRoute == "secure_folder") {
-                listOf(
-                    ActionItem(ActionType.UNLOCK, Icons.Default.LockOpen, "Desbloquear", "Remover da pasta segura"),
-                    ActionItem(ActionType.DELETE, Icons.Default.Delete, "Excluir", "Apagar permanentemente"),
-                    ActionItem(ActionType.RENAME, Icons.Default.Edit, "Renomear", "Alterar nome do arquivo"),
-                    ActionItem(ActionType.MOVE, Icons.Default.DriveFileMove, "Mover", "Transferir para outra pasta")
-                )
+            val actionsList = mutableListOf<ActionItem>()
+
+            if (isSecureMode) {
+                // Está na área segura (.secure_videos)
+                actionsList.add(ActionItem(ActionType.UNLOCK, Icons.Default.LockOpen, "Desbloquear"))
             } else {
-                listOf(
-                    ActionItem(ActionType.SECURE, Icons.Default.Lock, "Proteger", "Mover para pasta segura"),
-                    ActionItem(ActionType.DELETE, Icons.Default.Delete, "Excluir", "Apagar permanentemente"),
-                    ActionItem(ActionType.RENAME, Icons.Default.Edit, "Renomear", "Alterar nome do arquivo"),
-                    ActionItem(ActionType.MOVE, Icons.Default.DriveFileMove, "Mover", "Transferir para outra pasta")
-                )
+                // Está em área normal
+                actionsList.add(ActionItem(ActionType.SECURE, Icons.Default.Lock, "Proteger"))
+
+                // Ações de privar/desprivar baseado no tipo de pasta
+                if (hasPrivateFolders) {
+                    actionsList.add(ActionItem(ActionType.UNPRIVATIZE, Icons.Default.VisibilityOff, "Desprivar"))
+                }
+                if (hasNormalFolders) {
+                    actionsList.add(ActionItem(ActionType.PRIVATIZE, Icons.Default.Visibility, "Privar"))
+                }
             }
+
+            // Ações comuns
+            actionsList.addAll(listOf(
+                ActionItem(ActionType.DELETE, Icons.Default.Delete, "Excluir"),
+                ActionItem(ActionType.RENAME, Icons.Default.Edit, "Renomear"),
+                ActionItem(ActionType.MOVE, Icons.Default.DriveFileMove, "Mover")
+            ))
+
+            actionsList
         } else {
             listOf(
-                ActionItem(ActionType.SHUFFLE_PLAY, Icons.Default.Shuffle, "Reprodução Aleatória", "Reproduzir vídeos em ordem aleatória"),
-                ActionItem(ActionType.CREATE_FOLDER, Icons.Default.CreateNewFolder, "Nova Pasta", "Criar uma nova pasta"),
-                ActionItem(ActionType.SETTINGS, Icons.Default.Settings, "Configurações", "Abrir configurações do app")
+                ActionItem(ActionType.SHUFFLE_PLAY, Icons.Default.Shuffle, "Aleatório"),
+                ActionItem(ActionType.CREATE_FOLDER, Icons.Default.CreateNewFolder, "Nova Pasta"),
+                ActionItem(ActionType.SETTINGS, Icons.Default.Settings, "Configurações")
             )
         }
     }
@@ -74,7 +109,6 @@ fun ActionBottomSheetFAB(
     FloatingActionButton(
         onClick = {
             if (isMoveMode) {
-                // Executar ação de colar diretamente
                 onActionClick(ActionType.PASTE)
             } else {
                 showBottomSheet = true
@@ -99,7 +133,7 @@ fun ActionBottomSheetFAB(
         )
     }
 
-    // Bottom Sheet Modal com animações
+    // Bottom Sheet Modal com Grid
     if (showBottomSheet) {
         ModalBottomSheet(
             onDismissRequest = { showBottomSheet = false },
@@ -138,14 +172,19 @@ fun ActionBottomSheetFAB(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
 
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    // Lista de ações
-                    LazyColumn {
+                    // Grid de ações (3 colunas)
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         items(actions) { action ->
-                            ActionListItem(
+                            ActionGridItem(
                                 action = action,
                                 onClick = {
                                     onActionClick(action.type)
@@ -154,6 +193,8 @@ fun ActionBottomSheetFAB(
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -161,38 +202,72 @@ fun ActionBottomSheetFAB(
 }
 
 @Composable
-private fun ActionListItem(
+private fun ActionGridItem(
     action: ActionItem,
     onClick: () -> Unit
 ) {
-    ListItem(
-        headlineContent = {
-            Text(
-                text = action.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
-        },
-        supportingContent = action.subtitle?.let {
-            {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        leadingContent = {
-            Icon(
-                imageVector = action.icon,
-                contentDescription = action.title,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
-        },
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-    )
+            .height(80.dp) // Altura fixa em vez de aspecto quadrado
+            .clickable { onClick() },
+        color = Color.Transparent,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Surface(
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    color = when (action.type) {
+                        ActionType.DELETE -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+                        ActionType.SECURE, ActionType.UNLOCK -> Color(0xFF4CAF50).copy(alpha = 0.15f)
+                        ActionType.PRIVATIZE -> Color(0xFFFF9800).copy(alpha = 0.15f)
+                        ActionType.UNPRIVATIZE -> Color(0xFF2196F3).copy(alpha = 0.15f)
+                        else -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                    }
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = action.icon,
+                            contentDescription = action.title,
+                            tint = when (action.type) {
+                                ActionType.DELETE -> MaterialTheme.colorScheme.error
+                                ActionType.SECURE, ActionType.UNLOCK -> Color(0xFF4CAF50)
+                                ActionType.PRIVATIZE -> Color(0xFFFF9800)
+                                ActionType.UNPRIVATIZE -> Color(0xFF2196F3)
+                                else -> MaterialTheme.colorScheme.primary
+                            },
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = action.title,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                )
+            }
+        }
+    }
 }

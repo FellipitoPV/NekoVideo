@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,11 +33,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.nekovideo.components.helpers.FilesManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -45,13 +48,28 @@ import java.io.File
 // Função para detectar secure folder
 private fun isSecureFolder(folderPath: String, context: Context): Boolean {
     val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
-    return folderPath.startsWith(secureFolderPath) ||
-            folderPath.contains("/.private/") ||
-            folderPath.contains("/secure/") ||
-            folderPath.contains(".secure_videos") ||
-            folderPath.endsWith(".secure_videos") ||
-            File(folderPath, ".secure").exists() ||
-            File(folderPath, ".nomedia").exists()
+    return folderPath.startsWith(secureFolderPath)
+}
+
+// NOVA função para detectar se está na raiz
+private fun isAtRootLevel(folderPath: String, context: Context): Boolean {
+    val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath.trimEnd('/')
+    val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context).trimEnd('/')
+    val normalizedFolderPath = folderPath.trimEnd('/')
+    val isSecure = isSecureFolder(folderPath, context)
+    val basePath = if (isSecure) secureFolderPath else rootPath
+
+    // DEBUG: Adicione logs temporários para verificar
+    println("=== DEBUG ROOT DETECTION ===")
+    println("folderPath: $normalizedFolderPath")
+    println("rootPath: $rootPath")
+    println("secureFolderPath: $secureFolderPath")
+    println("isSecure: $isSecure")
+    println("basePath: $basePath")
+    println("isAtRoot: ${normalizedFolderPath == basePath}")
+    println("==========================")
+
+    return normalizedFolderPath == basePath
 }
 
 @Composable
@@ -64,11 +82,17 @@ fun CustomTopAppBar(
     navController: NavController,
     onPasswordDialog: () -> Unit,
     onSelectionClear: () -> Unit,
-    onSelectAll: () -> Unit
+    onSelectAll: () -> Unit,
+    showPrivateFolders: Boolean
 ) {
     val coroutineScope = rememberCoroutineScope()
     val maxTapInterval = 500L
     var tapCount by remember { mutableStateOf(0) }
+
+    // NOVO: Detectar se é raiz pela rota também
+    val currentBackStackEntry = navController.currentBackStackEntryAsState()
+    val encodedFolderPath = currentBackStackEntry.value?.arguments?.getString("folderPath") ?: ""
+    val isRootByRoute = encodedFolderPath == "root"
 
     SmallTopAppBar(
         title = {
@@ -108,7 +132,8 @@ fun CustomTopAppBar(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
-                currentRoute == "video_folders" -> {
+                currentRoute == "folder" && isRootByRoute -> {
+                    // NOVO: Só mostrar NekoVideo na raiz real (rota "root"), não na pasta segura
                     Text(
                         text = "NekoVideo",
                         style = MaterialTheme.typography.titleMedium,
@@ -138,6 +163,7 @@ fun CustomTopAppBar(
                     )
                 }
                 currentRoute == "folder" -> {
+                    // ATUALIZADO: Subpastas - mostrar breadcrumb
                     val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
                     val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
                     val isSecure = isSecureFolder(folderPath, context)
@@ -188,7 +214,7 @@ fun CustomTopAppBar(
                                                 }
                                                 val encodedPath = Uri.encode(targetPath)
                                                 navController.navigate("folder/$encodedPath") {
-                                                    popUpTo("video_folders") { inclusive = false }
+                                                    popUpTo("folder/root") { inclusive = false }
                                                     launchSingleTop = true
                                                 }
                                             }
@@ -237,37 +263,16 @@ fun CustomTopAppBar(
                         )
                     }
                 }
-                currentRoute == "folder" -> {
-                    val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
-                    val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
-                    val isSecure = isSecureFolder(folderPath, context)
-                    val basePath = if (isSecure) secureFolderPath else rootPath
-
-                    if (folderPath == basePath) {
-                        // Está na raiz - voltar para video_folders
-                        IconButton(onClick = {
-                            navController.navigate("video_folders") {
-                                popUpTo("video_folders") { inclusive = true }
-                                launchSingleTop = true
-                            }
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    } else {
-                        // Está em subpasta - voltar para pasta anterior
-                        IconButton(onClick = {
-                            navController.popBackStack()
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
+                currentRoute == "folder" && !isRootByRoute -> {
+                    // MUDANÇA: Só não mostrar botão de voltar se for a rota "root"
+                    IconButton(onClick = {
+                        navController.popBackStack()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 }
             }

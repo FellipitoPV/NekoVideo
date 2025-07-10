@@ -123,9 +123,26 @@ object FilesManager {
     }
 
     fun createFolderWithMarker(context: Context, path: String, folderName: String): Boolean {
-        val newFolder = File(path, folderName)
+        val prefs = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+        val appOnlyFolders = prefs.getBoolean("app_only_folders", false)
+
+        // Se for pasta segura, adicionar "." no início do nome
+        val finalFolderName = if (appOnlyFolders && !folderName.startsWith(".")) {
+            ".$folderName"
+        } else {
+            folderName
+        }
+
+        val newFolder = File(path, finalFolderName)
         if (newFolder.mkdirs()) {
+            // Sempre criar .nekovideo
             File(newFolder, ".nekovideo").createNewFile()
+
+            // Criar .nomedia se a configuração estiver ativada
+            if (appOnlyFolders) {
+                File(newFolder, ".nomedia").createNewFile()
+            }
+
             return true
         }
         return false
@@ -149,13 +166,36 @@ object FilesManager {
         selectedItems: List<String>,
         onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
         onError: (message: String) -> Unit = { _ -> },
-        onSuccess: (message: String) -> Unit = { _ -> }
+        onSuccess: (message: String) -> Unit = { _ -> },
+        onConfirmRequired: (onConfirm: () -> Unit) -> Unit = { it() } // NOVO CALLBACK
     ) {
         if (selectedItems.isEmpty()) {
             onError("No items selected")
             return
         }
 
+        // Verificar se confirmação está ativada
+        val prefs = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+        val confirmDelete = prefs.getBoolean("confirm_delete", true)
+
+        if (confirmDelete) {
+            // Pedir confirmação antes de deletar
+            onConfirmRequired {
+                performDelete(selectedItems, onProgress, onError, onSuccess)
+            }
+        } else {
+            // Deletar diretamente
+            performDelete(selectedItems, onProgress, onError, onSuccess)
+        }
+    }
+
+    // Função auxiliar para o delete real
+    private fun performDelete(
+        selectedItems: List<String>,
+        onProgress: (current: Int, total: Int) -> Unit,
+        onError: (message: String) -> Unit,
+        onSuccess: (message: String) -> Unit
+    ) {
         var deletedCount = 0
         val totalItems = selectedItems.size
 
@@ -192,20 +232,39 @@ object FilesManager {
         secureFolderPath: String,
         onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
         onError: (message: String) -> Unit = { _ -> },
-        onSuccess: (message: String) -> Unit = { _ -> }
+        onSuccess: (message: String) -> Unit = { _ -> },
+        onConfirmRequired: (onConfirm: () -> Unit) -> Unit = { it() } // NOVO CALLBACK
     ) {
         if (selectedItems.isEmpty()) {
             onError("No items selected")
             return
         }
 
-        // Verifica se todos os itens estão dentro da pasta segura
         val invalidItems = selectedItems.filterNot { it.startsWith(secureFolderPath) }
         if (invalidItems.isNotEmpty()) {
             onError("Some items are not in the secure folder")
             return
         }
 
+        // Verificar confirmação
+        val prefs = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+        val confirmDelete = prefs.getBoolean("confirm_delete", true)
+
+        if (confirmDelete) {
+            onConfirmRequired {
+                performSecureDelete(selectedItems, onProgress, onError, onSuccess)
+            }
+        } else {
+            performSecureDelete(selectedItems, onProgress, onError, onSuccess)
+        }
+    }
+
+    private fun performSecureDelete(
+        selectedItems: List<String>,
+        onProgress: (current: Int, total: Int) -> Unit,
+        onError: (message: String) -> Unit,
+        onSuccess: (message: String) -> Unit
+    ) {
         var deletedCount = 0
         val totalItems = selectedItems.size
 
@@ -234,6 +293,164 @@ object FilesManager {
         } else {
             onSuccess("Deleted $deletedCount secure items")
         }
+    }
+
+    // Adicione essas funções ao seu FilesManager.kt
+    fun privatizeFolders(
+        context: Context,
+        selectedFolders: List<String>,
+        onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
+        onError: (message: String) -> Unit = { _ -> },
+        onSuccess: (message: String) -> Unit = { _ -> }
+    ) {
+        if (selectedFolders.isEmpty()) {
+            onError("Nenhuma pasta selecionada")
+            return
+        }
+
+        // Filtrar apenas pastas que não começam com "."
+        val foldersToPrivatize = selectedFolders.filter { path ->
+            val folder = File(path)
+            folder.isDirectory && !folder.name.startsWith(".")
+        }
+
+        if (foldersToPrivatize.isEmpty()) {
+            onError("Nenhuma pasta válida para privar")
+            return
+        }
+
+        var privatizedCount = 0
+        val totalFolders = foldersToPrivatize.size
+
+        foldersToPrivatize.forEachIndexed { index, folderPath ->
+            val originalFolder = File(folderPath)
+            if (!originalFolder.exists() || !originalFolder.isDirectory) {
+                onError("Pasta não encontrada: ${originalFolder.name}")
+                return@forEachIndexed
+            }
+
+            try {
+                // Criar novo nome com "." no início
+                val parentDir = originalFolder.parentFile
+                val newName = ".${originalFolder.name}"
+                val newFolder = File(parentDir, newName)
+
+                // Verificar se já existe uma pasta com esse nome
+                if (newFolder.exists()) {
+                    onError("Já existe uma pasta privada com o nome: $newName")
+                    return@forEachIndexed
+                }
+
+                // Renomear a pasta
+                if (originalFolder.renameTo(newFolder)) {
+                    // Criar arquivo .nomedia dentro da pasta
+                    try {
+                        File(newFolder, ".nomedia").createNewFile()
+                        privatizedCount++
+                    } catch (e: Exception) {
+                        // Se falhar ao criar .nomedia, reverter o rename
+                        newFolder.renameTo(originalFolder)
+                        onError("Erro ao criar .nomedia em ${originalFolder.name}")
+                    }
+                } else {
+                    onError("Falha ao privar pasta: ${originalFolder.name}")
+                }
+            } catch (e: Exception) {
+                onError("Erro ao privar ${originalFolder.name}: ${e.message}")
+            }
+
+            onProgress(index + 1, totalFolders)
+        }
+
+        if (privatizedCount == 0) {
+            onError("Nenhuma pasta foi privada")
+        } else {
+            onSuccess("$privatizedCount pasta(s) privada(s) com sucesso")
+        }
+    }
+
+    fun unprivatizeFolders(
+        context: Context,
+        selectedFolders: List<String>,
+        onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
+        onError: (message: String) -> Unit = { _ -> },
+        onSuccess: (message: String) -> Unit = { _ -> }
+    ) {
+        if (selectedFolders.isEmpty()) {
+            onError("Nenhuma pasta selecionada")
+            return
+        }
+
+        // Filtrar apenas pastas que começam com "."
+        val foldersToUnprivatize = selectedFolders.filter { path ->
+            val folder = File(path)
+            folder.isDirectory && folder.name.startsWith(".") && folder.name != ".nomedia" && folder.name != ".nekovideo"
+        }
+
+        if (foldersToUnprivatize.isEmpty()) {
+            onError("Nenhuma pasta privada selecionada")
+            return
+        }
+
+        var unprivatizedCount = 0
+        val totalFolders = foldersToUnprivatize.size
+
+        foldersToUnprivatize.forEachIndexed { index, folderPath ->
+            val privateFolder = File(folderPath)
+            if (!privateFolder.exists() || !privateFolder.isDirectory) {
+                onError("Pasta não encontrada: ${privateFolder.name}")
+                return@forEachIndexed
+            }
+
+            try {
+                // Criar novo nome removendo o "." do início
+                val parentDir = privateFolder.parentFile
+                val newName = privateFolder.name.substring(1) // Remove o primeiro caractere "."
+                val newFolder = File(parentDir, newName)
+
+                // Verificar se já existe uma pasta com esse nome
+                if (newFolder.exists()) {
+                    onError("Já existe uma pasta com o nome: $newName")
+                    return@forEachIndexed
+                }
+
+                // Remover arquivo .nomedia se existir
+                val nomediaFile = File(privateFolder, ".nomedia")
+                if (nomediaFile.exists()) {
+                    nomediaFile.delete()
+                }
+
+                // Renomear a pasta
+                if (privateFolder.renameTo(newFolder)) {
+                    unprivatizedCount++
+                } else {
+                    onError("Falha ao desprivar pasta: ${privateFolder.name}")
+                }
+            } catch (e: Exception) {
+                onError("Erro ao desprivar ${privateFolder.name}: ${e.message}")
+            }
+
+            onProgress(index + 1, totalFolders)
+        }
+
+        if (unprivatizedCount == 0) {
+            onError("Nenhuma pasta foi desprivada")
+        } else {
+            onSuccess("$unprivatizedCount pasta(s) desprivada(s) com sucesso")
+        }
+    }
+
+    // Função auxiliar para verificar se uma pasta é privada
+    fun isFolderPrivate(folderPath: String): Boolean {
+        val folder = File(folderPath)
+        return folder.isDirectory && folder.name.startsWith(".") &&
+                folder.name != ".nomedia" && folder.name != ".nekovideo"
+    }
+
+    // Função auxiliar para verificar se uma pasta pode ser privada
+    fun canFolderBePrivatized(folderPath: String): Boolean {
+        val folder = File(folderPath)
+        return folder.isDirectory && !folder.name.startsWith(".")
     }
 
     object SecureStorage {

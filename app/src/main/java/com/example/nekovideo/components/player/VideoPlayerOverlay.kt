@@ -6,12 +6,17 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import android.media.AudioManager
+import android.provider.Settings
 import android.util.Log
+import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
@@ -52,7 +57,7 @@ import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
-// Novos imports para a interface customizada
+// Novos imports para gestos e controles
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -65,7 +70,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.foundation.border
+import kotlin.math.abs
 import kotlin.math.roundToLong
+import com.example.nekovideo.components.settings.SettingsManager
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @SuppressLint("OpaqueUnitKey")
@@ -86,12 +97,37 @@ fun VideoPlayerOverlay(
     var currentVideoPath by remember { mutableStateOf("") }
 
     // Estados para controles customizados
-    var controlsVisible by remember { mutableStateOf(true) }
+    var controlsVisible by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(false) }
     var currentPosition by remember { mutableStateOf(0L) }
     var duration by remember { mutableStateOf(0L) }
     var currentVideoTitle by remember { mutableStateOf("") }
     var isSeekingActive by remember { mutableStateOf(false) }
+
+    // Timer regressivo para UI (em segundos)
+    var uiTimer by remember { mutableStateOf(0) }
+
+    // Função para resetar timer da UI (definida no escopo correto com tipo explícito)
+    val resetUITimer: () -> Unit = {
+        uiTimer = 4
+        Log.d("VideoPlayer_Timer", "RESET: UI Timer reset to 4 seconds")
+    }
+
+    // Estados para sliders laterais invisíveis
+    var leftSliderActive by remember { mutableStateOf(false) }
+    var rightSliderActive by remember { mutableStateOf(false) }
+    var brightnessIndicator by remember { mutableStateOf<Float?>(null) }
+    var volumeIndicator by remember { mutableStateOf<Int?>(null) }
+    var currentVolume by remember { mutableStateOf(50) }
+    var currentBrightness by remember { mutableStateOf(50f) }
+
+    // Variáveis para manter os últimos valores válidos durante a animação
+    var lastValidBrightness by remember { mutableStateOf(50f) }
+    var lastValidVolume by remember { mutableStateOf(50) }
+
+    // Estados para controles de gestos (mantendo só o seek)
+    var seekIndicator by remember { mutableStateOf<String?>(null) }
+    var seekSide by remember { mutableStateOf(Alignment.Center) }
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -99,9 +135,34 @@ fun VideoPlayerOverlay(
     val playerView = remember {
         Log.d("VideoPlayer", "Criando PlayerView")
         PlayerView(context).apply {
-            useController = false // Desabilitar controles nativos
+            useController = false
             setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
             resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+        }
+    }
+
+    // Inicializar valores de volume e brilho
+    LaunchedEffect(Unit) {
+        // Volume inicial
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val volume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        currentVolume = ((volume.toFloat() / maxVolume) * 100).toInt()
+
+        // Brilho inicial
+        val activity = context.findActivity()
+        if (activity != null) {
+            val window = activity.window
+            val layoutParams = window.attributes
+            currentBrightness = if (layoutParams.screenBrightness == WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE) {
+                try {
+                    Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS) / 255f
+                } catch (e: Exception) {
+                    0.5f
+                }
+            } else {
+                layoutParams.screenBrightness
+            }
         }
     }
 
@@ -117,11 +178,50 @@ fun VideoPlayerOverlay(
         }
     }
 
-    // Função para esconder controles automaticamente
+    LaunchedEffect(controlsVisible, uiTimer, isPlaying) {
+        if (controlsVisible && isPlaying && uiTimer > 0) {
+            while (uiTimer > 0 && controlsVisible && isPlaying) {
+                delay(1000) // Aguarda 1 segundo
+                uiTimer -= 1
+                Log.d("VideoPlayer_Timer", "UI Timer countdown: $uiTimer seconds remaining")
+            }
+
+            // Se o timer chegou a 0 e os controles ainda estão visíveis
+            if (uiTimer <= 0 && controlsVisible) {
+                Log.d("VideoPlayer_Timer", "UI Timer expired - hiding controls")
+                controlsVisible = false
+            }
+        }
+    }
+
     LaunchedEffect(controlsVisible) {
-        if (controlsVisible && isPlaying) {
-            delay(4000)
-            controlsVisible = false
+        if (controlsVisible) {
+            uiTimer = 4 // Inicia com 4 segundos
+            Log.d("VideoPlayer_Timer", "Controls became visible - timer set to 4 seconds")
+        }
+    }
+
+    // Esconder indicadores após tempo
+    LaunchedEffect(seekIndicator) {
+        if (seekIndicator != null) {
+            delay(500)
+            seekIndicator = null
+        }
+    }
+
+    LaunchedEffect(brightnessIndicator) {
+        if (brightnessIndicator != null) {
+            lastValidBrightness = brightnessIndicator!! // Salvar último valor válido
+            delay(2000)
+            brightnessIndicator = null
+        }
+    }
+
+    LaunchedEffect(volumeIndicator) {
+        if (volumeIndicator != null) {
+            lastValidVolume = volumeIndicator!! // Salvar último valor válido
+            delay(2000)
+            volumeIndicator = null
         }
     }
 
@@ -175,7 +275,7 @@ fun VideoPlayerOverlay(
         )
     }
 
-    // Conectar ao MediaController
+    // Conectar ao MediaController (mesmo código)
     LaunchedEffect(Unit) {
         Log.d("VideoPlayer", "Conectando ao MediaController")
         val sessionToken = SessionToken(context, ComponentName(context, MediaPlaybackService::class.java))
@@ -191,7 +291,7 @@ fun VideoPlayerOverlay(
         }, MoreExecutors.directExecutor())
     }
 
-    // Controlar overlay
+    // Controlar overlay (mesmo código)
     LaunchedEffect(isVisible) {
         if (isVisible && mediaController != null && !hasRefreshed) {
             Log.d("VideoPlayer", "Overlay visível - fazendo refresh único do serviço")
@@ -242,7 +342,7 @@ fun VideoPlayerOverlay(
         }
     }
 
-    // Listener para mudanças
+    // Listener para mudanças com melhorias de UX
     DisposableEffect(mediaController, overlayActuallyVisible) {
         var listener: Player.Listener? = null
 
@@ -266,9 +366,13 @@ fun VideoPlayerOverlay(
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     if (!overlayActuallyVisible) return
 
+                    val wasPlayerPaused = !mediaController!!.isPlaying
+                    Log.d("VideoPlayer_Timer", "onMediaItemTransition called - wasPlayerPaused: $wasPlayerPaused, reason: $reason")
+
                     mediaItem?.localConfiguration?.uri?.let { uri ->
                         currentVideoPath = uri.path?.removePrefix("file://") ?: ""
                         currentVideoTitle = File(currentVideoPath).nameWithoutExtension
+                        Log.d("VideoPlayer_Timer", "New video loaded: $currentVideoTitle")
                     }
 
                     val videoSize = mediaController!!.videoSize
@@ -280,6 +384,20 @@ fun VideoPlayerOverlay(
                             ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                         }
                         activity?.requestedOrientation = newOrientation
+                    }
+
+                    // Resetar timer da UI se estiver visível
+                    if (controlsVisible) {
+                        Log.d("VideoPlayer_Timer", "RESET: Media transition detected - resetting timer from listener")
+                        resetUITimer()
+                    } else {
+                        Log.d("VideoPlayer_Timer", "Media transition detected but controls not visible")
+                    }
+
+                    // Auto-play se estava pausado antes de pular
+                    if (wasPlayerPaused && !mediaController!!.isPlaying) {
+                        Log.d("VideoPlayer_Timer", "Auto-playing video that was previously paused")
+                        mediaController!!.play()
                     }
                 }
 
@@ -301,7 +419,7 @@ fun VideoPlayerOverlay(
         }
     }
 
-    // Controle de modo imersivo
+    // Controle de modo imersivo (mesmo código)
     DisposableEffect(isVisible) {
         if (isVisible) {
             val activity = context.findActivity() ?: return@DisposableEffect onDispose {}
@@ -326,7 +444,7 @@ fun VideoPlayerOverlay(
         }
     }
 
-    // Handle back press
+    // Handle back press (mesmo código)
     LaunchedEffect(isVisible) {
         if (isVisible && backDispatcher != null) {
             val callback = object : OnBackPressedCallback(true) {
@@ -338,7 +456,7 @@ fun VideoPlayerOverlay(
         }
     }
 
-    // Overlay animado
+    // Overlay animado com gestos SIMPLIFICADOS (só double tap para seek)
     AnimatedVisibility(
         visible = isVisible,
         enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
@@ -348,11 +466,34 @@ fun VideoPlayerOverlay(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                    controlsVisible = !controlsVisible
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onDoubleTap = { offset ->
+                            val screenWidth = size.width
+                            val doubleTapSeek = SettingsManager.getDoubleTapSeek(context) * 1000L
+
+                            mediaController?.let { controller ->
+                                val currentPos = controller.currentPosition
+
+                                if (offset.x < screenWidth / 2) {
+                                    // Lado esquerdo - voltar
+                                    val newPosition = (currentPos - doubleTapSeek).coerceAtLeast(0)
+                                    controller.seekTo(newPosition)
+                                    seekIndicator = "-${doubleTapSeek / 1000}s"
+                                    seekSide = Alignment.CenterStart
+                                } else {
+                                    // Lado direito - avançar
+                                    val newPosition = currentPos + doubleTapSeek
+                                    controller.seekTo(newPosition)
+                                    seekIndicator = "+${doubleTapSeek / 1000}s"
+                                    seekSide = Alignment.CenterEnd
+                                }
+                            }
+                        },
+                        onTap = {
+                            controlsVisible = !controlsVisible
+                        }
+                    )
                 }
         ) {
             // PlayerView em background
@@ -361,7 +502,79 @@ fun VideoPlayerOverlay(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Interface customizada
+            // Slider invisível do lado esquerdo (BRILHO) - 70% da altura, centralizado
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight(0.7f)
+                    .width(360.dp) // Aumentado para 360.dp
+                    .align(Alignment.CenterStart)
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                leftSliderActive = true
+                                // Calcular brilho baseado na posição inicial do toque
+                                val percentage = ((size.height - offset.y) / size.height)
+                                    .coerceIn(0f, 1f)
+                                currentBrightness = percentage
+                                setBrightness(context, percentage)
+                                brightnessIndicator = percentage
+                            },
+                            onDragEnd = {
+                                leftSliderActive = false
+                            }
+                        ) { change, _ ->
+                            // Durante o drag, calcular brilho baseado na posição atual do dedo
+                            val percentage = ((size.height - change.position.y) / size.height)
+                                .coerceIn(0f, 1f)
+                            currentBrightness = percentage
+                            setBrightness(context, percentage)
+                            brightnessIndicator = percentage
+                        }
+                    }
+            )
+
+            // Slider invisível do lado direito (VOLUME) - 70% da altura, centralizado
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight(0.7f)
+                    .width(360.dp) // Aumentado para 360.dp
+                    .align(Alignment.CenterEnd)
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                rightSliderActive = true
+                                // Calcular volume baseado na posição inicial do toque
+                                val percentage = ((size.height - offset.y) / size.height * 100)
+                                    .coerceIn(0f, 100f).toInt()
+                                currentVolume = percentage
+                                setVolume(context, percentage)
+                                volumeIndicator = percentage
+                            },
+                            onDragEnd = {
+                                rightSliderActive = false
+                            }
+                        ) { change, _ ->
+                            // Durante o drag, calcular volume baseado na posição atual do dedo
+                            val percentage = ((size.height - change.position.y) / size.height * 100)
+                                .coerceIn(0f, 100f).toInt()
+                            currentVolume = percentage
+                            setVolume(context, percentage)
+                            volumeIndicator = percentage
+                        }
+                    }
+            )
+
+            // Indicadores visuais
+            GestureIndicators(
+                brightnessLevel = brightnessIndicator,
+                volumeLevel = volumeIndicator,
+                lastValidBrightness = lastValidBrightness,
+                lastValidVolume = lastValidVolume,
+                seekInfo = seekIndicator,
+                seekAlignment = seekSide
+            )
+
+            // Interface customizada com ícones de volume e brilho
             AnimatedVisibility(
                 visible = controlsVisible,
                 enter = fadeIn(animationSpec = tween(300)),
@@ -379,11 +592,177 @@ fun VideoPlayerOverlay(
                         mediaController?.pause()
                         showDeleteDialog = true
                     },
-                    onBackClick = onDismiss
+                    onBackClick = onDismiss,
+                    resetUITimer = resetUITimer
                 )
             }
         }
     }
+}
+
+@Composable
+private fun GestureIndicators(
+    brightnessLevel: Float?,
+    volumeLevel: Int?,
+    lastValidBrightness: Float,
+    lastValidVolume: Int,
+    seekInfo: String?,
+    seekAlignment: Alignment = Alignment.Center
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Indicador de brilho (lado esquerdo)
+        AnimatedVisibility(
+            visible = brightnessLevel != null,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.CenterStart)
+        ) {
+            Card(
+                modifier = Modifier.padding(32.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.Black.copy(alpha = 0.8f)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Brightness6,
+                        contentDescription = "Brightness",
+                        tint = Color(0xFFFF9800), // Laranja
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "${(lastValidBrightness * 100).toInt()}%",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Indicador de volume (lado direito)
+        AnimatedVisibility(
+            visible = volumeLevel != null,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            Card(
+                modifier = Modifier.padding(32.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.Black.copy(alpha = 0.8f)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = when {
+                            lastValidVolume == 0 -> Icons.Default.VolumeOff
+                            lastValidVolume < 50 -> Icons.Default.VolumeDown
+                            else -> Icons.Default.VolumeUp
+                        },
+                        contentDescription = "Volume",
+                        tint = Color(0xFF4CAF50), // Verde
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "$lastValidVolume%",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Indicador de seek (posição dinâmica, mais rápido e sem fundo)
+        AnimatedVisibility(
+            visible = seekInfo != null,
+            enter = fadeIn(animationSpec = tween(200)) + scaleIn(animationSpec = tween(200)),
+            exit = fadeOut(animationSpec = tween(200)) + scaleOut(animationSpec = tween(200)),
+            modifier = Modifier.align(seekAlignment)
+        ) {
+            Box(
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val isAdvancing = seekInfo?.startsWith("+") == true
+                    val seekIcon = if (isAdvancing) Icons.Default.FastForward else Icons.Default.FastRewind
+
+                    if (isAdvancing) {
+                        Text(
+                            text = seekInfo ?: "",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            style = androidx.compose.ui.text.TextStyle(
+                                shadow = androidx.compose.ui.graphics.Shadow(
+                                    color = Color.Black,
+                                    offset = androidx.compose.ui.geometry.Offset(2f, 2f),
+                                    blurRadius = 4f
+                                )
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = seekIcon,
+                            contentDescription = "Seek Forward",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = seekIcon,
+                            contentDescription = "Seek Backward",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = seekInfo ?: "",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            style = androidx.compose.ui.text.TextStyle(
+                                shadow = androidx.compose.ui.graphics.Shadow(
+                                    color = Color.Black,
+                                    offset = androidx.compose.ui.geometry.Offset(2f, 2f),
+                                    blurRadius = 4f
+                                )
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Funções para ajustar volume e brilho
+private fun setVolume(context: Context, volumePercent: Int) {
+    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+    val newVolume = ((volumePercent / 100f) * maxVolume).toInt()
+    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
+}
+
+private fun setBrightness(context: Context, brightnessPercent: Float) {
+    val activity = context.findActivity() ?: return
+    val window = activity.window
+    val layoutParams = window.attributes
+    layoutParams.screenBrightness = brightnessPercent.coerceIn(0.01f, 1.0f)
+    window.attributes = layoutParams
 }
 
 @Composable
@@ -396,7 +775,8 @@ private fun CustomVideoControls(
     onSeekStart: () -> Unit,
     onSeekEnd: () -> Unit,
     onDeleteClick: () -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    resetUITimer: () -> Unit
 ) {
     val controller = mediaController ?: return
 
@@ -446,6 +826,7 @@ private fun CustomVideoControls(
                         .padding(horizontal = 16.dp)
                 )
 
+                // Ícone delete
                 IconButton(
                     onClick = onDeleteClick,
                     modifier = Modifier
@@ -462,7 +843,7 @@ private fun CustomVideoControls(
             }
         }
 
-        // Controles centrais
+        // Controles centrais (mesmo código)
         Row(
             modifier = Modifier.align(Alignment.Center),
             horizontalArrangement = Arrangement.spacedBy(24.dp),
@@ -472,6 +853,8 @@ private fun CustomVideoControls(
             IconButton(
                 onClick = {
                     if (controller.hasPreviousMediaItem()) {
+                        Log.d("VideoPlayer_Timer", "RESET: Previous button clicked in controls")
+                        resetUITimer()
                         controller.seekToPreviousMediaItem()
                     }
                 },
@@ -513,6 +896,8 @@ private fun CustomVideoControls(
             IconButton(
                 onClick = {
                     if (controller.hasNextMediaItem()) {
+                        Log.d("VideoPlayer_Timer", "RESET: Next button clicked in controls")
+                        resetUITimer()
                         controller.seekToNextMediaItem()
                     }
                 },
@@ -530,7 +915,7 @@ private fun CustomVideoControls(
             }
         }
 
-        // Bottom controls com gradiente
+        // Bottom controls com gradiente (mesmo código)
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -611,7 +996,7 @@ fun Context.findActivity(): Activity? {
     return null
 }
 
-// Função para deletar vídeo atual e atualizar playlist
+// Função para deletar vídeo atual e atualizar playlist (mesmo código anterior)
 private suspend fun deleteCurrentVideo(
     context: Context,
     videoPath: String,
