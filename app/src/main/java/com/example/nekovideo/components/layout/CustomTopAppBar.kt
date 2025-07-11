@@ -45,31 +45,18 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 
-// Função para detectar secure folder
-private fun isSecureFolder(folderPath: String, context: Context): Boolean {
-    val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
-    return folderPath.startsWith(secureFolderPath)
+// NOVA função para detectar se é pasta segura (qualquer pasta com . no início e com marcadores)
+private fun isSecureFolder(folderPath: String): Boolean {
+    val folder = File(folderPath)
+    val hasSecureMarkers = File(folder, ".nomedia").exists() || File(folder, ".nekovideo").exists()
+    return folder.name.startsWith(".") && hasSecureMarkers
 }
 
-// NOVA função para detectar se está na raiz
-private fun isAtRootLevel(folderPath: String, context: Context): Boolean {
+// SIMPLIFICADA - função para detectar se está na raiz
+private fun isAtRootLevel(folderPath: String): Boolean {
     val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath.trimEnd('/')
-    val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context).trimEnd('/')
     val normalizedFolderPath = folderPath.trimEnd('/')
-    val isSecure = isSecureFolder(folderPath, context)
-    val basePath = if (isSecure) secureFolderPath else rootPath
-
-    // DEBUG: Adicione logs temporários para verificar
-    println("=== DEBUG ROOT DETECTION ===")
-    println("folderPath: $normalizedFolderPath")
-    println("rootPath: $rootPath")
-    println("secureFolderPath: $secureFolderPath")
-    println("isSecure: $isSecure")
-    println("basePath: $basePath")
-    println("isAtRoot: ${normalizedFolderPath == basePath}")
-    println("==========================")
-
-    return normalizedFolderPath == basePath
+    return normalizedFolderPath == rootPath
 }
 
 @Composable
@@ -89,7 +76,7 @@ fun CustomTopAppBar(
     val maxTapInterval = 500L
     var tapCount by remember { mutableStateOf(0) }
 
-    // NOVO: Detectar se é raiz pela rota também
+    // Detectar se é raiz pela rota
     val currentBackStackEntry = navController.currentBackStackEntryAsState()
     val encodedFolderPath = currentBackStackEntry.value?.arguments?.getString("folderPath") ?: ""
     val isRootByRoute = encodedFolderPath == "root"
@@ -133,7 +120,6 @@ fun CustomTopAppBar(
                     )
                 }
                 currentRoute == "folder" && isRootByRoute -> {
-                    // NOVO: Só mostrar NekoVideo na raiz real (rota "root"), não na pasta segura
                     Text(
                         text = "NekoVideo",
                         style = MaterialTheme.typography.titleMedium,
@@ -163,55 +149,47 @@ fun CustomTopAppBar(
                     )
                 }
                 currentRoute == "folder" -> {
-                    // ATUALIZADO: Subpastas - mostrar breadcrumb
-                    val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
+                    // NOVO: Breadcrumb simplificado - trata todas as pastas igual
                     val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
-                    val isSecure = isSecureFolder(folderPath, context)
-                    val basePath = if (isSecure) secureFolderPath else rootPath
-                    val relativePath = folderPath.removePrefix(basePath).trim('/')
+                    val relativePath = folderPath.removePrefix(rootPath).trim('/')
                     val pathSegments = relativePath.split('/').filter { it.isNotEmpty() }
-                    val displayPath = if (isSecure && relativePath.isEmpty()) {
-                        listOf("secure_video")
-                    } else {
-                        if (isSecure) listOf("secure_video") + pathSegments else pathSegments
-                    }
 
                     // LazyRow para breadcrumb scrollable
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        itemsIndexed(displayPath) { index, segment ->
+                        itemsIndexed(pathSegments) { index, segment ->
                             AnimatedVisibility(
                                 visible = true,
                                 enter = fadeIn(animationSpec = tween(300)),
                                 exit = fadeOut(animationSpec = tween(300))
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
+                                    val displayName = if (segment.startsWith(".")) {
+                                        // Remove o ponto inicial para display mais limpo
+                                        segment.drop(1)
+                                    } else {
+                                        segment
+                                    }
+
                                     Text(
-                                        text = segment,
+                                        text = displayName,
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.primary,
+                                        color = if (segment.startsWith(".")) {
+                                            // Cor diferente para pastas seguras
+                                            Color(0xFFFF6B35)
+                                        } else {
+                                            MaterialTheme.colorScheme.primary
+                                        },
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier
                                             .clickable {
-                                                val targetPath = if (isSecure && index == 0) {
-                                                    secureFolderPath
-                                                } else {
-                                                    val segmentsUpToIndex = displayPath.take(index + 1)
-                                                    val prefix = if (isSecure) secureFolderPath else rootPath
-                                                    if (isSecure && segmentsUpToIndex[0] == "secure_video") {
-                                                        if (segmentsUpToIndex.size == 1) {
-                                                            secureFolderPath
-                                                        } else {
-                                                            "$secureFolderPath/${segmentsUpToIndex.drop(1).joinToString("/")}"
-                                                        }
-                                                    } else {
-                                                        "$prefix/${segmentsUpToIndex.joinToString("/")}"
-                                                    }
-                                                }
+                                                // Constrói o caminho até o segmento clicado
+                                                val targetSegments = pathSegments.take(index + 1)
+                                                val targetPath = "$rootPath/${targetSegments.joinToString("/")}"
                                                 val encodedPath = Uri.encode(targetPath)
                                                 navController.navigate("folder/$encodedPath") {
                                                     popUpTo("folder/root") { inclusive = false }
@@ -221,7 +199,7 @@ fun CustomTopAppBar(
                                             .padding(horizontal = 4.dp, vertical = 2.dp)
                                     )
 
-                                    if (index < displayPath.size - 1) {
+                                    if (index < pathSegments.size - 1) {
                                         Text(
                                             text = ">",
                                             style = MaterialTheme.typography.titleMedium,
@@ -264,7 +242,6 @@ fun CustomTopAppBar(
                     }
                 }
                 currentRoute == "folder" && !isRootByRoute -> {
-                    // MUDANÇA: Só não mostrar botão de voltar se for a rota "root"
                     IconButton(onClick = {
                         navController.popBackStack()
                     }) {

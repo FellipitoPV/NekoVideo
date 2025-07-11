@@ -223,6 +223,17 @@ class MediaPlaybackService : MediaSessionService() {
                 updatePlaylistAfterDeletion(playlist, nextIndex)
             }
             "STOP_SERVICE" -> {
+                Log.d("MediaPlaybackService", "Stopping service and clearing everything")
+                player?.run {
+                    pause()
+                    clearMediaItems()
+                    stop()
+                }
+
+                // Enviar broadcast de que o player foi fechado
+                val intent = Intent("PLAYER_CLOSED")
+                sendBroadcast(intent)
+
                 stopSelf()
             }
         }

@@ -113,6 +113,11 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
     return applySorting(items, sortType)
 }
 
+private fun isSecureFolder(folderPath: String): Boolean {
+    val folder = File(folderPath)
+    return File(folder, ".nomedia").exists() || File(folder, ".nekovideo").exists()
+}
+
 // SIMPLIFICADO - Carregamento normal
 private fun loadNormalContent(
     context: Context,
@@ -128,14 +133,22 @@ private fun loadNormalContent(
     folder.listFiles()?.filter { it.isDirectory }?.forEach { subfolder ->
         if (subfolder.name in listOf(".nomedia", ".nekovideo")) return@forEach
 
-        if (isRootLevel && subfolder.name.startsWith(".") && !showPrivateFolders) {
-            return@forEach
-        }
-
         val hasVideos = hasVideosInFolder(context, subfolder.absolutePath)
         val isAppFolder = File(subfolder, ".nekovideo").exists()
+        val isSecure = isSecureFolder(subfolder.absolutePath)
 
-        if (hasVideos || isAppFolder || (subfolder.name.startsWith(".") && showPrivateFolders)) {
+        // Lógica corrigida para pastas seguras
+        val shouldShow = when {
+            // Pasta normal com vídeos ou pasta do app
+            hasVideos || isAppFolder -> true
+            // Pasta que começa com "." mas só mostra se for realmente segura e showPrivateFolders estiver ativo
+            isRootLevel && subfolder.name.startsWith(".") -> showPrivateFolders && isSecure
+            // Outras pastas seguras (não necessariamente com "." no nome)
+            isSecure -> showPrivateFolders
+            else -> false
+        }
+
+        if (shouldShow) {
             items.add(MediaItem(
                 subfolder.absolutePath, null, true,
                 lastModified = subfolder.lastModified(),

@@ -19,24 +19,33 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.NekoVideo"
+        android:enableOnBackInvokedCallback="true"
         tools:ignore="HardcodedDebugMode">
+
         <service
             android:name=".MediaPlaybackService"
             android:foregroundServiceType="mediaPlayback"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
         </service>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|screenLayout"
+            android:configChanges="orientation|screenSize|screenLayout|uiMode|keyboardHidden|layoutDirection|locale"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.NekoVideo">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Intent filter para abrir player via notificação -->
+            <intent-filter>
+                <action android:name="OPEN_PLAYER" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
     </application>

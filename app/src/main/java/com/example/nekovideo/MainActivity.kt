@@ -27,6 +27,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +43,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.nekovideo.components.CreateFolderDialog
 import com.example.nekovideo.components.layout.CustomTopAppBar
 import com.example.nekovideo.components.DeleteConfirmationDialog
+import com.example.nekovideo.components.OptimizedThumbnailManager
 import com.example.nekovideo.components.PasswordDialog
 import com.example.nekovideo.components.RenameDialog
 import com.example.nekovideo.components.SortType
@@ -51,6 +53,7 @@ import com.example.nekovideo.components.layout.ActionBottomSheetFAB
 import com.example.nekovideo.components.layout.ActionType
 import com.example.nekovideo.components.loadFolderContent
 import com.example.nekovideo.components.loadFolderContentRecursive
+import com.example.nekovideo.components.player.MediaControllerManager
 import com.example.nekovideo.components.player.MiniPlayerImproved
 import com.example.nekovideo.components.player.VideoPlayerOverlay
 import com.example.nekovideo.components.settings.AboutSettingsScreen
@@ -82,6 +85,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        // ✅ ADICIONE AQUI - Inicia limpeza automática do cache
+        OptimizedThumbnailManager.startPeriodicCleanup()
     }
 
     fun keepScreenOn(keep: Boolean) {
@@ -119,11 +125,25 @@ class MainActivity : ComponentActivity() {
             // Receiver já foi removido
         }
         keepScreenOn(false)
+
+        // ✅ ADICIONE AQUI - Limpeza leve quando app vai para background
+        OptimizedThumbnailManager.cancelLoading("")
+    }
+
+    // ✅ ADICIONE ESTE MÉTODO INTEIRO:
+    override fun onDestroy() {
+        super.onDestroy()
+
+        MediaControllerManager.disconnect()
+
+        // Para limpeza automática e limpa todos os caches
+        OptimizedThumbnailManager.stopPeriodicCleanup()
+        OptimizedThumbnailManager.clearCache()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        setIntent(intent) // Update the intent
+        setIntent(intent)
         setContent {
             NekoVideoTheme {
                 Surface(
@@ -144,6 +164,14 @@ fun Context.findActivity(): ComponentActivity? {
         context = context.baseContext
     }
     return null
+}
+
+private fun cancelMoveMode(
+    isMoveMode: MutableState<Boolean>,
+    itemsToMove: MutableState<List<String>>
+) {
+    isMoveMode.value = false
+    itemsToMove.value = emptyList()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -171,9 +199,6 @@ fun MainScreen(intent: Intent?) {
     var itemsToMove by remember { mutableStateOf<List<String>>(emptyList()) }
     var showFolderActions by remember { mutableStateOf(false) }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
-
-    var tapCount by remember { mutableStateOf(0) }
-    val maxTapInterval = 500L // 500ms interval for triple tap
 
     fun isSecureFolder(folderPath: String): Boolean {
         val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
@@ -213,12 +238,6 @@ fun MainScreen(intent: Intent?) {
                 override fun handleOnBackPressed() {
                     if (showPlayerOverlay) {
                         showPlayerOverlay = false
-                        return
-                    }
-
-                    if (isMoveMode) {
-                        isMoveMode = false
-                        itemsToMove = emptyList()
                         return
                     }
 
@@ -441,6 +460,8 @@ fun MainScreen(intent: Intent?) {
                     hasSelectedItems = selectedItems.isNotEmpty(),
                     isMoveMode = isMoveMode,
                     isSecureMode = isSecureFolder(folderPath),
+                    selectedItems = selectedItems.toList(), // Já existia
+                    itemsToMoveCount = itemsToMove.size, // NOVO: passa quantidade de itens para mover
                     onActionClick = { action ->
                         when (action) {
                             ActionType.SETTINGS -> {
@@ -496,7 +517,6 @@ fun MainScreen(intent: Intent?) {
                             }
                             ActionType.PRIVATIZE -> {
                                 coroutineScope.launch {
-                                    // Filtrar apenas pastas que podem ser privadas
                                     val foldersToPrivatize = selectedItems.filter { path ->
                                         FilesManager.canFolderBePrivatized(path)
                                     }
@@ -506,9 +526,7 @@ fun MainScreen(intent: Intent?) {
                                             FilesManager.privatizeFolders(
                                                 context = context,
                                                 selectedFolders = foldersToPrivatize,
-                                                onProgress = { current, total ->
-                                                    // Opcional: mostrar progresso
-                                                },
+                                                onProgress = { current, total -> },
                                                 onError = { message ->
                                                     launch(Dispatchers.Main) {
                                                         Toast.makeText(context, "Erro: $message", Toast.LENGTH_SHORT).show()
@@ -532,7 +550,6 @@ fun MainScreen(intent: Intent?) {
                             }
                             ActionType.UNPRIVATIZE -> {
                                 coroutineScope.launch {
-                                    // Filtrar apenas pastas privadas para desprivar
                                     val foldersToUnprivatize = selectedItems.filter { path ->
                                         FilesManager.isFolderPrivate(path)
                                     }
@@ -542,9 +559,7 @@ fun MainScreen(intent: Intent?) {
                                             FilesManager.unprivatizeFolders(
                                                 context = context,
                                                 selectedFolders = foldersToUnprivatize,
-                                                onProgress = { current, total ->
-                                                    // Opcional: mostrar progresso
-                                                },
+                                                onProgress = { current, total -> },
                                                 onError = { message ->
                                                     launch(Dispatchers.Main) {
                                                         Toast.makeText(context, "Erro: $message", Toast.LENGTH_SHORT).show()
@@ -569,21 +584,22 @@ fun MainScreen(intent: Intent?) {
                             ActionType.DELETE -> showDeleteConfirmDialog = true
                             ActionType.RENAME -> showRenameDialog = true
                             ActionType.MOVE -> {
+                                // MODIFICADO: Não navega mais para a raiz
                                 itemsToMove = selectedItems.toList()
                                 selectedItems.clear()
                                 isMoveMode = true
-                                // MUDANÇA: usar a nova rota raiz
-                                navController.navigate("folder/root") {
-                                    popUpTo("folder/{folderPath}") { inclusive = false }
-                                    launchSingleTop = true
-                                }
+                                Toast.makeText(context, "Modo mover ativado. Navegue até o destino e cole.", Toast.LENGTH_SHORT).show()
+                            }
+                            // NOVA AÇÃO: Cancelar modo Move
+                            ActionType.CANCEL_MOVE -> {
+                                isMoveMode = false
+                                itemsToMove = emptyList()
+                                Toast.makeText(context, "Operação de mover cancelada", Toast.LENGTH_SHORT).show()
                             }
                             ActionType.SHUFFLE_PLAY -> {
                                 coroutineScope.launch {
                                     val videos = withContext(Dispatchers.IO) {
                                         val isSecure = isSecureFolder(folderPath)
-
-                                        // Usar nossa função recursiva simplificada
                                         loadFolderContentRecursive(
                                             context = context,
                                             folderPath = folderPath,
