@@ -259,7 +259,7 @@ fun SortRow(currentSort: SortType, onSortChange: (SortType) -> Unit) {
     }
 }
 
-// COMPONENTE PRINCIPAL SIMPLIFICADO
+// COMPONENTE PRINCIPAL COM LOADING
 @Composable
 fun SubFolderScreen(
     folderPath: String,
@@ -274,6 +274,7 @@ fun SubFolderScreen(
 ) {
     val context = LocalContext.current
     var items by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) } // 🆕 Estado de loading
     var sortType by remember { mutableStateOf(SortType.NAME_ASC) }
     val lazyListState = rememberLazyListState()
 
@@ -283,11 +284,13 @@ fun SubFolderScreen(
     val showFileSizes by remember { derivedStateOf { OptimizedThumbnailManager.isShowFileSizesEnabled(context) }}
     val gridColumns by remember { derivedStateOf { SettingsManager.getGridColumns(context) }}
 
-    // Carregamento
+    // Carregamento com loading
     LaunchedEffect(folderPath, sortType, renameTrigger, isSecureMode, showPrivateFolders) {
+        isLoading = true // 🆕 Inicia loading
         items = withContext(Dispatchers.IO) {
             loadFolderContent(context, folderPath, sortType, isSecureMode, isRootLevel, showPrivateFolders)
         }
+        isLoading = false // 🆕 Finaliza loading
     }
 
     // Remoção de item deletado
@@ -299,27 +302,52 @@ fun SubFolderScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        SortRow(sortType) { sortType = it }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
-
-        LazyColumn(
-            state = lazyListState,
-            contentPadding = PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+    // 🆕 Tela de loading
+    if (isLoading) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            items(items.chunked(gridColumns), key = { chunk -> chunk.joinToString { it.path }}) { rowItems ->
-                MediaRow(
-                    items = rowItems,
-                    gridColumns = gridColumns,
-                    selectedItems = selectedItems,
-                    showThumbnails = showThumbnails,
-                    showDurations = showDurations,
-                    showFileSizes = showFileSizes,
-                    isSecureMode = isSecureMode,
-                    onFolderClick = onFolderClick,
-                    onSelectionChange = onSelectionChange
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(48.dp),
+                    color = MaterialTheme.colorScheme.primary
                 )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Carregando...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    } else {
+        // Conteúdo normal quando não está carregando
+        Column(modifier = Modifier.fillMaxSize()) {
+            SortRow(sortType) { sortType = it }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+
+            LazyColumn(
+                state = lazyListState,
+                contentPadding = PaddingValues(8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(items.chunked(gridColumns), key = { chunk -> chunk.joinToString { it.path }}) { rowItems ->
+                    MediaRow(
+                        items = rowItems,
+                        gridColumns = gridColumns,
+                        selectedItems = selectedItems,
+                        showThumbnails = showThumbnails,
+                        showDurations = showDurations,
+                        showFileSizes = showFileSizes,
+                        isSecureMode = isSecureMode,
+                        onFolderClick = onFolderClick,
+                        onSelectionChange = onSelectionChange
+                    )
+                }
             }
         }
     }

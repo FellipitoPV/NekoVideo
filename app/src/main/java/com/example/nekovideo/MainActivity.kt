@@ -261,40 +261,67 @@ fun MainScreen(intent: Intent?) {
                         currentRoute == "folder" -> {
                             val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
                             val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
-                            val isSecure = isSecureFolder(folderPath)
-                            val basePath = if (isSecure) secureFolderPath else rootPath
+                            val encodedFolderPath = currentBackStackEntry?.arguments?.getString("folderPath") ?: ""
 
-                            val isAtRoot = folderPath == basePath
+                            // CORREÇÃO: Distinguir entre pasta dentro da estrutura segura vs pasta privada
+                            val isInSecureStructure = folderPath.startsWith(secureFolderPath)
+                            val isPrivateFolder = isSecureFolder(folderPath) && !isInSecureStructure
 
-                            if (isAtRoot) {
-                                // MUDANÇA: usar a nova rota raiz
+                            // Determinar se está na raiz do contexto atual
+                            val isAtContextRoot = when {
+                                isInSecureStructure -> folderPath == secureFolderPath
+                                else -> folderPath == rootPath || encodedFolderPath == "root"
+                            }
+
+                            if (isAtContextRoot) {
                                 navController.navigate("folder/root") {
                                     popUpTo("folder/root") { inclusive = true }
                                     launchSingleTop = true
                                 }
                             } else {
-                                val relativePath = folderPath.removePrefix(basePath).trim('/')
-                                val pathSegments = relativePath.split('/').filter { it.isNotEmpty() }
+                                // Calcular caminho pai baseado na estrutura real
+                                val parentPath = if (isInSecureStructure) {
+                                    // Para pastas dentro da estrutura segura
+                                    val withoutSecurePrefix = folderPath.removePrefix(secureFolderPath).trimStart('/')
 
-                                if (pathSegments.isNotEmpty()) {
-                                    val parentPath = if (pathSegments.dropLast(1).isEmpty()) basePath
-                                    else "$basePath/${pathSegments.dropLast(1).joinToString("/")}"
+                                    val pathSegments = withoutSecurePrefix.split('/').filter { it.isNotEmpty() }
 
-                                    val isReturningToRootFromNormal = !isSecure &&
-                                            (parentPath == rootPath || parentPath == "$rootPath/")
-
-                                    if (isReturningToRootFromNormal) {
-                                        // MUDANÇA: usar a nova rota raiz
-                                        navController.navigate("folder/root") {
-                                            popUpTo("folder/root") { inclusive = true }
-                                            launchSingleTop = true
-                                        }
+                                    if (pathSegments.size <= 1) {
+                                        secureFolderPath
                                     } else {
-                                        val encodedParentPath = Uri.encode(parentPath)
-                                        navController.navigate("folder/$encodedParentPath") {
-                                            popUpTo("folder/{folderPath}") { inclusive = false }
-                                            launchSingleTop = true
-                                        }
+                                        val parentSegments = pathSegments.dropLast(1)
+                                        val result = "$secureFolderPath/${parentSegments.joinToString("/")}"
+                                        result
+                                    }
+                                } else {
+                                    // Para pastas normais/privadas, usar navegação normal
+                                    val withoutRootPrefix = folderPath.removePrefix(rootPath).trimStart('/')
+
+                                    val pathSegments = withoutRootPrefix.split('/').filter { it.isNotEmpty() }
+
+                                    if (pathSegments.size <= 1) {
+                                        rootPath
+                                    } else {
+                                        val parentSegments = pathSegments.dropLast(1)
+                                        val result = "$rootPath/${parentSegments.joinToString("/")}"
+                                        result
+                                    }
+                                }
+
+
+                                // Verificar se o parentPath é uma raiz conhecida
+                                val isParentRoot = parentPath == rootPath || parentPath == secureFolderPath
+
+                                if (isParentRoot) {
+                                    navController.navigate("folder/root") {
+                                        popUpTo("folder/root") { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                } else {
+                                    val encodedParentPath = Uri.encode(parentPath)
+                                    navController.navigate("folder/$encodedParentPath") {
+                                        popUpTo("folder/{folderPath}") { inclusive = false }
+                                        launchSingleTop = true
                                     }
                                 }
                             }
