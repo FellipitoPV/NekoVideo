@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.nekovideo.components.settings.SettingsManager
+import com.example.nekovideo.services.FolderVideoScanner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -47,6 +48,16 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.random.Random
+import kotlinx.coroutines.flow.first
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.offset
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 
 // SIMPLIFICADO - Enum de ordenação
 enum class SortType { NAME_ASC, NAME_DESC, DATE_NEWEST, DATE_OLDEST, SIZE_LARGEST, SIZE_SMALLEST }
@@ -92,7 +103,7 @@ fun loadFolderContent(
     return if (isSecureMode) {
         loadSecureContent(folderPath, sortType)
     } else {
-        loadNormalContent(context, folderPath, sortType, isRootLevel, showPrivateFolders)
+        loadNormalContentFromCache(context, folderPath, sortType, isRootLevel, showPrivateFolders)
     }
 }
 
@@ -119,7 +130,7 @@ private fun isSecureFolder(folderPath: String): Boolean {
 }
 
 // SIMPLIFICADO - Carregamento normal
-private fun loadNormalContent(
+private fun loadNormalContentFromCache(
     context: Context,
     folderPath: String,
     sortType: SortType,
@@ -128,41 +139,51 @@ private fun loadNormalContent(
 ): List<MediaItem> {
     val items = mutableListOf<MediaItem>()
     val folder = File(folderPath)
+    val folderCache = FolderVideoScanner.cache.value
 
-    // Carregar pastas
+    // Carregar pastas usando o cache
     folder.listFiles()?.filter { it.isDirectory }?.forEach { subfolder ->
         if (subfolder.name in listOf(".nomedia", ".nekovideo")) return@forEach
 
-        val hasVideos = hasVideosInFolder(context, subfolder.absolutePath)
-        val isAppFolder = File(subfolder, ".nekovideo").exists()
-        val isSecure = isSecureFolder(subfolder.absolutePath)
+        val folderInfo = folderCache[subfolder.absolutePath]
+        val isSecure = folderInfo?.isSecure ?: false
+        val hasVideos = folderInfo?.hasVideos ?: false
 
-        // Lógica corrigida para pastas seguras
         val shouldShow = when {
-            // Pasta normal com vídeos ou pasta do app
-            hasVideos || isAppFolder -> true
-            // Pasta que começa com "." mas só mostra se for realmente segura e showPrivateFolders estiver ativo
+            hasVideos -> true
             isRootLevel && subfolder.name.startsWith(".") -> showPrivateFolders && isSecure
-            // Outras pastas seguras (não necessariamente com "." no nome)
             isSecure -> showPrivateFolders
             else -> false
         }
 
         if (shouldShow) {
             items.add(MediaItem(
-                subfolder.absolutePath, null, true,
-                lastModified = subfolder.lastModified(),
+                subfolder.absolutePath,
+                null,
+                true,
+                lastModified = folderInfo?.lastModified ?: subfolder.lastModified(),
                 sizeInBytes = getFolderSize(subfolder)
             ))
         }
     }
 
-    // Carregar vídeos via MediaStore
-    val projection = arrayOf(MediaStore.Video.Media.DATA, MediaStore.Video.Media._ID, MediaStore.Video.Media.DATE_MODIFIED, MediaStore.Video.Media.SIZE)
+    // Carregar vídeos (mantém a mesma lógica)
+    val projection = arrayOf(
+        MediaStore.Video.Media.DATA,
+        MediaStore.Video.Media._ID,
+        MediaStore.Video.Media.DATE_MODIFIED,
+        MediaStore.Video.Media.SIZE
+    )
     val selection = "${MediaStore.Video.Media.DATA} LIKE ? AND ${MediaStore.Video.Media.DATA} NOT LIKE ?"
     val selectionArgs = arrayOf("$folderPath/%", "$folderPath%/%/%")
 
-    context.contentResolver.query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, projection, selection, selectionArgs, null)?.use { cursor ->
+    context.contentResolver.query(
+        MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+        projection,
+        selection,
+        selectionArgs,
+        null
+    )?.use { cursor ->
         val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
         val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
         val dateColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
@@ -171,9 +192,14 @@ private fun loadNormalContent(
         while (cursor.moveToNext()) {
             val path = cursor.getString(dataColumn)
             if (path.startsWith(folderPath)) {
-                val uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, cursor.getLong(idColumn))
+                val uri = ContentUris.withAppendedId(
+                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                    cursor.getLong(idColumn)
+                )
                 items.add(MediaItem(
-                    path, uri, false,
+                    path,
+                    uri,
+                    false,
                     lastModified = cursor.getLong(dateColumn) * 1000L,
                     sizeInBytes = cursor.getLong(sizeColumn)
                 ))
@@ -273,10 +299,24 @@ fun SubFolderScreen(
     showPrivateFolders: Boolean = false
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+
     var items by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) } // 🆕 Estado de loading
+    var isLoading by remember { mutableStateOf(true) }
     var sortType by remember { mutableStateOf(SortType.NAME_ASC) }
     val lazyListState = rememberLazyListState()
+
+    // 🆕 Manual pull-to-refresh states
+    var isRefreshing by remember { mutableStateOf(false) }
+    var pullOffset by remember { mutableStateOf(0f) }
+    val pullThreshold = with(density) { 80.dp.toPx() }
+
+    val shouldRefresh by remember { derivedStateOf { pullOffset >= pullThreshold } }
+
+    // Observa o estado do scanner
+    val scannerCache by FolderVideoScanner.cache.collectAsState()
+    val isScanning by FolderVideoScanner.isScanning.collectAsState()
 
     // Configurações
     val showThumbnails by remember { derivedStateOf { OptimizedThumbnailManager.isShowThumbnailsEnabled(context) }}
@@ -284,13 +324,43 @@ fun SubFolderScreen(
     val showFileSizes by remember { derivedStateOf { OptimizedThumbnailManager.isShowFileSizesEnabled(context) }}
     val gridColumns by remember { derivedStateOf { SettingsManager.getGridColumns(context) }}
 
+    // Inicia o scanner se necessário
+    LaunchedEffect(Unit) {
+        if (scannerCache.isEmpty() && !isScanning) {
+            FolderVideoScanner.startScan(context, coroutineScope)
+        }
+    }
+
+    // 🆕 Função de refresh
+    fun performRefresh() {
+        if (!isRefreshing) {
+            coroutineScope.launch {
+                try {
+                    isRefreshing = true
+                    FolderVideoScanner.startScan(context, coroutineScope)
+
+                    while (FolderVideoScanner.isScanning.value) {
+                        delay(100)
+                    }
+
+                    delay(300)
+                } catch (e: Exception) {
+                    Log.e("SubFolderScreen", "Erro no refresh", e)
+                } finally {
+                    isRefreshing = false
+                    pullOffset = 0f
+                }
+            }
+        }
+    }
+
     // Carregamento com loading
-    LaunchedEffect(folderPath, sortType, renameTrigger, isSecureMode, showPrivateFolders) {
-        isLoading = true // 🆕 Inicia loading
+    LaunchedEffect(folderPath, sortType, renameTrigger, isSecureMode, showPrivateFolders, scannerCache) {
+        isLoading = true
         items = withContext(Dispatchers.IO) {
             loadFolderContent(context, folderPath, sortType, isSecureMode, isRootLevel, showPrivateFolders)
         }
-        isLoading = false // 🆕 Finaliza loading
+        isLoading = false
     }
 
     // Remoção de item deletado
@@ -302,8 +372,8 @@ fun SubFolderScreen(
         }
     }
 
-    // 🆕 Tela de loading
-    if (isLoading) {
+    // Tela de loading
+    if (isLoading || (scannerCache.isEmpty() && isScanning)) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
@@ -318,35 +388,112 @@ fun SubFolderScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Carregando...",
+                    text = when {
+                        isScanning && isRefreshing -> "Atualizando índice..."
+                        isScanning -> "Indexando vídeos..."
+                        else -> "Carregando..."
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     } else {
-        // Conteúdo normal quando não está carregando
-        Column(modifier = Modifier.fillMaxSize()) {
-            SortRow(sortType) { sortType = it }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
-
-            LazyColumn(
-                state = lazyListState,
-                contentPadding = PaddingValues(8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+        // 🆕 Conteúdo com pull-to-refresh manual
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .offset { IntOffset(0, pullOffset.roundToInt()) }
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragEnd = {
+                                if (shouldRefresh && !isRefreshing) {
+                                    performRefresh()
+                                } else {
+                                    pullOffset = 0f
+                                }
+                            }
+                        ) { _, dragAmount ->
+                            val newOffset = pullOffset + dragAmount.y
+                            pullOffset = newOffset.coerceAtLeast(0f).coerceAtMost(pullThreshold * 1.5f)
+                        }
+                    }
             ) {
-                items(items.chunked(gridColumns), key = { chunk -> chunk.joinToString { it.path }}) { rowItems ->
-                    MediaRow(
-                        items = rowItems,
-                        gridColumns = gridColumns,
-                        selectedItems = selectedItems,
-                        showThumbnails = showThumbnails,
-                        showDurations = showDurations,
-                        showFileSizes = showFileSizes,
-                        isSecureMode = isSecureMode,
-                        onFolderClick = onFolderClick,
-                        onSelectionChange = onSelectionChange
+                SortRow(sortType) { sortType = it }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+
+                LazyColumn(
+                    state = lazyListState,
+                    contentPadding = PaddingValues(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(items.chunked(gridColumns), key = { chunk -> chunk.joinToString { it.path }}) { rowItems ->
+                        MediaRow(
+                            items = rowItems,
+                            gridColumns = gridColumns,
+                            selectedItems = selectedItems,
+                            showThumbnails = showThumbnails,
+                            showDurations = showDurations,
+                            showFileSizes = showFileSizes,
+                            isSecureMode = isSecureMode,
+                            onFolderClick = onFolderClick,
+                            onSelectionChange = onSelectionChange
+                        )
+                    }
+                }
+            }
+
+            // 🆕 Indicador de refresh no topo
+            if (pullOffset > 0 || isRefreshing) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 16.dp)
+                        .offset { IntOffset(0, (pullOffset * 0.5f).roundToInt()) }
+                ) {
+                    if (isRefreshing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        val alpha = (pullOffset / pullThreshold).coerceAtMost(1f)
+                        CircularProgressIndicator(
+                            progress = alpha,
+                            modifier = Modifier.size(32.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = alpha)
+                        )
+                    }
+                }
+            }
+
+            // Indicador quando scan roda em background
+            if (isScanning && !isRefreshing) {
+                Card(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 60.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
                     )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp, 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Atualizando índice...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
             }
         }
@@ -599,13 +746,49 @@ fun loadFolderContentRecursive(
     isSecureMode: Boolean,
     showPrivateFolders: Boolean = false
 ): List<MediaItem> {
+    if (isSecureMode) {
+        val allItems = mutableListOf<MediaItem>()
+        loadSecureContentRecursive(folderPath, allItems)
+        return allItems
+    }
+
+    // Usa o cache para busca recursiva mais eficiente
+    val folderCache = FolderVideoScanner.cache.value
     val allItems = mutableListOf<MediaItem>()
 
-    if (isSecureMode) {
-        loadSecureContentRecursive(folderPath, allItems)
-    } else {
-        loadNormalContentRecursive(context, folderPath, allItems, showPrivateFolders)
-    }
+    // Busca todas as pastas filhas que têm vídeos
+    folderCache.values
+        .filter { it.path.startsWith(folderPath) && it.hasVideos }
+        .forEach { folderInfo ->
+            if (folderInfo.isSecure && !showPrivateFolders) return@forEach
+
+            // Carrega vídeos desta pasta
+            val projection = arrayOf(MediaStore.Video.Media.DATA, MediaStore.Video.Media._ID)
+            val selection = "${MediaStore.Video.Media.DATA} LIKE ? AND ${MediaStore.Video.Media.DATA} NOT LIKE ?"
+            val selectionArgs = arrayOf("${folderInfo.path}/%", "${folderInfo.path}%/%/%")
+
+            context.contentResolver.query(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                null
+            )?.use { cursor ->
+                val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+
+                while (cursor.moveToNext()) {
+                    val path = cursor.getString(dataColumn)
+                    if (path.startsWith(folderInfo.path)) {
+                        val uri = ContentUris.withAppendedId(
+                            MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                            cursor.getLong(idColumn)
+                        )
+                        allItems.add(MediaItem(path, uri, false))
+                    }
+                }
+            }
+        }
 
     return allItems
 }
