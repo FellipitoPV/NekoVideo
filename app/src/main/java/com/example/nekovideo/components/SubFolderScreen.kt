@@ -130,6 +130,7 @@ private fun isSecureFolder(folderPath: String): Boolean {
 }
 
 // SIMPLIFICADO - Carregamento normal
+// SIMPLIFICADO - Carregamento normal
 private fun loadNormalContentFromCache(
     context: Context,
     folderPath: String,
@@ -146,13 +147,28 @@ private fun loadNormalContentFromCache(
         if (subfolder.name in listOf(".nomedia", ".nekovideo")) return@forEach
 
         val folderInfo = folderCache[subfolder.absolutePath]
-        val isSecure = folderInfo?.isSecure ?: false
+        // 🔧 CORREÇÃO: Verifica diretamente se é pasta segura mesmo que não esteja no cache
+        val isSecure = folderInfo?.isSecure ?: (File(subfolder, ".nomedia").exists() || File(subfolder, ".nekovideo").exists())
         val hasVideos = folderInfo?.hasVideos ?: false
 
         val shouldShow = when {
-            subfolder.name.startsWith(".") -> showPrivateFolders && (isSecure || hasVideos)
+            subfolder.name.startsWith(".") -> {
+                if (isRootLevel) {
+                    // 🔧 Na raiz, respeita showPrivateFolders
+                    showPrivateFolders && (isSecure || hasVideos)
+                } else {
+                    // 🔧 Em subpastas, sempre mostra se é segura ou tem vídeos
+                    isSecure || hasVideos
+                }
+            }
             hasVideos -> true
-            isSecure -> showPrivateFolders
+            isSecure -> {
+                if (isRootLevel) {
+                    showPrivateFolders
+                } else {
+                    true // Em subpastas, sempre mostra pastas seguras
+                }
+            }
             else -> false
         }
 
