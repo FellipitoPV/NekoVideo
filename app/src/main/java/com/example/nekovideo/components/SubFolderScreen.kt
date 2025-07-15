@@ -150,8 +150,8 @@ private fun loadNormalContentFromCache(
         val hasVideos = folderInfo?.hasVideos ?: false
 
         val shouldShow = when {
+            subfolder.name.startsWith(".") -> showPrivateFolders && (isSecure || hasVideos)
             hasVideos -> true
-            isRootLevel && subfolder.name.startsWith(".") -> showPrivateFolders && isSecure
             isSecure -> showPrivateFolders
             else -> false
         }

@@ -124,8 +124,11 @@ object FolderVideoScanner {
 
         // Continue recursion
         directory.listFiles()?.forEach { subDir ->
-            if (subDir.isDirectory && !subDir.name.startsWith(".") || isSecure) {
-                scanSecureFoldersRecursive(subDir, folderMap)
+            if (subDir.isDirectory) {
+                // Sempre entra em pastas normais, e em pastas "." se a pai é segura OU para verificar se ela é segura
+                if (!subDir.name.startsWith(".") || isSecure || File(subDir, ".nomedia").exists() || File(subDir, ".nekovideo").exists()) {
+                    scanSecureFoldersRecursive(subDir, folderMap)
+                }
             }
         }
     }
