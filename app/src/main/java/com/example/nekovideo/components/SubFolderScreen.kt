@@ -130,7 +130,6 @@ private fun isSecureFolder(folderPath: String): Boolean {
 }
 
 // SIMPLIFICADO - Carregamento normal
-// SIMPLIFICADO - Carregamento normal
 private fun loadNormalContentFromCache(
     context: Context,
     folderPath: String,

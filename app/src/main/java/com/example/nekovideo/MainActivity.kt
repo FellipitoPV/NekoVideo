@@ -263,9 +263,18 @@ fun MainScreen(intent: Intent?) {
                             val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
                             val encodedFolderPath = currentBackStackEntry?.arguments?.getString("folderPath") ?: ""
 
-                            // 🔧 NOVO: Se já está na raiz, não faz nada
-                            if (encodedFolderPath == "root" || isAtRootLevel(folderPath)) {
-                                return // Não faz nada quando já está na raiz
+                            // 🔧 NOVO: Se já está na raiz GERAL, não faz nada
+                            if (encodedFolderPath == "root") {
+                                return // Não faz nada quando já está na raiz geral
+                            }
+
+                            // 🔧 NOVO: Se está na pasta segura raiz, voltar para raiz geral
+                            if (folderPath == secureFolderPath) {
+                                navController.navigate("folder/root") {
+                                    popUpTo("folder/root") { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                                return
                             }
 
                             // CORREÇÃO: Distinguir entre pasta dentro da estrutura segura vs pasta privada
@@ -305,9 +314,19 @@ fun MainScreen(intent: Intent?) {
                             val isParentRoot = parentPath == rootPath || parentPath == secureFolderPath
 
                             if (isParentRoot) {
-                                navController.navigate("folder/root") {
-                                    popUpTo("folder/root") { inclusive = true }
-                                    launchSingleTop = true
+                                if (parentPath == secureFolderPath) {
+                                    // Se voltamos para a pasta segura raiz, navegar para ela especificamente
+                                    val encodedSecurePath = Uri.encode(secureFolderPath)
+                                    navController.navigate("folder/$encodedSecurePath") {
+                                        popUpTo("folder/{folderPath}") { inclusive = false }
+                                        launchSingleTop = true
+                                    }
+                                } else {
+                                    // Só vai para a raiz geral se realmente for a raiz do sistema
+                                    navController.navigate("folder/root") {
+                                        popUpTo("folder/root") { inclusive = true }
+                                        launchSingleTop = true
+                                    }
                                 }
                             } else {
                                 val encodedParentPath = Uri.encode(parentPath)
