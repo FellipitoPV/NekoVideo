@@ -49,6 +49,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +62,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.nekovideo.BuildConfig
+import com.example.nekovideo.ui.theme.ThemeManager
 
 @Composable
 fun SettingsScreen(navController: NavController) {
@@ -209,11 +211,8 @@ fun PlaybackSettingsScreen() {
 }
 
 @Composable
-fun InterfaceSettingsScreen() {
-    val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
-
-    var darkMode by remember { mutableStateOf(prefs.getString("dark_mode", "system") ?: "system") }
+fun InterfaceSettingsScreen(themeManager: ThemeManager) {
+    val currentTheme by themeManager.themeMode.collectAsState()
 
     val darkModeOptions = listOf(
         "light" to "Claro",
@@ -238,10 +237,9 @@ fun InterfaceSettingsScreen() {
                 title = "Modo Escuro",
                 subtitle = "Aparência da interface",
                 options = darkModeOptions,
-                selectedValue = darkMode,
-                onValueChange = {
-                    darkMode = it
-                    prefs.edit().putString("dark_mode", it).apply()
+                selectedValue = currentTheme,
+                onValueChange = { newTheme ->
+                    themeManager.updateTheme(newTheme)
                 }
             )
         }

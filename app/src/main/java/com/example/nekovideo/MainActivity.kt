@@ -21,13 +21,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -35,13 +34,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.nekovideo.components.CreateFolderDialog
-import com.example.nekovideo.components.layout.CustomTopAppBar
 import com.example.nekovideo.components.DeleteConfirmationDialog
 import com.example.nekovideo.components.OptimizedThumbnailManager
 import com.example.nekovideo.components.PasswordDialog
@@ -51,6 +52,7 @@ import com.example.nekovideo.components.SubFolderScreen
 import com.example.nekovideo.components.helpers.FilesManager
 import com.example.nekovideo.components.layout.ActionBottomSheetFAB
 import com.example.nekovideo.components.layout.ActionType
+import com.example.nekovideo.components.layout.CustomTopAppBar
 import com.example.nekovideo.components.loadFolderContent
 import com.example.nekovideo.components.loadFolderContentRecursive
 import com.example.nekovideo.components.player.MediaControllerManager
@@ -64,29 +66,38 @@ import com.example.nekovideo.components.settings.PerformanceSettingsScreen
 import com.example.nekovideo.components.settings.PlaybackSettingsScreen
 import com.example.nekovideo.components.settings.SettingsScreen
 import com.example.nekovideo.ui.theme.NekoVideoTheme
+import com.example.nekovideo.ui.theme.ThemeManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
 class MainActivity : ComponentActivity() {
+    // NOVO: Adicionar ThemeManager
+    private lateinit var themeManager: ThemeManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         enableEdgeToEdge()
+
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        // NOVO: Inicializar ThemeManager
+        themeManager = ThemeManager(this)
+
         setContent {
-            NekoVideoTheme {
+            // MODIFICADO: Passar themeManager para o tema
+            NekoVideoTheme(themeManager = themeManager) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainScreen(intent)
+                    MainScreen(intent, themeManager) // NOVO: Passar themeManager
                 }
             }
         }
 
-        // ✅ ADICIONE AQUI - Inicia limpeza automática do cache
         OptimizedThumbnailManager.startPeriodicCleanup()
     }
 
@@ -125,18 +136,12 @@ class MainActivity : ComponentActivity() {
             // Receiver já foi removido
         }
         keepScreenOn(false)
-
-        // ✅ ADICIONE AQUI - Limpeza leve quando app vai para background
         OptimizedThumbnailManager.cancelLoading("")
     }
 
-    // ✅ ADICIONE ESTE MÉTODO INTEIRO:
     override fun onDestroy() {
         super.onDestroy()
-
         MediaControllerManager.disconnect()
-
-        // Para limpeza automática e limpa todos os caches
         OptimizedThumbnailManager.stopPeriodicCleanup()
         OptimizedThumbnailManager.clearCache()
     }
@@ -145,12 +150,13 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         setContent {
-            NekoVideoTheme {
+            // MODIFICADO: Passar themeManager para o tema
+            NekoVideoTheme(themeManager = themeManager) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainScreen(intent)
+                    MainScreen(intent, themeManager) // NOVO: Passar themeManager
                 }
             }
         }
@@ -166,17 +172,8 @@ fun Context.findActivity(): ComponentActivity? {
     return null
 }
 
-private fun cancelMoveMode(
-    isMoveMode: MutableState<Boolean>,
-    itemsToMove: MutableState<List<String>>
-) {
-    isMoveMode.value = false
-    itemsToMove.value = emptyList()
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(intent: Intent?) {
+fun MainScreen(intent: Intent?, themeManager: ThemeManager) { // NOVO: Receber themeManager
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route?.substringBefore("/{folderPath}")?.substringBefore("/{playlist}")
@@ -217,17 +214,53 @@ fun MainScreen(intent: Intent?) {
         return encodedFolderPath == "root" || path == rootPath
     }
 
-    // Modificar o LaunchedEffect do intent para mostrar overlay
+    val currentTheme by themeManager.themeMode.collectAsState()
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+
+
     LaunchedEffect(intent) {
         if (intent?.action == "OPEN_PLAYER") {
             val playlist = intent.getStringArrayListExtra("PLAYLIST") ?: emptyList()
-            val initialIndex = intent.getIntExtra("INITIAL_INDEX", 0)
             if (playlist.isNotEmpty()) {
-                // Ao invés de navegar, apenas mostrar o overlay
                 showPlayerOverlay = true
             }
-            // Limpar a ação para evitar repetição
             intent.action = null
+        }
+    }
+
+    // ADICIONAR ESTE LaunchedEffect:
+    LaunchedEffect(currentTheme, configuration.uiMode) { // Observar ambos!
+        val activity = context.findActivity()
+        if (activity != null) {
+            val isDarkTheme = when (currentTheme) {
+                "light" -> false
+                "dark" -> true
+                "system" -> {
+                    val nightModeFlags = configuration.uiMode and
+                            android.content.res.Configuration.UI_MODE_NIGHT_MASK
+                    nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                }
+                else -> {
+                    val nightModeFlags = configuration.uiMode and
+                            android.content.res.Configuration.UI_MODE_NIGHT_MASK
+                    nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                }
+            }
+
+            // Status bar: acompanha o tema
+            val statusBarColor = if (isDarkTheme) Color(0xFF121212) else Color(0xFFF5F5F5)
+            activity.window.statusBarColor = statusBarColor.toArgb()
+
+            // Navigation bar: SEMPRE preta com ícones brancos
+            activity.window.navigationBarColor = Color(0xFF000000).toArgb()
+
+            val insetsController = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
+
+            // Status bar: ícones acompanham o tema
+            insetsController.isAppearanceLightStatusBars = !isDarkTheme
+
+            // Navigation bar: SEMPRE ícones brancos
+            insetsController.isAppearanceLightNavigationBars = false
         }
     }
 
@@ -263,12 +296,10 @@ fun MainScreen(intent: Intent?) {
                             val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
                             val encodedFolderPath = currentBackStackEntry?.arguments?.getString("folderPath") ?: ""
 
-                            // 🔧 NOVO: Se já está na raiz GERAL, não faz nada
                             if (encodedFolderPath == "root") {
-                                return // Não faz nada quando já está na raiz geral
+                                return
                             }
 
-                            // 🔧 NOVO: Se está na pasta segura raiz, voltar para raiz geral
                             if (folderPath == secureFolderPath) {
                                 navController.navigate("folder/root") {
                                     popUpTo("folder/root") { inclusive = true }
@@ -277,13 +308,10 @@ fun MainScreen(intent: Intent?) {
                                 return
                             }
 
-                            // CORREÇÃO: Distinguir entre pasta dentro da estrutura segura vs pasta privada
                             val isInSecureStructure = folderPath.startsWith(secureFolderPath)
                             val isPrivateFolder = isSecureFolder(folderPath) && !isInSecureStructure
 
-                            // Calcular caminho pai baseado na estrutura real
                             val parentPath = if (isInSecureStructure) {
-                                // Para pastas dentro da estrutura segura
                                 val withoutSecurePrefix = folderPath.removePrefix(secureFolderPath).trimStart('/')
 
                                 val pathSegments = withoutSecurePrefix.split('/').filter { it.isNotEmpty() }
@@ -296,7 +324,6 @@ fun MainScreen(intent: Intent?) {
                                     result
                                 }
                             } else {
-                                // Para pastas normais/privadas, usar navegação normal
                                 val withoutRootPrefix = folderPath.removePrefix(rootPath).trimStart('/')
 
                                 val pathSegments = withoutRootPrefix.split('/').filter { it.isNotEmpty() }
@@ -310,19 +337,16 @@ fun MainScreen(intent: Intent?) {
                                 }
                             }
 
-                            // Verificar se o parentPath é uma raiz conhecida
                             val isParentRoot = parentPath == rootPath || parentPath == secureFolderPath
 
                             if (isParentRoot) {
                                 if (parentPath == secureFolderPath) {
-                                    // Se voltamos para a pasta segura raiz, navegar para ela especificamente
                                     val encodedSecurePath = Uri.encode(secureFolderPath)
                                     navController.navigate("folder/$encodedSecurePath") {
                                         popUpTo("folder/{folderPath}") { inclusive = false }
                                         launchSingleTop = true
                                     }
                                 } else {
-                                    // Só vai para a raiz geral se realmente for a raiz do sistema
                                     navController.navigate("folder/root") {
                                         popUpTo("folder/root") { inclusive = true }
                                         launchSingleTop = true
@@ -346,7 +370,6 @@ fun MainScreen(intent: Intent?) {
         }
     }
 
-    // Adicionar este LaunchedEffect após os existentes no MainScreen
     LaunchedEffect(showPlayerOverlay) {
         val activity = context.findActivity()
         if (activity is MainActivity) {
@@ -354,7 +377,7 @@ fun MainScreen(intent: Intent?) {
         }
     }
 
-    // DIALOGS
+    // Todos os diálogos permanecem iguais...
     if (showRenameDialog) {
         RenameDialog(
             selectedItems = selectedItems.toList(),
@@ -372,16 +395,13 @@ fun MainScreen(intent: Intent?) {
         PasswordDialog(
             onDismiss = { showPasswordDialog = false },
             onPasswordVerified = {
-                // CORREÇÃO: Usar detecção mais robusta do root level
                 val encodedFolderPath = currentBackStackEntry?.arguments?.getString("folderPath") ?: ""
                 val isAtRoot = encodedFolderPath == "root" || isAtRootLevel(folderPath)
 
                 if (isAtRoot) {
-                    // MUDANÇA: Toggle das pastas privadas apenas quando está na raiz
                     showPrivateFolders = !showPrivateFolders
-                    renameTrigger++ // Refresh da lista
+                    renameTrigger++
                 } else {
-                    // Se não estiver na raiz, navegar para pasta segura (comportamento original)
                     val securePath = FilesManager.SecureStorage.getSecureFolderPath(context)
                     val encodedPath = Uri.encode(securePath)
                     navController.navigate("folder/$encodedPath") {
@@ -464,7 +484,7 @@ fun MainScreen(intent: Intent?) {
                     folderPath = folderPath,
                     context = context,
                     navController = navController,
-                    showPrivateFolders = showPrivateFolders, // CORRIGIDO: Adicionar parâmetro
+                    showPrivateFolders = showPrivateFolders,
                     onPasswordDialog = { showPasswordDialog = true },
                     onSelectionClear = {
                         selectedItems.clear()
@@ -479,7 +499,7 @@ fun MainScreen(intent: Intent?) {
                             val allItems = loadFolderContent(
                                 context = context,
                                 folderPath = folderPath,
-                                sortType = SortType.NAME_ASC, // Usar ordenação padrão
+                                sortType = SortType.NAME_ASC,
                                 isSecureMode = isSecure,
                                 isRootLevel = isRoot,
                                 showPrivateFolders = showPrivateFolders
@@ -497,8 +517,8 @@ fun MainScreen(intent: Intent?) {
                     hasSelectedItems = selectedItems.isNotEmpty(),
                     isMoveMode = isMoveMode,
                     isSecureMode = isSecureFolder(folderPath),
-                    selectedItems = selectedItems.toList(), // Já existia
-                    itemsToMoveCount = itemsToMove.size, // NOVO: passa quantidade de itens para mover
+                    selectedItems = selectedItems.toList(),
+                    itemsToMoveCount = itemsToMove.size,
                     onActionClick = { action ->
                         when (action) {
                             ActionType.SETTINGS -> {
@@ -621,13 +641,11 @@ fun MainScreen(intent: Intent?) {
                             ActionType.DELETE -> showDeleteConfirmDialog = true
                             ActionType.RENAME -> showRenameDialog = true
                             ActionType.MOVE -> {
-                                // MODIFICADO: Não navega mais para a raiz
                                 itemsToMove = selectedItems.toList()
                                 selectedItems.clear()
                                 isMoveMode = true
                                 Toast.makeText(context, "Modo mover ativado. Navegue até o destino e cole.", Toast.LENGTH_SHORT).show()
                             }
-                            // NOVA AÇÃO: Cancelar modo Move
                             ActionType.CANCEL_MOVE -> {
                                 isMoveMode = false
                                 itemsToMove = emptyList()
@@ -701,7 +719,7 @@ fun MainScreen(intent: Intent?) {
         ) {
             NavHost(
                 navController = navController,
-                startDestination = "folder/root", // MUDANÇA: começar na raiz unificada
+                startDestination = "folder/root",
                 enterTransition = {
                     slideInHorizontally(
                         initialOffsetX = { fullWidth -> fullWidth },
@@ -727,9 +745,6 @@ fun MainScreen(intent: Intent?) {
                     )
                 }
             ) {
-                // REMOVIDO: A rota "video_folders" não existe mais
-
-                // ROTA UNIFICADA para todas as pastas (raiz e subpastas)
                 composable("folder/{folderPath}") { backStackEntry ->
                     val encodedFolderPath = backStackEntry.arguments?.getString("folderPath") ?: "root"
 
@@ -746,12 +761,12 @@ fun MainScreen(intent: Intent?) {
                         folderPath = folderPath,
                         isSecureMode = isSecure,
                         isRootLevel = isRootLevel,
-                        showPrivateFolders = showPrivateFolders, // NOVO: passa o estado
+                        showPrivateFolders = showPrivateFolders,
                         onFolderClick = { itemPath ->
                             val items = loadFolderContent(
                                 context = context,
                                 folderPath = folderPath,
-                                sortType = SortType.NAME_ASC, // Usar ordenação padrão
+                                sortType = SortType.NAME_ASC,
                                 isSecureMode = isSecure,
                                 isRootLevel = isRootLevel,
                                 showPrivateFolders = showPrivateFolders
@@ -794,7 +809,8 @@ fun MainScreen(intent: Intent?) {
                     PlaybackSettingsScreen()
                 }
                 composable("settings/interface") {
-                    InterfaceSettingsScreen()
+                    // MODIFICADO: Passar themeManager para InterfaceSettingsScreen
+                    InterfaceSettingsScreen(themeManager)
                 }
                 composable("settings/about") {
                     AboutSettingsScreen()
@@ -808,7 +824,6 @@ fun MainScreen(intent: Intent?) {
                 composable("settings/performance") {
                     PerformanceSettingsScreen()
                 }
-                // Removido duplicata: composable("settings/about")
             }
         }
         VideoPlayerOverlay(
@@ -816,7 +831,6 @@ fun MainScreen(intent: Intent?) {
             onDismiss = { showPlayerOverlay = false },
             onVideoDeleted = { deletedPath ->
                 deletedVideoPath = deletedPath
-                // Reset após um frame para trigger o LaunchedEffect
                 kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                     kotlinx.coroutines.delay(100)
                     deletedVideoPath = null
