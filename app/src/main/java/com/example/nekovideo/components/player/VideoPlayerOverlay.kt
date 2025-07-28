@@ -1,5 +1,6 @@
 package com.example.nekovideo.components.player
 
+// Novos imports para gestos e controles
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ComponentName
@@ -12,35 +13,81 @@ import android.util.Log
 import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.VolumeDown
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.VolumeDown
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.nekovideo.components.helpers.FilesManager
-import kotlinx.coroutines.launch
-import java.io.File
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -48,39 +95,27 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.media3.ui.PlayerView
-import androidx.media3.common.util.UnstableApi
 import com.example.nekovideo.MediaPlaybackService
+import com.example.nekovideo.components.helpers.FilesManager
+import com.example.nekovideo.components.settings.SettingsManager
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
-// Novos imports para gestos e controles
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.pointer.PointerInputChange
-import androidx.compose.foundation.border
-import kotlin.math.abs
-import kotlin.math.roundToLong
-import com.example.nekovideo.components.settings.SettingsManager
+enum class RepeatMode {
+    NONE,           // Para no final da playlist
+    REPEAT_ALL,     // Loop da playlist
+    REPEAT_ONE      // Loop do vídeo atual
+}
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @SuppressLint("OpaqueUnitKey")
-@OptIn(UnstableApi::class)
 @Composable
 fun VideoPlayerOverlay(
     isVisible: Boolean,
@@ -103,6 +138,7 @@ fun VideoPlayerOverlay(
     var duration by remember { mutableStateOf(0L) }
     var currentVideoTitle by remember { mutableStateOf("") }
     var isSeekingActive by remember { mutableStateOf(false) }
+    var repeatMode by remember { mutableStateOf(RepeatMode.NONE) }
 
     // Timer regressivo para UI (em segundos)
     var uiTimer by remember { mutableStateOf(0) }
@@ -142,6 +178,31 @@ fun VideoPlayerOverlay(
             setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
             resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
         }
+    }
+
+    fun setupController(controller: MediaController) {
+        mediaController = controller
+        playerView.player = controller
+
+        controller.currentMediaItem?.localConfiguration?.uri?.let { uri ->
+            currentVideoPath = uri.path?.removePrefix("file://") ?: ""
+            currentVideoTitle = File(currentVideoPath).nameWithoutExtension
+        }
+
+        if (overlayActuallyVisible) {
+            val videoSize = controller.videoSize
+            if (videoSize.width > 0 && videoSize.height > 0) {
+                val activity = context.findActivity()
+                val newOrientation = if (videoSize.width > videoSize.height) {
+                    ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                } else {
+                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                }
+                activity?.requestedOrientation = newOrientation
+            }
+        }
+
+        Log.d("VideoPlayer", "Controller configurado - Posição: ${controller.currentPosition}ms, Tocando: ${controller.isPlaying}")
     }
 
     // Inicializar valores de volume e brilho
@@ -275,7 +336,6 @@ fun VideoPlayerOverlay(
         )
     }
 
-    // Conectar ao MediaController (mesmo código)
     LaunchedEffect(Unit) {
         val sessionToken = SessionToken(context, ComponentName(context, MediaPlaybackService::class.java))
         val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
@@ -283,48 +343,69 @@ fun VideoPlayerOverlay(
         controllerFuture.addListener({
             try {
                 mediaController = controllerFuture.get()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
             }
         }, MoreExecutors.directExecutor())
     }
 
     // Controlar overlay (mesmo código)
     LaunchedEffect(isVisible) {
-        if (isVisible && mediaController != null && !hasRefreshed) {
+        if (isVisible && !hasRefreshed) {
             hasRefreshed = true
             overlayActuallyVisible = true
 
-            MediaPlaybackService.refreshPlayer(context)
-            delay(800)
-
+            // Primeiro, tenta conectar ao MediaController existente
             val sessionToken = SessionToken(context, ComponentName(context, MediaPlaybackService::class.java))
             val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
 
             controllerFuture.addListener({
                 try {
                     val newController = controllerFuture.get()
-                    mediaController = newController
-                    playerView.player = newController
 
-                    newController.currentMediaItem?.localConfiguration?.uri?.let { uri ->
-                        currentVideoPath = uri.path?.removePrefix("file://") ?: ""
-                        currentVideoTitle = File(currentVideoPath).nameWithoutExtension
-                    }
-
-                    if (overlayActuallyVisible) {
-                        val videoSize = newController.videoSize
-                        if (videoSize.width > 0 && videoSize.height > 0) {
-                            val activity = context.findActivity()
-                            val newOrientation = if (videoSize.width > videoSize.height) {
-                                ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                            } else {
-                                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                            }
-                            activity?.requestedOrientation = newOrientation
+                    // Verifica se o controller está funcionando e tem mídia
+                    val needsRefresh = when {
+                        newController.mediaItemCount == 0 -> {
+                            Log.d("VideoPlayer", "Controller sem mídia - refresh necessário")
+                            true
+                        }
+                        newController.playbackState == Player.STATE_IDLE -> {
+                            Log.d("VideoPlayer", "Player em estado IDLE - refresh necessário")
+                            true
+                        }
+                        else -> {
+                            Log.d("VideoPlayer", "Player funcionando normalmente - sem refresh")
+                            false
                         }
                     }
 
+                    if (needsRefresh) {
+                        // Só faz refresh se realmente precisar
+                        Log.d("VideoPlayer", "Executando refresh do player...")
+                        MediaPlaybackService.refreshPlayer(context)
+
+                        // Usa corrotina para o delay e reconexão
+                        coroutineScope.launch {
+                            delay(800)
+
+                            // Reconecta após o refresh
+                            val refreshedControllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+                            refreshedControllerFuture.addListener({
+                                try {
+                                    val refreshedController = refreshedControllerFuture.get()
+                                    setupController(refreshedController)
+                                } catch (e: Exception) {
+                                    Log.e("VideoPlayer", "Erro ao conectar controller após refresh", e)
+                                }
+                            }, MoreExecutors.directExecutor())
+                        }
+                    } else {
+                        // Player está funcionando, só conecta normalmente
+                        Log.d("VideoPlayer", "Conectando ao player existente...")
+                        setupController(newController)
+                    }
+
                 } catch (e: Exception) {
+                    Log.e("VideoPlayer", "Erro ao conectar controller inicial", e)
                 }
             }, MoreExecutors.directExecutor())
 
@@ -336,7 +417,7 @@ fun VideoPlayerOverlay(
     }
 
     // Listener para mudanças com melhorias de UX
-    DisposableEffect(mediaController, overlayActuallyVisible) {
+    DisposableEffect(mediaController, overlayActuallyVisible, repeatMode) { // Adicione repeatMode aqui
         var listener: Player.Listener? = null
 
         if (overlayActuallyVisible && mediaController != null) {
@@ -376,21 +457,42 @@ fun VideoPlayerOverlay(
                         activity?.requestedOrientation = newOrientation
                     }
 
-                    // Resetar timer da UI se estiver visível
                     if (controlsVisible) {
                         resetUITimer()
-                    } else {
                     }
 
-                    // Auto-play se estava pausado antes de pular
                     if (wasPlayerPaused && !mediaController!!.isPlaying) {
                         mediaController!!.play()
                     }
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_ENDED && mediaController!!.hasNextMediaItem()) {
-                        mediaController!!.seekToNextMediaItem()
+                    // NOVA LÓGICA para os modos de repetição
+                    if (playbackState == Player.STATE_ENDED) {
+                        when (repeatMode) {
+                            RepeatMode.REPEAT_ONE -> {
+                                // Loop do vídeo atual
+                                mediaController!!.seekTo(0)
+                                mediaController!!.play()
+                            }
+                            RepeatMode.REPEAT_ALL -> {
+                                // Loop da playlist
+                                if (mediaController!!.hasNextMediaItem()) {
+                                    mediaController!!.seekToNextMediaItem()
+                                } else {
+                                    // Volta para o primeiro vídeo da playlist
+                                    mediaController!!.seekTo(0, 0)
+                                    mediaController!!.play()
+                                }
+                            }
+                            RepeatMode.NONE -> {
+                                // Comportamento original: só avança se há próximo
+                                if (mediaController!!.hasNextMediaItem()) {
+                                    mediaController!!.seekToNextMediaItem()
+                                }
+                                // Se não há próximo, para a reprodução
+                            }
+                        }
                     }
                 }
             }
@@ -422,7 +524,7 @@ fun VideoPlayerOverlay(
             onDispose {
                 WindowCompat.setDecorFitsSystemWindows(window, true)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
-                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 isFullscreen = false
             }
         } else {
@@ -520,7 +622,7 @@ fun VideoPlayerOverlay(
             Box(
                 modifier = Modifier
                     .fillMaxHeight(0.7f)
-                    .width(360.dp) // Aumentado para 360.dp
+                    .fillMaxWidth(0.35f) // 35% da largura da tela
                     .align(Alignment.CenterStart)
                     .pointerInput(Unit) {
                         detectDragGestures(
@@ -551,7 +653,7 @@ fun VideoPlayerOverlay(
             Box(
                 modifier = Modifier
                     .fillMaxHeight(0.7f)
-                    .width(360.dp) // Aumentado para 360.dp
+                    .fillMaxWidth(0.35f) // 35% da largura da tela
                     .align(Alignment.CenterEnd)
                     .pointerInput(Unit) {
                         detectDragGestures(
@@ -607,7 +709,11 @@ fun VideoPlayerOverlay(
                         showDeleteDialog = true
                     },
                     onBackClick = onDismiss,
-                    resetUITimer = resetUITimer
+                    resetUITimer = resetUITimer,
+                    repeatMode = repeatMode, // NOVO PARÂMETRO
+                    onRepeatModeChange = { newMode -> // NOVO PARÂMETRO
+                        repeatMode = newMode
+                    }
                 )
             }
         }
@@ -679,9 +785,9 @@ private fun GestureIndicators(
                 ) {
                     Icon(
                         imageVector = when {
-                            lastValidVolume == 0 -> Icons.Default.VolumeOff
-                            lastValidVolume < 50 -> Icons.Default.VolumeDown
-                            else -> Icons.Default.VolumeUp
+                            lastValidVolume == 0 -> Icons.AutoMirrored.Filled.VolumeOff
+                            lastValidVolume < 50 -> Icons.AutoMirrored.Filled.VolumeDown
+                            else -> Icons.AutoMirrored.Filled.VolumeUp
                         },
                         contentDescription = "Volume",
                         tint = Color(0xFF4CAF50), // Verde
@@ -790,7 +896,9 @@ private fun CustomVideoControls(
     onSeekEnd: () -> Unit,
     onDeleteClick: () -> Unit,
     onBackClick: () -> Unit,
-    resetUITimer: () -> Unit
+    resetUITimer: () -> Unit,
+    repeatMode: RepeatMode,
+    onRepeatModeChange: (RepeatMode) -> Unit
 ) {
     val controller = mediaController ?: return
 
@@ -821,7 +929,7 @@ private fun CustomVideoControls(
                         .size(48.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
                         tint = Color.White,
                         modifier = Modifier.size(24.dp)
@@ -857,7 +965,7 @@ private fun CustomVideoControls(
             }
         }
 
-        // Controles centrais (mesmo código)
+        // Controles centrais
         Row(
             modifier = Modifier.align(Alignment.Center),
             horizontalArrangement = Arrangement.spacedBy(24.dp),
@@ -927,7 +1035,9 @@ private fun CustomVideoControls(
             }
         }
 
-        // Bottom controls com gradiente (mesmo código)
+
+
+        // Bottom controls com gradiente
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -970,21 +1080,69 @@ private fun CustomVideoControls(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Time display
+                // Time display com botão de repetição
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = formatTime(if (isDragging) tempPosition else currentPosition),
                         color = Color.White,
                         fontSize = 14.sp
                     )
-                    Text(
-                        text = formatTime(duration),
-                        color = Color.White,
-                        fontSize = 14.sp
-                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = formatTime(duration),
+                            color = Color.White,
+                            fontSize = 14.sp
+                        )
+
+                        // Botão de modo de repetição (inferior direito)
+                        IconButton(
+                            onClick = {
+                                val nextMode = when (repeatMode) {
+                                    RepeatMode.NONE -> RepeatMode.REPEAT_ALL
+                                    RepeatMode.REPEAT_ALL -> RepeatMode.REPEAT_ONE
+                                    RepeatMode.REPEAT_ONE -> RepeatMode.NONE
+                                }
+                                onRepeatModeChange(nextMode)
+                                resetUITimer()
+                            },
+                            modifier = Modifier
+                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                                .size(32.dp)
+                        ) {
+                            val (icon, contentDescription, iconColor) = when (repeatMode) {
+                                RepeatMode.NONE -> Triple(
+                                    Icons.Default.PlaylistPlay,
+                                    "Normal Play",
+                                    Color.White.copy(alpha = 0.7f)
+                                )
+                                RepeatMode.REPEAT_ALL -> Triple(
+                                    Icons.Default.Repeat,
+                                    "Repeat Playlist",
+                                    Color(0xFF4CAF50)
+                                )
+                                RepeatMode.REPEAT_ONE -> Triple(
+                                    Icons.Default.RepeatOne,
+                                    "Repeat One",
+                                    Color(0xFF2196F3)
+                                )
+                            }
+
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = contentDescription,
+                                tint = iconColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 }
             }
         }

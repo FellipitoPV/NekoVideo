@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -17,13 +18,17 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -33,9 +38,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.navigation.compose.NavHost
@@ -68,6 +77,7 @@ import com.example.nekovideo.components.settings.SettingsScreen
 import com.example.nekovideo.ui.theme.NekoVideoTheme
 import com.example.nekovideo.ui.theme.ThemeManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -76,29 +86,103 @@ class MainActivity : ComponentActivity() {
     // NOVO: Adicionar ThemeManager
     private lateinit var themeManager: ThemeManager
 
+    // NOVO: Variável para controlar intent da notificação
+    private var notificationIntentReceived = false
+    private var lastIntentAction: String? = null
+    private var lastIntentTime: Long = 0
+
+    private fun handleNotificationIntent(intent: Intent?) {
+        val currentTime = System.currentTimeMillis()
+        lastIntentTime = currentTime
+        lastIntentAction = intent?.action
+
+        Log.d("MainActivity", "==========================================")
+        Log.d("MainActivity", "🔍 HANDLE NOTIFICATION INTENT CHAMADO")
+        Log.d("MainActivity", "Timestamp: $currentTime")
+        Log.d("MainActivity", "Intent: $intent")
+        Log.d("MainActivity", "Action: ${intent?.action}")
+        Log.d("MainActivity", "==========================================")
+
+        // Log detalhado de todas as extras
+        intent?.extras?.let { extras ->
+            Log.d("MainActivity", "📦 EXTRAS DO INTENT:")
+            for (key in extras.keySet()) {
+                val value = extras.get(key)
+                Log.d("MainActivity", "   $key = $value (${value?.javaClass?.simpleName})")
+            }
+        } ?: Log.d("MainActivity", "❌ Nenhuma extra encontrada")
+
+        // Processar action
+        when (intent?.action) {
+            "OPEN_PLAYER" -> {
+                Log.d("MainActivity", "🎵 ACTION OPEN_PLAYER DETECTADO!")
+                notificationIntentReceived = true
+
+                val playlist = intent.getStringArrayListExtra("PLAYLIST")
+                val initialIndex = intent.getIntExtra("INITIAL_INDEX", 0)
+                val autoOpen = intent.getBooleanExtra("AUTO_OPEN_PLAYER", false)
+
+                Log.d("MainActivity", "📋 Dados da notificação:")
+                Log.d("MainActivity", "   Playlist size: ${playlist?.size}")
+                Log.d("MainActivity", "   Initial index: $initialIndex")
+                Log.d("MainActivity", "   Auto open: $autoOpen")
+
+                // Log cada item da playlist
+                playlist?.forEachIndexed { index, item ->
+                    Log.d("MainActivity", "   [$index] $item")
+                }
+            }
+            null -> {
+                Log.d("MainActivity", "⚠️  Intent com action NULL")
+            }
+            else -> {
+                Log.d("MainActivity", "❓ Action desconhecida: ${intent.action}")
+            }
+        }
+
+        Log.d("MainActivity", "==========================================")
+    }
+
+    companion object {
+        var shouldOpenPlayerGlobal = false
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d("MainActivity", "🚀 ==> onCreate INICIADO <==")
+        Log.d("MainActivity", "Intent inicial: ${intent}")
+        Log.d("MainActivity", "Action inicial: ${intent?.action}")
+
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         enableEdgeToEdge()
 
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        // PROCESSAR intent inicial
+        handleNotificationIntent(intent)
 
-        // NOVO: Inicializar ThemeManager
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         themeManager = ThemeManager(this)
 
         setContent {
-            // MODIFICADO: Passar themeManager para o tema
             NekoVideoTheme(themeManager = themeManager) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainScreen(intent, themeManager) // NOVO: Passar themeManager
+                    // USAR SUA FUNÇÃO MAINSCREEN ORIGINAL, só adicionando parâmetros de debug
+                    MainScreen(
+                        intent = intent,
+                        themeManager = themeManager,
+                        // Debug info
+                        notificationReceived = notificationIntentReceived,
+                        lastAction = lastIntentAction,
+                        lastTime = lastIntentTime
+                    )
                 }
             }
         }
 
         OptimizedThumbnailManager.startPeriodicCleanup()
+        Log.d("MainActivity", "✅ onCreate FINALIZADO")
     }
 
     fun keepScreenOn(keep: Boolean) {
@@ -148,18 +232,37 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        Log.d("MainActivity", "🔄 ==> onNewIntent CHAMADO <==")
+        Log.d("MainActivity", "Nova intent: ${intent}")
+        Log.d("MainActivity", "Nova action: ${intent?.action}")
+
         setIntent(intent)
+
+        // PROCESSAR nova intent
+        handleNotificationIntent(intent)
+
+        // IMPORTANTE: Recompor sem recreate para não perder estado
+        Log.d("MainActivity", "🔄 Recompondo interface...")
+
         setContent {
-            // MODIFICADO: Passar themeManager para o tema
             NekoVideoTheme(themeManager = themeManager) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainScreen(intent, themeManager) // NOVO: Passar themeManager
+                    MainScreen(
+                        intent = intent,
+                        themeManager = themeManager,
+                        // Debug info atualizado
+                        notificationReceived = notificationIntentReceived,
+                        lastAction = lastIntentAction,
+                        lastTime = lastIntentTime
+                    )
                 }
             }
         }
+
+        Log.d("MainActivity", "✅ onNewIntent FINALIZADO")
     }
 }
 
@@ -172,8 +275,16 @@ fun Context.findActivity(): ComponentActivity? {
     return null
 }
 
+
 @Composable
-fun MainScreen(intent: Intent?, themeManager: ThemeManager) { // NOVO: Receber themeManager
+fun MainScreen(
+    intent: Intent?,
+    themeManager: ThemeManager,
+    // NOVOS parâmetros de debug (opcionais)
+    notificationReceived: Boolean = false,
+    lastAction: String? = null,
+    lastTime: Long = 0
+) {
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route?.substringBefore("/{folderPath}")?.substringBefore("/{playlist}")
@@ -218,13 +329,31 @@ fun MainScreen(intent: Intent?, themeManager: ThemeManager) { // NOVO: Receber t
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
 
 
-    LaunchedEffect(intent) {
-        if (intent?.action == "OPEN_PLAYER") {
+    LaunchedEffect(intent, notificationReceived, lastAction, lastTime) {
+
+        // Lógica original (para abrir player pela primeira vez)
+        if (intent?.action == "OPEN_PLAYER" && !notificationReceived) {
             val playlist = intent.getStringArrayListExtra("PLAYLIST") ?: emptyList()
             if (playlist.isNotEmpty()) {
+                Log.d("MainScreen", "✅ Abrindo player - playlist: ${playlist.size} itens")
                 showPlayerOverlay = true
             }
             intent.action = null
+        }
+
+        // NOVA lógica para notificação - APENAS abre overlay
+        if (notificationReceived && lastAction == "OPEN_PLAYER") {
+
+            val playlist = intent?.getStringArrayListExtra("PLAYLIST") ?: emptyList()
+
+            if (playlist.isNotEmpty()) {
+
+                // ✅ APENAS abre overlay, NÃO chama startWithPlaylist!
+                showPlayerOverlay = true
+
+            } else {
+                Log.w("MainScreen", "❌ Playlist vazia na notificação")
+            }
         }
     }
 

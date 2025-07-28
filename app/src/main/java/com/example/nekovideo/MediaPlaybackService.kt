@@ -1,211 +1,222 @@
 package com.example.nekovideo
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Build
 import android.util.Log
 import androidx.annotation.OptIn
-import androidx.core.app.NotificationCompat
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.common.util.UnstableApi
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import androidx.media3.session.DefaultMediaNotificationProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import java.io.File
 
 @OptIn(UnstableApi::class)
 class MediaPlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var player: ExoPlayer? = null
 
+    private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
+    private var currentNotificationThumbnail: Bitmap? = null
+
+    // AudioFocus (mantém o código existente)
+    private lateinit var audioManager: AudioManager
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private var hasAudioFocus = false
+
     override fun onCreate() {
         super.onCreate()
-        initializePlayer()
-        setupNotificationChannel()
-    }
+        Log.d("MediaPlaybackService", "🚀 onCreate - Media3 oficial")
 
-    private fun initializePlayer() {
+        setupAudioManager()
+
+        // OFICIAL: Criar player como na documentação
         player = ExoPlayer.Builder(this).build().apply {
             repeatMode = Player.REPEAT_MODE_OFF
-            addListener(object : Player.Listener {
-                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    Log.e("MediaPlaybackService", "Player error: ${error.message}")
-                }
-
-                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                    Log.d("MediaPlaybackService", "Transition to media item: ${mediaItem?.mediaId}, reason: $reason")
-                    updateNotification()
-                }
-
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    Log.d("MediaPlaybackService", "Playback state changed: $playbackState")
-
-                    // Enviar broadcast do estado
-                    val isPlaying = player?.isPlaying ?: false
-                    val intent = Intent("PLAYBACK_STATE_CHANGED")
-                    intent.putExtra("IS_PLAYING", isPlaying)
-                    sendBroadcast(intent)
-
-                    if (playbackState == Player.STATE_ENDED && hasNextMediaItem()) {
-                        seekToNextMediaItem()
-                    }
-                    updateNotification()
-                }
-            })
-        }
-        mediaSession = MediaSession.Builder(this, player!!).build()
-    }
-
-    private fun setupNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channelId = "media_playback_channel"
-            val channelName = "Media Playback"
-            val channel = NotificationChannel(
-                channelId,
-                channelName,
-                NotificationManager.IMPORTANCE_LOW
-            )
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-        }
-    }
-
-    private fun updateNotification() {
-        startForeground(1, createNotification())
-    }
-
-    private fun createNotification(): Notification {
-        val channelId = "media_playback_channel"
-        val intent = Intent(this, MainActivity::class.java).apply {
-            action = "OPEN_PLAYER"
-            Log.d("MediaPlaybackService", "OPEN CHAMADO")
-            player?.let { player ->
-                val currentPlaylist = (0 until player.mediaItemCount).map { index ->
-                    player.getMediaItemAt(index).localConfiguration?.uri.toString()
-                }
-                putStringArrayListExtra("PLAYLIST", ArrayList(currentPlaylist))
-                putExtra("INITIAL_INDEX", player.currentMediaItemIndex)
-            }
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            addListener(playerListener)
         }
 
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
-        )
-
-        val contentText = player?.currentMediaItem?.let { mediaItem ->
-            mediaItem.mediaMetadata.title?.toString()
-                ?: mediaItem.localConfiguration?.uri?.path?.let { path ->
-                    java.io.File(path).nameWithoutExtension
-                }
-        } ?: "Playing video"
-
-        return NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_stat_player)
-            .setContentTitle("NekoVideo")
-            .setContentText(contentText)
-            .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setStyle(
-                androidx.media3.session.MediaStyleNotificationHelper.MediaStyle(mediaSession!!)
-                    .setShowActionsInCompactView(0, 1, 2)
-            )
+        // OFICIAL: Criar MediaSession como na documentação
+        mediaSession = MediaSession.Builder(this, player!!)
+            .setCallback(mediaSessionCallback)
             .build()
+
+        Log.d("MediaPlaybackService", "✅ MediaSession criado - notificação automática do Media3")
     }
 
-    // NOVO MÉTODO: Refresh do player mantendo estado atual
-    private fun refreshPlayerWithCurrentState() {
-        val currentPlayer = player ?: return
-        val currentSession = mediaSession ?: return
-
-        // Salvar estado atual
-        val currentPosition = currentPlayer.currentPosition
-        val currentMediaIndex = currentPlayer.currentMediaItemIndex
-        val isCurrentlyPlaying = currentPlayer.isPlaying
-        val currentPlaylist = (0 until currentPlayer.mediaItemCount).map { index ->
-            currentPlayer.getMediaItemAt(index).localConfiguration?.uri.toString()
+    // NOVO: Callback da MediaSession seguindo documentação
+    private val mediaSessionCallback = object : MediaSession.Callback {
+        override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
+            Log.d("MediaPlaybackService", "🔗 Controller conectado: ${controller.packageName}")
+            return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                .setAvailableSessionCommands(MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS)
+                .setAvailablePlayerCommands(MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS)
+                .build()
         }
 
-        Log.d("MediaPlaybackService", "Refreshing player - Position: $currentPosition, Media: $currentMediaIndex, Playing: $isCurrentlyPlaying")
+        // NOVO: Método para configurar intent personalizada da notificação
+        override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
+            super.onPostConnect(session, controller)
+            Log.d("MediaPlaybackService", "📱 Configurando intent da notificação")
 
-        // Release apenas o player, mantendo a session
-        currentPlayer.release()
+            // SOLUÇÃO: Configurar intent diretamente na sessão
+            try {
+                val intent = Intent(this@MediaPlaybackService, MainActivity::class.java).apply {
+                    action = "OPEN_PLAYER"
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
 
-        // Criar novo player SEM recriar a session
-        player = ExoPlayer.Builder(this).build().apply {
-            repeatMode = Player.REPEAT_MODE_OFF
-            addListener(object : Player.Listener {
-                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    Log.e("MediaPlaybackService", "Player error: ${error.message}")
-                }
-
-                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                    Log.d("MediaPlaybackService", "Transition to media item: ${mediaItem?.mediaId}, reason: $reason")
-                    updateNotification()
-                }
-
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    Log.d("MediaPlaybackService", "Playback state changed: $playbackState")
-                    if (playbackState == Player.STATE_ENDED && hasNextMediaItem()) {
-                        seekToNextMediaItem()
+                    player?.let { player ->
+                        val currentPlaylist = (0 until player.mediaItemCount).map { index ->
+                            player.getMediaItemAt(index).localConfiguration?.uri.toString()
+                        }
+                        putStringArrayListExtra("PLAYLIST", ArrayList(currentPlaylist))
+                        putExtra("INITIAL_INDEX", player.currentMediaItemIndex)
+                        putExtra("AUTO_OPEN_PLAYER", true)
                     }
-                    updateNotification()
                 }
-            })
+
+                val pendingIntent = PendingIntent.getActivity(
+                    this@MediaPlaybackService,
+                    0,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+
+                // CRÍTICO: Configurar o sessionActivity para a notificação
+                session.setSessionActivity(pendingIntent)
+
+                Log.d("MediaPlaybackService", "✅ SessionActivity configurado para notificação")
+
+            } catch (e: Exception) {
+                Log.e("MediaPlaybackService", "❌ Erro ao configurar intent: ${e.message}")
+            }
+        }
+    }
+
+    // Player listener (mantém lógica existente)
+    private val playerListener = object : Player.Listener {
+        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+            Log.e("MediaPlaybackService", "Player error: ${error.message}")
         }
 
-        // Atualizar a session existente com o novo player
-        currentSession.player = player!!
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            Log.d("MediaPlaybackService", "Transition to media item: ${mediaItem?.mediaId}, reason: $reason")
 
-        // Restaurar estado
-        player?.run {
-            if (currentPlaylist.isNotEmpty()) {
-                setMediaItems(currentPlaylist.map { MediaItem.fromUri(it!!) }, currentMediaIndex, currentPosition)
-                prepare()
-                // SEMPRE começar tocando após refresh
-                playWhenReady = true
+            // IMPORTANTE: Atualizar intent da notificação quando muda vídeo
+            updateNotificationIntent()
+
+            // Auto-play quando usuário pula/volta pela notificação
+            when (reason) {
+                Player.MEDIA_ITEM_TRANSITION_REASON_SEEK -> {
+                    Log.d("MediaPlaybackService", "Usuário pulou vídeo - dando play automaticamente")
+                    player?.play()
+                }
+                Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> {
+                    Log.d("MediaPlaybackService", "Vídeo repetindo - dando play")
+                    player?.play()
+                }
             }
         }
 
-        Log.d("MediaPlaybackService", "Player refreshed successfully")
-    }
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            Log.d("MediaPlaybackService", "Playback state changed: $playbackState")
 
-    fun isServiceActive(): Boolean {
-        return player != null && mediaSession != null
-    }
+            // Broadcast do estado
+            val isPlaying = player?.isPlaying ?: false
+            val intent = Intent("PLAYBACK_STATE_CHANGED")
+            intent.putExtra("IS_PLAYING", isPlaying)
+            sendBroadcast(intent)
 
-    fun getCurrentPlaylist(): List<String> {
-        return player?.let { player ->
-            (0 until player.mediaItemCount).map { index ->
-                player.getMediaItemAt(index).localConfiguration?.uri.toString()
+            if (playbackState == Player.STATE_ENDED && player?.hasNextMediaItem() == true) {
+                player?.seekToNextMediaItem()
             }
-        } ?: emptyList()
+        }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            if (isPlaying) {
+                if (!hasAudioFocus) {
+                    if (!requestAudioFocus()) {
+                        player?.pause()
+                        return
+                    }
+                }
+            }
+            super.onIsPlayingChanged(isPlaying)
+        }
     }
 
-    fun getCurrentIndex(): Int {
-        return player?.currentMediaItemIndex ?: 0
+
+    // NOVA função para atualizar intent da notificação
+    private fun updateNotificationIntent() {
+        try {
+            val intent = Intent(this, MainActivity::class.java).apply {
+                action = "OPEN_PLAYER"
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+
+                player?.let { player ->
+                    val currentPlaylist = (0 until player.mediaItemCount).map { index ->
+                        player.getMediaItemAt(index).localConfiguration?.uri.toString()
+                    }
+                    putStringArrayListExtra("PLAYLIST", ArrayList(currentPlaylist))
+                    putExtra("INITIAL_INDEX", player.currentMediaItemIndex)
+                    putExtra("AUTO_OPEN_PLAYER", true)
+                }
+            }
+
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                System.currentTimeMillis().toInt(), // RequestCode único
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            // Atualizar sessionActivity
+            mediaSession?.setSessionActivity(pendingIntent)
+
+            Log.d("MediaPlaybackService", "🔄 Intent da notificação atualizado")
+
+        } catch (e: Exception) {
+            Log.e("MediaPlaybackService", "❌ Erro ao atualizar intent: ${e.message}")
+        }
     }
 
-    fun isPlaying(): Boolean {
-        return player?.isPlaying ?: false
-    }
-
-    fun getCurrentMediaTitle(): String? {
-        return player?.currentMediaItem?.mediaMetadata?.title?.toString()
-    }
-
+    // OFICIAL: Como na documentação
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
+        Log.d("MediaPlaybackService", "🎮 onGetSession chamado para: ${controllerInfo.packageName}")
         return mediaSession
     }
 
+    // Função para criar MediaItem com metadata (mantém existente)
+    private fun createMediaItemWithMetadata(uri: String): MediaItem {
+        val file = File(uri.removePrefix("file://"))
+        val title = file.nameWithoutExtension
+
+        val metadata = MediaMetadata.Builder()
+            .setTitle(title)
+            .setDisplayTitle(title)
+            .setArtist("NekoVideo")
+            .build()
+
+        return MediaItem.Builder()
+            .setUri(uri)
+            .setMediaMetadata(metadata)
+            .build()
+    }
+
+    // onStartCommand (mantém lógica existente)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             "UPDATE_PLAYLIST" -> {
@@ -230,15 +241,37 @@ class MediaPlaybackService : MediaSessionService() {
                     stop()
                 }
 
-                // Enviar broadcast de que o player foi fechado
                 val intent = Intent("PLAYER_CLOSED")
                 sendBroadcast(intent)
 
                 stopSelf()
             }
         }
-        super.onStartCommand(intent, flags, startId)
-        return START_STICKY
+        return super.onStartCommand(intent, flags, startId)
+    }
+
+    // Funções de playlist (mantém)
+    private fun updatePlaylist(playlist: List<String>, initialIndex: Int) {
+        if (!requestAudioFocus()) {
+            Log.w("MediaPlaybackService", "Não foi possível obter AudioFocus")
+            return
+        }
+
+        player?.run {
+            clearMediaItems()
+            setMediaItems(
+                playlist.map { createMediaItemWithMetadata(it) },
+                initialIndex,
+                0L
+            )
+            prepare()
+            playWhenReady = true
+        }
+
+        // IMPORTANTE: Atualizar intent após carregar playlist
+        updateNotificationIntent()
+
+        Log.d("MediaPlaybackService", "✅ Playlist atualizada com notificação")
     }
 
     private fun updatePlaylistAfterDeletion(playlist: List<String>, nextIndex: Int) {
@@ -247,37 +280,140 @@ class MediaPlaybackService : MediaSessionService() {
                 Log.d("MediaPlaybackService", "Playlist vazia após deleção - parando player")
                 pause()
                 clearMediaItems()
+                abandonAudioFocus()
                 return
             }
 
-            Log.d("MediaPlaybackService", "Atualizando playlist após deleção: ${playlist.size} itens")
             clearMediaItems()
-            setMediaItems(playlist.map { MediaItem.fromUri(it) }, nextIndex, 0L)
+            setMediaItems(
+                playlist.map { createMediaItemWithMetadata(it) },
+                nextIndex,
+                0L
+            )
             prepare()
             playWhenReady = true
         }
-        updateNotification()
+
+        // Atualizar intent após deleção
+        updateNotificationIntent()
     }
 
-    private fun updatePlaylist(playlist: List<String>, initialIndex: Int) {
-        player?.run {
-            clearMediaItems()
-            setMediaItems(playlist.map { MediaItem.fromUri(it) }, initialIndex, 0L)
-            prepare()
-            playWhenReady = true
+    private fun refreshPlayerWithCurrentState() {
+        val currentPlayer = player ?: return
+        val currentSession = mediaSession ?: return
+
+        val currentPosition = currentPlayer.currentPosition
+        val currentMediaIndex = currentPlayer.currentMediaItemIndex
+        val isCurrentlyPlaying = currentPlayer.isPlaying
+        val currentPlaylist = (0 until currentPlayer.mediaItemCount).map { index ->
+            currentPlayer.getMediaItemAt(index).localConfiguration?.uri.toString()
         }
-        updateNotification()
+
+        currentPlayer.release()
+
+        player = ExoPlayer.Builder(this).build().apply {
+            repeatMode = Player.REPEAT_MODE_OFF
+            addListener(playerListener)
+        }
+
+        currentSession.player = player!!
+
+        player?.run {
+            if (currentPlaylist.isNotEmpty()) {
+                setMediaItems(
+                    currentPlaylist.map { createMediaItemWithMetadata(it!!) },
+                    currentMediaIndex,
+                    currentPosition
+                )
+                prepare()
+                playWhenReady = true
+            }
+        }
+
+        // Atualizar intent após refresh
+        updateNotificationIntent()
     }
 
     override fun onDestroy() {
+        Log.d("MediaPlaybackService", "🔚 onDestroy")
+        abandonAudioFocus()
         mediaSession?.run {
             player?.release()
             release()
         }
         player = null
         mediaSession = null
-        stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
+    }
+
+    // AudioFocus functions (mantém código existente)
+    private fun setupAudioManager() {
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
+                        .build()
+                )
+                setOnAudioFocusChangeListener(audioFocusChangeListener)
+                setAcceptsDelayedFocusGain(true)
+            }.build()
+        }
+    }
+
+    private fun requestAudioFocus(): Boolean {
+        val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { audioManager.requestAudioFocus(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(
+                audioFocusChangeListener,
+                AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN
+            )
+        }
+
+        hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        return hasAudioFocus
+    }
+
+    private fun abandonAudioFocus() {
+        if (hasAudioFocus) {
+            val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.abandonAudioFocus(audioFocusChangeListener)
+            }
+            hasAudioFocus = false
+        }
+    }
+
+    private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                hasAudioFocus = true
+                player?.let {
+                    it.volume = 1.0f
+                    if (!it.isPlaying) {
+                        it.play()
+                    }
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                hasAudioFocus = false
+                player?.pause()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                player?.pause()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                player?.volume = 0.2f
+            }
+        }
     }
 
     companion object {
@@ -290,16 +426,13 @@ class MediaPlaybackService : MediaSessionService() {
             context.startService(intent)
         }
 
-        // NOVO MÉTODO: Refresh do serviço
         fun refreshPlayer(context: Context) {
             val intent = Intent(context, MediaPlaybackService::class.java).apply {
                 action = "REFRESH_PLAYER"
             }
             context.startService(intent)
-            Log.d("MediaPlaybackService", "Refresh player requested")
         }
 
-        // NOVO MÉTODO: Atualizar playlist após deleção
         fun updatePlaylistAfterDeletion(context: Context, playlist: List<String>, nextIndex: Int) {
             val intent = Intent(context, MediaPlaybackService::class.java).apply {
                 action = "UPDATE_PLAYLIST_AFTER_DELETION"
@@ -307,16 +440,13 @@ class MediaPlaybackService : MediaSessionService() {
                 putExtra("NEXT_INDEX", nextIndex)
             }
             context.startService(intent)
-            Log.d("MediaPlaybackService", "Playlist update after deletion requested")
         }
 
-        // NOVO MÉTODO: Parar serviço
         fun stopService(context: Context) {
             val intent = Intent(context, MediaPlaybackService::class.java).apply {
                 action = "STOP_SERVICE"
             }
             context.startService(intent)
-            Log.d("MediaPlaybackService", "Stop service requested")
         }
     }
 }
