@@ -30,6 +30,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,6 +76,7 @@ import com.example.nekovideo.components.settings.InterfaceSettingsScreen
 import com.example.nekovideo.components.settings.PerformanceSettingsScreen
 import com.example.nekovideo.components.settings.PlaybackSettingsScreen
 import com.example.nekovideo.components.settings.SettingsScreen
+import com.example.nekovideo.language.LanguageManager
 import com.example.nekovideo.ui.theme.NekoVideoTheme
 import com.example.nekovideo.ui.theme.ThemeManager
 import kotlinx.coroutines.Dispatchers
@@ -90,6 +93,7 @@ class MainActivity : ComponentActivity() {
     private var notificationIntentReceived = false
     private var lastIntentAction: String? = null
     private var lastIntentTime: Long = 0
+
 
     private fun handleNotificationIntent(intent: Intent?) {
         val currentTime = System.currentTimeMillis()
@@ -147,38 +151,54 @@ class MainActivity : ComponentActivity() {
         var shouldOpenPlayerGlobal = false
     }
 
+    override fun attachBaseContext(newBase: Context?) {
+        super.attachBaseContext(newBase?.let { context ->
+            val languageCode = LanguageManager.getCurrentLanguage(context)
+            LanguageManager.setLocale(context, languageCode)
+        })
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.d("MainActivity", "🚀 ==> onCreate INICIADO <==")
-        Log.d("MainActivity", "Intent inicial: ${intent}")
-        Log.d("MainActivity", "Action inicial: ${intent?.action}")
 
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        //LanguageManager.initialize(this)
+
+        val currentLanguage = LanguageManager.getCurrentLanguage(this)
+        if (currentLanguage != "system") {
+            LanguageManager.setLocale(this, currentLanguage)
+        }
+
         enableEdgeToEdge()
 
         // PROCESSAR intent inicial
         handleNotificationIntent(intent)
 
-        WindowCompat.setDecorFitsSystemWindows(window, false)
         themeManager = ThemeManager(this)
 
         setContent {
-            NekoVideoTheme(themeManager = themeManager) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    // USAR SUA FUNÇÃO MAINSCREEN ORIGINAL, só adicionando parâmetros de debug
-                    MainScreen(
-                        intent = intent,
-                        themeManager = themeManager,
-                        // Debug info
-                        notificationReceived = notificationIntentReceived,
-                        lastAction = lastIntentAction,
-                        lastTime = lastIntentTime
-                    )
-                }
+            val currentLanguage by LanguageManager.currentLanguage.collectAsState()
+
+            // Criar contexto localizado
+            val localizedContext = remember(currentLanguage) {
+                LanguageManager.getLocalizedContext(this@MainActivity, currentLanguage)
             }
+
+                NekoVideoTheme(themeManager = themeManager) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        // USAR SUA FUNÇÃO MAINSCREEN ORIGINAL, só adicionando parâmetros de debug
+                        MainScreen(
+                            intent = intent,
+                            themeManager = themeManager,
+                            // Debug info
+                            notificationReceived = notificationIntentReceived,
+                            lastAction = lastIntentAction,
+                            lastTime = lastIntentTime
+                        )
+                    }
+                }
         }
 
         OptimizedThumbnailManager.startPeriodicCleanup()
@@ -357,40 +377,50 @@ fun MainScreen(
         }
     }
 
-    // ADICIONAR ESTE LaunchedEffect:
-    LaunchedEffect(currentTheme, configuration.uiMode) { // Observar ambos!
-        val activity = context.findActivity()
-        if (activity != null) {
-            val isDarkTheme = when (currentTheme) {
-                "light" -> false
-                "dark" -> true
-                "system" -> {
-                    val nightModeFlags = configuration.uiMode and
-                            android.content.res.Configuration.UI_MODE_NIGHT_MASK
-                    nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
+    LaunchedEffect(currentTheme, configuration.uiMode, showPlayerOverlay) { // Adicione showPlayerOverlay
+        // SÓ EXECUTE SE O PLAYER NÃO ESTIVER ABERTO
+        if (!showPlayerOverlay) {
+            val activity = context.findActivity()
+            if (activity != null) {
+                val isDarkTheme = when (currentTheme) {
+                    "light" -> false
+                    "dark" -> true
+                    "system" -> {
+                        val nightModeFlags = configuration.uiMode and
+                                android.content.res.Configuration.UI_MODE_NIGHT_MASK
+                        nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                    }
+                    else -> {
+                        val nightModeFlags = configuration.uiMode and
+                                android.content.res.Configuration.UI_MODE_NIGHT_MASK
+                        nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                    }
                 }
-                else -> {
-                    val nightModeFlags = configuration.uiMode and
-                            android.content.res.Configuration.UI_MODE_NIGHT_MASK
-                    nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
-                }
+
+                // Status bar: acompanha o tema
+                val statusBarColor = if (isDarkTheme) Color(0xFF121212) else Color(0xFFF5F5F5)
+                activity.window.statusBarColor = statusBarColor.toArgb()
+
+                // Navigation bar: SEMPRE preta com ícones brancos
+                activity.window.navigationBarColor = Color(0xFF000000).toArgb()
+
+                val insetsController = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
+
+                // Status bar: ícones acompanham o tema
+                insetsController.isAppearanceLightStatusBars = !isDarkTheme
+
+                // Navigation bar: SEMPRE ícones brancos
+                insetsController.isAppearanceLightNavigationBars = false
             }
-
-            // Status bar: acompanha o tema
-            val statusBarColor = if (isDarkTheme) Color(0xFF121212) else Color(0xFFF5F5F5)
-            activity.window.statusBarColor = statusBarColor.toArgb()
-
-            // Navigation bar: SEMPRE preta com ícones brancos
-            activity.window.navigationBarColor = Color(0xFF000000).toArgb()
-
-            val insetsController = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
-
-            // Status bar: ícones acompanham o tema
-            insetsController.isAppearanceLightStatusBars = !isDarkTheme
-
-            // Navigation bar: SEMPRE ícones brancos
-            insetsController.isAppearanceLightNavigationBars = false
         }
+    }
+
+    LaunchedEffect(Unit) {
+        // Pequeno delay após recreate para garantir que tudo foi carregado
+        delay(200)
+
+        // Força atualização do tema
+        themeManager.forceStatusBarUpdate()
     }
 
     LaunchedEffect(currentRoute, folderPath, selectedItems, isMoveMode, showPlayerOverlay) {
@@ -891,6 +921,8 @@ fun MainScreen(
                         isSecureMode = isSecure,
                         isRootLevel = isRootLevel,
                         showPrivateFolders = showPrivateFolders,
+                        isMoveMode = isMoveMode,
+                        itemsToMove = itemsToMove,
                         onFolderClick = { itemPath ->
                             val items = loadFolderContent(
                                 context = context,

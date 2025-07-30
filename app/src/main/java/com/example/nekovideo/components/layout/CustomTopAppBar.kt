@@ -35,11 +35,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.nekovideo.R
 import com.example.nekovideo.components.helpers.FilesManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -86,35 +89,56 @@ fun CustomTopAppBar(
             when {
                 selectedItems.isNotEmpty() -> {
                     Text(
-                        text = "${selectedItems.size} item(s) selected",
+                        text = pluralStringResource(R.plurals.items_selected, selectedItems.size, selectedItems.size),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium
                     )
                 }
                 currentRoute == "settings" -> {
                     Text(
-                        text = "Configurações",
+                        text = stringResource(R.string.settings_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
                 currentRoute == "settings/playback" -> {
                     Text(
-                        text = "Reprodução",
+                        text = stringResource(R.string.playback_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
                 currentRoute == "settings/interface" -> {
                     Text(
-                        text = "Interface",
+                        text = stringResource(R.string.interface_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                currentRoute == "settings/display" -> {
+                    Text(
+                        text = stringResource(R.string.settings_display),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                currentRoute == "settings/files" -> {
+                    Text(
+                        text = stringResource(R.string.settings_files),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                currentRoute == "settings/performance" -> {
+                    Text(
+                        text = stringResource(R.string.settings_performance),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
                 currentRoute == "settings/about" -> {
                     Text(
-                        text = "Sobre",
+                        text = stringResource(R.string.about_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -227,7 +251,7 @@ fun CustomTopAppBar(
                     IconButton(onClick = onSelectionClear) {
                         Icon(
                             imageVector = Icons.Default.Cancel,
-                            contentDescription = "Cancel Selection",
+                            contentDescription = stringResource(R.string.cancel_selection),
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -236,7 +260,7 @@ fun CustomTopAppBar(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.back),
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -259,7 +283,7 @@ fun CustomTopAppBar(
                 IconButton(onClick = onSelectAll) {
                     Icon(
                         imageVector = Icons.Default.SelectAll,
-                        contentDescription = "Select All",
+                        contentDescription = stringResource(R.string.select_all),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }

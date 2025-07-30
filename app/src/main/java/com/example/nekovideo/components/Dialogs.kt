@@ -1,16 +1,33 @@
 package com.example.nekovideo.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -19,7 +36,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.nekovideo.R
 import com.example.nekovideo.components.helpers.FilesManager
+import com.example.nekovideo.language.LanguageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,127 +49,129 @@ fun RenameDialog(
     onDismiss: () -> Unit,
     onComplete: () -> Unit
 ) {
+
     var baseName by remember { mutableStateOf("") }
     var startNumber by remember { mutableStateOf("1") }
     var isRenaming by remember { mutableStateOf(false) }
     var currentProgress by remember { mutableStateOf(0) }
     var totalItems by remember { mutableStateOf(selectedItems.size) }
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val context = LanguageManager.getLocalizedContext(LocalContext.current)
 
-    Dialog(
-        onDismissRequest = { if (!isRenaming) onDismiss() },
-        properties = DialogProperties(
-            dismissOnBackPress = !isRenaming,
-            dismissOnClickOutside = !isRenaming
-        )
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+        Dialog(
+            onDismissRequest = { if (!isRenaming) onDismiss() },
+            properties = DialogProperties(
+                dismissOnBackPress = !isRenaming,
+                dismissOnClickOutside = !isRenaming
+            )
         ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp)),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp
             ) {
-                // Header
-                Text(
-                    text = if (isRenaming) "Renaming Files" else "Rename Files",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    // Header
+                    Text(
+                        text = if (isRenaming) stringResource(R.string.renaming_files) else stringResource(R.string.rename_files),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
 
-                if (isRenaming) {
-                    // Progress Content
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(40.dp),
-                            strokeWidth = 3.dp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "Renaming file $currentProgress of $totalItems",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                } else {
-                    // Input Content
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        OutlinedTextField(
-                            value = baseName,
-                            onValueChange = { baseName = it },
-                            label = { Text("Base Name") },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isRenaming,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                            )
-                        )
-                        OutlinedTextField(
-                            value = startNumber,
-                            onValueChange = { if (it.matches(Regex("\\d*"))) startNumber = it },
-                            label = { Text("Start Number") },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isRenaming,
-                            shape = RoundedCornerShape(12.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                            )
-                        )
-                    }
-
-                    // Action Buttons
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
-                    ) {
-                        TextButton(
-                            onClick = onDismiss,
-                            shape = RoundedCornerShape(8.dp)
+                    if (isRenaming) {
+                        // Progress Content
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Text("Cancel")
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(40.dp),
+                                strokeWidth = 3.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = stringResource(R.string.renaming_progress, currentProgress, totalItems),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
                         }
-                        Button(
-                            onClick = {
-                                isRenaming = true
-                                coroutineScope.launch {
-                                    FilesManager.renameSelectedItems(
-                                        context,
-                                        selectedItems,
-                                        baseName.trim(),
-                                        startNumber.toIntOrNull() ?: 1
-                                    ) { current, total ->
-                                        currentProgress = current
-                                        totalItems = total
-                                    }
-                                    isRenaming = false
-                                    onComplete()
-                                    onDismiss()
-                                }
-                            },
-                            enabled = baseName.trim().isNotEmpty() && startNumber.toIntOrNull() != null,
-                            shape = RoundedCornerShape(8.dp)
+                    } else {
+                        // Input Content
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            OutlinedTextField(
+                                value = baseName,
+                                onValueChange = { baseName = it },
+                                label = { Text(stringResource(R.string.base_name)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isRenaming,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                )
+                            )
+                            OutlinedTextField(
+                                value = startNumber,
+                                onValueChange = { if (it.matches(Regex("\\d*"))) startNumber = it },
+                                label = { Text(stringResource(R.string.start_number)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isRenaming,
+                                shape = RoundedCornerShape(12.dp),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                )
+                            )
+                        }
+
+                        // Action Buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
                         ) {
-                            Text("Rename")
+                            TextButton(
+                                onClick = onDismiss,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(stringResource(R.string.cancel))
+                            }
+                            Button(
+                                onClick = {
+                                    isRenaming = true
+                                    coroutineScope.launch {
+                                        FilesManager.renameSelectedItems(
+                                            context, // ✅ Use localizedContext
+                                            selectedItems,
+                                            baseName.trim(),
+                                            startNumber.toIntOrNull() ?: 1
+                                        ) { current, total ->
+                                            currentProgress = current
+                                            totalItems = total
+                                        }
+                                        isRenaming = false
+                                        onComplete()
+                                        onDismiss()
+                                    }
+                                },
+                                enabled = baseName.trim().isNotEmpty() && startNumber.toIntOrNull() != null,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(stringResource(R.string.rename))
+                            }
                         }
                     }
                 }
             }
         }
-    }
+
 }
 
 @Composable
@@ -159,11 +180,12 @@ fun CreateFolderDialog(
     onDismiss: () -> Unit,
     onFolderCreated: () -> Unit
 ) {
+
     var folderName by remember { mutableStateOf("") }
     var isCreating by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val context = LanguageManager.getLocalizedContext(LocalContext.current)
 
     Dialog(
         onDismissRequest = { if (!isCreating) onDismiss() },
@@ -185,7 +207,7 @@ fun CreateFolderDialog(
             ) {
                 // Header
                 Text(
-                    text = "Create New Folder",
+                    text = stringResource(R.string.create_new_folder),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -203,7 +225,7 @@ fun CreateFolderDialog(
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Creating folder...",
+                            text = stringResource(R.string.creating_folder),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -217,13 +239,15 @@ fun CreateFolderDialog(
                                 folderName = it
                                 errorMessage = null
                             },
-                            label = { Text("Folder Name") },
+                            label = { Text(stringResource(R.string.folder_name)) },
                             modifier = Modifier.fillMaxWidth(),
                             isError = errorMessage != null,
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(
+                                    alpha = 0.5f
+                                ),
                                 errorBorderColor = MaterialTheme.colorScheme.error
                             )
                         )
@@ -247,7 +271,7 @@ fun CreateFolderDialog(
                             onClick = onDismiss,
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.cancel))
                         }
                         Button(
                             onClick = {
@@ -264,7 +288,8 @@ fun CreateFolderDialog(
                                                     folderName = folderName
                                                 )
                                             } catch (e: Exception) {
-                                                errorMessage = e.message ?: "Failed to create folder"
+                                                errorMessage =
+                                                    e.message ?: "Failed to create folder"
                                                 false
                                             }
                                         }
@@ -283,7 +308,7 @@ fun CreateFolderDialog(
                             enabled = folderName.isNotBlank() && !isCreating,
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Create")
+                            Text(stringResource(R.string.create))
                         }
                     }
                 }
@@ -297,12 +322,13 @@ fun PasswordDialog(
     onDismiss: () -> Unit,
     onPasswordVerified: () -> Unit
 ) {
+
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var isProcessing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val context = LanguageManager.getLocalizedContext(LocalContext.current)
     val isFirstTime = !FilesManager.SecureStorage.hasPassword(context)
 
     Dialog(
@@ -325,7 +351,9 @@ fun PasswordDialog(
             ) {
                 // Header
                 Text(
-                    text = if (isFirstTime) "Set Secure Folder Password" else "Enter Password",
+                    text = if (isFirstTime) stringResource(R.string.set_secure_password) else stringResource(
+                        R.string.enter_password
+                    ),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -343,7 +371,7 @@ fun PasswordDialog(
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Processing...",
+                            text = stringResource(R.string.processing),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -357,7 +385,7 @@ fun PasswordDialog(
                                 password = it
                                 errorMessage = null
                             },
-                            label = { Text("Password") },
+                            label = { Text(stringResource(R.string.password)) },
                             modifier = Modifier.fillMaxWidth(),
                             isError = errorMessage != null,
                             singleLine = true,
@@ -366,7 +394,9 @@ fun PasswordDialog(
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(
+                                    alpha = 0.5f
+                                ),
                                 errorBorderColor = MaterialTheme.colorScheme.error
                             )
                         )
@@ -378,7 +408,7 @@ fun PasswordDialog(
                                     confirmPassword = it
                                     errorMessage = null
                                 },
-                                label = { Text("Confirm Password") },
+                                label = { Text(stringResource(R.string.confirm_password)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 isError = errorMessage != null,
                                 singleLine = true,
@@ -386,7 +416,9 @@ fun PasswordDialog(
                                 shape = RoundedCornerShape(12.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(
+                                        alpha = 0.5f
+                                    ),
                                     errorBorderColor = MaterialTheme.colorScheme.error
                                 )
                             )
@@ -411,7 +443,7 @@ fun PasswordDialog(
                             onClick = onDismiss,
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.cancel))
                         }
                         Button(
                             onClick = {
@@ -427,15 +459,23 @@ fun PasswordDialog(
                                 coroutineScope.launch {
                                     val success = withContext(Dispatchers.IO) {
                                         if (isFirstTime) {
-                                            FilesManager.SecureStorage.savePassword(context, password)
+                                            FilesManager.SecureStorage.savePassword(
+                                                context,
+                                                password
+                                            )
                                         } else {
-                                            FilesManager.SecureStorage.verifyPassword(context, password)
+                                            FilesManager.SecureStorage.verifyPassword(
+                                                context,
+                                                password
+                                            )
                                         }
                                     }
                                     isProcessing = false
                                     if (success) {
                                         if (isFirstTime) {
-                                            FilesManager.SecureStorage.ensureSecureFolderExists(context)
+                                            FilesManager.SecureStorage.ensureSecureFolderExists(
+                                                context
+                                            )
                                         }
                                         onPasswordVerified()
                                     } else {
@@ -446,7 +486,11 @@ fun PasswordDialog(
                             enabled = password.isNotBlank() && (!isFirstTime || confirmPassword.isNotBlank()),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text(if (isFirstTime) "Set Password" else "Verify")
+                            Text(
+                                if (isFirstTime) stringResource(R.string.set_password) else stringResource(
+                                    R.string.verify
+                                )
+                            )
                         }
                     }
                 }
@@ -461,6 +505,7 @@ fun DeleteConfirmationDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
@@ -475,7 +520,7 @@ fun DeleteConfirmationDialog(
             ) {
                 // Header
                 Text(
-                    text = "Confirm Deletion",
+                    text = stringResource(R.string.confirm_deletion),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -483,7 +528,7 @@ fun DeleteConfirmationDialog(
 
                 // Content
                 Text(
-                    text = "Are you sure you want to delete $itemCount item(s)? This action cannot be undone.",
+                    text = stringResource(R.string.delete_confirmation_message, itemCount),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 20.sp
@@ -498,7 +543,7 @@ fun DeleteConfirmationDialog(
                         onClick = onDismiss,
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.cancel))
                     }
                     Button(
                         onClick = onConfirm,
@@ -508,7 +553,7 @@ fun DeleteConfirmationDialog(
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Delete")
+                        Text(stringResource(R.string.delete))
                     }
                 }
             }

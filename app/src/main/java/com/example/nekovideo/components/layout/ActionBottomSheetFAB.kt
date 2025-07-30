@@ -23,11 +23,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.nekovideo.R
 
 enum class ActionType {
     UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS, PASTE,
@@ -54,6 +57,33 @@ fun ActionBottomSheetFAB(
     var showBottomSheet by remember { mutableStateOf(false) }
     val bottomSheetState = rememberModalBottomSheetState()
 
+    val pasteHereText = stringResource(R.string.action_paste_here)
+    val cancelText = stringResource(R.string.action_cancel)
+    val cancelOperationText = stringResource(R.string.action_cancel_operation)
+    val unlockText = stringResource(R.string.action_unlock)
+    val protectText = stringResource(R.string.action_protect)
+    val unprivatizeText = stringResource(R.string.action_unprivatize)
+    val privatizeText = stringResource(R.string.action_privatize)
+    val deleteText = stringResource(R.string.action_delete)
+    val renameText = stringResource(R.string.action_rename)
+    val moveText = stringResource(R.string.action_move)
+    val shufflePlayText = stringResource(R.string.action_shuffle_play)
+    val createFolderText = stringResource(R.string.action_create_folder)
+    val settingsText = stringResource(R.string.action_settings)
+    val moveItemsText = pluralStringResource(R.plurals.move_items_count, itemsToMoveCount, itemsToMoveCount)
+
+    // NOVOS: strings que estavam hardcoded
+    val movingItemsText = pluralStringResource(R.plurals.moving_items_status, itemsToMoveCount, itemsToMoveCount)
+    val cancelDescription = stringResource(R.string.cancel_description)
+    val pasteHereDescription = stringResource(R.string.paste_here_description)
+    val actionsDescription = stringResource(R.string.actions_description)
+    val optionsDescription = stringResource(R.string.options_description)
+    val modeMoveFiles = stringResource(R.string.mode_move_files)
+    val itemActions = stringResource(R.string.item_actions)
+    val options = stringResource(R.string.options)
+    val navigateToDestination = stringResource(R.string.navigate_to_destination)
+
+
     // Verifica se algum item selecionado é pasta privada
     val hasPrivateFolders = remember(selectedItems) {
         selectedItems.any { path ->
@@ -71,44 +101,43 @@ fun ActionBottomSheetFAB(
     }
 
     // Define as ações baseado no contexto
-    val actions = remember(hasSelectedItems, isSecureMode, hasPrivateFolders, hasNormalFolders, isMoveMode) {
+    val actions = remember(hasSelectedItems, isSecureMode, hasPrivateFolders, hasNormalFolders, isMoveMode, moveItemsText) {
         when {
             isMoveMode -> {
-                // NOVO: Ações específicas do modo Move
                 listOf(
-                    ActionItem(ActionType.PASTE, Icons.Default.ContentPaste, "Colar Aqui", "Mover ${itemsToMoveCount} item(s)"),
-                    ActionItem(ActionType.CANCEL_MOVE, Icons.Default.Cancel, "Cancelar", "Cancelar operação")
+                    ActionItem(ActionType.PASTE, Icons.Default.ContentPaste, pasteHereText, moveItemsText),
+                    ActionItem(ActionType.CANCEL_MOVE, Icons.Default.Cancel, cancelText, cancelOperationText)
                 )
             }
             hasSelectedItems -> {
                 val actionsList = mutableListOf<ActionItem>()
 
                 if (isSecureMode) {
-                    actionsList.add(ActionItem(ActionType.UNLOCK, Icons.Default.LockOpen, "Desbloquear"))
+                    actionsList.add(ActionItem(ActionType.UNLOCK, Icons.Default.LockOpen, unlockText))
                 } else {
-                    actionsList.add(ActionItem(ActionType.SECURE, Icons.Default.Lock, "Proteger"))
+                    actionsList.add(ActionItem(ActionType.SECURE, Icons.Default.Lock, protectText))
 
                     if (hasPrivateFolders) {
-                        actionsList.add(ActionItem(ActionType.UNPRIVATIZE, Icons.Default.VisibilityOff, "Desprivar"))
+                        actionsList.add(ActionItem(ActionType.UNPRIVATIZE, Icons.Default.VisibilityOff, unprivatizeText))
                     }
                     if (hasNormalFolders) {
-                        actionsList.add(ActionItem(ActionType.PRIVATIZE, Icons.Default.Visibility, "Privar"))
+                        actionsList.add(ActionItem(ActionType.PRIVATIZE, Icons.Default.Visibility, privatizeText))
                     }
                 }
 
                 actionsList.addAll(listOf(
-                    ActionItem(ActionType.DELETE, Icons.Default.Delete, "Excluir"),
-                    ActionItem(ActionType.RENAME, Icons.Default.Edit, "Renomear"),
-                    ActionItem(ActionType.MOVE, Icons.Default.DriveFileMove, "Mover")
+                    ActionItem(ActionType.DELETE, Icons.Default.Delete, deleteText),
+                    ActionItem(ActionType.RENAME, Icons.Default.Edit, renameText),
+                    ActionItem(ActionType.MOVE, Icons.Default.DriveFileMove, moveText)
                 ))
 
                 actionsList
             }
             else -> {
                 listOf(
-                    ActionItem(ActionType.SHUFFLE_PLAY, Icons.Default.Shuffle, "Aleatório"),
-                    ActionItem(ActionType.CREATE_FOLDER, Icons.Default.CreateNewFolder, "Nova Pasta"),
-                    ActionItem(ActionType.SETTINGS, Icons.Default.Settings, "Configurações")
+                    ActionItem(ActionType.SHUFFLE_PLAY, Icons.Default.Shuffle, shufflePlayText),
+                    ActionItem(ActionType.CREATE_FOLDER, Icons.Default.CreateNewFolder, createFolderText),
+                    ActionItem(ActionType.SETTINGS, Icons.Default.Settings, settingsText)
                 )
             }
         }
@@ -138,7 +167,7 @@ fun ActionBottomSheetFAB(
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = "Movendo $itemsToMoveCount item(s)",
+                        text = movingItemsText, // ✅ CORRIGIDO
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                         fontSize = 11.sp
@@ -159,7 +188,7 @@ fun ActionBottomSheetFAB(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Cancelar",
+                        contentDescription = cancelDescription, // ✅ CORRIGIDO
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -173,7 +202,7 @@ fun ActionBottomSheetFAB(
                 ) {
                     Icon(
                         imageVector = Icons.Default.ContentPaste,
-                        contentDescription = "Colar aqui",
+                        contentDescription = pasteHereDescription, // ✅ CORRIGIDO
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -189,7 +218,7 @@ fun ActionBottomSheetFAB(
         ) {
             Icon(
                 imageVector = if (hasSelectedItems) Icons.Default.MoreVert else Icons.Default.Settings,
-                contentDescription = if (hasSelectedItems) "Ações" else "Opções",
+                contentDescription = if (hasSelectedItems) actionsDescription else optionsDescription, // ✅ CORRIGIDO
                 modifier = Modifier.size(24.dp)
             )
         }
@@ -230,9 +259,9 @@ fun ActionBottomSheetFAB(
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                         Text(
                             text = when {
-                                isMoveMode -> "Modo: Mover Arquivos"
-                                hasSelectedItems -> "Ações dos Itens"
-                                else -> "Opções"
+                                isMoveMode -> modeMoveFiles // ✅ CORRIGIDO
+                                hasSelectedItems -> itemActions // ✅ CORRIGIDO
+                                else -> options // ✅ CORRIGIDO
                             },
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
@@ -240,7 +269,7 @@ fun ActionBottomSheetFAB(
 
                         if (isMoveMode) {
                             Text(
-                                text = "Navegue até o destino e cole os arquivos",
+                                text = navigateToDestination, // ✅ CORRIGIDO
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(top = 4.dp)

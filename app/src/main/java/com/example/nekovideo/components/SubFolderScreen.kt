@@ -56,7 +56,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
+import com.example.nekovideo.R
 import kotlin.math.roundToInt
 
 // SIMPLIFICADO - Enum de ordenação
@@ -270,12 +272,12 @@ fun SortRow(currentSort: SortType, onSortChange: (SortType) -> Unit) {
         Box {
             TextButton(onClick = { showDropdown = true }) {
                 Text(when (currentSort) {
-                    SortType.NAME_ASC -> "Nome A-Z"
-                    SortType.NAME_DESC -> "Nome Z-A"
-                    SortType.DATE_NEWEST -> "Mais Recente"
-                    SortType.DATE_OLDEST -> "Mais Antigo"
-                    SortType.SIZE_LARGEST -> "Maior"
-                    SortType.SIZE_SMALLEST -> "Menor"
+                    SortType.NAME_ASC -> stringResource(R.string.sort_name_asc)
+                    SortType.NAME_DESC -> stringResource(R.string.sort_name_desc)
+                    SortType.DATE_NEWEST -> stringResource(R.string.sort_date_newest)
+                    SortType.DATE_OLDEST -> stringResource(R.string.sort_date_oldest)
+                    SortType.SIZE_LARGEST -> stringResource(R.string.sort_size_largest)
+                    SortType.SIZE_SMALLEST -> stringResource(R.string.sort_size_smallest)
                 })
                 Icon(Icons.Default.ArrowDropDown, contentDescription = null)
             }
@@ -284,12 +286,12 @@ fun SortRow(currentSort: SortType, onSortChange: (SortType) -> Unit) {
                 SortType.values().forEach { sort ->
                     DropdownMenuItem(
                         text = { Text(when (sort) {
-                            SortType.NAME_ASC -> "Nome A-Z"
-                            SortType.NAME_DESC -> "Nome Z-A"
-                            SortType.DATE_NEWEST -> "Mais Recente"
-                            SortType.DATE_OLDEST -> "Mais Antigo"
-                            SortType.SIZE_LARGEST -> "Maior"
-                            SortType.SIZE_SMALLEST -> "Menor"
+                            SortType.NAME_ASC -> stringResource(R.string.sort_name_asc)
+                            SortType.NAME_DESC -> stringResource(R.string.sort_name_desc)
+                            SortType.DATE_NEWEST -> stringResource(R.string.sort_date_newest)
+                            SortType.DATE_OLDEST -> stringResource(R.string.sort_date_oldest)
+                            SortType.SIZE_LARGEST -> stringResource(R.string.sort_size_largest)
+                            SortType.SIZE_SMALLEST -> stringResource(R.string.sort_size_smallest)
                         })},
                         onClick = { onSortChange(sort); showDropdown = false },
                         leadingIcon = if (currentSort == sort) {{ Icon(Icons.Default.Check, contentDescription = null) }} else null
@@ -311,7 +313,9 @@ fun SubFolderScreen(
     deletedVideoPath: String? = null,
     isSecureMode: Boolean = false,
     isRootLevel: Boolean = false,
-    showPrivateFolders: Boolean = false
+    showPrivateFolders: Boolean = false,
+    isMoveMode: Boolean = false,
+    itemsToMove: List<String> = emptyList()
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -452,6 +456,8 @@ fun SubFolderScreen(
                             showDurations = showDurations,
                             showFileSizes = showFileSizes,
                             isSecureMode = isSecureMode,
+                            isMoveMode = isMoveMode,
+                            itemsToMove = itemsToMove,
                             onFolderClick = onFolderClick,
                             onSelectionChange = onSelectionChange
                         )
@@ -525,14 +531,17 @@ private fun MediaRow(
     showDurations: Boolean,
     showFileSizes: Boolean,
     isSecureMode: Boolean,
+    isMoveMode: Boolean,
+    itemsToMove: List<String>,
     onFolderClick: (String) -> Unit,
-    onSelectionChange: (List<String>) -> Unit
+    onSelectionChange: (List<String>) -> Unit,
 ) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         items.forEach { item ->
             MediaCard(
                 item = item,
                 isSelected = item.path in selectedItems,
+                isBeingMoved = isMoveMode && item.path in itemsToMove,
                 showThumbnails = showThumbnails,
                 showDurations = showDurations,
                 showFileSizes = showFileSizes,
@@ -562,6 +571,7 @@ private fun MediaRow(
 private fun MediaCard(
     item: MediaItem,
     isSelected: Boolean,
+    isBeingMoved: Boolean = false,
     showThumbnails: Boolean,
     showDurations: Boolean,
     showFileSizes: Boolean,
@@ -623,8 +633,16 @@ private fun MediaCard(
             .aspectRatio(1f)
             .combinedClickable(onClick = onTap, onLongClick = onLongPress)
             .border(
-                width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                width = when {
+                    isSelected -> 2.dp
+                    isBeingMoved -> 2.dp  // NOVO: Border para itens sendo movidos
+                    else -> 0.dp
+                },
+                color = when {
+                    isSelected -> MaterialTheme.colorScheme.primary
+                    isBeingMoved -> Color(0xFFFF9800)  // NOVO: Cor laranja para itens sendo movidos
+                    else -> Color.Transparent
+                },
                 shape = RoundedCornerShape(12.dp)
             ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -634,7 +652,7 @@ private fun MediaCard(
             if (item.isFolder) {
                 FolderContent(item)
             } else {
-                VideoContent(item, thumbnail, duration, fileSize, isLoading, isSelected, showThumbnails, randomColor, gridColumns)
+                VideoContent(item, thumbnail, duration, fileSize, isLoading, isSelected, isBeingMoved, showThumbnails, randomColor, gridColumns)
             }
         }
     }
@@ -677,6 +695,7 @@ private fun VideoContent(
     fileSize: String?,
     isLoading: Boolean,
     isSelected: Boolean,
+    isBeingMoved: Boolean,  // NOVO: Parâmetro
     showThumbnails: Boolean,
     randomColor: Color,
     gridColumns: Int
@@ -690,12 +709,27 @@ private fun VideoContent(
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {
-            !showThumbnails -> Box(modifier = Modifier.fillMaxSize().background(randomColor).alpha(if (isSelected) 0.7f else 1f))
+            !showThumbnails -> Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(randomColor)
+                    .alpha(when {
+                        isSelected -> 0.7f
+                        isBeingMoved -> 0.8f  // NOVO: Alpha diferente para itens sendo movidos
+                        else -> 1f
+                    })
+            )
             thumbnail != null -> Image(
                 bitmap = thumbnail.asImageBitmap(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().alpha(if (isSelected) 0.7f else 1f)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(when {
+                        isSelected -> 0.7f
+                        isBeingMoved -> 0.8f  // NOVO: Alpha diferente para itens sendo movidos
+                        else -> 1f
+                    })
             )
             isLoading -> Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp))
@@ -703,6 +737,14 @@ private fun VideoContent(
             else -> Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
                 Icon(Icons.Default.VideoFile, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), modifier = Modifier.size(40.dp))
             }
+        }
+
+        if (isBeingMoved && !isSelected) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFFF9800).copy(alpha = 0.3f))
+            )
         }
 
         if (!isSelected) {
@@ -745,6 +787,20 @@ private fun VideoContent(
                     modifier = Modifier.align(Alignment.TopStart).padding(6.dp).background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(4.dp)).padding(4.dp, 2.dp)
                 )
             }
+        }
+
+        if (isBeingMoved && !isSelected) {
+            Icon(
+                imageVector = Icons.Default.DriveFileMove,
+                contentDescription = "Sendo movido",
+                tint = Color(0xFFFF9800),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(6.dp)
+                    .size(18.dp)
+                    .background(Color.White.copy(alpha = 0.9f), CircleShape)
+                    .padding(2.dp)
+            )
         }
 
         // Check de seleção

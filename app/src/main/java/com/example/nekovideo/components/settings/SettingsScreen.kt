@@ -1,6 +1,9 @@
 package com.example.nekovideo.components.settings
 
+import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,6 +29,7 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PictureInPictureAlt
@@ -58,10 +62,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.nekovideo.BuildConfig
+import com.example.nekovideo.R
+import com.example.nekovideo.findActivity
+import com.example.nekovideo.language.LanguageManager
+import com.example.nekovideo.language.LanguageManager.currentLanguage
 import com.example.nekovideo.ui.theme.ThemeManager
 
 @Composable
@@ -76,8 +85,8 @@ fun SettingsScreen(navController: NavController) {
         item {
             SettingsCategoryCard(
                 icon = Icons.Default.PlayArrow,
-                title = "Reprodução",
-                subtitle = "Controles de playback e comportamento do player",
+                title = stringResource(R.string.settings_playback),
+                subtitle = stringResource(R.string.settings_playback_desc),
                 onClick = { navController.navigate("settings/playback") }
             )
         }
@@ -85,8 +94,8 @@ fun SettingsScreen(navController: NavController) {
         item {
             SettingsCategoryCard(
                 icon = Icons.Default.Palette,
-                title = "Interface",
-                subtitle = "Aparência e tema do aplicativo",
+                title = stringResource(R.string.settings_interface),
+                subtitle = stringResource(R.string.settings_interface_desc),
                 onClick = { navController.navigate("settings/interface") }
             )
         }
@@ -94,8 +103,8 @@ fun SettingsScreen(navController: NavController) {
         item {
             SettingsCategoryCard(
                 icon = Icons.Default.ViewList,
-                title = "Visualização",
-                subtitle = "Thumbnails, grid e exibição de informações",
+                title = stringResource(R.string.settings_display),
+                subtitle = stringResource(R.string.settings_display_desc),
                 onClick = { navController.navigate("settings/display") }
             )
         }
@@ -103,8 +112,8 @@ fun SettingsScreen(navController: NavController) {
         item {
             SettingsCategoryCard(
                 icon = Icons.Default.Folder,
-                title = "Arquivos",
-                subtitle = "Gerenciamento de pastas e arquivos",
+                title = stringResource(R.string.settings_files),
+                subtitle = stringResource(R.string.settings_files_desc),
                 onClick = { navController.navigate("settings/files") }
             )
         }
@@ -112,8 +121,8 @@ fun SettingsScreen(navController: NavController) {
         item {
             SettingsCategoryCard(
                 icon = Icons.Default.Speed,
-                title = "Performance",
-                subtitle = "Cache e otimizações de desempenho",
+                title = stringResource(R.string.settings_performance),
+                subtitle = stringResource(R.string.settings_performance_desc),
                 onClick = { navController.navigate("settings/performance") }
             )
         }
@@ -121,8 +130,8 @@ fun SettingsScreen(navController: NavController) {
         item {
             SettingsCategoryCard(
                 icon = Icons.Default.Info,
-                title = "Sobre",
-                subtitle = "Informações do app e suporte",
+                title = stringResource(R.string.settings_about),
+                subtitle = stringResource(R.string.settings_about_desc),
                 onClick = { navController.navigate("settings/about") }
             )
         }
@@ -147,14 +156,14 @@ fun PlaybackSettingsScreen() {
     ) {
 
         item {
-            SettingsSectionHeader("Controles")
+            SettingsSectionHeader(stringResource(R.string.playback_controls))
         }
 
         item {
             SettingsSwitchItem(
                 icon = Icons.Default.VisibilityOff,
-                title = "Ocultar Controles",
-                subtitle = "Esconder automaticamente durante reprodução",
+                title = stringResource(R.string.playback_auto_hide_controls),
+                subtitle = stringResource(R.string.playback_auto_hide_controls_desc),
                 checked = autoHideControls,
                 onCheckedChange = {
                     autoHideControls = it
@@ -166,8 +175,8 @@ fun PlaybackSettingsScreen() {
         item {
             SettingsSliderItem(
                 icon = Icons.Default.SkipNext,
-                title = "Pulo Duplo Toque",
-                subtitle = "Segundos para avançar/voltar",
+                title = stringResource(R.string.playback_double_tap_seek),
+                subtitle = stringResource(R.string.playback_double_tap_seek_desc),
                 value = doubleTapSeek,
                 range = 5..30,
                 step = 5,
@@ -179,14 +188,14 @@ fun PlaybackSettingsScreen() {
         }
 
         item {
-            SettingsSectionHeader("Funcionalidades")
+            SettingsSectionHeader(stringResource(R.string.playback_features))
         }
 
         item {
             SettingsSwitchItem(
                 icon = Icons.Default.ScreenSearchDesktop,
-                title = "Manter Tela Ligada",
-                subtitle = "Não desligar tela durante reprodução",
+                title = stringResource(R.string.playback_keep_screen_on),
+                subtitle = stringResource(R.string.playback_keep_screen_on_desc),
                 checked = keepScreenOn,
                 onCheckedChange = {
                     keepScreenOn = it
@@ -198,8 +207,8 @@ fun PlaybackSettingsScreen() {
         item {
             SettingsSwitchItem(
                 icon = Icons.Default.PictureInPictureAlt,
-                title = "Picture in Picture",
-                subtitle = "Continuar reprodução em janela flutuante",
+                title = stringResource(R.string.playback_pip),
+                subtitle = stringResource(R.string.playback_pip_desc),
                 checked = pipEnabled,
                 onCheckedChange = {
                     pipEnabled = it
@@ -212,12 +221,31 @@ fun PlaybackSettingsScreen() {
 
 @Composable
 fun InterfaceSettingsScreen(themeManager: ThemeManager) {
+    val context = LocalContext.current
     val currentTheme by themeManager.themeMode.collectAsState()
 
+    // ✅ Observar mudanças do LanguageManager
+    val languageStateFlow by LanguageManager.currentLanguage.collectAsState()
+
+    // ✅ Variável local que recompõe quando StateFlow muda
+    var currentLanguage by remember(languageStateFlow) {
+        mutableStateOf(LanguageManager.getCurrentLanguage(context))
+    }
+
+    // Strings traduzidas
     val darkModeOptions = listOf(
-        "light" to "Claro",
-        "dark" to "Escuro",
-        "system" to "Seguir Sistema"
+        "light" to stringResource(R.string.theme_light),
+        "dark" to stringResource(R.string.theme_dark),
+        "system" to stringResource(R.string.theme_system)
+    )
+
+    // Opções de idioma
+    val languageOptions = listOf(
+        "system" to stringResource(R.string.language_system),
+        "pt" to stringResource(R.string.language_portuguese),
+        "en" to stringResource(R.string.language_english),
+        "es" to stringResource(R.string.language_spanish),
+        "fr" to stringResource(R.string.language_french)
     )
 
     LazyColumn(
@@ -227,15 +255,16 @@ fun InterfaceSettingsScreen(themeManager: ThemeManager) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
 
+
         item {
-            SettingsSectionHeader("Tema")
+            SettingsSectionHeader(stringResource(R.string.settings_appearance))
         }
 
         item {
             SettingsDropdownItem(
                 icon = Icons.Default.Palette,
-                title = "Modo Escuro",
-                subtitle = "Aparência da interface",
+                title = stringResource(R.string.settings_dark_mode),
+                subtitle = stringResource(R.string.settings_dark_mode_desc),
                 options = darkModeOptions,
                 selectedValue = currentTheme,
                 onValueChange = { newTheme ->
@@ -243,6 +272,28 @@ fun InterfaceSettingsScreen(themeManager: ThemeManager) {
                 }
             )
         }
+
+        item {
+            SettingsSectionHeader(stringResource(R.string.settings_language))
+        }
+
+        item {
+            SettingsDropdownItem(
+                icon = Icons.Default.Language,
+                title = stringResource(R.string.settings_app_language),
+                subtitle = stringResource(R.string.settings_app_language_desc),
+                options = languageOptions,
+                selectedValue = currentLanguage,
+                onValueChange = { newLanguage ->
+                    currentLanguage = newLanguage
+                    LanguageManager.updateLanguage(context, newLanguage)
+
+                    // ✅ TOAST SIMPLES EM INGLÊS
+                    Toast.makeText(context, "Language will be applied after app restart", Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
+
     }
 }
 
@@ -258,10 +309,10 @@ fun DisplaySettingsScreen() {
     var gridColumns by remember { mutableStateOf(prefs.getInt("grid_columns", 3)) }
 
     val qualityOptions = listOf(
-        "low" to "Baixa (360p)",
-        "medium" to "Média (720p)",
-        "high" to "Alta (1080p)",
-        "original" to "Original"
+        "low" to stringResource(R.string.quality_low),
+        "medium" to stringResource(R.string.quality_medium),
+        "high" to stringResource(R.string.quality_high),
+        "original" to stringResource(R.string.quality_original)
     )
 
     LazyColumn(
@@ -272,14 +323,14 @@ fun DisplaySettingsScreen() {
     ) {
 
         item {
-            SettingsSectionHeader("Informações dos Vídeos")
+            SettingsSectionHeader(stringResource(R.string.display_video_info))
         }
 
         item {
             SettingsSwitchItem(
                 icon = Icons.Default.Image,
-                title = "Mostrar Miniaturas",
-                subtitle = "Exibir thumbnails dos vídeos",
+                title = stringResource(R.string.display_show_thumbnails),
+                subtitle = stringResource(R.string.display_show_thumbnails_desc),
                 checked = showThumbnails,
                 onCheckedChange = {
                     showThumbnails = it
@@ -291,8 +342,8 @@ fun DisplaySettingsScreen() {
         item {
             SettingsSwitchItem(
                 icon = Icons.Default.Schedule,
-                title = "Mostrar Durações",
-                subtitle = "Exibir duração dos vídeos",
+                title = stringResource(R.string.display_show_durations),
+                subtitle = stringResource(R.string.display_show_durations_desc),
                 checked = showDurations,
                 onCheckedChange = {
                     showDurations = it
@@ -304,8 +355,8 @@ fun DisplaySettingsScreen() {
         item {
             SettingsSwitchItem(
                 icon = Icons.Default.Storage,
-                title = "Mostrar Tamanhos",
-                subtitle = "Exibir tamanho dos arquivos",
+                title = stringResource(R.string.display_show_file_sizes),
+                subtitle = stringResource(R.string.display_show_file_sizes_desc),
                 checked = showFileSizes,
                 onCheckedChange = {
                     showFileSizes = it
@@ -315,14 +366,14 @@ fun DisplaySettingsScreen() {
         }
 
         item {
-            SettingsSectionHeader("Layout")
+            SettingsSectionHeader(stringResource(R.string.display_layout))
         }
 
         item {
             SettingsSliderItem(
                 icon = Icons.Default.GridView,
-                title = "Colunas na Grid",
-                subtitle = "Número de colunas na lista",
+                title = stringResource(R.string.display_grid_columns),
+                subtitle = stringResource(R.string.display_grid_columns_desc),
                 value = gridColumns,
                 range = 2..4,
                 onValueChange = {
@@ -333,14 +384,14 @@ fun DisplaySettingsScreen() {
         }
 
         item {
-            SettingsSectionHeader("Qualidade")
+            SettingsSectionHeader(stringResource(R.string.display_quality))
         }
 
         item {
             SettingsDropdownItem(
                 icon = Icons.Default.HighQuality,
-                title = "Resolução da Thumbnail",
-                subtitle = "Qualidade das miniaturas geradas",
+                title = stringResource(R.string.display_thumbnail_quality),
+                subtitle = stringResource(R.string.display_thumbnail_quality_desc),
                 options = qualityOptions,
                 selectedValue = thumbnailQuality,
                 onValueChange = {
@@ -368,14 +419,14 @@ fun FilesSettingsScreen() {
     ) {
 
         item {
-            SettingsSectionHeader("Gerenciamento")
+            SettingsSectionHeader(stringResource(R.string.files_management))
         }
 
         item {
             SettingsSwitchItem(
                 icon = Icons.Default.Folder,
-                title = "Pastas Exclusivas",
-                subtitle = "Criar pastas visíveis apenas no NekoVideo",
+                title = stringResource(R.string.files_app_only_folders),
+                subtitle = stringResource(R.string.files_app_only_folders_desc),
                 checked = appOnlyFolders,
                 onCheckedChange = {
                     appOnlyFolders = it
@@ -387,8 +438,8 @@ fun FilesSettingsScreen() {
         item {
             SettingsSwitchItem(
                 icon = Icons.Default.Delete,
-                title = "Confirmar Exclusão",
-                subtitle = "Pedir confirmação antes de deletar arquivos",
+                title = stringResource(R.string.files_confirm_delete),
+                subtitle = stringResource(R.string.files_confirm_delete_desc),
                 checked = confirmDelete,
                 onCheckedChange = {
                     confirmDelete = it
@@ -414,14 +465,14 @@ fun PerformanceSettingsScreen() {
     ) {
 
         item {
-            SettingsSectionHeader("Cache")
+            SettingsSectionHeader(stringResource(R.string.performance_cache))
         }
 
         item {
             SettingsSliderItem(
                 icon = Icons.Default.Memory,
-                title = "Cache de Thumbnails",
-                subtitle = "Espaço reservado para miniaturas",
+                title = stringResource(R.string.performance_thumbnail_cache),
+                subtitle = stringResource(R.string.performance_thumbnail_cache_desc),
                 value = cacheSize,
                 range = 50..500,
                 step = 50,
@@ -444,13 +495,13 @@ fun AboutSettingsScreen() {
     ) {
 
         item {
-            SettingsSectionHeader("Informações")
+            SettingsSectionHeader(stringResource(R.string.about_information))
         }
 
         item {
             SettingsClickableItem(
                 icon = Icons.Default.Info,
-                title = "Versão do App",
+                title = stringResource(R.string.about_app_version),
                 subtitle = BuildConfig.VERSION_NAME,
                 onClick = { /* TODO: Show version details */ }
             )
@@ -459,8 +510,8 @@ fun AboutSettingsScreen() {
         item {
             SettingsClickableItem(
                 icon = Icons.Default.Code,
-                title = "Código Fonte",
-                subtitle = "Ver no GitHub",
+                title = stringResource(R.string.about_source_code),
+                subtitle = stringResource(R.string.about_source_code_desc),
                 onClick = { /* TODO: Open GitHub */ }
             )
         }
@@ -468,8 +519,8 @@ fun AboutSettingsScreen() {
         item {
             SettingsClickableItem(
                 icon = Icons.Default.BugReport,
-                title = "Reportar Bug",
-                subtitle = "Relatar problemas ou sugestões",
+                title = stringResource(R.string.about_report_bug),
+                subtitle = stringResource(R.string.about_report_bug_desc),
                 onClick = { /* TODO: Open bug report */ }
             )
         }

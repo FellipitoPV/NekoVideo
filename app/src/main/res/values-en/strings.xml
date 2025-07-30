@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Button actions -->
+    <string name="action_paste_here">Paste Here</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_cancel_operation">Cancel operation</string>
+    <string name="action_unlock">Unlock</string>
+    <string name="action_protect">Protect</string>
+    <string name="action_unprivatize">Unprivatize</string>
+    <string name="action_privatize">Privatize</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_move">Move</string>
+    <string name="action_shuffle_play">Shuffle</string>
+    <string name="action_create_folder">New Folder</string>
+    <string name="action_settings">Settings</string>
+
+    <!-- Content descriptions -->
+    <string name="cancel_description">Cancel</string>
+    <string name="paste_here_description">Paste here</string>
+    <string name="actions_description">Actions</string>
+    <string name="options_description">Options</string>
+
+    <!-- Bottom sheet headers -->
+    <string name="mode_move_files">Mode: Move Files</string>
+    <string name="item_actions">Item Actions</string>
+    <string name="options">Options</string>
+    <string name="navigate_to_destination">Navigate to destination and paste files</string>
+
+    <!-- Interface Settings -->
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_dark_mode">Dark Mode</string>
+    <string name="settings_dark_mode_desc">Interface appearance</string>
+    <string name="settings_app_language">App Language</string>
+    <string name="settings_app_language_desc">Interface language</string>
+
+    <!-- Themes -->
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_system">Follow System</string>
+
+    <!-- Languages -->
+    <string name="language_system">Follow System</string>
+    <string name="language_portuguese">Português (Brasil)</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+    <string name="language_french">Français</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_playback">Playback</string>
+    <string name="settings_playback_desc">Playback controls and player behavior</string>
+    <string name="settings_interface">Interface</string>
+    <string name="settings_interface_desc">App appearance and theme</string>
+    <string name="settings_display">Display</string>
+    <string name="settings_display_desc">Thumbnails, grid and information display</string>
+    <string name="settings_files">Files</string>
+    <string name="settings_files_desc">Folder and file management</string>
+    <string name="settings_performance">Performance</string>
+    <string name="settings_performance_desc">Cache and performance optimizations</string>
+    <string name="settings_about">About</string>
+    <string name="settings_about_desc">App information and support</string>
+
+    <!-- TopAppBar -->
+    <string name="settings_title">Settings</string>
+    <string name="playback_title">Playback</string>
+    <string name="interface_title">Interface</string>
+    <string name="about_title">About</string>
+    <string name="cancel_selection">Cancel Selection</string>
+    <string name="back">Back</string>
+    <string name="select_all">Select All</string>
+
+    <!-- Playback Settings Screen -->
+    <string name="playback_controls">Controls</string>
+    <string name="playback_features">Features</string>
+
+    <string name="playback_auto_hide_controls">Auto Hide Controls</string>
+    <string name="playback_auto_hide_controls_desc">Hide automatically during playback</string>
+    <string name="playback_double_tap_seek">Double Tap Seek</string>
+    <string name="playback_double_tap_seek_desc">Seconds to skip forward/backward</string>
+    <string name="playback_keep_screen_on">Keep Screen On</string>
+    <string name="playback_keep_screen_on_desc">Don\'t turn off screen during playback</string>
+    <string name="playback_pip">Picture in Picture</string>
+    <string name="playback_pip_desc">Continue playback in floating window</string>
+
+    <!-- Display Settings Screen -->
+    <string name="display_video_info">Video Information</string>
+    <string name="display_show_thumbnails">Show Thumbnails</string>
+    <string name="display_show_thumbnails_desc">Display video thumbnails</string>
+    <string name="display_show_durations">Show Durations</string>
+    <string name="display_show_durations_desc">Display video duration</string>
+    <string name="display_show_file_sizes">Show File Sizes</string>
+    <string name="display_show_file_sizes_desc">Display file sizes</string>
+    <string name="display_layout">Layout</string>
+    <string name="display_grid_columns">Grid Columns</string>
+    <string name="display_grid_columns_desc">Number of columns in list</string>
+    <string name="display_quality">Quality</string>
+    <string name="display_thumbnail_quality">Thumbnail Resolution</string>
+    <string name="display_thumbnail_quality_desc">Generated thumbnail quality</string>
+
+    <!-- Quality Options -->
+    <string name="quality_low">Low (360p)</string>
+    <string name="quality_medium">Medium (720p)</string>
+    <string name="quality_high">High (1080p)</string>
+    <string name="quality_original">Original</string>
+
+    <!-- Files Settings Screen -->
+    <string name="files_management">Management</string>
+    <string name="files_app_only_folders">App-Only Folders</string>
+    <string name="files_app_only_folders_desc">Create folders visible only in NekoVideo</string>
+    <string name="files_confirm_delete">Confirm Deletion</string>
+    <string name="files_confirm_delete_desc">Ask for confirmation before deleting files</string>
+
+    <!-- Performance Settings Screen -->
+    <string name="performance_cache">Cache</string>
+    <string name="performance_thumbnail_cache">Thumbnail Cache</string>
+    <string name="performance_thumbnail_cache_desc">Space reserved for thumbnails</string>
+
+    <!-- About Settings Screen -->
+    <string name="about_information">Information</string>
+    <string name="about_app_version">App Version</string>
+    <string name="about_source_code">Source Code</string>
+    <string name="about_source_code_desc">View on GitHub</string>
+    <string name="about_report_bug">Report Bug</string>
+    <string name="about_report_bug_desc">Report issues or suggestions</string>
+
+    <!-- Dialogs -->
+    <!-- Rename Dialog -->
+    <string name="rename_files">Rename Files</string>
+    <string name="renaming_files">Renaming Files</string>
+    <string name="renaming_progress">Renaming file %1$d of %2$d</string>
+    <string name="base_name">Base Name</string>
+    <string name="start_number">Start Number</string>
+    <string name="rename">Rename</string>
+
+    <!-- Create Folder Dialog -->
+    <string name="create_new_folder">Create New Folder</string>
+    <string name="creating_folder">Creating folder...</string>
+    <string name="folder_name">Folder Name</string>
+    <string name="folder_name_empty_error">Folder name cannot be empty</string>
+    <string name="create">Create</string>
+
+    <!-- Password Dialog -->
+    <string name="set_secure_password">Set Secure Folder Password</string>
+    <string name="enter_password">Enter Password</string>
+    <string name="processing">Processing...</string>
+    <string name="password">Password</string>
+    <string name="confirm_password">Confirm Password</string>
+    <string name="password_empty_error">Password cannot be empty</string>
+    <string name="passwords_no_match_error">Passwords do not match</string>
+    <string name="invalid_password_error">Invalid password</string>
+    <string name="set_password">Set Password</string>
+    <string name="verify">Verify</string>
+
+    <!-- Delete Confirmation Dialog -->
+    <string name="confirm_deletion">Confirm Deletion</string>
+    <string name="delete_confirmation_message">Are you sure you want to delete %d item(s)? This action cannot be undone.</string>
+    <string name="delete">Delete</string>
+
+    <!-- Common -->
+    <string name="cancel">Cancel</string>
+
+    <!-- Sort Options -->
+    <string name="sort_name_asc">Name A-Z</string>
+    <string name="sort_name_desc">Name Z-A</string>
+    <string name="sort_date_newest">Newest</string>
+    <string name="sort_date_oldest">Oldest</string>
+    <string name="sort_size_largest">Largest</string>
+    <string name="sort_size_smallest">Smallest</string>
+
+    <!-- Player Delete Dialog -->
+    <string name="delete_video">Delete Video</string>
+    <string name="delete_video_confirmation">Are you sure you want to delete \"%1$s\"?\n\nThis action cannot be undone.</string>
+
+    <!-- ADICIONAR plurals corretos -->
+    <plurals name="items_selected">
+        <item quantity="one">%d item selected</item>
+        <item quantity="other">%d items selected</item>
+    </plurals>
+
+    <!-- Plurals for item counting -->
+    <plurals name="move_items_count">
+        <item quantity="one">Move %d item</item>
+        <item quantity="other">Move %d items</item>
+    </plurals>
+
+    <plurals name="moving_items_status">
+        <item quantity="one">Moving %d item</item>
+        <item quantity="other">Moving %d items</item>
+    </plurals>
+</resources>

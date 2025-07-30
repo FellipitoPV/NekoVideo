@@ -1,6 +1,5 @@
 package com.example.nekovideo.components.player
 
-// Novos imports para gestos e controles
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ComponentName
@@ -33,7 +32,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -44,7 +42,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FastForward
@@ -56,9 +53,6 @@ import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.VolumeDown
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -83,6 +77,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -100,6 +95,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.media3.ui.PlayerView
 import com.example.nekovideo.MediaPlaybackService
+import com.example.nekovideo.R
 import com.example.nekovideo.components.helpers.FilesManager
 import com.example.nekovideo.components.settings.SettingsManager
 import com.google.common.util.concurrent.MoreExecutors
@@ -295,14 +291,14 @@ fun VideoPlayerOverlay(
             },
             title = {
                 Text(
-                    text = "Delete Video",
+                    text = stringResource(R.string.delete_video),
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 val fileName = File(currentVideoPath).nameWithoutExtension
                 Text(
-                    text = "Are you sure you want to delete \"$fileName\"?\n\nThis action cannot be undone.",
+                    text = stringResource(R.string.delete_video_confirmation, fileName),
                     textAlign = TextAlign.Center
                 )
             },
@@ -320,7 +316,7 @@ fun VideoPlayerOverlay(
                         }
                     }
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -330,7 +326,7 @@ fun VideoPlayerOverlay(
                         mediaController?.play()
                     }
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
