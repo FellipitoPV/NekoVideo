@@ -21,6 +21,10 @@
     <string name="actions_description">Actions</string>
     <string name="options_description">Options</string>
 
+    <string name="loading">Loading...</string>
+    <string name="updating_index">Updating index...</string>
+    <string name="indexing_videos">Indexing videos...</string>
+
     <!-- Bottom sheet headers -->
     <string name="mode_move_files">Mode: Move Files</string>
     <string name="item_actions">Item Actions</string>

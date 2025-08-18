@@ -3,6 +3,9 @@ package com.example.nekovideo.components.settings
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -487,6 +490,8 @@ fun PerformanceSettingsScreen() {
 
 @Composable
 fun AboutSettingsScreen() {
+    val context = LocalContext.current
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -512,7 +517,10 @@ fun AboutSettingsScreen() {
                 icon = Icons.Default.Code,
                 title = stringResource(R.string.about_source_code),
                 subtitle = stringResource(R.string.about_source_code_desc),
-                onClick = { /* TODO: Open GitHub */ }
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/FellipitoPV/NekoVideo"))
+                    context.startActivity(intent)
+                }
             )
         }
 
@@ -521,7 +529,47 @@ fun AboutSettingsScreen() {
                 icon = Icons.Default.BugReport,
                 title = stringResource(R.string.about_report_bug),
                 subtitle = stringResource(R.string.about_report_bug_desc),
-                onClick = { /* TODO: Open bug report */ }
+                onClick = {
+                    val appVersion = BuildConfig.VERSION_NAME
+                    val deviceInfo = "${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})"
+                    val emailBody = """
+                Descreva o problema encontrado:
+                
+                
+                
+                --- Informações do Sistema ---
+                App Version: $appVersion
+                Device: $deviceInfo
+            """.trimIndent()
+
+                    // Método 1: Tenta com mailto direto
+                    val mailtoUri = Uri.parse("mailto:suporte@seuapp.com?subject=${Uri.encode("Bug Report - ${context.getString(R.string.app_name)}")}&body=${Uri.encode(emailBody)}")
+                    val mailtoIntent = Intent(Intent.ACTION_VIEW, mailtoUri)
+
+                    Log.d("EmailIntent", "Tentando mailto direto...")
+                    if (mailtoIntent.resolveActivity(context.packageManager) != null) {
+                        Log.d("EmailIntent", "Mailto funcionou")
+                        context.startActivity(mailtoIntent)
+                        return@SettingsClickableItem
+                    }
+
+                    // Método 2: Intent específico para email
+                    val emailIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "message/rfc822"
+                        putExtra(Intent.EXTRA_EMAIL, arrayOf("suporte@seuapp.com"))
+                        putExtra(Intent.EXTRA_SUBJECT, "Bug Report - ${context.getString(R.string.app_name)}")
+                        putExtra(Intent.EXTRA_TEXT, emailBody)
+                    }
+
+                    Log.d("EmailIntent", "Tentando com message/rfc822...")
+                    if (emailIntent.resolveActivity(context.packageManager) != null) {
+                        Log.d("EmailIntent", "RFC822 funcionou")
+                        context.startActivity(emailIntent)
+                        return@SettingsClickableItem
+                    }
+
+                    Log.e("EmailIntent", "Nenhum método funcionou")
+                }
             )
         }
     }

@@ -1,52 +1,55 @@
 <resources>
     <string name="app_name" translatable="false">NekoVideo</string>
 
-        <!-- Ações dos botões -->
-        <string name="action_paste_here">Colar Aqui</string>
-        <string name="action_cancel">Cancelar</string>
-        <string name="action_cancel_operation">Cancelar operação</string>
-        <string name="action_unlock">Desbloquear</string>
-        <string name="action_protect">Proteger</string>
-        <string name="action_unprivatize">Desprivar</string>
-        <string name="action_privatize">Privar</string>
-        <string name="action_delete">Excluir</string>
-        <string name="action_rename">Renomear</string>
-        <string name="action_move">Mover</string>
-        <string name="action_shuffle_play">Aleatório</string>
-        <string name="action_create_folder">Nova Pasta</string>
-        <string name="action_settings">Configurações</string>
+    <!-- Ações dos botões -->
+    <string name="action_paste_here">Colar Aqui</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_cancel_operation">Cancelar operação</string>
+    <string name="action_unlock">Desbloquear</string>
+    <string name="action_protect">Proteger</string>
+    <string name="action_unprivatize">Desprivar</string>
+    <string name="action_privatize">Privar</string>
+    <string name="action_delete">Excluir</string>
+    <string name="action_rename">Renomear</string>
+    <string name="action_move">Mover</string>
+    <string name="action_shuffle_play">Aleatório</string>
+    <string name="action_create_folder">Nova Pasta</string>
+    <string name="action_settings">Configurações</string>
 
         <!-- Content descriptions -->
-        <string name="cancel_description">Cancelar</string>
-        <string name="paste_here_description">Colar aqui</string>
-        <string name="actions_description">Ações</string>
-        <string name="options_description">Opções</string>
+    <string name="cancel_description">Cancelar</string>
+    <string name="paste_here_description">Colar aqui</string>
+    <string name="actions_description">Ações</string>
+    <string name="options_description">Opções</string>
 
-        <!-- Bottom sheet headers -->
-        <string name="mode_move_files">Modo: Mover Arquivos</string>
-        <string name="item_actions">Ações dos Itens</string>
-        <string name="options">Opções</string>
-        <string name="navigate_to_destination">Navegue até o destino e cole os arquivos</string>
+    <string name="loading">Carregando...</string>
+    <string name="updating_index">Atualizando índice...</string>
+    <string name="indexing_videos">Indexando vídeos...</string>
 
-        <!-- Configurações de Interface -->
-        <string name="settings_appearance">Aparência</string>
-        <string name="settings_language">Idioma</string>
-        <string name="settings_dark_mode">Modo Escuro</string>
-        <string name="settings_dark_mode_desc">Aparência da interface</string>
-        <string name="settings_app_language">Idioma do App</string>
-        <string name="settings_app_language_desc">Linguagem da interface</string>
+    <!-- Bottom sheet headers -->
+    <string name="mode_move_files">Modo: Mover Arquivos</string>
+    <string name="item_actions">Ações dos Itens</string>
+    <string name="options">Opções</string>
+    <string name="navigate_to_destination">Navegue até o destino e cole os arquivos</string>
 
-        <!-- Temas -->
-        <string name="theme_light">Claro</string>
-        <string name="theme_dark">Escuro</string>
-        <string name="theme_system">Seguir Sistema</string>
+    <!-- Configurações de Interface --><string name="settings_appearance">Aparência</string>
+    <string name="settings_language">Idioma</string>
+    <string name="settings_dark_mode">Modo Escuro</string>
+    <string name="settings_dark_mode_desc">Aparência da interface</string>
+    <string name="settings_app_language">Idioma do App</string>
+    <string name="settings_app_language_desc">Linguagem da interface</string>
 
-        <!-- Idiomas -->
-        <string name="language_system">Seguir Sistema</string>
-        <string name="language_portuguese">Português (Brasil)</string>
-        <string name="language_english">English</string>
-        <string name="language_spanish">Español</string>
-        <string name="language_french">Français</string>
+    <!-- Temas -->
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Escuro</string>
+    <string name="theme_system">Seguir Sistema</string>
+
+    <!-- Idiomas -->
+    <string name="language_system">Seguir Sistema</string>
+    <string name="language_portuguese">Português (Brasil)</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+    <string name="language_french">Français</string>
 
     <!-- Settings Screen -->
     <string name="settings_playback">Reprodução</string>

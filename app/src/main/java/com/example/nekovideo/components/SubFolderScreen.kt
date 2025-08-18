@@ -126,11 +126,6 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
     return applySorting(items, sortType)
 }
 
-private fun isSecureFolder(folderPath: String): Boolean {
-    val folder = File(folderPath)
-    return File(folder, ".nomedia").exists() || File(folder, ".nekovideo").exists()
-}
-
 // SIMPLIFICADO - Carregamento normal
 private fun loadNormalContentFromCache(
     context: Context,
@@ -179,63 +174,24 @@ private fun loadNormalContentFromCache(
                 null,
                 true,
                 lastModified = folderInfo?.lastModified ?: subfolder.lastModified(),
-                sizeInBytes = getFolderSize(subfolder)
+                sizeInBytes = 0L
             ))
         }
     }
 
-    // Carregar vídeos (mantém a mesma lógica)
-    val projection = arrayOf(
-        MediaStore.Video.Media.DATA,
-        MediaStore.Video.Media._ID,
-        MediaStore.Video.Media.DATE_MODIFIED,
-        MediaStore.Video.Media.SIZE
-    )
-    val selection = "${MediaStore.Video.Media.DATA} LIKE ? AND ${MediaStore.Video.Media.DATA} NOT LIKE ?"
-    val selectionArgs = arrayOf("$folderPath/%", "$folderPath%/%/%")
-
-    context.contentResolver.query(
-        MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-        projection,
-        selection,
-        selectionArgs,
-        null
-    )?.use { cursor ->
-        val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-        val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-        val dateColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
-        val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
-
-        while (cursor.moveToNext()) {
-            val path = cursor.getString(dataColumn)
-            if (path.startsWith(folderPath)) {
-                val uri = ContentUris.withAppendedId(
-                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-                    cursor.getLong(idColumn)
-                )
-                items.add(MediaItem(
-                    path,
-                    uri,
-                    false,
-                    lastModified = cursor.getLong(dateColumn) * 1000L,
-                    sizeInBytes = cursor.getLong(sizeColumn)
-                ))
-            }
-        }
+    // ✅ ADICIONAR - Carregamento via cache
+    val folderInfo = folderCache[folderPath]
+    folderInfo?.videos?.forEach { videoInfo ->
+        items.add(MediaItem(
+            path = videoInfo.path,
+            uri = videoInfo.uri,
+            isFolder = false,
+            lastModified = videoInfo.lastModified,
+            sizeInBytes = videoInfo.sizeInBytes
+        ))
     }
 
     return applySorting(items, sortType)
-}
-
-// SIMPLIFICADO - Helpers
-private fun hasVideosInFolder(context: Context, folderPath: String): Boolean {
-    return context.contentResolver.query(
-        MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-        arrayOf(MediaStore.Video.Media.DATA),
-        "${MediaStore.Video.Media.DATA} LIKE ?",
-        arrayOf("$folderPath/%"),
-        null
-    )?.use { it.count > 0 } ?: false
 }
 
 private fun getFolderSize(folder: File): Long {
@@ -343,13 +299,6 @@ fun SubFolderScreen(
     val showFileSizes by remember { derivedStateOf { OptimizedThumbnailManager.isShowFileSizesEnabled(context) }}
     val gridColumns by remember { derivedStateOf { SettingsManager.getGridColumns(context) }}
 
-    // Inicia o scanner se necessário
-    LaunchedEffect(Unit) {
-        if (scannerCache.isEmpty() && !isScanning) {
-            FolderVideoScanner.startScan(context, coroutineScope)
-        }
-    }
-
     // 🆕 Função de refresh
     fun performRefresh() {
         if (!isRefreshing) {
@@ -392,7 +341,7 @@ fun SubFolderScreen(
     }
 
     // Tela de loading
-    if (isLoading || (scannerCache.isEmpty() && isScanning)) {
+    if (scannerCache.isEmpty() && isScanning) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
@@ -408,9 +357,9 @@ fun SubFolderScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = when {
-                        isScanning && isRefreshing -> "Atualizando índice..."
-                        isScanning -> "Indexando vídeos..."
-                        else -> "Carregando..."
+                        isScanning && isRefreshing -> stringResource(R.string.updating_index)
+                        isScanning -> stringResource(R.string.indexing_videos)
+                        else -> stringResource(R.string.loading)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -878,43 +827,5 @@ private fun loadSecureContentRecursive(folderPath: String, allItems: MutableList
                 allItems.add(MediaItem(file.absolutePath, null, false))
             }
         }
-    }
-}
-
-private fun loadNormalContentRecursive(
-    context: Context,
-    folderPath: String,
-    allItems: MutableList<MediaItem>,
-    showPrivateFolders: Boolean
-) {
-    val folder = File(folderPath)
-    if (!folder.exists() || !folder.isDirectory) return
-
-    // Adicionar vídeos desta pasta
-    val projection = arrayOf(MediaStore.Video.Media.DATA, MediaStore.Video.Media._ID)
-    val selection = "${MediaStore.Video.Media.DATA} LIKE ? AND ${MediaStore.Video.Media.DATA} NOT LIKE ?"
-    val selectionArgs = arrayOf("$folderPath/%", "$folderPath%/%/%")
-
-    context.contentResolver.query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, projection, selection, selectionArgs, null)?.use { cursor ->
-        val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-        val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-
-        while (cursor.moveToNext()) {
-            val path = cursor.getString(dataColumn)
-            if (path.startsWith(folderPath)) {
-                val uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, cursor.getLong(idColumn))
-                allItems.add(MediaItem(path, uri, false))
-            }
-        }
-    }
-
-    // Recursão nas subpastas
-    folder.listFiles()?.filter { it.isDirectory }?.forEach { subfolder ->
-        if (subfolder.name in listOf(".nomedia", ".nekovideo")) return@forEach
-
-        // Incluir pastas privadas se necessário
-        if (subfolder.name.startsWith(".") && !showPrivateFolders) return@forEach
-
-        loadNormalContentRecursive(context, subfolder.absolutePath, allItems, showPrivateFolders)
     }
 }

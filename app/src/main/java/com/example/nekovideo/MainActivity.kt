@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -77,6 +78,7 @@ import com.example.nekovideo.components.settings.PerformanceSettingsScreen
 import com.example.nekovideo.components.settings.PlaybackSettingsScreen
 import com.example.nekovideo.components.settings.SettingsScreen
 import com.example.nekovideo.language.LanguageManager
+import com.example.nekovideo.services.FolderVideoScanner
 import com.example.nekovideo.ui.theme.NekoVideoTheme
 import com.example.nekovideo.ui.theme.ThemeManager
 import kotlinx.coroutines.Dispatchers
@@ -161,8 +163,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        //LanguageManager.initialize(this)
-
         val currentLanguage = LanguageManager.getCurrentLanguage(this)
         if (currentLanguage != "system") {
             LanguageManager.setLocale(this, currentLanguage)
@@ -174,6 +174,11 @@ class MainActivity : ComponentActivity() {
         handleNotificationIntent(intent)
 
         themeManager = ThemeManager(this)
+
+        // 🚀 Inicia scan imediatamente, em background
+        lifecycleScope.launch {
+            FolderVideoScanner.startScan(this@MainActivity)
+        }
 
         setContent {
             val currentLanguage by LanguageManager.currentLanguage.collectAsState()
