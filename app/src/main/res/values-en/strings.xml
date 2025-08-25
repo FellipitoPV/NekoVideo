@@ -39,6 +39,13 @@
     <string name="settings_app_language">App Language</string>
     <string name="settings_app_language_desc">Interface language</string>
 
+    <!-- Rename dialogs -->
+    <string name="rename_item">Rename item</string>
+    <string name="renaming_item">Renaming item...</string>
+    <string name="new_name">New name</string>
+    <string name="rename_multiple_items">Rename multiple items</string>
+    <string name="selected_items_count">%d item(s) selected</string>
+
     <!-- Themes -->
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>

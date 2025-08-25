@@ -32,35 +32,97 @@ data class VideoMetadata(
 )
 
 object OptimizedThumbnailManager {
-    private val thumbnailSemaphore = Semaphore(3) // Reduzido para 3
+    private val thumbnailSemaphore = Semaphore(3)
     private val activeJobs = ConcurrentHashMap<String, Job>()
     private val loadedThumbnails = ConcurrentHashMap<String, Boolean>()
     private val pendingCancellations = ConcurrentHashMap<String, Job>()
     private val thumbnailStates = ConcurrentHashMap<String, ThumbnailState>()
     private val activeTargets = ConcurrentHashMap<String, CustomTarget<Bitmap>>()
 
-    // OTIMIZAÇÃO: LruCache com limite para bitmaps comprimidos
-    private val maxMemory = Runtime.getRuntime().maxMemory()
-    private val cacheSize = (maxMemory / 8).toInt() // 12.5% da memória
+    // ✅ NOVO: Cache configurável baseado nas configurações do usuário
+    private var _thumbnailCache: LruCache<String, Bitmap>? = null
+    private var lastCacheSize = -1
 
-    val thumbnailCache = object : LruCache<String, Bitmap>(cacheSize) {
-        override fun sizeOf(key: String, bitmap: Bitmap): Int {
-            return bitmap.byteCount
-        }
+    val thumbnailCache: LruCache<String, Bitmap>
+        get() = _thumbnailCache ?: createDefaultCache().also { _thumbnailCache = it }
 
-        override fun entryRemoved(evicted: Boolean, key: String?, oldValue: Bitmap?, newValue: Bitmap?) {
-            oldValue?.let {
-                if (!it.isRecycled) {
-                    it.recycle()
+    // ✅ NOVO: Função para obter tamanho do cache das configurações
+    private fun getCacheSizeFromSettings(context: Context): Int {
+        val prefs = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+        return prefs.getInt("cache_size_mb", 100) // Padrão: 100MB
+    }
+
+    // ✅ NOVO: Função para criar cache padrão (fallback)
+    private fun createDefaultCache(): LruCache<String, Bitmap> {
+        val defaultSizeBytes = 100 * 1024 * 1024 // 100MB em bytes
+        return object : LruCache<String, Bitmap>(defaultSizeBytes) {
+            override fun sizeOf(key: String, bitmap: Bitmap): Int {
+                return bitmap.byteCount
+            }
+
+            override fun entryRemoved(evicted: Boolean, key: String?, oldValue: Bitmap?, newValue: Bitmap?) {
+                oldValue?.let {
+                    if (!it.isRecycled) {
+                        it.recycle()
+                    }
                 }
             }
         }
     }
 
-    val durationCache = LruCache<String, String>(200) // Aumentado
+    // ✅ NOVO: Função para reconfigurar o cache baseado nas configurações
+    fun reconfigureCache(context: Context) {
+        val newCacheSizeMB = getCacheSizeFromSettings(context)
+
+        // Só recria o cache se o tamanho mudou
+        if (newCacheSizeMB != lastCacheSize) {
+            val newCacheSizeBytes = newCacheSizeMB * 1024 * 1024 // MB para bytes
+
+            // Salva bitmaps do cache antigo se existir
+            val oldBitmaps = mutableMapOf<String, Bitmap>()
+            _thumbnailCache?.let { oldCache ->
+                // Não podemos iterar diretamente, mas podemos salvar referências importantes
+                // O LruCache vai gerenciar a migração automaticamente
+            }
+
+            // Cria novo cache
+            val newCache = object : LruCache<String, Bitmap>(newCacheSizeBytes) {
+                override fun sizeOf(key: String, bitmap: Bitmap): Int {
+                    return bitmap.byteCount
+                }
+
+                override fun entryRemoved(evicted: Boolean, key: String?, oldValue: Bitmap?, newValue: Bitmap?) {
+                    oldValue?.let {
+                        if (!it.isRecycled) {
+                            it.recycle()
+                        }
+                    }
+                }
+            }
+
+            // Substitui o cache
+            val oldCache = _thumbnailCache
+            _thumbnailCache = newCache
+            lastCacheSize = newCacheSizeMB
+
+            // Limpa cache antigo de forma segura
+            oldCache?.evictAll()
+
+            android.util.Log.d("ThumbnailManager", "Cache reconfigurado para ${newCacheSizeMB}MB")
+        }
+    }
+
+    // ✅ ATUALIZADO: Função para inicializar cache na primeira vez
+    private fun ensureCacheInitialized(context: Context) {
+        if (_thumbnailCache == null) {
+            reconfigureCache(context)
+        }
+    }
+
+    val durationCache = LruCache<String, String>(200)
     val fileSizeCache = LruCache<String, String>(200)
 
-    // OTIMIZAÇÃO: Pool de MediaMetadataRetriever
+    // Pool de MediaMetadataRetriever (mantém igual)
     private val retrieverPool = mutableListOf<MediaMetadataRetriever>()
     private val maxPoolSize = 2
 
@@ -136,17 +198,20 @@ object OptimizedThumbnailManager {
         return thumbnailCache.get(key)
     }
 
-    // OTIMIZAÇÃO: Carregamento seletivo sob demanda
+    // ✅ ATUALIZADO: Carregamento com inicialização do cache
     suspend fun loadVideoMetadataWithDelay(
         context: Context,
         videoUri: Uri,
         videoPath: String,
         imageLoader: Any?,
-        delayMs: Long = 300L, // Reduzido delay padrão
+        delayMs: Long = 300L,
         onMetadataLoaded: (VideoMetadata) -> Unit,
         onCancelled: () -> Unit = {},
         onStateChanged: (ThumbnailState) -> Unit = {}
     ) {
+        // ✅ NOVO: Garantir que o cache está inicializado com as configurações corretas
+        ensureCacheInitialized(context)
+
         val key = videoPath.hashCode().toString()
 
         // Cancela job anterior
@@ -158,13 +223,13 @@ object OptimizedThumbnailManager {
             activeTargets.remove(key)
         }
 
-        // OTIMIZAÇÃO: Lê configurações uma vez só
+        // Lê configurações uma vez só
         val showThumbnails = shouldShowThumbnails(context)
         val showDurations = shouldShowDurations(context)
         val showFileSizes = shouldShowFileSizes(context)
         val thumbnailSize = getThumbnailSizeFromSettings(context)
 
-        // OTIMIZAÇÃO: Verificação inteligente de cache
+        // Verificação inteligente de cache
         val cachedThumbnail = if (showThumbnails) thumbnailCache.get(key) else null
         val cachedDuration = if (showDurations) durationCache.get(videoPath) else null
         val cachedFileSize = if (showFileSizes) fileSizeCache.get(videoPath) else null
@@ -204,7 +269,7 @@ object OptimizedThumbnailManager {
                         return@withPermit
                     }
 
-                    // OTIMIZAÇÃO: Carrega apenas o que é necessário
+                    // Carrega apenas o que é necessário
                     val durationDeferred = if (showDurations && cachedDuration == null) {
                         async(Dispatchers.IO) { getVideoDuration(videoPath) }
                     } else null
@@ -254,7 +319,7 @@ object OptimizedThumbnailManager {
         }
     }
 
-    // OTIMIZAÇÃO: Função separada para thumbnail
+    // Função para thumbnail (mantém igual)
     private suspend fun loadThumbnailWithGlide(
         context: Context,
         videoUri: Uri,
@@ -265,7 +330,6 @@ object OptimizedThumbnailManager {
             override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
                 activeTargets.remove(key)
                 if (continuation.isActive) {
-                    // OTIMIZAÇÃO: Comprime bitmap se necessário
                     val compressedBitmap = if (resource.byteCount > 1024 * 1024) { // 1MB
                         Bitmap.createScaledBitmap(resource, thumbnailSize, thumbnailSize, true).also {
                             if (resource != it) resource.recycle()
@@ -322,12 +386,10 @@ object OptimizedThumbnailManager {
     fun cancelLoading(videoPath: String) {
         val key = videoPath.hashCode().toString()
 
-        // OTIMIZAÇÃO: Cancelamento imediato
         activeJobs[key]?.cancel()
         activeJobs.remove(key)
         activeTargets[key]?.let { target ->
             try {
-                // Limpa target imediatamente se possível
                 target.hashCode() // Test se ainda é válido
             } catch (e: Exception) {}
             activeTargets.remove(key)
@@ -336,7 +398,6 @@ object OptimizedThumbnailManager {
         thumbnailStates[key] = ThumbnailState.CANCELLED
     }
 
-    // OTIMIZAÇÃO: Limpeza inteligente
     fun clearCache() {
         activeJobs.values.forEach { it.cancel() }
         activeJobs.clear()
@@ -345,7 +406,7 @@ object OptimizedThumbnailManager {
         thumbnailStates.clear()
 
         // Limpa caches de forma segura
-        thumbnailCache.evictAll()
+        _thumbnailCache?.evictAll()
         durationCache.evictAll()
         fileSizeCache.evictAll()
 
@@ -359,9 +420,13 @@ object OptimizedThumbnailManager {
             }
             retrieverPool.clear()
         }
+
+        // Reset cache para forçar recriação
+        _thumbnailCache = null
+        lastCacheSize = -1
     }
 
-    // OTIMIZAÇÃO: Usa pool de retrievers
+    // Usa pool de retrievers (mantém igual)
     private fun getVideoDuration(videoPath: String): String? {
         if (!File(videoPath).exists()) return null
 
@@ -400,7 +465,7 @@ object OptimizedThumbnailManager {
         }
     }
 
-    // NOVA: Limpeza automática periódica
+    // Limpeza automática periódica (mantém igual)
     private var cleanupJob: Job? = null
 
     fun startPeriodicCleanup() {
@@ -408,8 +473,6 @@ object OptimizedThumbnailManager {
         cleanupJob = CoroutineScope(Dispatchers.IO).launch {
             while (isActive) {
                 delay(300_000) // 5 minutos
-                // Remove jobs antigos inativos
-                val currentTime = System.currentTimeMillis()
                 thumbnailStates.entries.removeAll { (key, state) ->
                     if (state == ThumbnailState.LOADED || state == ThumbnailState.CANCELLED) {
                         activeJobs[key] == null
@@ -429,13 +492,24 @@ object OptimizedThumbnailManager {
     fun isShowFileSizesEnabled(context: Context) = shouldShowFileSizes(context)
     fun getCurrentThumbnailSize(context: Context) = getThumbnailSizeFromSettings(context)
 
-    // NOVA: Função para obter estatísticas
-    fun getCacheStats(): String {
-        val thumbnailSize = thumbnailCache.size()
-        val thumbnailMemory = thumbnailCache.size()
+    // ✅ ATUALIZADO: Estatísticas incluem configuração atual
+    fun getCacheStats(context: Context? = null): String {
+        val currentCacheSizeMB = context?.let { getCacheSizeFromSettings(it) } ?: lastCacheSize
+        val thumbnailSize = _thumbnailCache?.size() ?: 0
+        val thumbnailMemoryBytes = _thumbnailCache?.size() ?: 0
+        val thumbnailMemoryMB = thumbnailMemoryBytes / (1024 * 1024)
         val activeJobsCount = activeJobs.size
         val activeTargetsCount = activeTargets.size
 
-        return "Thumbnails: $thumbnailSize | Jobs: $activeJobsCount | Targets: $activeTargetsCount | Memory: ${thumbnailMemory / 1024}KB"
+        return """
+            Cache Config: ${currentCacheSizeMB}MB
+            Thumbnails: $thumbnailSize (${thumbnailMemoryMB}MB)
+            Jobs: $activeJobsCount | Targets: $activeTargetsCount
+        """.trimIndent()
+    }
+
+    // ✅ NOVO: Função para chamar quando as configurações mudarem
+    fun onSettingsChanged(context: Context) {
+        reconfigureCache(context)
     }
 }

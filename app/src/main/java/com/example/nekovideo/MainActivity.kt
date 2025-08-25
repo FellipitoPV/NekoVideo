@@ -102,41 +102,17 @@ class MainActivity : ComponentActivity() {
         lastIntentTime = currentTime
         lastIntentAction = intent?.action
 
-        Log.d("MainActivity", "==========================================")
-        Log.d("MainActivity", "🔍 HANDLE NOTIFICATION INTENT CHAMADO")
-        Log.d("MainActivity", "Timestamp: $currentTime")
-        Log.d("MainActivity", "Intent: $intent")
-        Log.d("MainActivity", "Action: ${intent?.action}")
-        Log.d("MainActivity", "==========================================")
-
         // Log detalhado de todas as extras
         intent?.extras?.let { extras ->
-            Log.d("MainActivity", "📦 EXTRAS DO INTENT:")
             for (key in extras.keySet()) {
                 val value = extras.get(key)
-                Log.d("MainActivity", "   $key = $value (${value?.javaClass?.simpleName})")
             }
-        } ?: Log.d("MainActivity", "❌ Nenhuma extra encontrada")
+        }
 
         // Processar action
         when (intent?.action) {
             "OPEN_PLAYER" -> {
-                Log.d("MainActivity", "🎵 ACTION OPEN_PLAYER DETECTADO!")
                 notificationIntentReceived = true
-
-                val playlist = intent.getStringArrayListExtra("PLAYLIST")
-                val initialIndex = intent.getIntExtra("INITIAL_INDEX", 0)
-                val autoOpen = intent.getBooleanExtra("AUTO_OPEN_PLAYER", false)
-
-                Log.d("MainActivity", "📋 Dados da notificação:")
-                Log.d("MainActivity", "   Playlist size: ${playlist?.size}")
-                Log.d("MainActivity", "   Initial index: $initialIndex")
-                Log.d("MainActivity", "   Auto open: $autoOpen")
-
-                // Log cada item da playlist
-                playlist?.forEachIndexed { index, item ->
-                    Log.d("MainActivity", "   [$index] $item")
-                }
             }
             null -> {
                 Log.d("MainActivity", "⚠️  Intent com action NULL")
@@ -146,11 +122,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        Log.d("MainActivity", "==========================================")
-    }
-
-    companion object {
-        var shouldOpenPlayerGlobal = false
     }
 
     override fun attachBaseContext(newBase: Context?) {
@@ -289,6 +260,7 @@ class MainActivity : ComponentActivity() {
 
         Log.d("MainActivity", "✅ onNewIntent FINALIZADO")
     }
+
 }
 
 fun Context.findActivity(): ComponentActivity? {
@@ -348,6 +320,22 @@ fun MainScreen(
         val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
         val encodedFolderPath = currentBackStackEntry?.arguments?.getString("folderPath") ?: ""
         return encodedFolderPath == "root" || path == rootPath
+    }
+
+    fun performRefresh() {
+        coroutineScope.launch {
+            try {
+                FolderVideoScanner.startScan(context, coroutineScope)
+
+                while (FolderVideoScanner.isScanning.value) {
+                    delay(100)
+                }
+
+                delay(300)
+            } catch (e: Exception) {
+                Log.e("MainScreen", "Erro no refresh", e)
+            }
+        }
     }
 
     val currentTheme by themeManager.themeMode.collectAsState()
@@ -541,7 +529,6 @@ fun MainScreen(
         }
     }
 
-    // Todos os diálogos permanecem iguais...
     if (showRenameDialog) {
         RenameDialog(
             selectedItems = selectedItems.toList(),
@@ -551,7 +538,8 @@ fun MainScreen(
                 showFabMenu = false
                 showRenameDialog = false
                 renameTrigger++
-            }
+            },
+            onRefresh = ::performRefresh  // ✅ ADICIONAR
         )
     }
 
@@ -585,7 +573,8 @@ fun MainScreen(
             onFolderCreated = {
                 renameTrigger++
                 Toast.makeText(context, "Folder created", Toast.LENGTH_SHORT).show()
-            }
+            },
+            onRefresh = ::performRefresh
         )
     }
 
@@ -613,7 +602,8 @@ fun MainScreen(
                                 selectedItems.clear()
                                 showFabMenu = false
                                 renameTrigger++
-                            }
+                            },
+                            onRefresh = ::performRefresh
                         )
                     } else {
                         FilesManager.deleteSelectedItems(
@@ -631,7 +621,8 @@ fun MainScreen(
                                 selectedItems.clear()
                                 showFabMenu = false
                                 renameTrigger++
-                            }
+                            },
+                            onRefresh = ::performRefresh
                         )
                     }
                 }
@@ -707,7 +698,8 @@ fun MainScreen(
                                                 }
                                                 selectedItems.clear()
                                                 renameTrigger++
-                                            }
+                                            },
+                                            onRefresh = ::performRefresh
                                         )
                                     }
                                 }
@@ -731,7 +723,8 @@ fun MainScreen(
                                                 }
                                                 selectedItems.clear()
                                                 renameTrigger++
-                                            }
+                                            },
+                                            onRefresh = ::performRefresh
                                         )
                                     }
                                 }
@@ -759,7 +752,8 @@ fun MainScreen(
                                                     }
                                                     selectedItems.clear()
                                                     renameTrigger++
-                                                }
+                                                },
+                                                onRefresh = ::performRefresh
                                             )
                                         }
                                     } else {
@@ -792,7 +786,8 @@ fun MainScreen(
                                                     }
                                                     selectedItems.clear()
                                                     renameTrigger++
-                                                }
+                                                },
+                                                onRefresh = ::performRefresh
                                             )
                                         }
                                     } else {
@@ -855,7 +850,8 @@ fun MainScreen(
                                             itemsToMove = emptyList()
                                             isMoveMode = false
                                             renameTrigger++
-                                        }
+                                        },
+                                        onRefresh = ::performRefresh
                                     )
                                 }
                             }

@@ -3,6 +3,7 @@ package com.example.nekovideo.services
 import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
+import android.os.FileObserver
 import android.provider.MediaStore
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,8 +38,17 @@ object FolderVideoScanner {
     private var scanJob: Job? = null
     private val videoExtensions = setOf("mp4", "mkv", "webm", "avi", "mov", "wmv", "m4v", "3gp", "flv")
 
+    // ✅ NOVO: FileObserver para auto-refresh
+    private var fileObserver: FileObserver? = null
+    private var observerContext: Context? = null
+    private var observerScope: CoroutineScope? = null
+
     fun startScan(context: Context, scope: CoroutineScope = GlobalScope) {
         scanJob?.cancel()
+
+        // ✅ NOVO: Salvar contexto e scope para o FileObserver
+        observerContext = context
+        observerScope = scope
 
         scanJob = scope.launch(Dispatchers.IO) {
             _isScanning.value = true
@@ -54,6 +64,9 @@ object FolderVideoScanner {
 
                 _cache.value = folderMap.toMap()
 
+                // ✅ NOVO: Iniciar FileObserver após primeiro scan
+                startFileObserver()
+
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -62,12 +75,218 @@ object FolderVideoScanner {
         }
     }
 
+    // ✅ NOVO: Método para iniciar FileObserver
+    private fun startFileObserver() {
+        stopFileObserver() // Para o anterior se existir
+
+        val watchPaths = listOf(
+            "/storage/emulated/0/",
+            "/storage/emulated/0/Download/",
+            "/storage/emulated/0/Movies/",
+            "/storage/emulated/0/DCIM/",
+            "/storage/emulated/0/Pictures/"
+        )
+
+        // Observar múltiplas pastas
+        watchPaths.forEach { path ->
+            val dir = File(path)
+            if (dir.exists()) {
+                startObserverForPath(path)
+            }
+        }
+    }
+
+    // ✅ NOVO: FileObserver para uma pasta específica
+    private fun startObserverForPath(path: String) {
+        try {
+            val observer = object : FileObserver(path,
+                FileObserver.CREATE or
+                        FileObserver.DELETE or
+                        FileObserver.MOVED_FROM or
+                        FileObserver.MOVED_TO or
+                        FileObserver.MODIFY
+            ) {
+                override fun onEvent(event: Int, fileName: String?) {
+                    if (fileName == null) return
+
+                    // Verificar se é um arquivo de vídeo
+                    val extension = fileName.substringAfterLast('.', "").lowercase()
+                    if (extension !in videoExtensions) return
+
+                    val filePath = File(path, fileName).absolutePath
+
+                    when (event and FileObserver.ALL_EVENTS) {
+                        FileObserver.CREATE, FileObserver.MOVED_TO -> {
+                            // Arquivo criado/movido para cá - adicionar
+                            handleVideoAdded(filePath)
+                        }
+                        FileObserver.DELETE, FileObserver.MOVED_FROM -> {
+                            // Arquivo removido/movido daqui - remover
+                            handleVideoRemoved(filePath)
+                        }
+                        FileObserver.MODIFY -> {
+                            // Arquivo modificado - atualizar
+                            handleVideoModified(filePath)
+                        }
+                    }
+                }
+            }
+
+            observer.startWatching()
+            fileObserver = observer // Salvar referência (simplificado para uma pasta)
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // ✅ NOVO: Handle quando vídeo é adicionado
+    private fun handleVideoAdded(filePath: String) {
+        observerScope?.launch(Dispatchers.IO) {
+            try {
+                val file = File(filePath)
+                if (!file.exists()) return@launch
+
+                val folderPath = file.parent ?: return@launch
+                val videoInfo = VideoInfo(
+                    path = filePath,
+                    uri = Uri.fromFile(file),
+                    lastModified = file.lastModified(),
+                    sizeInBytes = file.length()
+                )
+
+                // Atualizar cache
+                val currentCache = _cache.value.toMutableMap()
+                addVideoToFolderCache(currentCache, folderPath, videoInfo, false)
+                _cache.value = currentCache
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    // ✅ NOVO: Handle quando vídeo é removido
+    private fun handleVideoRemoved(filePath: String) {
+        observerScope?.launch(Dispatchers.IO) {
+            try {
+                val folderPath = File(filePath).parent ?: return@launch
+
+                // Atualizar cache removendo o vídeo
+                val currentCache = _cache.value.toMutableMap()
+                removeVideoFromFolderCache(currentCache, folderPath, filePath)
+                _cache.value = currentCache
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    // ✅ NOVO: Handle quando vídeo é modificado
+    private fun handleVideoModified(filePath: String) {
+        observerScope?.launch(Dispatchers.IO) {
+            try {
+                val file = File(filePath)
+                if (!file.exists()) return@launch
+
+                val folderPath = file.parent ?: return@launch
+
+                // Atualizar informações do vídeo no cache
+                val currentCache = _cache.value.toMutableMap()
+                updateVideoInFolderCache(currentCache, folderPath, filePath, file.lastModified(), file.length())
+                _cache.value = currentCache
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    // ✅ NOVO: Adicionar vídeo ao cache (versão para FileObserver)
+    private fun addVideoToFolderCache(
+        cacheMap: MutableMap<String, FolderInfo>,
+        folderPath: String,
+        videoInfo: VideoInfo,
+        isSecure: Boolean
+    ) {
+        cacheMap[folderPath] = cacheMap[folderPath]?.let { existing ->
+            existing.copy(
+                hasVideos = true,
+                videoCount = existing.videoCount + 1,
+                lastModified = maxOf(videoInfo.lastModified, existing.lastModified),
+                videos = existing.videos + videoInfo
+            )
+        } ?: FolderInfo(
+            path = folderPath,
+            hasVideos = true,
+            videoCount = 1,
+            isSecure = isSecure,
+            lastModified = videoInfo.lastModified,
+            videos = listOf(videoInfo)
+        )
+    }
+
+    // ✅ NOVO: Remover vídeo do cache
+    private fun removeVideoFromFolderCache(
+        cacheMap: MutableMap<String, FolderInfo>,
+        folderPath: String,
+        videoPath: String
+    ) {
+        cacheMap[folderPath]?.let { existing ->
+            val updatedVideos = existing.videos.filter { it.path != videoPath }
+
+            if (updatedVideos.isEmpty()) {
+                // Remover pasta do cache se não tem mais vídeos
+                cacheMap.remove(folderPath)
+            } else {
+                // Atualizar contagem
+                cacheMap[folderPath] = existing.copy(
+                    videoCount = updatedVideos.size,
+                    videos = updatedVideos,
+                    lastModified = updatedVideos.maxOfOrNull { it.lastModified } ?: existing.lastModified
+                )
+            }
+        }
+    }
+
+    // ✅ NOVO: Atualizar vídeo no cache
+    private fun updateVideoInFolderCache(
+        cacheMap: MutableMap<String, FolderInfo>,
+        folderPath: String,
+        videoPath: String,
+        newLastModified: Long,
+        newSize: Long
+    ) {
+        cacheMap[folderPath]?.let { existing ->
+            val updatedVideos = existing.videos.map { video ->
+                if (video.path == videoPath) {
+                    video.copy(lastModified = newLastModified, sizeInBytes = newSize)
+                } else {
+                    video
+                }
+            }
+
+            cacheMap[folderPath] = existing.copy(
+                videos = updatedVideos,
+                lastModified = maxOf(newLastModified, existing.lastModified)
+            )
+        }
+    }
+
+    // ✅ NOVO: Parar FileObserver
+    private fun stopFileObserver() {
+        fileObserver?.stopWatching()
+        fileObserver = null
+    }
+
+    // Resto do código original...
     private suspend fun scanNormalFolders(context: Context, folderMap: ConcurrentHashMap<String, FolderInfo>) {
         val projection = arrayOf(
             MediaStore.Video.Media.DATA,
             MediaStore.Video.Media._ID,
             MediaStore.Video.Media.DATE_MODIFIED,
-            MediaStore.Video.Media.SIZE  // ✅ ADICIONAR SIZE
+            MediaStore.Video.Media.SIZE
         )
 
         context.contentResolver.query(
@@ -97,8 +316,6 @@ object FolderVideoScanner {
                 )
 
                 val videoInfo = VideoInfo(videoPath, videoUri, lastModified, size)
-
-                // ✅ NOVA FUNÇÃO - adiciona vídeo ao cache
                 addVideoToFolder(folderMap, parentDir, videoInfo, false)
             }
         }
@@ -143,22 +360,19 @@ object FolderVideoScanner {
                     )
                 }
 
-                // ✅ CRIAR FolderInfo completo com vídeos
                 folderMap[directory.absolutePath] = FolderInfo(
                     path = directory.absolutePath,
                     hasVideos = true,
                     videoCount = videos.size,
                     isSecure = true,
                     lastModified = directory.lastModified(),
-                    videos = videos  // ✅ ADICIONAR VÍDEOS
+                    videos = videos
                 )
             }
         }
 
-        // Continue recursion
         directory.listFiles()?.forEach { subDir ->
             if (subDir.isDirectory) {
-                // Sempre entra em pastas normais, e em pastas "." se a pai é segura OU para verificar se ela é segura
                 if (!subDir.name.startsWith(".") || isSecure || File(subDir, ".nomedia").exists() || File(subDir, ".nekovideo").exists()) {
                     scanSecureFoldersRecursive(subDir, folderMap)
                 }
@@ -172,7 +386,6 @@ object FolderVideoScanner {
         videoInfo: VideoInfo,
         isSecure: Boolean
     ) {
-        // ✅ Atualiza pasta atual
         folderMap.compute(folderPath) { _, existing ->
             if (existing == null) {
                 FolderInfo(
@@ -192,33 +405,29 @@ object FolderVideoScanner {
             }
         }
 
-        // ✅ NOVO: Propagar para pasta pai
         val parentPath = File(folderPath).parent
         if (parentPath != null && parentPath != folderPath) {
             folderMap.compute(parentPath) { _, existing ->
                 if (existing == null) {
                     FolderInfo(
                         path = parentPath,
-                        hasVideos = true,  // ✅ Marca pai como tendo vídeos
-                        videoCount = 0,    // Pai não tem vídeos diretos
+                        hasVideos = true,
+                        videoCount = 0,
                         isSecure = false,
                         lastModified = videoInfo.lastModified,
-                        videos = emptyList()  // Pai não tem vídeos diretos
+                        videos = emptyList()
                     )
                 } else {
                     existing.copy(
-                        hasVideos = true,  // ✅ Garante que pai tenha hasVideos = true
+                        hasVideos = true,
                         lastModified = maxOf(videoInfo.lastModified, existing.lastModified)
                     )
                 }
             }
-
-            // ✅ RECURSÃO: Continua propagando para cima
             propagateToParents(folderMap, parentPath, videoInfo.lastModified)
         }
     }
 
-    // ✅ NOVA FUNÇÃO auxiliar para propagação
     private fun propagateToParents(
         folderMap: ConcurrentHashMap<String, FolderInfo>,
         folderPath: String,
@@ -243,52 +452,7 @@ object FolderVideoScanner {
                     )
                 }
             }
-
-            // Continua recursão
             propagateToParents(folderMap, parentPath, lastModified)
-        }
-    }
-
-    private fun updateFolderInfo(
-        folderMap: ConcurrentHashMap<String, FolderInfo>,
-        folderPath: String,
-        lastModified: Long,
-        isSecure: Boolean
-    ) {
-        folderMap.compute(folderPath) { _, existing ->
-            if (existing == null) {
-                FolderInfo(
-                    path = folderPath,
-                    hasVideos = true,
-                    videoCount = 1,
-                    isSecure = isSecure,
-                    lastModified = maxOf(lastModified, existing?.lastModified ?: 0L)
-                )
-            } else {
-                existing.copy(
-                    videoCount = existing.videoCount + 1,
-                    lastModified = maxOf(lastModified, existing.lastModified)
-                )
-            }
-        }
-
-        // Update parent folders recursively
-        val parentPath = File(folderPath).parent
-        if (parentPath != null && parentPath != folderPath) {
-            folderMap.compute(parentPath) { _, existing ->
-                if (existing == null) {
-                    FolderInfo(
-                        path = parentPath,
-                        hasVideos = true,
-                        videoCount = 0,
-                        isSecure = false,
-                        lastModified = lastModified
-                    )
-                } else {
-                    existing.copy(lastModified = maxOf(lastModified, existing.lastModified))
-                }
-            }
-            updateFolderInfo(folderMap, parentPath, lastModified, false)
         }
     }
 
@@ -311,10 +475,20 @@ object FolderVideoScanner {
 
     fun stopScan() {
         scanJob?.cancel()
+        stopFileObserver() // ✅ NOVO: Parar FileObserver também
         _isScanning.value = false
     }
 
     fun clearCache() {
         _cache.value = emptyMap()
+    }
+
+    // ✅ NOVO: Método para forçar refresh manual se necessário
+    fun refresh() {
+        observerContext?.let { context ->
+            observerScope?.let { scope ->
+                startScan(context, scope)
+            }
+        }
     }
 }

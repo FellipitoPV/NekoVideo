@@ -42,14 +42,150 @@ import com.example.nekovideo.language.LanguageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
+// ✅ NOVO: Dialog para renomear um único item
 @Composable
-fun RenameDialog(
+fun SingleRenameDialog(
+    selectedItem: String,
+    onDismiss: () -> Unit,
+    onComplete: () -> Unit,
+    onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
+) {
+    var newName by remember {
+        val file = File(selectedItem)
+        val nameWithoutExtension = if (file.isFile) {
+            file.nameWithoutExtension
+        } else {
+            file.name.removePrefix(".")
+        }
+        mutableStateOf(nameWithoutExtension)
+    }
+    var isRenaming by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val context = LanguageManager.getLocalizedContext(LocalContext.current)
+
+    Dialog(
+        onDismissRequest = { if (!isRenaming) onDismiss() },
+        properties = DialogProperties(
+            dismissOnBackPress = !isRenaming,
+            dismissOnClickOutside = !isRenaming
+        )
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp)),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // Header
+                Text(
+                    text = if (isRenaming) stringResource(R.string.renaming_files) else stringResource(R.string.rename_item),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                if (isRenaming) {
+                    // Progress Content
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(40.dp),
+                            strokeWidth = 3.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = stringResource(R.string.renaming_item),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    // Input Content
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text(
+                            text = "Item: ${File(selectedItem).name}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        OutlinedTextField(
+                            value = newName,
+                            onValueChange = { newName = it },
+                            label = { Text(stringResource(R.string.new_name)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isRenaming,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                            )
+                        )
+                    }
+
+                    // Action Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                    ) {
+                        TextButton(
+                            onClick = onDismiss,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        Button(
+                            onClick = {
+                                if (newName.trim().isNotEmpty()) {
+                                    isRenaming = true
+                                    coroutineScope.launch {
+                                        val file = File(selectedItem)
+                                        val extension = if (file.isFile) ".${file.extension}" else ""
+                                        val isPrivateFolder = file.isDirectory && file.name.startsWith(".")
+                                        val finalName = if (isPrivateFolder) ".$newName" else newName
+
+                                        val newFile = File(file.parent, "$finalName$extension")
+                                        val success = file.renameTo(newFile)
+
+                                        if (success) {
+                                            onRefresh?.invoke()
+                                        }
+
+                                        isRenaming = false
+                                        onComplete()
+                                        onDismiss()
+                                    }
+                                }
+                            },
+                            enabled = newName.trim().isNotEmpty(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(stringResource(R.string.rename))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ✅ ATUALIZADO: Dialog para renomear múltiplos itens
+@Composable
+fun MultipleRenameDialog(
     selectedItems: List<String>,
     onDismiss: () -> Unit,
-    onComplete: () -> Unit
+    onComplete: () -> Unit,
+    onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
 ) {
-
     var baseName by remember { mutableStateOf("") }
     var startNumber by remember { mutableStateOf("1") }
     var isRenaming by remember { mutableStateOf(false) }
@@ -58,129 +194,162 @@ fun RenameDialog(
     val coroutineScope = rememberCoroutineScope()
     val context = LanguageManager.getLocalizedContext(LocalContext.current)
 
-        Dialog(
-            onDismissRequest = { if (!isRenaming) onDismiss() },
-            properties = DialogProperties(
-                dismissOnBackPress = !isRenaming,
-                dismissOnClickOutside = !isRenaming
-            )
+    Dialog(
+        onDismissRequest = { if (!isRenaming) onDismiss() },
+        properties = DialogProperties(
+            dismissOnBackPress = !isRenaming,
+            dismissOnClickOutside = !isRenaming
+        )
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp)),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
         ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp)),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
-                ) {
-                    // Header
-                    Text(
-                        text = if (isRenaming) stringResource(R.string.renaming_files) else stringResource(R.string.rename_files),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                // Header
+                Text(
+                    text = if (isRenaming) stringResource(R.string.renaming_files) else stringResource(R.string.rename_multiple_items),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
 
-                    if (isRenaming) {
-                        // Progress Content
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(40.dp),
-                                strokeWidth = 3.dp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = stringResource(R.string.renaming_progress, currentProgress, totalItems),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    } else {
-                        // Input Content
-                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            OutlinedTextField(
-                                value = baseName,
-                                onValueChange = { baseName = it },
-                                label = { Text(stringResource(R.string.base_name)) },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = !isRenaming,
-                                shape = RoundedCornerShape(12.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                                )
-                            )
-                            OutlinedTextField(
-                                value = startNumber,
-                                onValueChange = { if (it.matches(Regex("\\d*"))) startNumber = it },
-                                label = { Text(stringResource(R.string.start_number)) },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = !isRenaming,
-                                shape = RoundedCornerShape(12.dp),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                                )
-                            )
-                        }
+                if (isRenaming) {
+                    // Progress Content
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(40.dp),
+                            strokeWidth = 3.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = stringResource(R.string.renaming_progress, currentProgress, totalItems),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    // Input Content
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text(
+                            text = stringResource(R.string.selected_items_count, selectedItems.size),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
-                        // Action Buttons
-                        Row(
+                        OutlinedTextField(
+                            value = baseName,
+                            onValueChange = { baseName = it },
+                            label = { Text(stringResource(R.string.base_name)) },
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                            enabled = !isRenaming,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                            )
+                        )
+                        OutlinedTextField(
+                            value = startNumber,
+                            onValueChange = { if (it.matches(Regex("\\d*"))) startNumber = it },
+                            label = { Text(stringResource(R.string.start_number)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isRenaming,
+                            shape = RoundedCornerShape(12.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                            )
+                        )
+                    }
+
+                    // Action Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                    ) {
+                        TextButton(
+                            onClick = onDismiss,
+                            shape = RoundedCornerShape(8.dp)
                         ) {
-                            TextButton(
-                                onClick = onDismiss,
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(stringResource(R.string.cancel))
-                            }
-                            Button(
-                                onClick = {
-                                    isRenaming = true
-                                    coroutineScope.launch {
-                                        FilesManager.renameSelectedItems(
-                                            context, // ✅ Use localizedContext
-                                            selectedItems,
-                                            baseName.trim(),
-                                            startNumber.toIntOrNull() ?: 1
-                                        ) { current, total ->
+                            Text(stringResource(R.string.cancel))
+                        }
+                        Button(
+                            onClick = {
+                                isRenaming = true
+                                coroutineScope.launch {
+                                    FilesManager.renameSelectedItems(
+                                        context,
+                                        selectedItems,
+                                        baseName.trim(),
+                                        startNumber.toIntOrNull() ?: 1,
+                                        onProgress = { current, total ->
                                             currentProgress = current
                                             totalItems = total
-                                        }
-                                        isRenaming = false
-                                        onComplete()
-                                        onDismiss()
-                                    }
-                                },
-                                enabled = baseName.trim().isNotEmpty() && startNumber.toIntOrNull() != null,
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(stringResource(R.string.rename))
-                            }
+                                        },
+                                        onRefresh = onRefresh // ✅ NOVO: Passar callback
+                                    )
+                                    isRenaming = false
+                                    onComplete()
+                                    onDismiss()
+                                }
+                            },
+                            enabled = baseName.trim().isNotEmpty() && startNumber.toIntOrNull() != null,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(stringResource(R.string.rename))
                         }
                     }
                 }
             }
         }
+    }
+}
 
+// ✅ MANTER: Dialog original como fallback (pode ser removido depois se não for usado)
+@Composable
+fun RenameDialog(
+    selectedItems: List<String>,
+    onDismiss: () -> Unit,
+    onComplete: () -> Unit,
+    onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
+) {
+    // Automaticamente escolher o dialog correto baseado na quantidade
+    if (selectedItems.size == 1) {
+        SingleRenameDialog(
+            selectedItem = selectedItems.first(),
+            onDismiss = onDismiss,
+            onComplete = onComplete,
+            onRefresh = onRefresh
+        )
+    } else {
+        MultipleRenameDialog(
+            selectedItems = selectedItems,
+            onDismiss = onDismiss,
+            onComplete = onComplete,
+            onRefresh = onRefresh
+        )
+    }
 }
 
 @Composable
 fun CreateFolderDialog(
     currentPath: String,
     onDismiss: () -> Unit,
-    onFolderCreated: () -> Unit
+    onFolderCreated: () -> Unit,
+    onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
 ) {
-
     var folderName by remember { mutableStateOf("") }
     var isCreating by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -245,9 +414,7 @@ fun CreateFolderDialog(
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(
-                                    alpha = 0.5f
-                                ),
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                                 errorBorderColor = MaterialTheme.colorScheme.error
                             )
                         )
@@ -285,11 +452,11 @@ fun CreateFolderDialog(
                                                 FilesManager.createFolderWithMarker(
                                                     context = context,
                                                     path = currentPath,
-                                                    folderName = folderName
+                                                    folderName = folderName,
+                                                    onRefresh = onRefresh // ✅ NOVO: Passar callback
                                                 )
                                             } catch (e: Exception) {
-                                                errorMessage =
-                                                    e.message ?: "Failed to create folder"
+                                                errorMessage = e.message ?: "Failed to create folder"
                                                 false
                                             }
                                         }
@@ -322,7 +489,6 @@ fun PasswordDialog(
     onDismiss: () -> Unit,
     onPasswordVerified: () -> Unit
 ) {
-
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var isProcessing by remember { mutableStateOf(false) }
@@ -351,9 +517,11 @@ fun PasswordDialog(
             ) {
                 // Header
                 Text(
-                    text = if (isFirstTime) stringResource(R.string.set_secure_password) else stringResource(
-                        R.string.enter_password
-                    ),
+                    text = if (isFirstTime) {
+                        stringResource(R.string.set_secure_password)
+                    } else {
+                        stringResource(R.string.enter_password)
+                    },
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -394,9 +562,7 @@ fun PasswordDialog(
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(
-                                    alpha = 0.5f
-                                ),
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                                 errorBorderColor = MaterialTheme.colorScheme.error
                             )
                         )
@@ -416,9 +582,7 @@ fun PasswordDialog(
                                 shape = RoundedCornerShape(12.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(
-                                        alpha = 0.5f
-                                    ),
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                                     errorBorderColor = MaterialTheme.colorScheme.error
                                 )
                             )
@@ -459,23 +623,15 @@ fun PasswordDialog(
                                 coroutineScope.launch {
                                     val success = withContext(Dispatchers.IO) {
                                         if (isFirstTime) {
-                                            FilesManager.SecureStorage.savePassword(
-                                                context,
-                                                password
-                                            )
+                                            FilesManager.SecureStorage.savePassword(context, password)
                                         } else {
-                                            FilesManager.SecureStorage.verifyPassword(
-                                                context,
-                                                password
-                                            )
+                                            FilesManager.SecureStorage.verifyPassword(context, password)
                                         }
                                     }
                                     isProcessing = false
                                     if (success) {
                                         if (isFirstTime) {
-                                            FilesManager.SecureStorage.ensureSecureFolderExists(
-                                                context
-                                            )
+                                            FilesManager.SecureStorage.ensureSecureFolderExists(context)
                                         }
                                         onPasswordVerified()
                                     } else {
@@ -487,9 +643,11 @@ fun PasswordDialog(
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
-                                if (isFirstTime) stringResource(R.string.set_password) else stringResource(
-                                    R.string.verify
-                                )
+                                if (isFirstTime) {
+                                    stringResource(R.string.set_password)
+                                } else {
+                                    stringResource(R.string.verify)
+                                }
                             )
                         }
                     }
@@ -505,7 +663,6 @@ fun DeleteConfirmationDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
-
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier

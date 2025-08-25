@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.nekovideo.BuildConfig
 import com.example.nekovideo.R
+import com.example.nekovideo.components.OptimizedThumbnailManager
 import com.example.nekovideo.findActivity
 import com.example.nekovideo.language.LanguageManager
 import com.example.nekovideo.language.LanguageManager.currentLanguage
@@ -482,6 +483,9 @@ fun PerformanceSettingsScreen() {
                 onValueChange = {
                     cacheSize = it
                     prefs.edit().putInt("cache_size_mb", it).apply()
+
+                    // ✅ NOVO: Notifica o ThumbnailManager sobre a mudança
+                    OptimizedThumbnailManager.onSettingsChanged(context)
                 }
             )
         }
