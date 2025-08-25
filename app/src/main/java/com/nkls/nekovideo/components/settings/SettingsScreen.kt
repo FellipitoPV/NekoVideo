@@ -1,6 +1,5 @@
-package com.example.nekovideo.components.settings
+package com.nkls.nekovideo.components.settings
 
-import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -69,13 +68,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.nekovideo.BuildConfig
-import com.example.nekovideo.R
-import com.example.nekovideo.components.OptimizedThumbnailManager
-import com.example.nekovideo.findActivity
-import com.example.nekovideo.language.LanguageManager
-import com.example.nekovideo.language.LanguageManager.currentLanguage
-import com.example.nekovideo.ui.theme.ThemeManager
+import com.nkls.nekovideo.BuildConfig
+import com.nkls.nekovideo.R
+import com.nkls.nekovideo.components.OptimizedThumbnailManager
+import com.nkls.nekovideo.language.LanguageManager
+import com.nkls.nekovideo.theme.ThemeManager
 
 @Composable
 fun SettingsScreen(navController: NavController) {

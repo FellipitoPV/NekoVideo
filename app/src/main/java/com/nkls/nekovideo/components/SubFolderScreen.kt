@@ -1,12 +1,16 @@
 @file:OptIn(ExperimentalFoundationApi::class)
 
-package com.example.nekovideo.components
+package com.nkls.nekovideo.components
 
 import android.content.ContentUris
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
 import android.provider.MediaStore
+import android.provider.Settings
 import android.util.Log
 import android.util.LruCache
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -39,8 +43,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.nekovideo.components.settings.SettingsManager
-import com.example.nekovideo.services.FolderVideoScanner
+import com.nkls.nekovideo.components.settings.SettingsManager
+import com.nkls.nekovideo.services.FolderVideoScanner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -48,7 +52,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.random.Random
-import kotlinx.coroutines.flow.first
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.derivedStateOf
@@ -58,11 +61,99 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
-import com.example.nekovideo.R
+import com.nkls.nekovideo.R
 import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import kotlinx.coroutines.delay
 
 // SIMPLIFICADO - Enum de ordenação
 enum class SortType { NAME_ASC, NAME_DESC, DATE_NEWEST, DATE_OLDEST, SIZE_LARGEST, SIZE_SMALLEST }
+
+@Composable
+fun PermissionRequestScreen() {
+    val context = LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.FolderOpen,
+            contentDescription = null,
+            modifier = Modifier.size(80.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = stringResource(R.string.permission_title),
+            style = MaterialTheme.typography.headlineSmall,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = stringResource(R.string.permission_description),
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(
+            onClick = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                    }
+                    context.startActivity(intent)
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.permission_button),
+                style = MaterialTheme.typography.labelLarge
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = stringResource(R.string.permission_instructions),
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+        )
+    }
+}
+
+fun hasManageExternalStoragePermission(): Boolean {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        Environment.isExternalStorageManager()
+    } else {
+        // Para versões anteriores ao Android 11, não precisa dessa permissão específica
+        true
+    }
+}
 
 // SIMPLIFICADO - Data class do item
 @Immutable
@@ -169,26 +260,30 @@ private fun loadNormalContentFromCache(
         }
 
         if (shouldShow) {
-            items.add(MediaItem(
+            items.add(
+                MediaItem(
                 subfolder.absolutePath,
                 null,
                 true,
                 lastModified = folderInfo?.lastModified ?: subfolder.lastModified(),
                 sizeInBytes = 0L
-            ))
+            )
+            )
         }
     }
 
     // ✅ ADICIONAR - Carregamento via cache
     val folderInfo = folderCache[folderPath]
     folderInfo?.videos?.forEach { videoInfo ->
-        items.add(MediaItem(
+        items.add(
+            MediaItem(
             path = videoInfo.path,
             uri = videoInfo.uri,
             isFolder = false,
             lastModified = videoInfo.lastModified,
             sizeInBytes = videoInfo.sizeInBytes
-        ))
+        )
+        )
     }
 
     return applySorting(items, sortType)
@@ -273,6 +368,26 @@ fun SubFolderScreen(
     isMoveMode: Boolean = false,
     itemsToMove: List<String> = emptyList()
 ) {
+    // ===== NOVO: ESTADO PARA VERIFICAR PERMISSÃO =====
+    var hasPermission by remember { mutableStateOf(hasManageExternalStoragePermission()) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // ===== NOVO: VERIFICA PERMISSÃO QUANDO O USUÁRIO VOLTA PARA O APP =====
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasPermission = hasManageExternalStoragePermission()
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -294,9 +409,21 @@ fun SubFolderScreen(
     val isScanning by FolderVideoScanner.isScanning.collectAsState()
 
     // Configurações
-    val showThumbnails by remember { derivedStateOf { OptimizedThumbnailManager.isShowThumbnailsEnabled(context) }}
-    val showDurations by remember { derivedStateOf { OptimizedThumbnailManager.isShowDurationsEnabled(context) }}
-    val showFileSizes by remember { derivedStateOf { OptimizedThumbnailManager.isShowFileSizesEnabled(context) }}
+    val showThumbnails by remember { derivedStateOf {
+        OptimizedThumbnailManager.isShowThumbnailsEnabled(
+            context
+        )
+    }}
+    val showDurations by remember { derivedStateOf {
+        OptimizedThumbnailManager.isShowDurationsEnabled(
+            context
+        )
+    }}
+    val showFileSizes by remember { derivedStateOf {
+        OptimizedThumbnailManager.isShowFileSizesEnabled(
+            context
+        )
+    }}
     val gridColumns by remember { derivedStateOf { SettingsManager.getGridColumns(context) }}
 
     // 🆕 Função de refresh
@@ -322,6 +449,11 @@ fun SubFolderScreen(
         }
     }
 
+    if (!hasPermission) {
+        PermissionRequestScreen()
+        return
+    }
+
     // Carregamento com loading
     LaunchedEffect(folderPath, sortType, renameTrigger, isSecureMode, showPrivateFolders, scannerCache) {
         isLoading = true
@@ -340,7 +472,6 @@ fun SubFolderScreen(
         }
     }
 
-    // Tela de loading
     if (scannerCache.isEmpty() && isScanning) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -367,7 +498,9 @@ fun SubFolderScreen(
             }
         }
     } else {
-        // 🆕 Conteúdo com pull-to-refresh manual
+        // 🆕 NOVO: Verificar se não há itens para mostrar
+        val isEmptyState = items.isEmpty() && !isScanning
+
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -391,6 +524,37 @@ fun SubFolderScreen(
                 SortRow(sortType) { sortType = it }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
 
+                // 🆕 NOVO: Mostrar mensagem especial quando não há itens
+                if (isEmptyState) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(R.string.pull_to_refresh_empty),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+
                 LazyColumn(
                     state = lazyListState,
                     contentPadding = PaddingValues(8.dp),
@@ -411,11 +575,63 @@ fun SubFolderScreen(
                             onSelectionChange = onSelectionChange
                         )
                     }
+
+                    // 🆕 NOVO: Adicionar espaço extra quando não há itens
+                    if (isEmptyState) {
+                        item {
+                            Spacer(modifier = Modifier.height(200.dp))
+                        }
+                    }
                 }
             }
 
-            // 🆕 Indicador de refresh no topo
-            if (pullOffset > 0 || isRefreshing) {
+            // 🆕 NOVO: Indicador de pull-to-refresh mais destacado quando vazio
+            if (isEmptyState && (pullOffset > 0 || isRefreshing)) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 32.dp)
+                        .offset { IntOffset(0, (pullOffset * 0.5f).roundToInt()) }
+                ) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp, 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (isRefreshing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDownward,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = if (isRefreshing) {
+                                    stringResource(R.string.updating_index)
+                                } else {
+                                    stringResource(R.string.pull_to_refresh)
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            } else if (pullOffset > 0 || isRefreshing) {
+                // Indicador normal quando há itens
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)

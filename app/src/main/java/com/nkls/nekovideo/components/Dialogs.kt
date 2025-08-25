@@ -1,4 +1,4 @@
-package com.example.nekovideo.components
+package com.nkls.nekovideo.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -36,9 +36,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.example.nekovideo.R
-import com.example.nekovideo.components.helpers.FilesManager
-import com.example.nekovideo.language.LanguageManager
+import com.nkls.nekovideo.R
+import com.nkls.nekovideo.components.helpers.FilesManager
+import com.nkls.nekovideo.language.LanguageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

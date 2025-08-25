@@ -1,11 +1,11 @@
-package com.example.nekovideo.components.player
+package com.nkls.nekovideo.components.player
 
 import android.content.ComponentName
 import android.content.Context
 import android.util.Log
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
-import com.example.nekovideo.MediaPlaybackService
+import com.nkls.nekovideo.MediaPlaybackService
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

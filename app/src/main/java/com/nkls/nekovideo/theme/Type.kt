@@ -1,4 +1,4 @@
-package com.example.nekovideo.ui.theme
+package com.nkls.nekovideo.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

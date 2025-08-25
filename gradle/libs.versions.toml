@@ -4,6 +4,7 @@ androidxMaterialIconsExtended = "1.6.8"
 animation = "1.8.3"
 coilCompose = "2.7.0"
 coilVideo = "2.5.0"
+datastorePreferences = "1.1.7"
 glide = "4.15.1"
 kotlin = "2.0.0"
 coreKtx = "1.16.0"
@@ -21,10 +22,12 @@ media3CommonKtx = "1.7.1"
 media3Exoplayer = "1.7.1"
 media3Ui = "1.7.1"
 media3Session = "1.7.1"
+datastorePreferencesCoreAndroid = "1.1.7"
 
 [libraries]
 androidx-animation = { module = "androidx.compose.animation:animation", version.ref = "animation" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
@@ -50,6 +53,7 @@ androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplaye
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3Ui" }
 androidx-media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3Session" }
 material-icons-extended-v168 = { module = "androidx.compose.material:material-icons-extended", version.ref = "androidxMaterialIconsExtended" }
+androidx-datastore-preferences-core-android = { group = "androidx.datastore", name = "datastore-preferences-core-android", version.ref = "datastorePreferencesCoreAndroid" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

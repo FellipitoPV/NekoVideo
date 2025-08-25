@@ -1,4 +1,4 @@
-package com.example.nekovideo.services
+package com.nkls.nekovideo.services
 
 import android.content.ContentUris
 import android.content.Context

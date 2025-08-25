@@ -1,14 +1,13 @@
-package com.example.nekovideo.components.helpers
+package com.nkls.nekovideo.components.helpers
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.widget.Toast
 import java.io.File
 import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 import android.util.Base64
-import com.example.nekovideo.components.videoExtensions
+import com.nkls.nekovideo.components.videoExtensions
 
 object FilesManager {
 

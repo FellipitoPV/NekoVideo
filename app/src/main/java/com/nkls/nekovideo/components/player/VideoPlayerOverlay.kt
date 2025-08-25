@@ -1,4 +1,4 @@
-package com.example.nekovideo.components.player
+package com.nkls.nekovideo.components.player
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -94,10 +94,10 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.media3.ui.PlayerView
-import com.example.nekovideo.MediaPlaybackService
-import com.example.nekovideo.R
-import com.example.nekovideo.components.helpers.FilesManager
-import com.example.nekovideo.components.settings.SettingsManager
+import com.nkls.nekovideo.MediaPlaybackService
+import com.nkls.nekovideo.R
+import com.nkls.nekovideo.components.helpers.FilesManager
+import com.nkls.nekovideo.components.settings.SettingsManager
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

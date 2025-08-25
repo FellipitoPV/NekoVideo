@@ -1,11 +1,10 @@
-package com.example.nekovideo
+package com.nkls.nekovideo
 
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -18,19 +17,14 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -39,14 +33,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
@@ -54,33 +43,34 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.nekovideo.components.CreateFolderDialog
-import com.example.nekovideo.components.DeleteConfirmationDialog
-import com.example.nekovideo.components.OptimizedThumbnailManager
-import com.example.nekovideo.components.PasswordDialog
-import com.example.nekovideo.components.RenameDialog
-import com.example.nekovideo.components.SortType
-import com.example.nekovideo.components.SubFolderScreen
-import com.example.nekovideo.components.helpers.FilesManager
-import com.example.nekovideo.components.layout.ActionBottomSheetFAB
-import com.example.nekovideo.components.layout.ActionType
-import com.example.nekovideo.components.layout.CustomTopAppBar
-import com.example.nekovideo.components.loadFolderContent
-import com.example.nekovideo.components.loadFolderContentRecursive
-import com.example.nekovideo.components.player.MediaControllerManager
-import com.example.nekovideo.components.player.MiniPlayerImproved
-import com.example.nekovideo.components.player.VideoPlayerOverlay
-import com.example.nekovideo.components.settings.AboutSettingsScreen
-import com.example.nekovideo.components.settings.DisplaySettingsScreen
-import com.example.nekovideo.components.settings.FilesSettingsScreen
-import com.example.nekovideo.components.settings.InterfaceSettingsScreen
-import com.example.nekovideo.components.settings.PerformanceSettingsScreen
-import com.example.nekovideo.components.settings.PlaybackSettingsScreen
-import com.example.nekovideo.components.settings.SettingsScreen
-import com.example.nekovideo.language.LanguageManager
-import com.example.nekovideo.services.FolderVideoScanner
-import com.example.nekovideo.ui.theme.NekoVideoTheme
-import com.example.nekovideo.ui.theme.ThemeManager
+import com.nkls.nekovideo.components.CreateFolderDialog
+import com.nkls.nekovideo.components.DeleteConfirmationDialog
+import com.nkls.nekovideo.components.OptimizedThumbnailManager
+import com.nkls.nekovideo.components.PasswordDialog
+import com.nkls.nekovideo.components.RenameDialog
+import com.nkls.nekovideo.components.SortType
+import com.nkls.nekovideo.components.SubFolderScreen
+import com.nkls.nekovideo.components.helpers.FilesManager
+import com.nkls.nekovideo.components.layout.ActionBottomSheetFAB
+import com.nkls.nekovideo.components.layout.ActionType
+import com.nkls.nekovideo.components.layout.CustomTopAppBar
+import com.nkls.nekovideo.components.loadFolderContent
+import com.nkls.nekovideo.components.loadFolderContentRecursive
+import com.nkls.nekovideo.components.player.MediaControllerManager
+import com.nkls.nekovideo.components.player.MiniPlayerImproved
+import com.nkls.nekovideo.components.player.VideoPlayerOverlay
+import com.nkls.nekovideo.components.settings.AboutSettingsScreen
+import com.nkls.nekovideo.components.settings.DisplaySettingsScreen
+import com.nkls.nekovideo.components.settings.FilesSettingsScreen
+import com.nkls.nekovideo.components.settings.InterfaceSettingsScreen
+import com.nkls.nekovideo.components.settings.PerformanceSettingsScreen
+import com.nkls.nekovideo.components.settings.PlaybackSettingsScreen
+import com.nkls.nekovideo.components.settings.SettingsScreen
+import com.nkls.nekovideo.language.LanguageManager
+import com.nkls.nekovideo.services.FolderVideoScanner
+import com.nkls.nekovideo.theme.NekoVideoTheme
+import com.nkls.nekovideo.theme.ThemeManager
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -993,8 +983,8 @@ fun MainScreen(
             onDismiss = { showPlayerOverlay = false },
             onVideoDeleted = { deletedPath ->
                 deletedVideoPath = deletedPath
-                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                    kotlinx.coroutines.delay(100)
+                CoroutineScope(Dispatchers.Main).launch {
+                    delay(100)
                     deletedVideoPath = null
                 }
             }

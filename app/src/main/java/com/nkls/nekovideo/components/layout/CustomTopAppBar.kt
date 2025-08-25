@@ -1,4 +1,4 @@
-package com.example.nekovideo.components.layout
+package com.nkls.nekovideo.components.layout
 
 import android.content.Context
 import android.net.Uri
@@ -17,7 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,8 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.example.nekovideo.R
-import com.example.nekovideo.components.helpers.FilesManager
+import com.nkls.nekovideo.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File

@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.nekovideo"
+    namespace = "com.nkls.nekovideo"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.nekovideo"
+        applicationId = "com.nkls.nekovideo"
         minSdk = 33
         targetSdk = 35
         versionCode = 1
@@ -86,6 +86,7 @@ dependencies {
 
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.animation)
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

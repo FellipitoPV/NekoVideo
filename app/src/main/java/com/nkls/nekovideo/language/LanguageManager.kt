@@ -1,4 +1,4 @@
-package com.example.nekovideo.language
+package com.nkls.nekovideo.language
 
 import android.content.Context
 import android.content.res.Configuration

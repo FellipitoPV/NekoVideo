@@ -1,4 +1,4 @@
-package com.example.nekovideo.components.player
+package com.nkls.nekovideo.components.player
 
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
-import com.example.nekovideo.MediaPlaybackService
+import com.nkls.nekovideo.MediaPlaybackService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

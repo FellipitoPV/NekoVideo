@@ -1,4 +1,4 @@
-package com.example.nekovideo.ui.theme
+package com.nkls.nekovideo.theme
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme

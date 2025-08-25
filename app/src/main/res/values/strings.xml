@@ -46,6 +46,20 @@
     <string name="rename_multiple_items">Renomear múltiplos itens</string>
     <string name="selected_items_count">%d item(s) selecionado(s)</string>
 
+    <!-- Permissões -->
+    <string name="permission_title">Acesso aos Arquivos Necessário</string>
+    <string name="permission_description">Para funcionar corretamente, este aplicativo precisa de acesso a todos os arquivos do dispositivo. Isso permite que você navegue e reproduza seus vídeos.</string>
+    <string name="permission_button">Permitir Acesso aos Arquivos</string>
+    <string name="permission_instructions">Toque no botão acima e ative \'Permitir acesso para gerenciar todos os arquivos\' nas configurações do sistema.</string>
+
+    <!-- Pull to Refresh Tutorial -->
+    <string name="pull_to_refresh_title">Arraste para baixo para atualizar</string>
+    <string name="pull_to_refresh_description">Mantenha pressionado e arraste esta área para baixo para atualizar seus vídeos manualmente</string>
+    <string name="updating_videos">Atualizando vídeos...</string>
+    <string name="pull_to_refresh">Puxe para atualizar</string>
+    <string name="release_to_refresh">Solte para atualizar</string>
+    <string name="pull_to_refresh_empty">Puxe para baixo para atualizar o índice de vídeos</string>
+
     <!-- Temas -->
     <string name="theme_light">Claro</string>
     <string name="theme_dark">Escuro</string>
