@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Code
@@ -103,7 +104,7 @@ fun SettingsScreen(navController: NavController) {
 
         item {
             SettingsCategoryCard(
-                icon = Icons.Default.ViewList,
+                icon = Icons.AutoMirrored.Filled.ViewList,
                 title = stringResource(R.string.settings_display),
                 subtitle = stringResource(R.string.settings_display_desc),
                 onClick = { navController.navigate("settings/display") }
@@ -116,15 +117,6 @@ fun SettingsScreen(navController: NavController) {
                 title = stringResource(R.string.settings_files),
                 subtitle = stringResource(R.string.settings_files_desc),
                 onClick = { navController.navigate("settings/files") }
-            )
-        }
-
-        item {
-            SettingsCategoryCard(
-                icon = Icons.Default.Speed,
-                title = stringResource(R.string.settings_performance),
-                subtitle = stringResource(R.string.settings_performance_desc),
-                onClick = { navController.navigate("settings/performance") }
             )
         }
 
@@ -445,44 +437,6 @@ fun FilesSettingsScreen() {
                 onCheckedChange = {
                     confirmDelete = it
                     prefs.edit().putBoolean("confirm_delete", it).apply()
-                }
-            )
-        }
-    }
-}
-
-@Composable
-fun PerformanceSettingsScreen() {
-    val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
-
-    var cacheSize by remember { mutableStateOf(prefs.getInt("cache_size_mb", 100)) }
-
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-
-        item {
-            SettingsSectionHeader(stringResource(R.string.performance_cache))
-        }
-
-        item {
-            SettingsSliderItem(
-                icon = Icons.Default.Memory,
-                title = stringResource(R.string.performance_thumbnail_cache),
-                subtitle = stringResource(R.string.performance_thumbnail_cache_desc),
-                value = cacheSize,
-                range = 50..500,
-                step = 50,
-                onValueChange = {
-                    cacheSize = it
-                    prefs.edit().putInt("cache_size_mb", it).apply()
-
-                    // ✅ NOVO: Notifica o ThumbnailManager sobre a mudança
-                    OptimizedThumbnailManager.onSettingsChanged(context)
                 }
             )
         }

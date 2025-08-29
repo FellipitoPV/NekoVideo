@@ -754,11 +754,37 @@ private fun MediaCard(
     var isLoading by remember(item.path) { mutableStateOf(false) }
     var job by remember(item.path) { mutableStateOf<Job?>(null) }
 
-    val randomColor = remember(item.path) { if (!showThumbnails && !item.isFolder) getRandomColor(item.path) else Color.Transparent }
+    // ✅ NOVO: Estado para controlar tentativas de regeneração
+    var retryCount by remember(item.path) { mutableStateOf(0) }
+    var hasError by remember(item.path) { mutableStateOf(false) }
 
-    // Carregamento de metadados
-    LaunchedEffect(item.path, showThumbnails, showDurations, showFileSizes) {
-        if (!item.isFolder && (showThumbnails || showDurations || showFileSizes)) {
+    val randomColor = remember(item.path) {
+        if (!item.isFolder) getRandomColor(item.path) else Color.Transparent
+    }
+
+    // ✅ FUNÇÃO PARA LIMPAR CACHE E REGENERAR
+    fun regenerateThumbnail() {
+        if (retryCount < 2) { // Máximo 2 tentativas
+            // Limpa cache do ThumbnailManager
+            OptimizedThumbnailManager.clearCacheForPath(item.path)
+
+            // Limpa estado local
+            thumbnail = null
+            duration = null
+            fileSize = null
+            hasError = false
+            retryCount++
+
+            // Força recarregamento
+            isLoading = true
+        } else {
+            hasError = true
+            isLoading = false
+        }
+    }
+
+    LaunchedEffect(item.path, showThumbnails, showDurations, showFileSizes, retryCount) {
+        if (!item.isFolder && (showThumbnails || showDurations || showFileSizes) && !hasError) {
             job?.cancel()
             isLoading = true
 
@@ -775,23 +801,49 @@ private fun MediaCard(
                             imageLoader = null,
                             delayMs = 0L,
                             onMetadataLoaded = { metadata ->
-                                if (showThumbnails) thumbnail = metadata.thumbnail
+                                // ✅ VERIFICAÇÃO DUPLA: Válido E não reciclado
+                                if (showThumbnails && metadata.thumbnail != null && !metadata.thumbnail.isRecycled) {
+                                    thumbnail = metadata.thumbnail
+                                } else if (showThumbnails && metadata.thumbnail?.isRecycled == true) {
+                                    // ✅ DETECTOU BITMAP RECICLADO → REGENERAR
+                                    regenerateThumbnail()
+                                    return@loadVideoMetadataWithDelay
+                                }
+
                                 if (showDurations) duration = metadata.duration
                                 if (showFileSizes) fileSize = metadata.fileSize
                                 isLoading = false
                             },
-                            onCancelled = { isLoading = false },
+                            onCancelled = {
+                                thumbnail = null
+                                duration = null
+                                fileSize = null
+                                isLoading = false
+                            },
                             onStateChanged = { }
                         )
                     }
                 } catch (e: Exception) {
-                    isLoading = false
+                    // ✅ EM CASO DE ERRO → TENTAR REGENERAR
+                    if (retryCount < 2) {
+                        regenerateThumbnail()
+                    } else {
+                        hasError = true
+                        thumbnail = null
+                        duration = null
+                        fileSize = null
+                        isLoading = false
+                    }
                 }
             }
         }
     }
 
-    DisposableEffect(item.path) { onDispose { job?.cancel() } }
+    DisposableEffect(item.path) {
+        onDispose {
+            job?.cancel()
+        }
+    }
 
     Card(
         modifier = modifier
@@ -800,12 +852,12 @@ private fun MediaCard(
             .border(
                 width = when {
                     isSelected -> 2.dp
-                    isBeingMoved -> 2.dp  // NOVO: Border para itens sendo movidos
+                    isBeingMoved -> 2.dp
                     else -> 0.dp
                 },
                 color = when {
                     isSelected -> MaterialTheme.colorScheme.primary
-                    isBeingMoved -> Color(0xFFFF9800)  // NOVO: Cor laranja para itens sendo movidos
+                    isBeingMoved -> Color(0xFFFF9800)
                     else -> Color.Transparent
                 },
                 shape = RoundedCornerShape(12.dp)
@@ -817,7 +869,21 @@ private fun MediaCard(
             if (item.isFolder) {
                 FolderContent(item)
             } else {
-                VideoContent(item, thumbnail, duration, fileSize, isLoading, isSelected, isBeingMoved, showThumbnails, randomColor, gridColumns)
+                VideoContent(
+                    item = item,
+                    thumbnail = thumbnail,
+                    duration = duration,
+                    fileSize = fileSize,
+                    isLoading = isLoading,
+                    isSelected = isSelected,
+                    isBeingMoved = isBeingMoved,
+                    showThumbnails = showThumbnails,
+                    randomColor = randomColor,
+                    gridColumns = gridColumns,
+                    hasError = hasError, // ✅ NOVO: Passa estado de erro
+                    retryCount = retryCount, // ✅ NOVO: Para debug visual
+                    onRetry = { regenerateThumbnail() } // ✅ NOVO: Callback para retry manual
+                )
             }
         }
     }
@@ -860,10 +926,13 @@ private fun VideoContent(
     fileSize: String?,
     isLoading: Boolean,
     isSelected: Boolean,
-    isBeingMoved: Boolean,  // NOVO: Parâmetro
+    isBeingMoved: Boolean,
     showThumbnails: Boolean,
     randomColor: Color,
-    gridColumns: Int
+    gridColumns: Int,
+    hasError: Boolean = false, // ✅ NOVO
+    retryCount: Int = 0, // ✅ NOVO
+    onRetry: () -> Unit = {} // ✅ NOVO
 ) {
     val textSize = when (gridColumns) {
         2 -> 12.sp
@@ -880,30 +949,82 @@ private fun VideoContent(
                     .background(randomColor)
                     .alpha(when {
                         isSelected -> 0.7f
-                        isBeingMoved -> 0.8f  // NOVO: Alpha diferente para itens sendo movidos
+                        isBeingMoved -> 0.8f
                         else -> 1f
                     })
             )
-            thumbnail != null -> Image(
-                bitmap = thumbnail.asImageBitmap(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
+            // ✅ VERIFICAÇÃO: Se bitmap reciclado durante renderização → tentar regenerar
+            thumbnail != null && !thumbnail.isRecycled -> {
+                Image(
+                    bitmap = thumbnail.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .alpha(when {
+                            isSelected -> 0.7f
+                            isBeingMoved -> 0.8f
+                            else -> 1f
+                        })
+                )
+            }
+            thumbnail != null && thumbnail.isRecycled -> {
+                // ✅ BITMAP RECICLADO DETECTADO → Tentar regenerar automaticamente
+                LaunchedEffect(Unit) {
+                    onRetry()
+                }
+                // Mostra cor aleatória enquanto regenera
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(randomColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (retryCount > 0) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+            isLoading -> Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .alpha(when {
-                        isSelected -> 0.7f
-                        isBeingMoved -> 0.8f  // NOVO: Alpha diferente para itens sendo movidos
-                        else -> 1f
-                    })
-            )
-            isLoading -> Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)), contentAlignment = Alignment.Center) {
+                    .background(randomColor.copy(alpha = 0.7f)),
+                contentAlignment = Alignment.Center
+            ) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp))
             }
-            else -> Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.VideoFile, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), modifier = Modifier.size(40.dp))
+            // ✅ FALLBACK FINAL: Só usa cor aleatória quando realmente tem erro
+            hasError -> Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(randomColor),
+                contentAlignment = Alignment.Center
+            ) {
+                // Opcional: Pequeno ícone indicando erro
+                Icon(
+                    Icons.Default.ImageNotSupported,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            // ✅ FALLBACK: Quando não tem thumbnails habilitado
+            else -> Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.VideoFile,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.size(40.dp)
+                )
             }
         }
 
+        // Resto do código continua igual...
         if (isBeingMoved && !isSelected) {
             Box(
                 modifier = Modifier
@@ -913,10 +1034,23 @@ private fun VideoContent(
         }
 
         if (!isSelected) {
-            // Play button
-            if (thumbnail != null && showThumbnails) {
-                Box(modifier = Modifier.align(Alignment.Center).size(28.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.4f))) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp).align(Alignment.Center))
+            // Play button - só mostra se tem thumbnail válido
+            if (thumbnail != null && !thumbnail.isRecycled && showThumbnails) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.4f))
+                ) {
+                    Icon(
+                        Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .align(Alignment.Center)
+                    )
                 }
             }
 

@@ -61,11 +61,8 @@ object OptimizedThumbnailManager {
             }
 
             override fun entryRemoved(evicted: Boolean, key: String?, oldValue: Bitmap?, newValue: Bitmap?) {
-                oldValue?.let {
-                    if (!it.isRecycled) {
-                        it.recycle()
-                    }
-                }
+                // ✅ REMOVIDO: Não chama recycle() aqui
+                // O Android/Compose vai gerenciar automaticamente
             }
         }
     }
@@ -195,7 +192,16 @@ object OptimizedThumbnailManager {
 
     fun getCachedThumbnail(videoPath: String): Bitmap? {
         val key = videoPath.hashCode().toString()
-        return thumbnailCache.get(key)
+        val bitmap = thumbnailCache.get(key)
+        return if (bitmap != null && !bitmap.isRecycled) {
+            bitmap
+        } else {
+            // Remove entrada inválida do cache
+            if (bitmap?.isRecycled == true) {
+                thumbnailCache.remove(key)
+            }
+            null
+        }
     }
 
     // ✅ ATUALIZADO: Carregamento com inicialização do cache
@@ -209,9 +215,7 @@ object OptimizedThumbnailManager {
         onCancelled: () -> Unit = {},
         onStateChanged: (ThumbnailState) -> Unit = {}
     ) {
-        // ✅ NOVO: Garantir que o cache está inicializado com as configurações corretas
         ensureCacheInitialized(context)
-
         val key = videoPath.hashCode().toString()
 
         // Cancela job anterior
@@ -223,18 +227,20 @@ object OptimizedThumbnailManager {
             activeTargets.remove(key)
         }
 
-        // Lê configurações uma vez só
         val showThumbnails = shouldShowThumbnails(context)
         val showDurations = shouldShowDurations(context)
         val showFileSizes = shouldShowFileSizes(context)
         val thumbnailSize = getThumbnailSizeFromSettings(context)
 
-        // Verificação inteligente de cache
-        val cachedThumbnail = if (showThumbnails) thumbnailCache.get(key) else null
+        // ✅ VERIFICAÇÃO SEGURA: Checa se bitmap não está reciclado
+        val cachedThumbnail = if (showThumbnails) {
+            getCachedThumbnail(videoPath) // Usa função segura
+        } else null
+
         val cachedDuration = if (showDurations) durationCache.get(videoPath) else null
         val cachedFileSize = if (showFileSizes) fileSizeCache.get(videoPath) else null
 
-        // Se tudo que é necessário está em cache, retorna
+        // ✅ REGENERA se necessário
         val hasAllNeeded = (!showThumbnails || cachedThumbnail != null) &&
                 (!showDurations || cachedDuration != null) &&
                 (!showFileSizes || cachedFileSize != null)
@@ -246,6 +252,7 @@ object OptimizedThumbnailManager {
             return
         }
 
+        // Resto do código...
         thumbnailStates[key] = ThumbnailState.WAITING
         onStateChanged(ThumbnailState.WAITING)
 
@@ -269,7 +276,6 @@ object OptimizedThumbnailManager {
                         return@withPermit
                     }
 
-                    // Carrega apenas o que é necessário
                     val durationDeferred = if (showDurations && cachedDuration == null) {
                         async(Dispatchers.IO) { getVideoDuration(videoPath) }
                     } else null
@@ -278,7 +284,7 @@ object OptimizedThumbnailManager {
                         async(Dispatchers.IO) { getFileSize(videoPath) }
                     } else null
 
-                    // Thumbnail
+                    // ✅ SEMPRE regenera se não tiver thumbnail válido
                     val thumbnail = if (showThumbnails && cachedThumbnail == null) {
                         loadThumbnailWithGlide(context, videoUri, key, thumbnailSize)
                     } else {
@@ -292,8 +298,8 @@ object OptimizedThumbnailManager {
                         loadedThumbnails[key] = true
                         thumbnailStates[key] = ThumbnailState.LOADED
 
-                        // Cache apenas o que foi carregado
-                        if (showThumbnails && thumbnail != null) {
+                        // ✅ VERIFICA antes de colocar no cache
+                        if (showThumbnails && thumbnail != null && !thumbnail.isRecycled) {
                             thumbnailCache.put(key, thumbnail)
                         }
                         if (showDurations && duration != null) {
@@ -405,7 +411,7 @@ object OptimizedThumbnailManager {
         loadedThumbnails.clear()
         thumbnailStates.clear()
 
-        // Limpa caches de forma segura
+        // ✅ SÓ limpa, não recicla manualmente
         _thumbnailCache?.evictAll()
         durationCache.evictAll()
         fileSizeCache.evictAll()
@@ -413,7 +419,6 @@ object OptimizedThumbnailManager {
         pendingCancellations.values.forEach { it.cancel() }
         pendingCancellations.clear()
 
-        // Limpa pool de retrievers
         synchronized(retrieverPool) {
             retrieverPool.forEach {
                 try { it.release() } catch (e: Exception) {}
@@ -421,9 +426,25 @@ object OptimizedThumbnailManager {
             retrieverPool.clear()
         }
 
-        // Reset cache para forçar recriação
         _thumbnailCache = null
         lastCacheSize = -1
+    }
+
+    fun clearCacheForPath(videoPath: String) {
+        val key = videoPath.hashCode().toString()
+
+        // Remove do cache principal
+        thumbnailCache.remove(key)
+
+        // Remove dos estados
+        loadedThumbnails.remove(key)
+        thumbnailStates[key] = ThumbnailState.IDLE
+
+        // Cancela jobs ativos
+        activeJobs[key]?.cancel()
+        activeJobs.remove(key)
+        activeTargets.remove(key)
+
     }
 
     // Usa pool de retrievers (mantém igual)

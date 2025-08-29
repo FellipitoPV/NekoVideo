@@ -38,7 +38,7 @@
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|uiMode|keyboardHidden|layoutDirection|locale"
             android:launchMode="singleTop"
-            android:theme="@style/Theme.NekoVideo">
+            android:theme="@style/Theme.NekoVideo.Splash"> <!-- ✅ SÓ MUDAR ESTA LINHA -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

@@ -63,7 +63,6 @@ import com.nkls.nekovideo.components.settings.AboutSettingsScreen
 import com.nkls.nekovideo.components.settings.DisplaySettingsScreen
 import com.nkls.nekovideo.components.settings.FilesSettingsScreen
 import com.nkls.nekovideo.components.settings.InterfaceSettingsScreen
-import com.nkls.nekovideo.components.settings.PerformanceSettingsScreen
 import com.nkls.nekovideo.components.settings.PlaybackSettingsScreen
 import com.nkls.nekovideo.components.settings.SettingsScreen
 import com.nkls.nekovideo.language.LanguageManager
@@ -972,9 +971,6 @@ fun MainScreen(
                 }
                 composable("settings/files") {
                     FilesSettingsScreen()
-                }
-                composable("settings/performance") {
-                    PerformanceSettingsScreen()
                 }
             }
         }
