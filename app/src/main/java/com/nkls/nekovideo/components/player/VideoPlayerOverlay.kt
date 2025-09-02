@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -617,30 +618,37 @@ fun VideoPlayerOverlay(
             // Slider invisível do lado esquerdo (BRILHO) - 70% da altura, centralizado
             Box(
                 modifier = Modifier
-                    .fillMaxHeight(0.7f)
+                    .fillMaxHeight(0.75f)
                     .fillMaxWidth(0.35f) // 35% da largura da tela
                     .align(Alignment.CenterStart)
                     .pointerInput(Unit) {
                         detectDragGestures(
                             onDragStart = { offset ->
-                                leftSliderActive = true
-                                // Calcular brilho baseado na posição inicial do toque
-                                val percentage = ((size.height - offset.y) / size.height)
-                                    .coerceIn(0f, 1f)
-                                currentBrightness = percentage
-                                setBrightness(context, percentage)
-                                brightnessIndicator = percentage
+                                // Não fazer nada no início, aguardar o movimento
                             },
                             onDragEnd = {
                                 leftSliderActive = false
                             }
-                        ) { change, _ ->
-                            // Durante o drag, calcular brilho baseado na posição atual do dedo
-                            val percentage = ((size.height - change.position.y) / size.height)
-                                .coerceIn(0f, 1f)
-                            currentBrightness = percentage
-                            setBrightness(context, percentage)
-                            brightnessIndicator = percentage
+                        ) { change, dragAmount ->
+                            // Verificar se o movimento é predominantemente vertical
+                            val isVerticalMovement = kotlin.math.abs(dragAmount.y) > kotlin.math.abs(dragAmount.x) * 2
+
+                            if (isVerticalMovement) {
+                                if (!leftSliderActive) {
+                                    // Primeira vez que detecta movimento vertical válido
+                                    leftSliderActive = true
+                                }
+
+                                // Calcular mudança relativa baseada no movimento
+                                val sensitivity = 0.001f // Ajuste a sensibilidade conforme necessário
+                                val brightnessChange = -dragAmount.y * sensitivity // Negativo porque Y cresce para baixo
+
+                                // Aplicar mudança ao valor atual
+                                val newBrightness = (currentBrightness + brightnessChange).coerceIn(0f, 1f)
+                                currentBrightness = newBrightness
+                                setBrightness(context, newBrightness)
+                                brightnessIndicator = newBrightness
+                            }
                         }
                     }
             )
@@ -648,30 +656,37 @@ fun VideoPlayerOverlay(
             // Slider invisível do lado direito (VOLUME) - 70% da altura, centralizado
             Box(
                 modifier = Modifier
-                    .fillMaxHeight(0.7f)
+                    .fillMaxHeight(0.75f)
                     .fillMaxWidth(0.35f) // 35% da largura da tela
                     .align(Alignment.CenterEnd)
                     .pointerInput(Unit) {
                         detectDragGestures(
                             onDragStart = { offset ->
-                                rightSliderActive = true
-                                // Calcular volume baseado na posição inicial do toque
-                                val percentage = ((size.height - offset.y) / size.height * 100)
-                                    .coerceIn(0f, 100f).toInt()
-                                currentVolume = percentage
-                                setVolume(context, percentage)
-                                volumeIndicator = percentage
+                                // Não fazer nada no início, aguardar o movimento
                             },
                             onDragEnd = {
                                 rightSliderActive = false
                             }
-                        ) { change, _ ->
-                            // Durante o drag, calcular volume baseado na posição atual do dedo
-                            val percentage = ((size.height - change.position.y) / size.height * 100)
-                                .coerceIn(0f, 100f).toInt()
-                            currentVolume = percentage
-                            setVolume(context, percentage)
-                            volumeIndicator = percentage
+                        ) { change, dragAmount ->
+                            // Verificar se o movimento é predominantemente vertical
+                            val isVerticalMovement = kotlin.math.abs(dragAmount.y) > kotlin.math.abs(dragAmount.x) * 2
+
+                            if (isVerticalMovement) {
+                                if (!rightSliderActive) {
+                                    // Primeira vez que detecta movimento vertical válido
+                                    rightSliderActive = true
+                                }
+
+                                // Calcular mudança relativa baseada no movimento
+                                val sensitivity = 0.1f // Ajuste a sensibilidade conforme necessário
+                                val volumeChange = -dragAmount.y * sensitivity // Negativo porque Y cresce para baixo
+
+                                // Aplicar mudança ao valor atual
+                                val newVolume = (currentVolume + volumeChange).coerceIn(0f, 100f).toInt()
+                                currentVolume = newVolume
+                                setVolume(context, newVolume)
+                                volumeIndicator = newVolume
+                            }
                         }
                     }
             )
@@ -726,81 +741,88 @@ private fun GestureIndicators(
     seekAlignment: Alignment = Alignment.Center
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
-        // Indicador de brilho (lado esquerdo)
-        AnimatedVisibility(
-            visible = brightnessLevel != null,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.CenterStart)
+
+        // Indicadores de volume e brilho centralizados abaixo dos controles de play
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .offset(y = 90.dp), // Posiciona abaixo dos controles de play
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Card(
-                modifier = Modifier.padding(32.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.Black.copy(alpha = 0.8f)
-                ),
-                shape = RoundedCornerShape(12.dp)
+
+            // Indicador de brilho
+            AnimatedVisibility(
+                visible = brightnessLevel != null,
+                enter = fadeIn(),
+                exit = fadeOut()
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.Black.copy(alpha = 0.8f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Brightness6,
-                        contentDescription = "Brightness",
-                        tint = Color(0xFFFF9800), // Laranja
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "${(lastValidBrightness * 100).toInt()}%",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Brightness6,
+                            contentDescription = "Brightness",
+                            tint = Color(0xFFFF9800), // Laranja
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = "${(lastValidBrightness * 100).toInt()}%",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            // Indicador de volume
+            AnimatedVisibility(
+                visible = volumeLevel != null,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.Black.copy(alpha = 0.8f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = when {
+                                lastValidVolume == 0 -> Icons.AutoMirrored.Filled.VolumeOff
+                                lastValidVolume < 50 -> Icons.AutoMirrored.Filled.VolumeDown
+                                else -> Icons.AutoMirrored.Filled.VolumeUp
+                            },
+                            contentDescription = "Volume",
+                            tint = Color(0xFF4CAF50), // Verde
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = "$lastValidVolume%",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
 
-        // Indicador de volume (lado direito)
-        AnimatedVisibility(
-            visible = volumeLevel != null,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.CenterEnd)
-        ) {
-            Card(
-                modifier = Modifier.padding(32.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.Black.copy(alpha = 0.8f)
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = when {
-                            lastValidVolume == 0 -> Icons.AutoMirrored.Filled.VolumeOff
-                            lastValidVolume < 50 -> Icons.AutoMirrored.Filled.VolumeDown
-                            else -> Icons.AutoMirrored.Filled.VolumeUp
-                        },
-                        contentDescription = "Volume",
-                        tint = Color(0xFF4CAF50), // Verde
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "$lastValidVolume%",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-
-        // Indicador de seek (posição dinâmica, mais rápido e sem fundo)
+        // Indicador de seek (posição dinâmica conforme antes)
         AnimatedVisibility(
             visible = seekInfo != null,
             enter = fadeIn(animationSpec = tween(200)) + scaleIn(animationSpec = tween(200)),
@@ -944,19 +966,60 @@ private fun CustomVideoControls(
                         .padding(horizontal = 16.dp)
                 )
 
-                // Ícone delete
-                IconButton(
-                    onClick = onDeleteClick,
-                    modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                        .size(48.dp)
+                // Botões do header: Repetição e Delete
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete",
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    // Botão de Repetição no header
+                    IconButton(
+                        onClick = {
+                            val nextMode = when (repeatMode) {
+                                RepeatMode.NONE -> RepeatMode.REPEAT_ALL
+                                RepeatMode.REPEAT_ALL -> RepeatMode.REPEAT_ONE
+                                RepeatMode.REPEAT_ONE -> RepeatMode.NONE
+                            }
+                            onRepeatModeChange(nextMode)
+                            resetUITimer()
+                        },
+                        modifier = Modifier
+                            .background(
+                                when (repeatMode) {
+                                    RepeatMode.NONE -> Color.Black.copy(alpha = 0.5f)
+                                    RepeatMode.REPEAT_ALL -> Color(0xFF4CAF50).copy(alpha = 0.8f)
+                                    RepeatMode.REPEAT_ONE -> Color(0xFF2196F3).copy(alpha = 0.8f)
+                                },
+                                CircleShape
+                            )
+                            .size(48.dp)
+                    ) {
+                        val (icon, contentDescription) = when (repeatMode) {
+                            RepeatMode.NONE -> Pair(Icons.Default.PlaylistPlay, "Normal Play")
+                            RepeatMode.REPEAT_ALL -> Pair(Icons.Default.Repeat, "Repeat Playlist")
+                            RepeatMode.REPEAT_ONE -> Pair(Icons.Default.RepeatOne, "Repeat One")
+                        }
+
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = contentDescription,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    // Ícone delete
+                    IconButton(
+                        onClick = onDeleteClick,
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                            .size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
         }

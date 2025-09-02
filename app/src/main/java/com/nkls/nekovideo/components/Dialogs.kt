@@ -578,6 +578,7 @@ fun PasswordDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 isError = errorMessage != null,
                                 singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 visualTransformation = PasswordVisualTransformation(),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
