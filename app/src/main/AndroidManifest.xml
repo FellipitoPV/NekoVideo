@@ -12,7 +12,7 @@
 
     <application
         android:appCategory="video"
-        android:debuggable="true"
+        android:debuggable="false"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -38,7 +38,8 @@
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|uiMode|keyboardHidden|layoutDirection|locale"
             android:launchMode="singleTop"
-            android:theme="@style/Theme.NekoVideo.Splash"> <!-- ✅ SÓ MUDAR ESTA LINHA -->
+            android:theme="@style/Theme.NekoVideo.Splash">
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -50,6 +51,33 @@
                 <action android:name="OPEN_PLAYER" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+
+            <!-- Intent filter principal para vídeos -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+
+            <!-- Intent filter para arquivos locais -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file"
+                    android:host="*"
+                    android:pathPattern=".*\\.mp4" />
+            </intent-filter>
+
+            <!-- Intent filter para content provider -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+            </intent-filter>
+
         </activity>
     </application>
 

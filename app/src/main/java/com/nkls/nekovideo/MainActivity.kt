@@ -80,37 +80,96 @@ class MainActivity : ComponentActivity() {
     // NOVO: Adicionar ThemeManager
     private lateinit var themeManager: ThemeManager
 
+    var externalVideoReceived = false
+        private set
+
+    // Função para resetar (chamada do MainScreen)
+    fun resetExternalVideoFlag() {
+        externalVideoReceived = false
+    }
+
     // NOVO: Variável para controlar intent da notificação
     private var notificationIntentReceived = false
     private var lastIntentAction: String? = null
     private var lastIntentTime: Long = 0
 
+    private fun handleExternalVideo(videoUri: Uri) {
+        lifecycleScope.launch {
+            try {
+                Log.d("MainActivity", "Processando vídeo externo: $videoUri")
+
+                val videoPath = when (videoUri.scheme) {
+                    "file" -> videoUri.toString()
+                    "content" -> videoUri.toString()
+                    else -> videoUri.toString()
+                }
+
+                if (videoPath.isNotEmpty()) {
+                    Log.d("MainActivity", "Iniciando MediaPlaybackService com: $videoPath")
+
+                    // Iniciar o serviço
+                    MediaPlaybackService.startWithPlaylist(
+                        this@MainActivity,
+                        listOf(videoPath),
+                        0
+                    )
+
+                    // Aguardar serviço inicializar
+                    delay(800)
+
+                    // FORÇAR abertura do overlay via recomposição
+                    setContent {
+                        NekoVideoTheme(themeManager = themeManager) {
+                            Surface(
+                                modifier = Modifier.fillMaxSize(),
+                                color = MaterialTheme.colorScheme.background
+                            ) {
+                                MainScreen(
+                                    intent = intent,
+                                    themeManager = themeManager,
+                                    notificationReceived = notificationIntentReceived,
+                                    lastAction = lastIntentAction,
+                                    lastTime = lastIntentTime,
+                                    externalVideoReceived = true, // FORÇAR true
+                                    autoOpenOverlay = true // NOVO PARÂMETRO
+                                )
+                            }
+                        }
+                    }
+
+                    Log.d("MainActivity", "Overlay deve abrir automaticamente")
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Erro ao processar vídeo externo", e)
+            }
+        }
+    }
 
     private fun handleNotificationIntent(intent: Intent?) {
         val currentTime = System.currentTimeMillis()
         lastIntentTime = currentTime
         lastIntentAction = intent?.action
 
-        // Log detalhado de todas as extras
-        intent?.extras?.let { extras ->
-            for (key in extras.keySet()) {
-                val value = extras.get(key)
-            }
-        }
-
         // Processar action
         when (intent?.action) {
             "OPEN_PLAYER" -> {
                 notificationIntentReceived = true
             }
+            "android.intent.action.VIEW" -> {
+                // NOVO: Capturar arquivo enviado via "Abrir com"
+                val videoUri = intent.data
+                if (videoUri != null) {
+                    Log.d("MainActivity", "Arquivo recebido via 'Abrir com': $videoUri")
+                    handleExternalVideo(videoUri)
+                }
+            }
             null -> {
-                Log.d("MainActivity", "⚠️  Intent com action NULL")
+                Log.d("MainActivity", "Intent com action NULL")
             }
             else -> {
-                Log.d("MainActivity", "❓ Action desconhecida: ${intent.action}")
+                Log.d("MainActivity", "Action desconhecida: ${intent.action}")
             }
         }
-
     }
 
     override fun attachBaseContext(newBase: Context?) {
@@ -241,7 +300,8 @@ class MainActivity : ComponentActivity() {
                         // Debug info atualizado
                         notificationReceived = notificationIntentReceived,
                         lastAction = lastIntentAction,
-                        lastTime = lastIntentTime
+                        lastTime = lastIntentTime,
+                        externalVideoReceived = externalVideoReceived
                     )
                 }
             }
@@ -269,7 +329,9 @@ fun MainScreen(
     // NOVOS parâmetros de debug (opcionais)
     notificationReceived: Boolean = false,
     lastAction: String? = null,
-    lastTime: Long = 0
+    lastTime: Long = 0,
+    externalVideoReceived: Boolean = false,
+    autoOpenOverlay: Boolean = false
 ) {
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
@@ -518,6 +580,31 @@ fun MainScreen(
         }
     }
 
+    // Adicione este LaunchedEffect após os outros existentes
+    LaunchedEffect(externalVideoReceived) {
+        if (externalVideoReceived) {
+            Log.d("MainScreen", "Abrindo overlay automaticamente para vídeo externo")
+
+            // Aguardar um pouco para garantir que tudo carregou
+            delay(500)
+
+            // Abrir overlay diretamente
+            showPlayerOverlay = true
+
+            // Reset da flag
+            val activity = context.findActivity() as? MainActivity
+            activity?.resetExternalVideoFlag()
+        }
+    }
+
+    LaunchedEffect(autoOpenOverlay) {
+        if (autoOpenOverlay) {
+            Log.d("MainScreen", "Auto-abrindo overlay para vídeo externo")
+            delay(100) // Pequeno delay para estabilizar
+            showPlayerOverlay = true
+        }
+    }
+
     if (showRenameDialog) {
         RenameDialog(
             selectedItems = selectedItems.toList(),
@@ -661,6 +748,7 @@ fun MainScreen(
                     hasSelectedItems = selectedItems.isNotEmpty(),
                     isMoveMode = isMoveMode,
                     isSecureMode = isSecureFolder(folderPath),
+                    isRootDirectory = isAtRootLevel(folderPath),
                     selectedItems = selectedItems.toList(),
                     itemsToMoveCount = itemsToMove.size,
                     onActionClick = { action ->
@@ -816,7 +904,7 @@ fun MainScreen(
                                         MediaPlaybackService.startWithPlaylist(context, videos, 0)
                                         showPlayerOverlay = true
                                     } else {
-                                        Toast.makeText(context, "No videos found", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.no_videos_found), Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             }

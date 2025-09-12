@@ -38,7 +38,8 @@ data class ActionItem(
     val type: ActionType,
     val icon: ImageVector,
     val title: String,
-    val subtitle: String? = null
+    val subtitle: String? = null,
+    val isEnabled: Boolean = true
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,6 +48,7 @@ fun ActionBottomSheetFAB(
     hasSelectedItems: Boolean,
     isMoveMode: Boolean,
     isSecureMode: Boolean,
+    isRootDirectory: Boolean = false,
     selectedItems: List<String> = emptyList(),
     itemsToMoveCount: Int = 0, // NOVO: contador de itens para mover
     onActionClick: (ActionType) -> Unit
@@ -132,7 +134,12 @@ fun ActionBottomSheetFAB(
             }
             else -> {
                 listOf(
-                    ActionItem(ActionType.SHUFFLE_PLAY, Icons.Default.Shuffle, shufflePlayText),
+                    ActionItem(
+                        ActionType.SHUFFLE_PLAY,
+                        Icons.Default.Shuffle,
+                        shufflePlayText,
+                        isEnabled = !isRootDirectory
+                    ),
                     ActionItem(ActionType.CREATE_FOLDER, Icons.Default.CreateNewFolder, createFolderText),
                     ActionItem(ActionType.SETTINGS, Icons.Default.Settings, settingsText)
                 )
@@ -313,8 +320,10 @@ private fun ActionGridItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(if (isMoveMode) 100.dp else 80.dp) // Maior altura para modo Move
-            .clickable { onClick() },
+            .height(if (isMoveMode) 100.dp else 80.dp)
+            .clickable(enabled = action.isEnabled) { // ✅ Só clica se habilitado
+                if (action.isEnabled) onClick() // ✅ Dupla verificação
+            },
         color = Color.Transparent,
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -338,7 +347,11 @@ private fun ActionGridItem(
                         ActionType.SECURE, ActionType.UNLOCK -> Color(0xFF4CAF50).copy(alpha = 0.15f)
                         ActionType.PRIVATIZE -> Color(0xFFFF9800).copy(alpha = 0.15f)
                         ActionType.UNPRIVATIZE -> Color(0xFF2196F3).copy(alpha = 0.15f)
-                        else -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                        else -> if (action.isEnabled) {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f) // ✅ Bem apagado
+                        }
                     }
                 ) {
                     Box(
@@ -353,7 +366,11 @@ private fun ActionGridItem(
                                 ActionType.PASTE, ActionType.SECURE, ActionType.UNLOCK -> Color(0xFF4CAF50)
                                 ActionType.PRIVATIZE -> Color(0xFFFF9800)
                                 ActionType.UNPRIVATIZE -> Color(0xFF2196F3)
-                                else -> MaterialTheme.colorScheme.primary
+                                else -> if (action.isEnabled) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f) // ✅ Ícone apagado
+                                }
                             },
                             modifier = Modifier.size(20.dp)
                         )
@@ -371,7 +388,11 @@ private fun ActionGridItem(
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                    color = if (action.isEnabled) {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    }
                 )
 
                 // Subtitle para modo Move

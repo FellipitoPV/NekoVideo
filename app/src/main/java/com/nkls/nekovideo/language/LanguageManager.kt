@@ -32,15 +32,24 @@ object LanguageManager {
 
     fun setLocale(context: Context, languageCode: String): Context {
         val locale = when (languageCode) {
-            "pt" -> Locale("pt", "BR")
-            "en" -> Locale("en", "US")
-            "es" -> Locale("es", "ES")
-            "fr" -> Locale("fr", "FR")
+            "pt" -> Locale("pt", "BR")    // ✅ Portugues
+            "en" -> Locale("en", "US")    // ✅ Ingles
+            "es" -> Locale("es", "ES")    // ✅ Espanhol
+            "fr" -> Locale("fr", "FR")    // ✅ Frances
+            "de" -> Locale("de", "DE")    // ✅ Alemão
+            "ru" -> Locale("ru", "RU")    // ✅ Russo
+            "hi" -> Locale("hi", "IN")    // ✅ Hindi (Índia)
             "system" -> {
-                // ✅ Usar função que pega locale real do sistema
-                getSystemLocale(context)
+                val systemLocale = getSystemLocale(context)
+                val systemLang = systemLocale.language
+
+                // ✅ Verifica se o idioma do sistema está disponível
+                when (systemLang) {
+                    "pt", "en", "es", "fr", "de", "ru", "hi" -> systemLocale
+                    else -> Locale("en", "US") // ✅ Padrão: inglês
+                }
             }
-            else -> Locale("pt", "BR") // fallback
+            else -> Locale("en", "US") // ✅ Fallback também para inglês
         }
 
         Locale.setDefault(locale)
@@ -78,5 +87,4 @@ object LanguageManager {
     fun getContextWithLanguage(context: Context, languageCode: String = getCurrentLanguage(context)): Context {
         return setLocale(context, languageCode)
     }
-
 }

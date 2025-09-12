@@ -16,6 +16,8 @@
     <string name="action_create_folder">Nova Pasta</string>
     <string name="action_settings">Configurações</string>
 
+    <string name="no_videos_found">Nenhum vídeo encontrado</string>
+
         <!-- Content descriptions -->
     <string name="cancel_description">Cancelar</string>
     <string name="paste_here_description">Colar aqui</string>
@@ -65,12 +67,15 @@
     <string name="theme_dark">Escuro</string>
     <string name="theme_system">Seguir Sistema</string>
 
-    <!-- Idiomas -->
+    <!-- Languages -->
     <string name="language_system">Seguir Sistema</string>
     <string name="language_portuguese">Português (Brasil)</string>
     <string name="language_english">English</string>
     <string name="language_spanish">Español</string>
     <string name="language_french">Français</string>
+    <string name="language_german">Deutsch</string>
+    <string name="language_russian">Русский</string>
+    <string name="language_hindi">हिन्दी</string>
 
     <!-- Settings Screen -->
     <string name="settings_playback">Reprodução</string>

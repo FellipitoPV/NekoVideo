@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Button actions -->
+    <string name="action_paste_here">Вставить здесь</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_cancel_operation">Отменить операцию</string>
+    <string name="action_unlock">Разблокировать</string>
+    <string name="action_protect">Защитить</string>
+    <string name="action_unprivatize">Сделать публичным</string>
+    <string name="action_privatize">Сделать приватным</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_rename">Переименовать</string>
+    <string name="action_move">Переместить</string>
+    <string name="action_shuffle_play">Случайно</string>
+    <string name="action_create_folder">Новая папка</string>
+    <string name="action_settings">Настройки</string>
+
+    <string name="no_videos_found">Видео не найдены</string>
+
+    <!-- Content descriptions -->
+    <string name="cancel_description">Отмена</string>
+    <string name="paste_here_description">Вставить здесь</string>
+    <string name="actions_description">Действия</string>
+    <string name="options_description">Опции</string>
+
+    <string name="loading">Загрузка...</string>
+    <string name="updating_index">Обновление индекса...</string>
+    <string name="indexing_videos">Индексация видео...</string>
+
+    <!-- Bottom sheet headers -->
+    <string name="mode_move_files">Режим: Перемещение файлов</string>
+    <string name="item_actions">Действия с элементом</string>
+    <string name="options">Опции</string>
+    <string name="navigate_to_destination">Перейдите к месту назначения и вставьте файлы</string>
+
+    <!-- Interface Settings -->
+    <string name="settings_appearance">Внешний вид</string>
+    <string name="settings_language">Язык</string>
+    <string name="settings_dark_mode">Темная тема</string>
+    <string name="settings_dark_mode_desc">Внешний вид интерфейса</string>
+    <string name="settings_app_language">Язык приложения</string>
+    <string name="settings_app_language_desc">Язык интерфейса</string>
+
+    <!-- Rename dialogs -->
+    <string name="rename_item">Переименовать элемент</string>
+    <string name="renaming_item">Переименование элемента...</string>
+    <string name="new_name">Новое имя</string>
+    <string name="rename_multiple_items">Переименовать несколько элементов</string>
+    <string name="selected_items_count">Выбрано элементов: %d</string>
+
+    <!-- Permissions -->
+    <string name="permission_title">Требуется доступ к файлам</string>
+    <string name="permission_description">Для правильной работы это приложение нуждается в доступе ко всем файлам на вашем устройстве. Это позволяет просматривать и воспроизводить ваши видео.</string>
+    <string name="permission_button">Разрешить доступ к файлам</string>
+    <string name="permission_instructions">Нажмите кнопку выше и включите \'Разрешить доступ для управления всеми файлами\' в системных настройках.</string>
+
+    <!-- Pull to Refresh Tutorial -->
+    <string name="pull_to_refresh_title">Потяните вниз для обновления</string>
+    <string name="pull_to_refresh_description">Удерживайте и тяните эту область вниз для ручного обновления ваших видео</string>
+    <string name="updating_videos">Обновление видео...</string>
+    <string name="pull_to_refresh">Потяните для обновления</string>
+    <string name="release_to_refresh">Отпустите для обновления</string>
+    <string name="pull_to_refresh_empty">Потяните вниз для обновления индекса видео</string>
+
+    <!-- Themes -->
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Темная</string>
+    <string name="theme_system">Следовать системе</string>
+
+    <!-- Languages -->
+    <string name="language_system">Следовать системе</string>
+    <string name="language_portuguese">Português (Brasil)</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+    <string name="language_french">Français</string>
+    <string name="language_german">Deutsch</string>
+    <string name="language_russian">Русский</string>
+    <string name="language_hindi">हिन्दी</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_playback">Воспроизведение</string>
+    <string name="settings_playback_desc">Управление воспроизведением и поведение плеера</string>
+    <string name="settings_interface">Интерфейс</string>
+    <string name="settings_interface_desc">Внешний вид и тема приложения</string>
+    <string name="settings_display">Отображение</string>
+    <string name="settings_display_desc">Миниатюры, сетка и отображение информации</string>
+    <string name="settings_files">Файлы</string>
+    <string name="settings_files_desc">Управление папками и файлами</string>
+    <string name="settings_performance">Производительность</string>
+    <string name="settings_performance_desc">Кэш и оптимизация производительности</string>
+    <string name="settings_about">О программе</string>
+    <string name="settings_about_desc">Информация о приложении и поддержка</string>
+
+    <!-- TopAppBar -->
+    <string name="settings_title">Настройки</string>
+    <string name="playback_title">Воспроизведение</string>
+    <string name="interface_title">Интерфейс</string>
+    <string name="about_title">О программе</string>
+    <string name="cancel_selection">Отменить выбор</string>
+    <string name="back">Назад</string>
+    <string name="select_all">Выбрать все</string>
+
+    <!-- Playback Settings Screen -->
+    <string name="playback_controls">Управление</string>
+    <string name="playback_features">Функции</string>
+
+    <string name="playback_auto_hide_controls">Автоскрытие панели управления</string>
+    <string name="playback_auto_hide_controls_desc">Автоматически скрывать во время воспроизведения</string>
+    <string name="playback_double_tap_seek">Поиск двойным касанием</string>
+    <string name="playback_double_tap_seek_desc">Секунд для перехода вперед/назад</string>
+    <string name="playback_keep_screen_on">Не выключать экран</string>
+    <string name="playback_keep_screen_on_desc">Не выключать экран во время воспроизведения</string>
+    <string name="playback_pip">Картинка в картинке</string>
+    <string name="playback_pip_desc">Продолжить воспроизведение в плавающем окне</string>
+
+    <!-- Display Settings Screen -->
+    <string name="display_video_info">Информация о видео</string>
+    <string name="display_show_thumbnails">Показывать миниатюры</string>
+    <string name="display_show_thumbnails_desc">Отображать миниатюры видео</string>
+    <string name="display_show_durations">Показывать длительность</string>
+    <string name="display_show_durations_desc">Отображать длительность видео</string>
+    <string name="display_show_file_sizes">Показывать размеры файлов</string>
+    <string name="display_show_file_sizes_desc">Отображать размеры файлов</string>
+    <string name="display_layout">Макет</string>
+    <string name="display_grid_columns">Столбцы сетки</string>
+    <string name="display_grid_columns_desc">Количество столбцов в списке</string>
+    <string name="display_quality">Качество</string>
+    <string name="display_thumbnail_quality">Разрешение миниатюр</string>
+    <string name="display_thumbnail_quality_desc">Качество генерируемых миниатюр</string>
+
+    <!-- Quality Options -->
+    <string name="quality_low">Низкое (360p)</string>
+    <string name="quality_medium">Среднее (720p)</string>
+    <string name="quality_high">Высокое (1080p)</string>
+    <string name="quality_original">Оригинальное</string>
+
+    <!-- Files Settings Screen -->
+    <string name="files_management">Управление</string>
+    <string name="files_app_only_folders">Папки только для приложения</string>
+    <string name="files_app_only_folders_desc">Создавать папки, видимые только в NekoVideo</string>
+    <string name="files_confirm_delete">Подтверждать удаление</string>
+    <string name="files_confirm_delete_desc">Запрашивать подтверждение перед удалением файлов</string>
+
+    <!-- Performance Settings Screen -->
+    <string name="performance_cache">Кэш</string>
+    <string name="performance_thumbnail_cache">Кэш миниатюр</string>
+    <string name="performance_thumbnail_cache_desc">Место, зарезервированное для миниатюр</string>
+
+    <!-- About Settings Screen -->
+    <string name="about_information">Информация</string>
+    <string name="about_app_version">Версия приложения</string>
+    <string name="about_source_code">Исходный код</string>
+    <string name="about_source_code_desc">Посмотреть на GitHub</string>
+    <string name="about_report_bug">Сообщить об ошибке</string>
+    <string name="about_report_bug_desc">Сообщить о проблемах или предложениях</string>
+
+    <!-- Dialogs -->
+    <!-- Rename Dialog -->
+    <string name="rename_files">Переименовать файлы</string>
+    <string name="renaming_files">Переименование файлов</string>
+    <string name="renaming_progress">Переименование файла %1$d из %2$d</string>
+    <string name="base_name">Базовое имя</string>
+    <string name="start_number">Начальный номер</string>
+    <string name="rename">Переименовать</string>
+
+    <!-- Create Folder Dialog -->
+    <string name="create_new_folder">Создать новую папку</string>
+    <string name="creating_folder">Создание папки...</string>
+    <string name="folder_name">Имя папки</string>
+    <string name="folder_name_empty_error">Имя папки не может быть пустым</string>
+    <string name="create">Создать</string>
+
+    <!-- Password Dialog -->
+    <string name="set_secure_password">Установить пароль защищенной папки</string>
+    <string name="enter_password">Введите пароль</string>
+    <string name="processing">Обработка...</string>
+    <string name="password">Пароль</string>
+    <string name="confirm_password">Подтвердите пароль</string>
+    <string name="password_empty_error">Пароль не может быть пустым</string>
+    <string name="passwords_no_match_error">Пароли не совпадают</string>
+    <string name="invalid_password_error">Неверный пароль</string>
+    <string name="set_password">Установить пароль</string>
+    <string name="verify">Проверить</string>
+
+    <!-- Delete Confirmation Dialog -->
+    <string name="confirm_deletion">Подтвердите удаление</string>
+    <string name="delete_confirmation_message">Вы уверены, что хотите удалить %d элемент(ов)? Это действие нельзя отменить.</string>
+    <string name="delete">Удалить</string>
+
+    <!-- Common -->
+    <string name="cancel">Отмена</string>
+
+    <!-- Sort Options -->
+    <string name="sort_name_asc">Имя А-Я</string>
+    <string name="sort_name_desc">Имя Я-А</string>
+    <string name="sort_date_newest">Новые</string>
+    <string name="sort_date_oldest">Старые</string>
+    <string name="sort_size_largest">Большие</string>
+    <string name="sort_size_smallest">Маленькие</string>
+
+    <!-- Player Delete Dialog -->
+    <string name="delete_video">Удалить видео</string>
+    <string name="delete_video_confirmation">Вы уверены, что хотите удалить \"%1$s\"?\n\nЭто действие нельзя отменить.</string>
+
+    <!-- ADICIONAR plurals corretos -->
+    <plurals name="items_selected">
+        <item quantity="one">Выбран %d элемент</item>
+        <item quantity="few">Выбрано %d элемента</item>
+        <item quantity="many">Выбрано %d элементов</item>
+        <item quantity="other">Выбрано %d элементов</item>
+    </plurals>
+
+    <!-- Plurals for item counting -->
+    <plurals name="move_items_count">
+        <item quantity="one">Переместить %d элемент</item>
+        <item quantity="few">Переместить %d элемента</item>
+        <item quantity="many">Переместить %d элементов</item>
+        <item quantity="other">Переместить %d элементов</item>
+    </plurals>
+
+    <plurals name="moving_items_status">
+        <item quantity="one">Перемещение %d элемента</item>
+        <item quantity="few">Перемещение %d элементов</item>
+        <item quantity="many">Перемещение %d элементов</item>
+        <item quantity="other">Перемещение %d элементов</item>
+    </plurals>
+</resources>

@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Button actions -->
+    <string name="action_paste_here">Coller Ici</string>
+    <string name="action_cancel">Annuler</string>
+    <string name="action_cancel_operation">Annuler l\'opération</string>
+    <string name="action_unlock">Déverrouiller</string>
+    <string name="action_protect">Protéger</string>
+    <string name="action_unprivatize">Rendre Public</string>
+    <string name="action_privatize">Rendre Privé</string>
+    <string name="action_delete">Supprimer</string>
+    <string name="action_rename">Renommer</string>
+    <string name="action_move">Déplacer</string>
+    <string name="action_shuffle_play">Aléatoire</string>
+    <string name="action_create_folder">Nouveau Dossier</string>
+    <string name="action_settings">Paramètres</string>
+
+    <string name="no_videos_found">Aucune vidéo trouvée</string>
+
+    <!-- Content descriptions -->
+    <string name="cancel_description">Annuler</string>
+    <string name="paste_here_description">Coller ici</string>
+    <string name="actions_description">Actions</string>
+    <string name="options_description">Options</string>
+
+    <string name="loading">Chargement...</string>
+    <string name="updating_index">Mise à jour de l\'index...</string>
+    <string name="indexing_videos">Indexation des vidéos...</string>
+
+    <!-- Bottom sheet headers -->
+    <string name="mode_move_files">Mode : Déplacer les Fichiers</string>
+    <string name="item_actions">Actions de l\'Élément</string>
+    <string name="options">Options</string>
+    <string name="navigate_to_destination">Naviguez vers la destination et collez les fichiers</string>
+
+    <!-- Interface Settings -->
+    <string name="settings_appearance">Apparence</string>
+    <string name="settings_language">Langue</string>
+    <string name="settings_dark_mode">Mode Sombre</string>
+    <string name="settings_dark_mode_desc">Apparence de l\'interface</string>
+    <string name="settings_app_language">Langue de l\'App</string>
+    <string name="settings_app_language_desc">Langue de l\'interface</string>
+
+    <!-- Rename dialogs -->
+    <string name="rename_item">Renommer l\'élément</string>
+    <string name="renaming_item">Renommage de l\'élément...</string>
+    <string name="new_name">Nouveau nom</string>
+    <string name="rename_multiple_items">Renommer plusieurs éléments</string>
+    <string name="selected_items_count">%d élément(s) sélectionné(s)</string>
+
+    <!-- Permissions -->
+    <string name="permission_title">Accès aux Fichiers Requis</string>
+    <string name="permission_description">Pour fonctionner correctement, cette application nécessite l\'accès à tous les fichiers de votre appareil. Cela vous permet de naviguer et de lire vos vidéos.</string>
+    <string name="permission_button">Autoriser l\'Accès aux Fichiers</string>
+    <string name="permission_instructions">Appuyez sur le bouton ci-dessus et activez \'Autoriser l\'accès pour gérer tous les fichiers\' dans les paramètres système.</string>
+
+    <!-- Pull to Refresh Tutorial -->
+    <string name="pull_to_refresh_title">Tirez vers le bas pour actualiser</string>
+    <string name="pull_to_refresh_description">Maintenez et faites glisser cette zone vers le bas pour mettre à jour manuellement vos vidéos</string>
+    <string name="updating_videos">Mise à jour des vidéos...</string>
+    <string name="pull_to_refresh">Tirez pour actualiser</string>
+    <string name="release_to_refresh">Relâchez pour actualiser</string>
+    <string name="pull_to_refresh_empty">Tirez vers le bas pour actualiser l\'index des vidéos</string>
+
+    <!-- Themes -->
+    <string name="theme_light">Clair</string>
+    <string name="theme_dark">Sombre</string>
+    <string name="theme_system">Suivre le Système</string>
+
+    <!-- Languages -->
+    <string name="language_system">Suivre le Système</string>
+    <string name="language_portuguese">Português (Brasil)</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+    <string name="language_french">Français</string>
+    <string name="language_german">Deutsch</string>
+    <string name="language_russian">Русский</string>
+    <string name="language_hindi">हिन्दी</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_playback">Lecture</string>
+    <string name="settings_playback_desc">Contrôles de lecture et comportement du lecteur</string>
+    <string name="settings_interface">Interface</string>
+    <string name="settings_interface_desc">Apparence et thème de l\'application</string>
+    <string name="settings_display">Affichage</string>
+    <string name="settings_display_desc">Vignettes, grille et affichage des informations</string>
+    <string name="settings_files">Fichiers</string>
+    <string name="settings_files_desc">Gestion des dossiers et fichiers</string>
+    <string name="settings_performance">Performance</string>
+    <string name="settings_performance_desc">Cache et optimisations de performance</string>
+    <string name="settings_about">À Propos</string>
+    <string name="settings_about_desc">Informations de l\'application et support</string>
+
+    <!-- TopAppBar -->
+    <string name="settings_title">Paramètres</string>
+    <string name="playback_title">Lecture</string>
+    <string name="interface_title">Interface</string>
+    <string name="about_title">À Propos</string>
+    <string name="cancel_selection">Annuler la Sélection</string>
+    <string name="back">Retour</string>
+    <string name="select_all">Tout Sélectionner</string>
+
+    <!-- Playback Settings Screen -->
+    <string name="playback_controls">Contrôles</string>
+    <string name="playback_features">Fonctionnalités</string>
+
+    <string name="playback_auto_hide_controls">Masquer les Contrôles Automatiquement</string>
+    <string name="playback_auto_hide_controls_desc">Masquer automatiquement pendant la lecture</string>
+    <string name="playback_double_tap_seek">Recherche par Double Tap</string>
+    <string name="playback_double_tap_seek_desc">Secondes à avancer/reculer</string>
+    <string name="playback_keep_screen_on">Garder l\'Écran Allumé</string>
+    <string name="playback_keep_screen_on_desc">Ne pas éteindre l\'écran pendant la lecture</string>
+    <string name="playback_pip">Image dans l\'Image</string>
+    <string name="playback_pip_desc">Continuer la lecture dans une fenêtre flottante</string>
+
+    <!-- Display Settings Screen -->
+    <string name="display_video_info">Informations Vidéo</string>
+    <string name="display_show_thumbnails">Afficher les Vignettes</string>
+    <string name="display_show_thumbnails_desc">Afficher les vignettes des vidéos</string>
+    <string name="display_show_durations">Afficher les Durées</string>
+    <string name="display_show_durations_desc">Afficher la durée des vidéos</string>
+    <string name="display_show_file_sizes">Afficher les Tailles de Fichier</string>
+    <string name="display_show_file_sizes_desc">Afficher les tailles des fichiers</string>
+    <string name="display_layout">Disposition</string>
+    <string name="display_grid_columns">Colonnes de Grille</string>
+    <string name="display_grid_columns_desc">Nombre de colonnes dans la liste</string>
+    <string name="display_quality">Qualité</string>
+    <string name="display_thumbnail_quality">Résolution des Vignettes</string>
+    <string name="display_thumbnail_quality_desc">Qualité des vignettes générées</string>
+
+    <!-- Quality Options -->
+    <string name="quality_low">Faible (360p)</string>
+    <string name="quality_medium">Moyenne (720p)</string>
+    <string name="quality_high">Haute (1080p)</string>
+    <string name="quality_original">Originale</string>
+
+    <!-- Files Settings Screen -->
+    <string name="files_management">Gestion</string>
+    <string name="files_app_only_folders">Dossiers Exclusifs à l\'App</string>
+    <string name="files_app_only_folders_desc">Créer des dossiers visibles uniquement dans NekoVideo</string>
+    <string name="files_confirm_delete">Confirmer la Suppression</string>
+    <string name="files_confirm_delete_desc">Demander confirmation avant de supprimer des fichiers</string>
+
+    <!-- Performance Settings Screen -->
+    <string name="performance_cache">Cache</string>
+    <string name="performance_thumbnail_cache">Cache des Vignettes</string>
+    <string name="performance_thumbnail_cache_desc">Espace réservé pour les vignettes</string>
+
+    <!-- About Settings Screen -->
+    <string name="about_information">Informations</string>
+    <string name="about_app_version">Version de l\'App</string>
+    <string name="about_source_code">Code Source</string>
+    <string name="about_source_code_desc">Voir sur GitHub</string>
+    <string name="about_report_bug">Signaler un Bug</string>
+    <string name="about_report_bug_desc">Signaler des problèmes ou des suggestions</string>
+
+    <!-- Dialogs -->
+    <!-- Rename Dialog -->
+    <string name="rename_files">Renommer les Fichiers</string>
+    <string name="renaming_files">Renommage des Fichiers</string>
+    <string name="renaming_progress">Renommage du fichier %1$d sur %2$d</string>
+    <string name="base_name">Nom de Base</string>
+    <string name="start_number">Numéro de Début</string>
+    <string name="rename">Renommer</string>
+
+    <!-- Create Folder Dialog -->
+    <string name="create_new_folder">Créer un Nouveau Dossier</string>
+    <string name="creating_folder">Création du dossier...</string>
+    <string name="folder_name">Nom du Dossier</string>
+    <string name="folder_name_empty_error">Le nom du dossier ne peut pas être vide</string>
+    <string name="create">Créer</string>
+
+    <!-- Password Dialog -->
+    <string name="set_secure_password">Définir le Mot de Passe du Dossier Sécurisé</string>
+    <string name="enter_password">Entrer le Mot de Passe</string>
+    <string name="processing">Traitement...</string>
+    <string name="password">Mot de Passe</string>
+    <string name="confirm_password">Confirmer le Mot de Passe</string>
+    <string name="password_empty_error">Le mot de passe ne peut pas être vide</string>
+    <string name="passwords_no_match_error">Les mots de passe ne correspondent pas</string>
+    <string name="invalid_password_error">Mot de passe invalide</string>
+    <string name="set_password">Définir le Mot de Passe</string>
+    <string name="verify">Vérifier</string>
+
+    <!-- Delete Confirmation Dialog -->
+    <string name="confirm_deletion">Confirmer la Suppression</string>
+    <string name="delete_confirmation_message">Êtes-vous sûr de vouloir supprimer %d élément(s) ? Cette action ne peut pas être annulée.</string>
+    <string name="delete">Supprimer</string>
+
+    <!-- Common -->
+    <string name="cancel">Annuler</string>
+
+    <!-- Sort Options -->
+    <string name="sort_name_asc">Nom A-Z</string>
+    <string name="sort_name_desc">Nom Z-A</string>
+    <string name="sort_date_newest">Plus Récent</string>
+    <string name="sort_date_oldest">Plus Ancien</string>
+    <string name="sort_size_largest">Plus Grand</string>
+    <string name="sort_size_smallest">Plus Petit</string>
+
+    <!-- Player Delete Dialog -->
+    <string name="delete_video">Supprimer la Vidéo</string>
+    <string name="delete_video_confirmation">Êtes-vous sûr de vouloir supprimer \"%1$s\" ?\n\nCette action ne peut pas être annulée.</string>
+
+    <!-- ADICIONAR plurals corretos -->
+    <plurals name="items_selected">
+        <item quantity="one">%d élément sélectionné</item>
+        <item quantity="other">%d éléments sélectionnés</item>
+    </plurals>
+
+    <!-- Plurals for item counting -->
+    <plurals name="move_items_count">
+        <item quantity="one">Déplacer %d élément</item>
+        <item quantity="other">Déplacer %d éléments</item>
+    </plurals>
+
+    <plurals name="moving_items_status">
+        <item quantity="one">Déplacement de %d élément</item>
+        <item quantity="other">Déplacement de %d éléments</item>
+    </plurals>
+</resources>

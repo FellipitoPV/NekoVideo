@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Button actions -->
+    <string name="action_paste_here">यहाँ पेस्ट करें</string>
+    <string name="action_cancel">रद्द करें</string>
+    <string name="action_cancel_operation">ऑपरेशन रद्द करें</string>
+    <string name="action_unlock">अनलॉक करें</string>
+    <string name="action_protect">सुरक्षित करें</string>
+    <string name="action_unprivatize">सार्वजनिक बनाएं</string>
+    <string name="action_privatize">निजी बनाएं</string>
+    <string name="action_delete">डिलीट करें</string>
+    <string name="action_rename">नाम बदलें</string>
+    <string name="action_move">स्थानांतरित करें</string>
+    <string name="action_shuffle_play">शफल</string>
+    <string name="action_create_folder">नया फोल्डर</string>
+    <string name="action_settings">सेटिंग्स</string>
+
+    <string name="no_videos_found">कोई वीडियो नहीं मिला</string>
+
+    <!-- Content descriptions -->
+    <string name="cancel_description">रद्द करें</string>
+    <string name="paste_here_description">यहाँ पेस्ट करें</string>
+    <string name="actions_description">कार्य</string>
+    <string name="options_description">विकल्प</string>
+
+    <string name="loading">लोड हो रहा है...</string>
+    <string name="updating_index">इंडेक्स अपडेट हो रहा है...</string>
+    <string name="indexing_videos">वीडियो इंडेक्स हो रहे हैं...</string>
+
+    <!-- Bottom sheet headers -->
+    <string name="mode_move_files">मोड: फाइलें स्थानांतरित करें</string>
+    <string name="item_actions">आइटम कार्य</string>
+    <string name="options">विकल्प</string>
+    <string name="navigate_to_destination">गंतव्य पर जाएं और फाइलें पेस्ट करें</string>
+
+    <!-- Interface Settings -->
+    <string name="settings_appearance">दिखावट</string>
+    <string name="settings_language">भाषा</string>
+    <string name="settings_dark_mode">डार्क मोड</string>
+    <string name="settings_dark_mode_desc">इंटरफ़ेस का दिखावट</string>
+    <string name="settings_app_language">ऐप की भाषा</string>
+    <string name="settings_app_language_desc">इंटरफ़ेस की भाषा</string>
+
+    <!-- Rename dialogs -->
+    <string name="rename_item">आइटम का नाम बदलें</string>
+    <string name="renaming_item">आइटम का नाम बदला जा रहा है...</string>
+    <string name="new_name">नया नाम</string>
+    <string name="rename_multiple_items">कई आइटमों का नाम बदलें</string>
+    <string name="selected_items_count">%d आइटम चुने गए</string>
+
+    <!-- Permissions -->
+    <string name="permission_title">फाइल एक्सेस की आवश्यकता</string>
+    <string name="permission_description">सही तरीके से काम करने के लिए, इस ऐप को आपके डिवाइस की सभी फाइलों तक पहुंच चाहिए। यह आपको अपने वीडियो ब्राउज़ करने और चलाने की अनुमति देता है।</string>
+    <string name="permission_button">फाइल एक्सेस की अनुमति दें</string>
+    <string name="permission_instructions">ऊपर दिए गए बटन पर टैप करें और सिस्टम सेटिंग्स में \'सभी फाइलों को मैनेज करने की एक्सेस की अनुमति दें\' को सक्षम करें।</string>
+
+    <!-- Pull to Refresh Tutorial -->
+    <string name="pull_to_refresh_title">रिफ्रेश करने के लिए नीचे खींचें</string>
+    <string name="pull_to_refresh_description">अपने वीडियो को मैन्युअल रूप से अपडेट करने के लिए इस क्षेत्र को नीचे खींचें</string>
+    <string name="updating_videos">वीडियो अपडेट हो रहे हैं...</string>
+    <string name="pull_to_refresh">रिफ्रेश करने के लिए खींचें</string>
+    <string name="release_to_refresh">रिफ्रेश करने के लिए छोड़ें</string>
+    <string name="pull_to_refresh_empty">वीडियो इंडेक्स को रिफ्रेश करने के लिए नीचे खींचें</string>
+
+    <!-- Themes -->
+    <string name="theme_light">लाइट</string>
+    <string name="theme_dark">डार्क</string>
+    <string name="theme_system">सिस्टम का अनुसरण करें</string>
+
+    <!-- Languages -->
+    <string name="language_system">सिस्टम का अनुसरण करें</string>
+    <string name="language_portuguese">Português (Brasil)</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+    <string name="language_french">Français</string>
+    <string name="language_german">Deutsch</string>
+    <string name="language_russian">Русский</string>
+    <string name="language_hindi">हिन्दी</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_playback">प्लेबैक</string>
+    <string name="settings_playback_desc">प्लेबैक कंट्रोल्स और प्लेयर व्यवहार</string>
+    <string name="settings_interface">इंटरफ़ेस</string>
+    <string name="settings_interface_desc">ऐप की दिखावट और थीम</string>
+    <string name="settings_display">डिस्प्ले</string>
+    <string name="settings_display_desc">थंबनेल, ग्रिड और जानकारी डिस्प्ले</string>
+    <string name="settings_files">फाइलें</string>
+    <string name="settings_files_desc">फोल्डर और फाइल प्रबंधन</string>
+    <string name="settings_performance">परफॉर्मेंस</string>
+    <string name="settings_performance_desc">कैश और परफॉर्मेंस ऑप्टिमाइज़ेशन</string>
+    <string name="settings_about">के बारे में</string>
+    <string name="settings_about_desc">ऐप की जानकारी और सहायता</string>
+
+    <!-- TopAppBar -->
+    <string name="settings_title">सेटिंग्स</string>
+    <string name="playback_title">प्लेबैक</string>
+    <string name="interface_title">इंटरफ़ेस</string>
+    <string name="about_title">के बारे में</string>
+    <string name="cancel_selection">चयन रद्द करें</string>
+    <string name="back">वापस</string>
+    <string name="select_all">सभी चुनें</string>
+
+    <!-- Playback Settings Screen -->
+    <string name="playback_controls">कंट्रोल्स</string>
+    <string name="playback_features">फीचर्स</string>
+
+    <string name="playback_auto_hide_controls">कंट्रोल्स को ऑटो छुपाएं</string>
+    <string name="playback_auto_hide_controls_desc">प्लेबैक के दौरान स्वचालित रूप से छुपाएं</string>
+    <string name="playback_double_tap_seek">डबल टैप सीक</string>
+    <string name="playback_double_tap_seek_desc">आगे/पीछे जाने के लिए सेकंड</string>
+    <string name="playback_keep_screen_on">स्क्रीन चालू रखें</string>
+    <string name="playback_keep_screen_on_desc">प्लेबैक के दौरान स्क्रीन बंद न करें</string>
+    <string name="playback_pip">पिक्चर इन पिक्चर</string>
+    <string name="playback_pip_desc">फ्लोटिंग विंडो में प्लेबैक जारी रखें</string>
+
+    <!-- Display Settings Screen -->
+    <string name="display_video_info">वीडियो जानकारी</string>
+    <string name="display_show_thumbnails">थंबनेल दिखाएं</string>
+    <string name="display_show_thumbnails_desc">वीडियो थंबनेल दिखाएं</string>
+    <string name="display_show_durations">अवधि दिखाएं</string>
+    <string name="display_show_durations_desc">वीडियो की अवधि दिखाएं</string>
+    <string name="display_show_file_sizes">फाइल साइज़ दिखाएं</string>
+    <string name="display_show_file_sizes_desc">फाइलों का साइज़ दिखाएं</string>
+    <string name="display_layout">लेआउट</string>
+    <string name="display_grid_columns">ग्रिड कॉलम</string>
+    <string name="display_grid_columns_desc">सूची में कॉलम की संख्या</string>
+    <string name="display_quality">गुणवत्ता</string>
+    <string name="display_thumbnail_quality">थंबनेल रिज़ॉल्यूशन</string>
+    <string name="display_thumbnail_quality_desc">जेनरेट किए गए थंबनेल की गुणवत्ता</string>
+
+    <!-- Quality Options -->
+    <string name="quality_low">कम (360p)</string>
+    <string name="quality_medium">मध्यम (720p)</string>
+    <string name="quality_high">उच्च (1080p)</string>
+    <string name="quality_original">मूल</string>
+
+    <!-- Files Settings Screen -->
+    <string name="files_management">प्रबंधन</string>
+    <string name="files_app_only_folders">केवल-ऐप फोल्डर</string>
+    <string name="files_app_only_folders_desc">NekoVideo में केवल दिखाई देने वाले फोल्डर बनाएं</string>
+    <string name="files_confirm_delete">डिलीट की पुष्टि करें</string>
+    <string name="files_confirm_delete_desc">फाइलें डिलीट करने से पहले पुष्टि मांगें</string>
+
+    <!-- Performance Settings Screen -->
+    <string name="performance_cache">कैश</string>
+    <string name="performance_thumbnail_cache">थंबनेल कैश</string>
+    <string name="performance_thumbnail_cache_desc">थंबनेल के लिए आरक्षित स्थान</string>
+
+    <!-- About Settings Screen -->
+    <string name="about_information">जानकारी</string>
+    <string name="about_app_version">ऐप वर्जन</string>
+    <string name="about_source_code">सोर्स कोड</string>
+    <string name="about_source_code_desc">GitHub पर देखें</string>
+    <string name="about_report_bug">बग रिपोर्ट करें</string>
+    <string name="about_report_bug_desc">समस्याओं या सुझावों की रिपोर्ट करें</string>
+
+    <!-- Dialogs -->
+    <!-- Rename Dialog -->
+    <string name="rename_files">फाइलों का नाम बदलें</string>
+    <string name="renaming_files">फाइलों का नाम बदला जा रहा है</string>
+    <string name="renaming_progress">फाइल %1$d में से %2$d का नाम बदला जा रहा है</string>
+    <string name="base_name">बेस नाम</string>
+    <string name="start_number">शुरुआती नंबर</string>
+    <string name="rename">नाम बदलें</string>
+
+    <!-- Create Folder Dialog -->
+    <string name="create_new_folder">नया फोल्डर बनाएं</string>
+    <string name="creating_folder">फोल्डर बनाया जा रहा है...</string>
+    <string name="folder_name">फोल्डर का नाम</string>
+    <string name="folder_name_empty_error">फोल्डर का नाम खाली नहीं हो सकता</string>
+    <string name="create">बनाएं</string>
+
+    <!-- Password Dialog -->
+    <string name="set_secure_password">सुरक्षित फोल्डर पासवर्ड सेट करें</string>
+    <string name="enter_password">पासवर्ड डालें</string>
+    <string name="processing">प्रोसेसिंग...</string>
+    <string name="password">पासवर्ड</string>
+    <string name="confirm_password">पासवर्ड की पुष्टि करें</string>
+    <string name="password_empty_error">पासवर्ड खाली नहीं हो सकता</string>
+    <string name="passwords_no_match_error">पासवर्ड मेल नहीं खाते</string>
+    <string name="invalid_password_error">गलत पासवर्ड</string>
+    <string name="set_password">पासवर्ड सेट करें</string>
+    <string name="verify">सत्यापित करें</string>
+
+    <!-- Delete Confirmation Dialog -->
+    <string name="confirm_deletion">डिलीट की पुष्टि करें</string>
+    <string name="delete_confirmation_message">क्या आप वाकई %d आइटम डिलीट करना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।</string>
+    <string name="delete">डिलीट करें</string>
+
+    <!-- Common -->
+    <string name="cancel">रद्द करें</string>
+
+    <!-- Sort Options -->
+    <string name="sort_name_asc">नाम A-Z</string>
+    <string name="sort_name_desc">नाम Z-A</string>
+    <string name="sort_date_newest">नवीनतम</string>
+    <string name="sort_date_oldest">पुरानी</string>
+    <string name="sort_size_largest">बड़ी</string>
+    <string name="sort_size_smallest">छोटी</string>
+
+    <!-- Player Delete Dialog -->
+    <string name="delete_video">वीडियो डिलीट करें</string>
+    <string name="delete_video_confirmation">क्या आप वाकई \"%1$s\" को डिलीट करना चाहते हैं?\n\nयह क्रिया पूर्ववत नहीं की जा सकती।</string>
+
+    <!-- ADICIONAR plurals corretos -->
+    <plurals name="items_selected">
+        <item quantity="one">%d आइटम चुना गया</item>
+        <item quantity="other">%d आइटम चुने गए</item>
+    </plurals>
+
+    <!-- Plurals for item counting -->
+    <plurals name="move_items_count">
+        <item quantity="one">%d आइटम स्थानांतरित करें</item>
+        <item quantity="other">%d आइटम स्थानांतरित करें</item>
+    </plurals>
+
+    <plurals name="moving_items_status">
+        <item quantity="one">%d आइटम स्थानांतरित हो रहा है</item>
+        <item quantity="other">%d आइटम स्थानांतरित हो रहे हैं</item>
+    </plurals>
+</resources>

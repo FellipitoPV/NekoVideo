@@ -238,7 +238,10 @@ fun InterfaceSettingsScreen(themeManager: ThemeManager) {
         "pt" to stringResource(R.string.language_portuguese),
         "en" to stringResource(R.string.language_english),
         "es" to stringResource(R.string.language_spanish),
-        "fr" to stringResource(R.string.language_french)
+        "fr" to stringResource(R.string.language_french),
+        "de" to stringResource(R.string.language_german),
+        "ru" to stringResource(R.string.language_russian),
+        "hi" to stringResource(R.string.language_hindi)
     )
 
     LazyColumn(
@@ -467,17 +470,17 @@ fun AboutSettingsScreen() {
             )
         }
 
-        item {
-            SettingsClickableItem(
-                icon = Icons.Default.Code,
-                title = stringResource(R.string.about_source_code),
-                subtitle = stringResource(R.string.about_source_code_desc),
-                onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/FellipitoPV/NekoVideo"))
-                    context.startActivity(intent)
-                }
-            )
-        }
+//        item {
+//            SettingsClickableItem(
+//                icon = Icons.Default.Code,
+//                title = stringResource(R.string.about_source_code),
+//                subtitle = stringResource(R.string.about_source_code_desc),
+//                onClick = {
+//                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/FellipitoPV/NekoVideo"))
+//                    context.startActivity(intent)
+//                }
+//            )
+//        }
 
         item {
             SettingsClickableItem(
@@ -498,7 +501,7 @@ fun AboutSettingsScreen() {
             """.trimIndent()
 
                     // Método 1: Tenta com mailto direto
-                    val mailtoUri = Uri.parse("mailto:suporte@seuapp.com?subject=${Uri.encode("Bug Report - ${context.getString(R.string.app_name)}")}&body=${Uri.encode(emailBody)}")
+                    val mailtoUri = Uri.parse("mailto:nklssuport@gmail.com\n?subject=${Uri.encode("Bug Report - ${context.getString(R.string.app_name)}")}&body=${Uri.encode(emailBody)}")
                     val mailtoIntent = Intent(Intent.ACTION_VIEW, mailtoUri)
 
                     Log.d("EmailIntent", "Tentando mailto direto...")
