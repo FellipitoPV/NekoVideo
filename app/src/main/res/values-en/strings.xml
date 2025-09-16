@@ -16,6 +16,15 @@
     <string name="action_settings">Settings</string>
 
     <string name="no_videos_found">No videos found</string>
+    <string name="secure_folders_hidden">Secure folders hidden</string>
+    <string name="secure_folders_shown">Secure folders displayed</string>
+    <string name="select_private_folders_to_unprivatize">Select private folders to unprivatize</string>
+    <string name="select_valid_folders_to_privatize">Select valid folders to privatize</string>
+    <string name="move_mode_activated">Move mode activated. Navigate to destination and paste.</string>
+    <string name="move_operation_cancelled">Move operation cancelled</string>
+    <string name="items_moved">Items moved!</string>
+    <string name="files_secured">Files secured!</string>
+    <string name="folder_created">Folder created</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Cancel</string>

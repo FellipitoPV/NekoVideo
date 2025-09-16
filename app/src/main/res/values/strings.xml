@@ -17,8 +17,17 @@
     <string name="action_settings">Configurações</string>
 
     <string name="no_videos_found">Nenhum vídeo encontrado</string>
+    <string name="secure_folders_hidden">Pastas seguras ocultadas</string>
+    <string name="secure_folders_shown">Pastas seguras exibidas</string>
+    <string name="select_private_folders_to_unprivatize">Selecione pastas privadas para desprivar</string>
+    <string name="select_valid_folders_to_privatize">Selecione pastas válidas para privar</string>
+    <string name="move_mode_activated">Modo mover ativado. Navegue até o destino e cole.</string>
+    <string name="move_operation_cancelled">Operação de mover cancelada</string>
+    <string name="items_moved">Itens movidos!</string>
+    <string name="files_secured">Arquivos protegidos!</string>
+    <string name="folder_created">Pasta criada</string>
 
-        <!-- Content descriptions -->
+    <!-- Content descriptions -->
     <string name="cancel_description">Cancelar</string>
     <string name="paste_here_description">Colar aqui</string>
     <string name="actions_description">Ações</string>

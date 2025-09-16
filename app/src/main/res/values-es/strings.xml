@@ -16,6 +16,15 @@
     <string name="action_settings">Configuración</string>
 
     <string name="no_videos_found">No se encontraron videos</string>
+    <string name="secure_folders_hidden">Carpetas seguras ocultas</string>
+    <string name="secure_folders_shown">Carpetas seguras mostradas</string>
+    <string name="select_private_folders_to_unprivatize">Selecciona carpetas privadas para desprivatizar</string>
+    <string name="select_valid_folders_to_privatize">Selecciona carpetas válidas para privatizar</string>
+    <string name="move_mode_activated">Modo mover activado. Navega al destino y pega.</string>
+    <string name="move_operation_cancelled">Operación de mover cancelada</string>
+    <string name="items_moved">¡Elementos movidos!</string>
+    <string name="files_secured">¡Archivos asegurados!</string>
+    <string name="folder_created">Carpeta creada</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Cancelar</string>

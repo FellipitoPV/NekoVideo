@@ -16,6 +16,15 @@
     <string name="action_settings">Paramètres</string>
 
     <string name="no_videos_found">Aucune vidéo trouvée</string>
+    <string name="secure_folders_hidden">Dossiers sécurisés masqués</string>
+    <string name="secure_folders_shown">Dossiers sécurisés affichés</string>
+    <string name="select_private_folders_to_unprivatize">Sélectionner des dossiers privés à déprivatiser</string>
+    <string name="select_valid_folders_to_privatize">Sélectionner des dossiers valides à privatiser</string>
+    <string name="move_mode_activated">Mode déplacement activé. Naviguez vers la destination et collez.</string>
+    <string name="move_operation_cancelled">Opération de déplacement annulée</string>
+    <string name="items_moved">Éléments déplacés!</string>
+    <string name="files_secured">Fichiers sécurisés!</string>
+    <string name="folder_created">Dossier créé</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Annuler</string>

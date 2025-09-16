@@ -567,4 +567,52 @@ object FilesManager {
             return digest.digest(keyString.toByteArray(Charsets.UTF_8)).copyOf(16)
         }
     }
+
+    object SecureFoldersVisibility {
+        private const val PREF_SHOW_SECURE_FOLDERS = "show_secure_folders"
+
+        /**
+         * Mostra/esconde as pastas seguras
+         */
+        fun setSecureFoldersVisible(context: Context, visible: Boolean) {
+            val prefs = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            prefs.edit().putBoolean(PREF_SHOW_SECURE_FOLDERS, visible).apply()
+        }
+
+        /**
+         * Verifica se as pastas seguras estão visíveis
+         */
+        fun areSecureFoldersVisible(context: Context): Boolean {
+            val prefs = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            return prefs.getBoolean(PREF_SHOW_SECURE_FOLDERS, false)
+        }
+
+        /**
+         * Alterna a visibilidade das pastas seguras
+         */
+        fun toggleSecureFoldersVisibility(context: Context): Boolean {
+            val currentState = areSecureFoldersVisible(context)
+            val newState = !currentState
+            setSecureFoldersVisible(context, newState)
+            return newState
+        }
+
+        /**
+         * Esconde as pastas seguras
+         */
+        fun hideSecureFolders(context: Context) {
+            setSecureFoldersVisible(context, false)
+        }
+
+        /**
+         * Mostra as pastas seguras (após validação de senha)
+         */
+        fun showSecureFolders(context: Context) {
+            setSecureFoldersVisible(context, true)
+        }
+
+        fun resetOnAppStart(context: Context) {
+            setSecureFoldersVisible(context, false)
+        }
+    }
 }

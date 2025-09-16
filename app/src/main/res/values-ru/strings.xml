@@ -16,6 +16,15 @@
     <string name="action_settings">Настройки</string>
 
     <string name="no_videos_found">Видео не найдены</string>
+    <string name="secure_folders_hidden">Защищённые папки скрыты</string>
+    <string name="secure_folders_shown">Защищённые папки отображены</string>
+    <string name="select_private_folders_to_unprivatize">Выберите приватные папки для отмены приватности</string>
+    <string name="select_valid_folders_to_privatize">Выберите подходящие папки для приватности</string>
+    <string name="move_mode_activated">Режим перемещения активирован. Перейдите к назначению и вставьте.</string>
+    <string name="move_operation_cancelled">Операция перемещения отменена</string>
+    <string name="items_moved">Элементы перемещены!</string>
+    <string name="files_secured">Файлы защищены!</string>
+    <string name="folder_created">Папка создана</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Отмена</string>

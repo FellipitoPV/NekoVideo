@@ -16,6 +16,15 @@
     <string name="action_settings">Einstellungen</string>
 
     <string name="no_videos_found">Keine Videos gefunden</string>
+    <string name="secure_folders_hidden">Sichere Ordner ausgeblendet</string>
+    <string name="secure_folders_shown">Sichere Ordner angezeigt</string>
+    <string name="select_private_folders_to_unprivatize">Wählen Sie private Ordner zum Entprivatisieren aus</string>
+    <string name="select_valid_folders_to_privatize">Wählen Sie gültige Ordner zum Privatisieren aus</string>
+    <string name="move_mode_activated">Verschiebemodus aktiviert. Navigieren Sie zum Ziel und fügen Sie ein.</string>
+    <string name="move_operation_cancelled">Verschiebeoperation abgebrochen</string>
+    <string name="items_moved">Elemente verschoben!</string>
+    <string name="files_secured">Dateien gesichert!</string>
+    <string name="folder_created">Ordner erstellt</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Abbrechen</string>

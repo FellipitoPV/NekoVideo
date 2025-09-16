@@ -285,7 +285,7 @@ fun InterfaceSettingsScreen(themeManager: ThemeManager) {
                     LanguageManager.updateLanguage(context, newLanguage)
 
                     // ✅ TOAST SIMPLES EM INGLÊS
-                    Toast.makeText(context, "Language will be applied after app restart", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Language will be applied after app restart", Toast.LENGTH_LONG).show()
                 }
             )
         }

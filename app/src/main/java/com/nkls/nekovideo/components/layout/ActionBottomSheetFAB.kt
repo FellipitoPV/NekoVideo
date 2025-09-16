@@ -100,7 +100,7 @@ fun ActionBottomSheetFAB(
     }
 
     // Define as ações baseado no contexto
-    val actions = remember(hasSelectedItems, isSecureMode, hasPrivateFolders, hasNormalFolders, isMoveMode, moveItemsText) {
+    val actions = remember(hasSelectedItems, isSecureMode, hasPrivateFolders, hasNormalFolders, isMoveMode, moveItemsText, isRootDirectory) {
         when {
             isMoveMode -> {
                 listOf(
@@ -138,7 +138,9 @@ fun ActionBottomSheetFAB(
                         ActionType.SHUFFLE_PLAY,
                         Icons.Default.Shuffle,
                         shufflePlayText,
-                        isEnabled = !isRootDirectory
+                        isEnabled = !isRootDirectory.also {
+                            println("isRootDirectory: $isRootDirectory, isEnabled: ${!isRootDirectory}")
+                        }
                     ),
                     ActionItem(ActionType.CREATE_FOLDER, Icons.Default.CreateNewFolder, createFolderText),
                     ActionItem(ActionType.SETTINGS, Icons.Default.Settings, settingsText)

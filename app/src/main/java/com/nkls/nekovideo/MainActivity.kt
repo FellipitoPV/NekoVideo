@@ -188,6 +188,7 @@ class MainActivity : ComponentActivity() {
         }
 
         enableEdgeToEdge()
+        FilesManager.SecureFoldersVisibility.resetOnAppStart(this)
 
         // PROCESSAR intent inicial
         handleNotificationIntent(intent)
@@ -336,7 +337,14 @@ fun MainScreen(
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route?.substringBefore("/{folderPath}")?.substringBefore("/{playlist}")
-    val folderPath = currentBackStackEntry?.arguments?.getString("folderPath")?.let { Uri.decode(it) } ?: ""
+    val folderPath = remember(currentBackStackEntry) {
+        val encodedPath = currentBackStackEntry?.arguments?.getString("folderPath") ?: ""
+        if (encodedPath == "root") {
+            android.os.Environment.getExternalStorageDirectory().absolutePath
+        } else {
+            Uri.decode(encodedPath)
+        }
+    }
     val selectedItems = remember { mutableStateListOf<String>() }
     var showFabMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
@@ -349,7 +357,9 @@ fun MainScreen(
     var deletedVideoPath by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
-    var showPrivateFolders by remember { mutableStateOf(false) }
+    var showPrivateFolders by remember {
+        mutableStateOf(FilesManager.SecureFoldersVisibility.areSecureFoldersVisible(context))
+    }
 
     var isMoveMode by remember { mutableStateOf(false) }
     var itemsToMove by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -367,10 +377,22 @@ fun MainScreen(
                 File(folderPath, ".nomedia").exists()
     }
 
-    fun isAtRootLevel(path: String): Boolean {
+    fun togglePrivateFolders() {
+        val newState = FilesManager.SecureFoldersVisibility.toggleSecureFoldersVisibility(context)
+        showPrivateFolders = newState
+        renameTrigger++
+    }
+
+    val isAtRootLevel = remember(folderPath) {
         val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
-        val encodedFolderPath = currentBackStackEntry?.arguments?.getString("folderPath") ?: ""
-        return encodedFolderPath == "root" || path == rootPath
+
+        Log.d("RootLevel", "=== VERIFICAÇÃO ROOT ===")
+        Log.d("RootLevel", "Root base: $rootPath")
+        Log.d("RootLevel", "Folder atual: $folderPath")
+        Log.d("RootLevel", "São iguais: ${folderPath == rootPath}")
+        Log.d("RootLevel", "========================")
+
+        folderPath == rootPath
     }
 
     fun performRefresh() {
@@ -624,10 +646,22 @@ fun MainScreen(
             onDismiss = { showPasswordDialog = false },
             onPasswordVerified = {
                 val encodedFolderPath = currentBackStackEntry?.arguments?.getString("folderPath") ?: ""
-                val isAtRoot = encodedFolderPath == "root" || isAtRootLevel(folderPath)
+                val isAtRoot = encodedFolderPath == "root" || isAtRootLevel
 
                 if (isAtRoot) {
-                    showPrivateFolders = !showPrivateFolders
+                    // ✅ MODIFICADO: Usar as funções do FilesManager
+                    if (showPrivateFolders) {
+                        // Se já estão visíveis, esconder
+                        FilesManager.SecureFoldersVisibility.hideSecureFolders(context)
+                        showPrivateFolders = false
+                        Toast.makeText(context, context.getString(R.string.secure_folders_hidden), Toast.LENGTH_SHORT).show()
+
+                    } else {
+                        // Se não estão visíveis, mostrar
+                        FilesManager.SecureFoldersVisibility.showSecureFolders(context)
+                        showPrivateFolders = true
+                        Toast.makeText(context, context.getString(R.string.secure_folders_shown), Toast.LENGTH_SHORT).show()
+                    }
                     renameTrigger++
                 } else {
                     val securePath = FilesManager.SecureStorage.getSecureFolderPath(context)
@@ -648,7 +682,7 @@ fun MainScreen(
             onDismiss = { showCreateFolderDialog = false },
             onFolderCreated = {
                 renameTrigger++
-                Toast.makeText(context, "Folder created", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.folder_created), Toast.LENGTH_SHORT).show()
             },
             onRefresh = ::performRefresh
         )
@@ -716,7 +750,17 @@ fun MainScreen(
                     context = context,
                     navController = navController,
                     showPrivateFolders = showPrivateFolders,
-                    onPasswordDialog = { showPasswordDialog = true },
+                    onPasswordDialog = {
+                        // ✅ MODIFICADO: Lógica do triple tap
+                        if (showPrivateFolders) {
+                            // Se já estiver visível, esconde diretamente
+                            togglePrivateFolders()
+                            Toast.makeText(context, context.getString(R.string.secure_folders_hidden), Toast.LENGTH_SHORT).show()
+                        } else {
+                            // Se não estiver visível, abre diálogo de senha
+                            showPasswordDialog = true
+                        }
+                    },
                     onSelectionClear = {
                         selectedItems.clear()
                         showFabMenu = false
@@ -725,7 +769,7 @@ fun MainScreen(
                     onSelectAll = {
                         if (currentRoute == "folder") {
                             val isSecure = isSecureFolder(folderPath)
-                            val isRoot = isAtRootLevel(folderPath)
+                            val isRoot = isAtRootLevel
 
                             val allItems = loadFolderContent(
                                 context = context,
@@ -748,7 +792,7 @@ fun MainScreen(
                     hasSelectedItems = selectedItems.isNotEmpty(),
                     isMoveMode = isMoveMode,
                     isSecureMode = isSecureFolder(folderPath),
-                    isRootDirectory = isAtRootLevel(folderPath),
+                    isRootDirectory = isAtRootLevel,
                     selectedItems = selectedItems.toList(),
                     itemsToMoveCount = itemsToMove.size,
                     onActionClick = { action ->
@@ -771,7 +815,7 @@ fun MainScreen(
                                             },
                                             onSuccess = { message ->
                                                 launch(Dispatchers.Main) {
-                                                    Toast.makeText(context, "Files unlocked!", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, context.getString(R.string.secure_folders_shown), Toast.LENGTH_SHORT).show()
                                                 }
                                                 selectedItems.clear()
                                                 renameTrigger++
@@ -796,7 +840,7 @@ fun MainScreen(
                                             },
                                             onSuccess = { message ->
                                                 launch(Dispatchers.Main) {
-                                                    Toast.makeText(context, "Files secured!", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, context.getString(R.string.files_secured), Toast.LENGTH_SHORT).show()
                                                 }
                                                 selectedItems.clear()
                                                 renameTrigger++
@@ -835,7 +879,7 @@ fun MainScreen(
                                         }
                                     } else {
                                         launch(Dispatchers.Main) {
-                                            Toast.makeText(context, "Selecione pastas válidas para privar", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, context.getString(R.string.select_valid_folders_to_privatize), Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }
@@ -869,7 +913,7 @@ fun MainScreen(
                                         }
                                     } else {
                                         launch(Dispatchers.Main) {
-                                            Toast.makeText(context, "Selecione pastas privadas para desprivar", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, context.getString(R.string.select_private_folders_to_unprivatize), Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }
@@ -880,12 +924,12 @@ fun MainScreen(
                                 itemsToMove = selectedItems.toList()
                                 selectedItems.clear()
                                 isMoveMode = true
-                                Toast.makeText(context, "Modo mover ativado. Navegue até o destino e cole.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.move_mode_activated), Toast.LENGTH_SHORT).show()
                             }
                             ActionType.CANCEL_MOVE -> {
                                 isMoveMode = false
                                 itemsToMove = emptyList()
-                                Toast.makeText(context, "Operação de mover cancelada", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.move_operation_cancelled), Toast.LENGTH_SHORT).show()
                             }
                             ActionType.SHUFFLE_PLAY -> {
                                 coroutineScope.launch {
@@ -922,7 +966,7 @@ fun MainScreen(
                                         },
                                         onSuccess = { message ->
                                             launch(Dispatchers.Main) {
-                                                Toast.makeText(context, "Items moved!", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, context.getString(R.string.items_moved), Toast.LENGTH_SHORT).show()
                                             }
                                             itemsToMove = emptyList()
                                             isMoveMode = false
@@ -985,10 +1029,13 @@ fun MainScreen(
                 composable("folder/{folderPath}") { backStackEntry ->
                     val encodedFolderPath = backStackEntry.arguments?.getString("folderPath") ?: "root"
 
-                    val folderPath = if (encodedFolderPath == "root") {
-                        android.os.Environment.getExternalStorageDirectory().absolutePath
-                    } else {
-                        Uri.decode(encodedFolderPath)
+                    val folderPath = remember(currentBackStackEntry) {
+                        val encodedPath = currentBackStackEntry?.arguments?.getString("folderPath") ?: ""
+                        if (encodedPath == "root") {
+                            android.os.Environment.getExternalStorageDirectory().absolutePath
+                        } else {
+                            Uri.decode(encodedPath)
+                        }
                     }
 
                     val isSecure = isSecureFolder(folderPath)

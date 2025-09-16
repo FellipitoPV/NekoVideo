@@ -16,6 +16,15 @@
     <string name="action_settings">सेटिंग्स</string>
 
     <string name="no_videos_found">कोई वीडियो नहीं मिला</string>
+    <string name="secure_folders_hidden">सुरक्षित फ़ोल्डर छुपाए गए</string>
+    <string name="secure_folders_shown">सुरक्षित फ़ोल्डर प्रदर्शित</string>
+    <string name="select_private_folders_to_unprivatize">अनप्राइवेटाइज़ करने के लिए प्राइवेट फ़ोल्डर चुनें</string>
+    <string name="select_valid_folders_to_privatize">प्राइवेटाइज़ करने के लिए वैध फ़ोल्डर चुनें</string>
+    <string name="move_mode_activated">मूव मोड सक्रिय। गंतव्य पर जाएं और पेस्ट करें।</string>
+    <string name="move_operation_cancelled">मूव ऑपरेशन रद्द किया गया</string>
+    <string name="items_moved">आइटम मूव किए गए!</string>
+    <string name="files_secured">फ़ाइलें सुरक्षित!</string>
+    <string name="folder_created">फ़ोल्डर बनाया गया</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">रद्द करें</string>
