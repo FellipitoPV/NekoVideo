@@ -28,6 +28,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
+import com.google.android.gms.cast.MediaMetadata
+import com.google.android.gms.cast.framework.CastContext
+import com.google.android.gms.cast.framework.CastSession
+import com.google.android.gms.cast.framework.Session
+import com.google.android.gms.cast.framework.SessionManagerListener
+import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.nkls.nekovideo.MediaPlaybackService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -44,8 +50,12 @@ fun MiniPlayerImproved(
 ) {
     val context = LocalContext.current
 
-    // NOVA ABORDAGEM: Usar o MediaControllerManager singleton
+    // Estados locais
     val mediaController by MediaControllerManager.mediaController.collectAsStateWithLifecycle()
+
+    // Estados do Cast
+    var isCasting by remember { mutableStateOf(false) }
+    var remoteMediaClient by remember { mutableStateOf<RemoteMediaClient?>(null) }
 
     var isPlaying by remember { mutableStateOf(false) }
     var currentTitle by remember { mutableStateOf("") }
@@ -57,14 +67,14 @@ fun MiniPlayerImproved(
     var hasPrevious by remember { mutableStateOf(false) }
     var isExpanded by remember { mutableStateOf(false) }
 
-    // Cores do tema escuro
+    // Cores (manter as mesmas)
     val backgroundColor = Color(0xFF1A1A1A)
     val surfaceColor = Color(0xFF2D2D2D)
     val primaryColor = Color(0xFF6366F1)
     val onSurfaceColor = Color(0xFFE0E0E0)
     val onSurfaceVariant = Color(0xFFB0B0B0)
 
-    // Animações
+    // Animações (manter as mesmas)
     val expandedHeight by animateDpAsState(
         targetValue = if (isExpanded) 120.dp else 80.dp,
         animationSpec = tween(300)
@@ -75,87 +85,162 @@ fun MiniPlayerImproved(
         animationSpec = tween(200)
     )
 
-    // CORRIGIDO: Conectar apenas uma vez e cleanup adequado
-    DisposableEffect(Unit) {
-        MediaControllerManager.connect(context)
+    // Detectar sessão Cast
+    LaunchedEffect(Unit) {
+        val castContext = CastContext.getSharedInstance(context)
+        val sessionManager = castContext.sessionManager
 
-        onDispose {
-            // NÃO desconecta aqui pois pode ser usado por outros componentes
-            // O cleanup será feito no MainActivity.onDestroy()
+        val listener = object : SessionManagerListener<Session> {
+            override fun onSessionStarted(session: Session, sessionId: String) {
+                isCasting = true
+                remoteMediaClient = (session as? CastSession)?.remoteMediaClient
+            }
+
+            override fun onSessionEnded(session: Session, error: Int) {
+                isCasting = false
+                remoteMediaClient = null
+            }
+
+            override fun onSessionResumed(session: Session, wasSuspended: Boolean) {
+                isCasting = true
+                remoteMediaClient = (session as? CastSession)?.remoteMediaClient
+            }
+
+            override fun onSessionSuspended(session: Session, reason: Int) {}
+            override fun onSessionStarting(session: Session) {}
+            override fun onSessionEnding(session: Session) {}
+            override fun onSessionResuming(session: Session, sessionId: String) {}
+            override fun onSessionResumeFailed(session: Session, error: Int) {}
+            override fun onSessionStartFailed(session: Session, error: Int) {}
+        }
+
+        sessionManager.addSessionManagerListener(listener)
+
+        // Verificar se já há sessão ativa
+        sessionManager.currentCastSession?.let { session ->
+            isCasting = true
+            remoteMediaClient = session.remoteMediaClient
         }
     }
 
-    // Atualizar posição do vídeo
-    LaunchedEffect(mediaController, isPlaying) {
-        if (mediaController != null && isPlaying) {
-            while (isPlaying && mediaController != null) {
-                mediaController.let { controller ->
-                    if (controller != null) {
-                        currentPosition = controller.currentPosition
-                    }
-                    if (controller != null) {
-                        duration = controller.duration.takeIf { it > 0 } ?: 0L
+    // Atualizar posição - CAST ou LOCAL
+    LaunchedEffect(isCasting, remoteMediaClient, mediaController, isPlaying) {
+        while (isPlaying) {
+            if (isCasting && remoteMediaClient != null) {
+                // Dados do Cast
+                currentPosition = remoteMediaClient!!.approximateStreamPosition
+                duration = remoteMediaClient!!.streamDuration.takeIf { it > 0 } ?: 0L
+            } else if (!isCasting && mediaController != null) {
+                // Dados locais
+                currentPosition = mediaController!!.currentPosition
+                duration = mediaController!!.duration.takeIf { it > 0 } ?: 0L
+            }
+            delay(500)
+        }
+    }
+
+    // Listener do Cast
+    DisposableEffect(remoteMediaClient) {
+        val listener = remoteMediaClient?.let { client ->
+            object : RemoteMediaClient.Callback() {
+                override fun onStatusUpdated() {
+                    isPlaying = client.isPlaying
+                    currentPosition = client.approximateStreamPosition
+                    duration = client.streamDuration.takeIf { it > 0 } ?: 0L
+
+                    client.mediaStatus?.let { status ->
+                        val metadata = status.mediaInfo?.metadata
+                        currentTitle = metadata?.getString(MediaMetadata.KEY_TITLE) ?: "Casting..."
+
+                        val queueItems = status.queueItems
+                        val currentItemId = status.currentItemId
+                        val currentIndex = queueItems?.indexOfFirst { it.itemId == currentItemId } ?: -1
+
+                        hasNext = currentIndex >= 0 && currentIndex < (queueItems?.size ?: 0) - 1
+                        hasPrevious = currentIndex > 0
                     }
                 }
-                delay(100)
+
+                override fun onQueueStatusUpdated() {
+                    client.mediaStatus?.let { status ->
+                        val queueItems = status.queueItems
+                        val currentItemId = status.currentItemId
+                        val currentIndex = queueItems?.indexOfFirst { it.itemId == currentItemId } ?: -1
+
+                        hasNext = currentIndex >= 0 && currentIndex < (queueItems?.size ?: 0) - 1
+                        hasPrevious = currentIndex > 0
+                    }
+                }
+
+                override fun onMetadataUpdated() {}
+                override fun onPreloadStatusUpdated() {}
+                override fun onSendingRemoteMediaRequest() {}
             }
         }
+
+        listener?.let { remoteMediaClient?.registerCallback(it) }
+
+        onDispose {
+            listener?.let { remoteMediaClient?.unregisterCallback(it) }
+        }
     }
 
-    // CORRIGIDO: Monitorar mudanças no player com cleanup adequado
+    // Listener do player local
     LaunchedEffect(mediaController) {
-        mediaController?.let { controller ->
-            val listener = object : Player.Listener {
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    isPlaying = controller.isPlaying
-                }
+        if (!isCasting) {  // Só atualizar se NÃO estiver casting
+            mediaController?.let { controller ->
+                val listener = object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        isPlaying = controller.isPlaying
+                    }
 
-                override fun onIsPlayingChanged(playing: Boolean) {
-                    isPlaying = playing
-                }
+                    override fun onIsPlayingChanged(playing: Boolean) {
+                        isPlaying = playing
+                    }
 
-                override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
-                    mediaItem?.let { item ->
-                        currentTitle = item.mediaMetadata.title?.toString()
-                            ?: File(item.localConfiguration?.uri?.path ?: "").nameWithoutExtension
-                        currentUri = item.localConfiguration?.uri?.toString() ?: ""
+                    override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
+                        mediaItem?.let { item ->
+                            currentTitle = item.mediaMetadata.title?.toString()
+                                ?: File(item.localConfiguration?.uri?.path ?: "").nameWithoutExtension
+                            currentUri = item.localConfiguration?.uri?.toString() ?: ""
 
-                        hasNext = controller.hasNextMediaItem()
-                        hasPrevious = controller.hasPreviousMediaItem()
-                        currentPosition = controller.currentPosition
-                        duration = controller.duration.takeIf { it > 0 } ?: 0L
+                            hasNext = controller.hasNextMediaItem()
+                            hasPrevious = controller.hasPreviousMediaItem()
+                            currentPosition = controller.currentPosition
+                            duration = controller.duration.takeIf { it > 0 } ?: 0L
 
-                        if (currentUri.isNotEmpty()) {
-                            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                                val thumb = generateThumbnail(currentUri)
-                                withContext(Dispatchers.Main) {
-                                    thumbnail = thumb
+                            if (currentUri.isNotEmpty()) {
+                                kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                                    val thumb = generateThumbnail(currentUri)
+                                    withContext(Dispatchers.Main) {
+                                        thumbnail = thumb
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            controller.addListener(listener)
+                controller.addListener(listener)
 
-            // Estado inicial
-            isPlaying = controller.isPlaying
-            hasNext = controller.hasNextMediaItem()
-            hasPrevious = controller.hasPreviousMediaItem()
-            currentPosition = controller.currentPosition
-            duration = controller.duration.takeIf { it > 0 } ?: 0L
+                // Estado inicial
+                isPlaying = controller.isPlaying
+                hasNext = controller.hasNextMediaItem()
+                hasPrevious = controller.hasPreviousMediaItem()
+                currentPosition = controller.currentPosition
+                duration = controller.duration.takeIf { it > 0 } ?: 0L
 
-            controller.currentMediaItem?.let { item ->
-                currentTitle = item.mediaMetadata.title?.toString()
-                    ?: File(item.localConfiguration?.uri?.path ?: "").nameWithoutExtension
-                currentUri = item.localConfiguration?.uri?.toString() ?: ""
+                controller.currentMediaItem?.let { item ->
+                    currentTitle = item.mediaMetadata.title?.toString()
+                        ?: File(item.localConfiguration?.uri?.path ?: "").nameWithoutExtension
+                    currentUri = item.localConfiguration?.uri?.toString() ?: ""
 
-                if (currentUri.isNotEmpty()) {
-                    kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                        val thumb = generateThumbnail(currentUri)
-                        withContext(Dispatchers.Main) {
-                            thumbnail = thumb
+                    if (currentUri.isNotEmpty()) {
+                        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                            val thumb = generateThumbnail(currentUri)
+                            withContext(Dispatchers.Main) {
+                                thumbnail = thumb
+                            }
                         }
                     }
                 }
@@ -163,10 +248,22 @@ fun MiniPlayerImproved(
         }
     }
 
-    // Função para fechar o player
+// Conectar ao MediaController
+    DisposableEffect(Unit) {
+        MediaControllerManager.connect(context)
+        onDispose { }
+    }
+
+    // Função para fechar
     fun closePlayer() {
-        MediaPlaybackService.stopService(context)
-        // Reset local state
+        if (isCasting) {
+            CastContext.getSharedInstance(context)
+                .sessionManager
+                .endCurrentSession(true)
+        } else {
+            MediaPlaybackService.stopService(context)
+        }
+        // Reset states
         currentTitle = ""
         currentUri = ""
         thumbnail = null
@@ -178,8 +275,8 @@ fun MiniPlayerImproved(
         isExpanded = false
     }
 
-    // CORRIGIDO: Só mostrar se há mediaController E um vídeo carregado
-    if (mediaController != null && currentTitle.isNotEmpty()) {
+    // UI - Mostrar se há Cast OU MediaController
+    if ((isCasting && remoteMediaClient != null) || (mediaController != null && currentTitle.isNotEmpty())) {
         Card(
             modifier = modifier
                 .fillMaxWidth()
@@ -216,23 +313,38 @@ fun MiniPlayerImproved(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Thumbnail com animação
+                    // Thumbnail com ícone Cast quando casting
                     Box(
                         modifier = Modifier
                             .size(56.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(surfaceColor)
                     ) {
-                        thumbnail?.let { thumb ->
-                            Image(
-                                bitmap = thumb.asImageBitmap(),
-                                contentDescription = "Thumbnail",
+                        if (isCasting) {
+                            // Ícone Cast ao invés de thumbnail
+                            Box(
                                 modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Cast,
+                                    contentDescription = "Casting",
+                                    tint = Color(0xFF4CAF50),
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        } else {
+                            // Thumbnail normal
+                            thumbnail?.let { thumb ->
+                                Image(
+                                    bitmap = thumb.asImageBitmap(),
+                                    contentDescription = "Thumbnail",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
                         }
 
-                        // Overlay de play quando pausado
                         if (!isPlaying) {
                             Box(
                                 modifier = Modifier
@@ -252,7 +364,7 @@ fun MiniPlayerImproved(
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-                    // Título e informações
+// Título e informações
                     Column(
                         modifier = Modifier.weight(1f)
                     ) {
@@ -290,7 +402,7 @@ fun MiniPlayerImproved(
                         }
                     }
 
-                    // Controles compactos
+                    // Controles adaptados
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -298,7 +410,11 @@ fun MiniPlayerImproved(
                         // Previous
                         IconButton(
                             onClick = {
-                                mediaController?.let { if (it.hasPreviousMediaItem()) it.seekToPreviousMediaItem() }
+                                if (isCasting) {
+                                    remoteMediaClient?.queuePrev(null)
+                                } else {
+                                    mediaController?.let { if (it.hasPreviousMediaItem()) it.seekToPreviousMediaItem() }
+                                }
                             },
                             enabled = hasPrevious,
                             modifier = Modifier.size(36.dp)
@@ -311,11 +427,15 @@ fun MiniPlayerImproved(
                             )
                         }
 
-                        // Play/Pause com animação
+                        // Play/Pause
                         Surface(
                             onClick = {
-                                mediaController?.let {
-                                    if (it.isPlaying) it.pause() else it.play()
+                                if (isCasting) {
+                                    if (isPlaying) remoteMediaClient?.pause() else remoteMediaClient?.play()
+                                } else {
+                                    mediaController?.let {
+                                        if (it.isPlaying) it.pause() else it.play()
+                                    }
                                 }
                             },
                             modifier = Modifier
@@ -340,7 +460,11 @@ fun MiniPlayerImproved(
                         // Next
                         IconButton(
                             onClick = {
-                                mediaController?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() }
+                                if (isCasting) {
+                                    remoteMediaClient?.queueNext(null)
+                                } else {
+                                    mediaController?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() }
+                                }
                             },
                             enabled = hasNext,
                             modifier = Modifier.size(36.dp)
@@ -353,14 +477,14 @@ fun MiniPlayerImproved(
                             )
                         }
 
-                        // Botão de fechar
+                        // Close
                         IconButton(
                             onClick = { closePlayer() },
                             modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Close Player",
+                                contentDescription = "Close",
                                 tint = onSurfaceVariant,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -368,7 +492,7 @@ fun MiniPlayerImproved(
                     }
                 }
 
-                // Área expandida com controles extras
+                // Área expandida (mesmo código, mas adaptar seek)
                 AnimatedVisibility(
                     visible = isExpanded,
                     enter = fadeIn() + expandVertically(),
@@ -377,7 +501,6 @@ fun MiniPlayerImproved(
                     Column(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
-                        // Progress slider interativo
                         if (duration > 0) {
                             val sliderProgress = (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
 
@@ -385,7 +508,11 @@ fun MiniPlayerImproved(
                                 value = sliderProgress,
                                 onValueChange = { newProgress ->
                                     val newPosition = (newProgress * duration).toLong()
-                                    mediaController?.seekTo(newPosition)
+                                    if (isCasting) {
+                                        remoteMediaClient?.seek(newPosition)
+                                    } else {
+                                        mediaController?.seekTo(newPosition)
+                                    }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = SliderDefaults.colors(

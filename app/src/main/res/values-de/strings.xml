@@ -36,6 +36,12 @@
     <string name="updating_index">Index wird aktualisiert...</string>
     <string name="indexing_videos">Videos werden indexiert...</string>
 
+    <string name="searching_cast_devices">Suche nach Cast-Geräten...</string>
+    <string name="no_cast_devices_found">Keine Cast-Geräte gefunden</string>
+    <string name="available_devices">Verfügbare Geräte</string>
+    <string name="refresh">Aktualisieren</string>
+    <string name="select_cast_device">Cast-Gerät auswählen</string>
+
     <!-- Bottom sheet headers -->
     <string name="mode_move_files">Modus: Dateien verschieben</string>
     <string name="item_actions">Element-Aktionen</string>

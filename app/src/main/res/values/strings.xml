@@ -37,6 +37,12 @@
     <string name="updating_index">Atualizando índice...</string>
     <string name="indexing_videos">Indexando vídeos...</string>
 
+    <string name="searching_cast_devices">Procurando dispositivos de transmissão...</string>
+    <string name="no_cast_devices_found">Nenhum dispositivo de transmissão encontrado</string>
+    <string name="available_devices">Dispositivos disponíveis</string>
+    <string name="refresh">Atualizar</string>
+    <string name="select_cast_device">Selecionar dispositivo de transmissão</string>
+
     <!-- Bottom sheet headers -->
     <string name="mode_move_files">Modo: Mover Arquivos</string>
     <string name="item_actions">Ações dos Itens</string>

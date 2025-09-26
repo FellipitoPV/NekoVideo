@@ -36,6 +36,12 @@
     <string name="updating_index">इंडेक्स अपडेट हो रहा है...</string>
     <string name="indexing_videos">वीडियो इंडेक्स हो रहे हैं...</string>
 
+    <string name="searching_cast_devices">कास्ट डिवाइस खोजा जा रहा है...</string>
+    <string name="no_cast_devices_found">कोई कास्ट डिवाइस नहीं मिला</string>
+    <string name="available_devices">उपलब्ध डिवाइस</string>
+    <string name="refresh">रीफ्रेश</string>
+    <string name="select_cast_device">कास्ट डिवाइस चुनें</string>
+
     <!-- Bottom sheet headers -->
     <string name="mode_move_files">मोड: फाइलें स्थानांतरित करें</string>
     <string name="item_actions">आइटम कार्य</string>

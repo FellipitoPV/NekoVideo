@@ -2,6 +2,7 @@
 agp = "8.8.0"
 androidxMaterialIconsExtended = "1.6.8"
 animation = "1.8.3"
+clingCore = "2.1.2"
 coilCompose = "2.7.0"
 coilVideo = "2.5.0"
 datastorePreferences = "1.1.7"
@@ -14,7 +15,10 @@ espressoCore = "3.6.1"
 lifecycleRuntimeKtx = "2.9.0"
 activityCompose = "1.10.1"
 composeBom = "2024.04.01"
+material = "1.13.0"
 materialIconsExtended = "1.7.8"
+mediarouter = "1.8.1"
+nanohttpd = "2.3.1"
 navigationCompose = "2.9.0"
 navigationComposeAndroid = "2.9.0"
 foundationAndroid = "1.7.2"
@@ -23,13 +27,17 @@ media3Exoplayer = "1.7.1"
 media3Ui = "1.7.1"
 media3Session = "1.7.1"
 datastorePreferencesCoreAndroid = "1.1.7"
+playServicesCastFramework = "22.1.0"
 
 [libraries]
 androidx-animation = { module = "androidx.compose.animation:animation", version.ref = "animation" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
+androidx-mediarouter = { module = "androidx.mediarouter:mediarouter", version.ref = "mediarouter" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
+cling-core = { module = "org.fourthline.cling:cling-core", version.ref = "clingCore" }
+cling-support = { module = "org.fourthline.cling:cling-support", version.ref = "clingCore" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 coil-video = { module = "io.coil-kt:coil-video", version.ref = "coilVideo" }
 glide = { module = "com.github.bumptech.glide:glide", version.ref = "glide" }
@@ -52,8 +60,11 @@ androidx-media3-common-ktx = { group = "androidx.media3", name = "media3-common-
 androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3Exoplayer" }
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3Ui" }
 androidx-media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3Session" }
+material = { module = "com.google.android.material:material", version.ref = "material" }
 material-icons-extended-v168 = { module = "androidx.compose.material:material-icons-extended", version.ref = "androidxMaterialIconsExtended" }
 androidx-datastore-preferences-core-android = { group = "androidx.datastore", name = "datastore-preferences-core-android", version.ref = "datastorePreferencesCoreAndroid" }
+nanohttpd = { module = "org.nanohttpd:nanohttpd", version.ref = "nanohttpd" }
+play-services-cast-framework = { module = "com.google.android.gms:play-services-cast-framework", version.ref = "playServicesCastFramework" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

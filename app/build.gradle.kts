@@ -14,7 +14,7 @@ android {
         minSdk = 30
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0.0"
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -90,6 +90,10 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.animation)
 
+    implementation(libs.play.services.cast.framework)
+    implementation(libs.androidx.mediarouter)
+    implementation(libs.nanohttpd)
+    implementation(libs.material)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -44,6 +44,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
@@ -95,20 +96,25 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.media3.ui.PlayerView
+import com.google.android.gms.cast.framework.CastContext
+import com.google.android.gms.cast.framework.CastSession
+import com.google.android.gms.cast.framework.Session
+import com.google.android.gms.cast.framework.SessionManagerListener
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.settings.SettingsManager
 import com.google.common.util.concurrent.MoreExecutors
+import com.nkls.nekovideo.components.helpers.CastManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
 enum class RepeatMode {
-    NONE,           // Para no final da playlist
-    REPEAT_ALL,     // Loop da playlist
-    REPEAT_ONE      // Loop do vídeo atual
+    NONE,
+    REPEAT_ALL,
+    REPEAT_ONE
 }
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -127,6 +133,10 @@ fun VideoPlayerOverlay(
     var overlayActuallyVisible by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var currentVideoPath by remember { mutableStateOf("") }
+    var isCasting by remember { mutableStateOf(false) }
+    var connectedDeviceName by remember { mutableStateOf("") }
+    val castManager = remember { CastManager(context) }
+    var castCurrentIndex by remember { mutableStateOf(0) }
 
     // Estados para controles customizados
     var controlsVisible by remember { mutableStateOf(false) }
@@ -167,7 +177,6 @@ fun VideoPlayerOverlay(
     var tapCount by remember { mutableStateOf(0) }
     val doubleTapTimeWindow = 300L // 300ms para detectar double tap
 
-
     // PlayerView sem controles nativos
     val playerView = remember {
         PlayerView(context).apply {
@@ -200,6 +209,25 @@ fun VideoPlayerOverlay(
         }
 
         Log.d("VideoPlayer", "Controller configurado - Posição: ${controller.currentPosition}ms, Tocando: ${controller.isPlaying}")
+    }
+
+    // Ajustar orientação ao desconectar do cast
+    LaunchedEffect(isCasting, mediaController) {
+        if (!isCasting && mediaController != null) {
+            // Pequeno delay para garantir que saiu do CastControlsOverlay
+            delay(100)
+
+            val videoSize = mediaController!!.videoSize
+            if (videoSize.width > 0 && videoSize.height > 0) {
+                val activity = context.findActivity()
+                val newOrientation = if (videoSize.width > videoSize.height) {
+                    ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                } else {
+                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                }
+                activity?.requestedOrientation = newOrientation
+            }
+        }
     }
 
     // Inicializar valores de volume e brilho
@@ -283,6 +311,15 @@ fun VideoPlayerOverlay(
         }
     }
 
+    LaunchedEffect(Unit) {
+        castManager.setConnectionStatusListener { connected ->
+            isCasting = connected
+            if (!connected) {
+                connectedDeviceName = ""
+            }
+        }
+    }
+
     // Dialog de confirmação para deletar
     if (showDeleteDialog) {
         AlertDialog(
@@ -362,22 +399,18 @@ fun VideoPlayerOverlay(
                     // Verifica se o controller está funcionando e tem mídia
                     val needsRefresh = when {
                         newController.mediaItemCount == 0 -> {
-                            Log.d("VideoPlayer", "Controller sem mídia - refresh necessário")
                             true
                         }
                         newController.playbackState == Player.STATE_IDLE -> {
-                            Log.d("VideoPlayer", "Player em estado IDLE - refresh necessário")
                             true
                         }
                         else -> {
-                            Log.d("VideoPlayer", "Player funcionando normalmente - sem refresh")
                             false
                         }
                     }
 
                     if (needsRefresh) {
                         // Só faz refresh se realmente precisar
-                        Log.d("VideoPlayer", "Executando refresh do player...")
                         MediaPlaybackService.refreshPlayer(context)
 
                         // Usa corrotina para o delay e reconexão
@@ -414,7 +447,7 @@ fun VideoPlayerOverlay(
     }
 
     // Listener para mudanças com melhorias de UX
-    DisposableEffect(mediaController, overlayActuallyVisible, repeatMode) { // Adicione repeatMode aqui
+    DisposableEffect(mediaController, overlayActuallyVisible, repeatMode) {
         var listener: Player.Listener? = null
 
         if (overlayActuallyVisible && mediaController != null) {
@@ -473,11 +506,9 @@ fun VideoPlayerOverlay(
                                 mediaController!!.play()
                             }
                             RepeatMode.REPEAT_ALL -> {
-                                // Loop da playlist
                                 if (mediaController!!.hasNextMediaItem()) {
                                     mediaController!!.seekToNextMediaItem()
                                 } else {
-                                    // Volta para o primeiro vídeo da playlist
                                     mediaController!!.seekTo(0, 0)
                                     mediaController!!.play()
                                 }
@@ -541,191 +572,283 @@ fun VideoPlayerOverlay(
         }
     }
 
+    LaunchedEffect(Unit) {
+        val sessionManager = CastContext.getSharedInstance(context).sessionManager
+
+        val listener = object : SessionManagerListener<Session> {
+            override fun onSessionStarted(session: Session, sessionId: String) {
+                // Pegar playlist
+                val playlist = mutableListOf<String>()
+                val titles = mutableListOf<String>()
+
+                for (i in 0 until (mediaController?.mediaItemCount ?: 0)) {
+                    val item = mediaController?.getMediaItemAt(i)
+                    val path = item?.localConfiguration?.uri?.path?.removePrefix("file://") ?: ""
+                    if (path.isNotEmpty()) {
+                        playlist.add(path)
+                        titles.add(File(path).nameWithoutExtension)
+                    }
+                }
+
+                val currentIndex = mediaController?.currentMediaItemIndex ?: 0
+
+                // Parar MediaPlaybackService
+                MediaPlaybackService.stopService(context)
+
+                // Iniciar Cast
+                castManager.castPlaylist(playlist, titles, currentIndex)
+
+                // Fechar overlay
+                onDismiss()
+            }
+
+            override fun onSessionEnded(session: Session, error: Int) {}
+            override fun onSessionResumed(session: Session, wasSuspended: Boolean) {}
+            override fun onSessionSuspended(session: Session, reason: Int) {}
+            override fun onSessionStarting(session: Session) {}
+            override fun onSessionEnding(session: Session) {}
+            override fun onSessionResuming(session: Session, sessionId: String) {}
+            override fun onSessionResumeFailed(session: Session, error: Int) {}
+            override fun onSessionStartFailed(session: Session, error: Int) {}
+        }
+
+        sessionManager.addSessionManagerListener(listener)
+    }
+
     // Overlay animado com gestos SIMPLIFICADOS (só double tap para seek)
     AnimatedVisibility(
         visible = isVisible,
         enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
         exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black)
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = { offset ->
-                            val currentTime = System.currentTimeMillis()
+        if (isCasting) {
+            // UI de controle do Cast
+            CastControlsOverlay(
+                castManager = castManager,
+                deviceName = connectedDeviceName,
+                videoTitle = currentVideoTitle,
+                onDisconnect = {
+                    val remoteMediaClient = CastContext.getSharedInstance(context)
+                        .sessionManager
+                        .currentCastSession
+                        ?.remoteMediaClient
 
-                            // Se é o primeiro tap ou passou muito tempo desde o último
-                            if (tapCount == 0 || (currentTime - lastTapTime) > doubleTapTimeWindow) {
-                                tapCount = 1
-                                lastTapTime = currentTime
+                    val currentPosition = remoteMediaClient?.approximateStreamPosition ?: 0L
 
-                                // Toggle da UI imediatamente (sem delay!)
-                                controlsVisible = !controlsVisible
-                                if (controlsVisible) {
-                                    resetUITimer()
-                                }
+                    // Pegar playlist completa
+                    val playlist = mutableListOf<String>()
+                    for (i in 0 until (mediaController?.mediaItemCount ?: 0)) {
+                        val item = mediaController?.getMediaItemAt(i)
+                        val uri = item?.localConfiguration?.uri.toString()
+                        playlist.add(uri)
+                    }
 
-                                // Inicia timer para detectar se vai ter um segundo tap
-                                coroutineScope.launch {
-                                    delay(doubleTapTimeWindow)
-                                    // Se passou o tempo e ainda é apenas 1 tap, mantém o estado atual
-                                    if (tapCount == 1) {
-                                        tapCount = 0
+                    castManager.stopCasting()
+                    isCasting = false
+                    onDismiss()
+
+                },
+                onBack = onDismiss,
+                onCurrentIndexChanged = { index ->
+                    castCurrentIndex = index // Atualizar índice rastreado
+                }
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = { offset ->
+                                val currentTime = System.currentTimeMillis()
+
+                                // Se é o primeiro tap ou passou muito tempo desde o último
+                                if (tapCount == 0 || (currentTime - lastTapTime) > doubleTapTimeWindow) {
+                                    tapCount = 1
+                                    lastTapTime = currentTime
+
+                                    // Toggle da UI imediatamente (sem delay!)
+                                    controlsVisible = !controlsVisible
+                                    if (controlsVisible) {
+                                        resetUITimer()
                                     }
-                                }
 
-                            } else if (tapCount == 1 && (currentTime - lastTapTime) <= doubleTapTimeWindow) {
-                                // É um double tap!
-                                tapCount = 0
+                                    // Inicia timer para detectar se vai ter um segundo tap
+                                    coroutineScope.launch {
+                                        delay(doubleTapTimeWindow)
+                                        // Se passou o tempo e ainda é apenas 1 tap, mantém o estado atual
+                                        if (tapCount == 1) {
+                                            tapCount = 0
+                                        }
+                                    }
 
-                                // Esconde a UI imediatamente
-                                controlsVisible = false
+                                } else if (tapCount == 1 && (currentTime - lastTapTime) <= doubleTapTimeWindow) {
+                                    // É um double tap!
+                                    tapCount = 0
 
-                                // Executa a lógica de seek
-                                val screenWidth = size.width
-                                val doubleTapSeek = SettingsManager.getDoubleTapSeek(context) * 1000L
+                                    // Esconde a UI imediatamente
+                                    controlsVisible = false
 
-                                mediaController?.let { controller ->
-                                    val currentPos = controller.currentPosition
+                                    // Executa a lógica de seek
+                                    val screenWidth = size.width
+                                    val doubleTapSeek =
+                                        SettingsManager.getDoubleTapSeek(context) * 1000L
 
-                                    if (offset.x < screenWidth / 2) {
-                                        // Lado esquerdo - voltar
-                                        val newPosition = (currentPos - doubleTapSeek).coerceAtLeast(0)
-                                        controller.seekTo(newPosition)
-                                        seekIndicator = "-${doubleTapSeek / 1000}s"
-                                        seekSide = Alignment.CenterStart
-                                    } else {
-                                        // Lado direito - avançar
-                                        val newPosition = currentPos + doubleTapSeek
-                                        controller.seekTo(newPosition)
-                                        seekIndicator = "+${doubleTapSeek / 1000}s"
-                                        seekSide = Alignment.CenterEnd
+                                    mediaController?.let { controller ->
+                                        val currentPos = controller.currentPosition
+
+                                        if (offset.x < screenWidth / 2) {
+                                            // Lado esquerdo - voltar
+                                            val newPosition =
+                                                (currentPos - doubleTapSeek).coerceAtLeast(0)
+                                            controller.seekTo(newPosition)
+                                            seekIndicator = "-${doubleTapSeek / 1000}s"
+                                            seekSide = Alignment.CenterStart
+                                        } else {
+                                            // Lado direito - avançar
+                                            val newPosition = currentPos + doubleTapSeek
+                                            controller.seekTo(newPosition)
+                                            seekIndicator = "+${doubleTapSeek / 1000}s"
+                                            seekSide = Alignment.CenterEnd
+                                        }
                                     }
                                 }
                             }
+                        )
+                    }
+            ) {
+                // PlayerView em background
+                AndroidView(
+                    factory = { playerView },
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Slider invisível do lado esquerdo (BRILHO) - 70% da altura, centralizado
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight(0.75f)
+                        .fillMaxWidth(0.35f) // 35% da largura da tela
+                        .align(Alignment.CenterStart)
+                        .pointerInput(Unit) {
+                            detectDragGestures(
+                                onDragStart = { offset ->
+                                    // Não fazer nada no início, aguardar o movimento
+                                },
+                                onDragEnd = {
+                                    leftSliderActive = false
+                                }
+                            ) { change, dragAmount ->
+                                // Verificar se o movimento é predominantemente vertical
+                                val isVerticalMovement =
+                                    kotlin.math.abs(dragAmount.y) > kotlin.math.abs(dragAmount.x) * 2
+
+                                if (isVerticalMovement) {
+                                    if (!leftSliderActive) {
+                                        // Primeira vez que detecta movimento vertical válido
+                                        leftSliderActive = true
+                                    }
+
+                                    // Calcular mudança relativa baseada no movimento
+                                    val sensitivity =
+                                        0.001f // Ajuste a sensibilidade conforme necessário
+                                    val brightnessChange =
+                                        -dragAmount.y * sensitivity // Negativo porque Y cresce para baixo
+
+                                    // Aplicar mudança ao valor atual
+                                    val newBrightness =
+                                        (currentBrightness + brightnessChange).coerceIn(0f, 1f)
+                                    currentBrightness = newBrightness
+                                    setBrightness(context, newBrightness)
+                                    brightnessIndicator = newBrightness
+                                }
+                            }
+                        }
+                )
+
+                // Slider invisível do lado direito (VOLUME) - 70% da altura, centralizado
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight(0.75f)
+                        .fillMaxWidth(0.35f) // 35% da largura da tela
+                        .align(Alignment.CenterEnd)
+                        .pointerInput(Unit) {
+                            detectDragGestures(
+                                onDragStart = { offset ->
+                                    // Não fazer nada no início, aguardar o movimento
+                                },
+                                onDragEnd = {
+                                    rightSliderActive = false
+                                }
+                            ) { change, dragAmount ->
+                                // Verificar se o movimento é predominantemente vertical
+                                val isVerticalMovement =
+                                    kotlin.math.abs(dragAmount.y) > kotlin.math.abs(dragAmount.x) * 2
+
+                                if (isVerticalMovement) {
+                                    if (!rightSliderActive) {
+                                        // Primeira vez que detecta movimento vertical válido
+                                        rightSliderActive = true
+                                    }
+
+                                    // Calcular mudança relativa baseada no movimento
+                                    val sensitivity =
+                                        0.1f // Ajuste a sensibilidade conforme necessário
+                                    val volumeChange =
+                                        -dragAmount.y * sensitivity // Negativo porque Y cresce para baixo
+
+                                    // Aplicar mudança ao valor atual
+                                    val newVolume =
+                                        (currentVolume + volumeChange).coerceIn(0f, 100f).toInt()
+                                    currentVolume = newVolume
+                                    setVolume(context, newVolume)
+                                    volumeIndicator = newVolume
+                                }
+                            }
+                        }
+                )
+
+                // Indicadores visuais
+                GestureIndicators(
+                    brightnessLevel = brightnessIndicator,
+                    volumeLevel = volumeIndicator,
+                    lastValidBrightness = lastValidBrightness,
+                    lastValidVolume = lastValidVolume,
+                    seekInfo = seekIndicator,
+                    seekAlignment = seekSide
+                )
+
+                // Interface customizada com ícones de volume e brilho
+                AnimatedVisibility(
+                    visible = controlsVisible,
+                    enter = fadeIn(animationSpec = tween(300)),
+                    exit = fadeOut(animationSpec = tween(300))
+                ) {
+                    CustomVideoControls(
+                        mediaController = mediaController,
+                        currentPosition = currentPosition,
+                        duration = duration,
+                        isPlaying = isPlaying,
+                        videoTitle = currentVideoTitle,
+                        onSeekStart = { isSeekingActive = true },
+                        onSeekEnd = { isSeekingActive = false },
+                        onDeleteClick = {
+                            mediaController?.pause()
+                            showDeleteDialog = true
+                        },
+                        onBackClick = onDismiss,
+                        resetUITimer = resetUITimer,
+                        repeatMode = repeatMode,
+                        onRepeatModeChange = { newMode ->
+                            repeatMode = newMode
+                        },
+                        isCasting = isCasting,
+                        onCastClick = {
+
+                            resetUITimer()
                         }
                     )
                 }
-        ) {
-            // PlayerView em background
-            AndroidView(
-                factory = { playerView },
-                modifier = Modifier.fillMaxSize()
-            )
-
-            // Slider invisível do lado esquerdo (BRILHO) - 70% da altura, centralizado
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight(0.75f)
-                    .fillMaxWidth(0.35f) // 35% da largura da tela
-                    .align(Alignment.CenterStart)
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                // Não fazer nada no início, aguardar o movimento
-                            },
-                            onDragEnd = {
-                                leftSliderActive = false
-                            }
-                        ) { change, dragAmount ->
-                            // Verificar se o movimento é predominantemente vertical
-                            val isVerticalMovement = kotlin.math.abs(dragAmount.y) > kotlin.math.abs(dragAmount.x) * 2
-
-                            if (isVerticalMovement) {
-                                if (!leftSliderActive) {
-                                    // Primeira vez que detecta movimento vertical válido
-                                    leftSliderActive = true
-                                }
-
-                                // Calcular mudança relativa baseada no movimento
-                                val sensitivity = 0.001f // Ajuste a sensibilidade conforme necessário
-                                val brightnessChange = -dragAmount.y * sensitivity // Negativo porque Y cresce para baixo
-
-                                // Aplicar mudança ao valor atual
-                                val newBrightness = (currentBrightness + brightnessChange).coerceIn(0f, 1f)
-                                currentBrightness = newBrightness
-                                setBrightness(context, newBrightness)
-                                brightnessIndicator = newBrightness
-                            }
-                        }
-                    }
-            )
-
-            // Slider invisível do lado direito (VOLUME) - 70% da altura, centralizado
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight(0.75f)
-                    .fillMaxWidth(0.35f) // 35% da largura da tela
-                    .align(Alignment.CenterEnd)
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                // Não fazer nada no início, aguardar o movimento
-                            },
-                            onDragEnd = {
-                                rightSliderActive = false
-                            }
-                        ) { change, dragAmount ->
-                            // Verificar se o movimento é predominantemente vertical
-                            val isVerticalMovement = kotlin.math.abs(dragAmount.y) > kotlin.math.abs(dragAmount.x) * 2
-
-                            if (isVerticalMovement) {
-                                if (!rightSliderActive) {
-                                    // Primeira vez que detecta movimento vertical válido
-                                    rightSliderActive = true
-                                }
-
-                                // Calcular mudança relativa baseada no movimento
-                                val sensitivity = 0.1f // Ajuste a sensibilidade conforme necessário
-                                val volumeChange = -dragAmount.y * sensitivity // Negativo porque Y cresce para baixo
-
-                                // Aplicar mudança ao valor atual
-                                val newVolume = (currentVolume + volumeChange).coerceIn(0f, 100f).toInt()
-                                currentVolume = newVolume
-                                setVolume(context, newVolume)
-                                volumeIndicator = newVolume
-                            }
-                        }
-                    }
-            )
-
-            // Indicadores visuais
-            GestureIndicators(
-                brightnessLevel = brightnessIndicator,
-                volumeLevel = volumeIndicator,
-                lastValidBrightness = lastValidBrightness,
-                lastValidVolume = lastValidVolume,
-                seekInfo = seekIndicator,
-                seekAlignment = seekSide
-            )
-
-            // Interface customizada com ícones de volume e brilho
-            AnimatedVisibility(
-                visible = controlsVisible,
-                enter = fadeIn(animationSpec = tween(300)),
-                exit = fadeOut(animationSpec = tween(300))
-            ) {
-                CustomVideoControls(
-                    mediaController = mediaController,
-                    currentPosition = currentPosition,
-                    duration = duration,
-                    isPlaying = isPlaying,
-                    videoTitle = currentVideoTitle,
-                    onSeekStart = { isSeekingActive = true },
-                    onSeekEnd = { isSeekingActive = false },
-                    onDeleteClick = {
-                        mediaController?.pause()
-                        showDeleteDialog = true
-                    },
-                    onBackClick = onDismiss,
-                    resetUITimer = resetUITimer,
-                    repeatMode = repeatMode, // NOVO PARÂMETRO
-                    onRepeatModeChange = { newMode -> // NOVO PARÂMETRO
-                        repeatMode = newMode
-                    }
-                )
             }
         }
     }
@@ -916,7 +1039,9 @@ private fun CustomVideoControls(
     onBackClick: () -> Unit,
     resetUITimer: () -> Unit,
     repeatMode: RepeatMode,
-    onRepeatModeChange: (RepeatMode) -> Unit
+    onRepeatModeChange: (RepeatMode) -> Unit,
+    isCasting: Boolean,
+    onCastClick: () -> Unit
 ) {
     val controller = mediaController ?: return
 
@@ -1005,6 +1130,49 @@ private fun CustomVideoControls(
                             modifier = Modifier.size(24.dp)
                         )
                     }
+
+                    // Casting
+                    AndroidView(
+                        factory = { context ->
+                            val themedContext = android.view.ContextThemeWrapper(
+                                context,
+                                com.google.android.material.R.style.Theme_Material3_Dark
+                            )
+
+                            androidx.mediarouter.app.MediaRouteButton(themedContext).apply {
+                                com.google.android.gms.cast.framework.CastButtonFactory.setUpMediaRouteButton(
+                                    themedContext, this
+                                )
+
+                                background = android.graphics.drawable.GradientDrawable().apply {
+                                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                                    setColor(android.graphics.Color.parseColor("#80000000"))
+                                }
+
+                                setPadding(12, 12, 12, 12)
+
+                                // CORRIGIDO: Usar setOnTouchListener para interceptar antes do click
+                                setOnTouchListener { _, event ->
+                                    if (event.action == android.view.MotionEvent.ACTION_DOWN) {
+                                        mediaController?.pause()
+                                    }
+                                    false // Retornar false permite o evento continuar para o botão
+                                }
+
+                                post {
+                                    if (this is android.widget.ImageView) {
+                                        drawable?.let {
+                                            androidx.core.graphics.drawable.DrawableCompat.setTint(
+                                                it,
+                                                android.graphics.Color.WHITE
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.size(48.dp)
+                    )
 
                     // Ícone delete
                     IconButton(

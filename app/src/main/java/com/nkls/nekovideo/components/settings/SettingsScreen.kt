@@ -56,6 +56,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -406,6 +407,10 @@ fun FilesSettingsScreen() {
 
     var appOnlyFolders by remember { mutableStateOf(prefs.getBoolean("app_only_folders", false)) }
     var confirmDelete by remember { mutableStateOf(prefs.getBoolean("confirm_delete", true)) }
+
+    LaunchedEffect(Unit) {
+        appOnlyFolders = prefs.getBoolean("app_only_folders", true)
+    }
 
     LazyColumn(
         modifier = Modifier

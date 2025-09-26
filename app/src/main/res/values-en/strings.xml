@@ -36,6 +36,12 @@
     <string name="updating_index">Updating index...</string>
     <string name="indexing_videos">Indexing videos...</string>
 
+    <string name="searching_cast_devices">Searching for cast devices...</string>
+    <string name="no_cast_devices_found">No cast devices found</string>
+    <string name="available_devices">Available devices</string>
+    <string name="refresh">Refresh</string>
+    <string name="select_cast_device">Select cast device</string>
+
     <!-- Bottom sheet headers -->
     <string name="mode_move_files">Mode: Move Files</string>
     <string name="item_actions">Item Actions</string>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.NekoVideo" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.NekoVideo" parent="Theme.AppCompat.DayNight.NoActionBar" />
 
     <style name="Theme.NekoVideo.Splash" parent="@style/Theme.NekoVideo">
         <item name="android:windowBackground">@android:color/black</item>

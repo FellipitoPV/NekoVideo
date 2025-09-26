@@ -14,6 +14,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -76,7 +77,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     // NOVO: Adicionar ThemeManager
     private lateinit var themeManager: ThemeManager
 
@@ -322,12 +323,10 @@ fun Context.findActivity(): ComponentActivity? {
     return null
 }
 
-
 @Composable
 fun MainScreen(
     intent: Intent?,
     themeManager: ThemeManager,
-    // NOVOS parâmetros de debug (opcionais)
     notificationReceived: Boolean = false,
     lastAction: String? = null,
     lastTime: Long = 0,
@@ -385,12 +384,6 @@ fun MainScreen(
 
     val isAtRootLevel = remember(folderPath) {
         val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
-
-        Log.d("RootLevel", "=== VERIFICAÇÃO ROOT ===")
-        Log.d("RootLevel", "Root base: $rootPath")
-        Log.d("RootLevel", "Folder atual: $folderPath")
-        Log.d("RootLevel", "São iguais: ${folderPath == rootPath}")
-        Log.d("RootLevel", "========================")
 
         folderPath == rootPath
     }
@@ -602,7 +595,6 @@ fun MainScreen(
         }
     }
 
-    // Adicione este LaunchedEffect após os outros existentes
     LaunchedEffect(externalVideoReceived) {
         if (externalVideoReceived) {
             Log.d("MainScreen", "Abrindo overlay automaticamente para vídeo externo")
