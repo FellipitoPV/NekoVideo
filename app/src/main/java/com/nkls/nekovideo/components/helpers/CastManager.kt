@@ -13,6 +13,7 @@ import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.Session
 import com.google.android.gms.cast.framework.SessionManagerListener
 import com.google.android.gms.common.images.WebImage
+import com.nkls.nekovideo.MediaPlaybackService
 import java.io.File
 
 class CastManager(private val context: Context) {
@@ -35,6 +36,15 @@ class CastManager(private val context: Context) {
                 override fun onSessionEnded(session: Session, error: Int) {
                     connectionListener?.invoke(false)
                     stopServer()
+
+                    // Parar serviço completamente
+                    MediaPlaybackService.stopService(context)
+
+                    // Delay para garantir que parou
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        // Iniciar de novo - isso força ExoPlayer a redetectar bluetooth
+                        MediaPlaybackService.refreshPlayer(context)
+                    }, 300)
                 }
 
                 override fun onSessionResumed(session: Session, wasSuspended: Boolean) {

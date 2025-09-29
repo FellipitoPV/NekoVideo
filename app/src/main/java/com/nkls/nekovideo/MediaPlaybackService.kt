@@ -14,13 +14,14 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.common.util.UnstableApi
-import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import java.io.File
+import androidx.media3.common.C
+import androidx.media3.common.AudioAttributes
 
 @OptIn(UnstableApi::class)
 class MediaPlaybackService : MediaSessionService() {
@@ -37,22 +38,21 @@ class MediaPlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        Log.d("MediaPlaybackService", "🚀 onCreate - Media3 oficial")
 
-        setupAudioManager()
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+            .build()
 
-        // OFICIAL: Criar player como na documentação
         player = ExoPlayer.Builder(this).build().apply {
-            repeatMode = Player.REPEAT_MODE_OFF
+            setAudioAttributes(audioAttributes, true)
             addListener(playerListener)
         }
 
-        // OFICIAL: Criar MediaSession como na documentação
         mediaSession = MediaSession.Builder(this, player!!)
             .setCallback(mediaSessionCallback)
             .build()
 
-        Log.d("MediaPlaybackService", "✅ MediaSession criado - notificação automática do Media3")
     }
 
     // NOVO: Callback da MediaSession seguindo documentação
@@ -144,14 +144,14 @@ class MediaPlaybackService : MediaSessionService() {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            if (isPlaying) {
-                if (!hasAudioFocus) {
-                    if (!requestAudioFocus()) {
-                        player?.pause()
-                        return
-                    }
-                }
-            }
+//            if (isPlaying) {
+//                if (!hasAudioFocus) {
+//                    if (!requestAudioFocus()) {
+//                        player?.pause()
+//                        return
+//                    }
+//                }
+//            }
             super.onIsPlayingChanged(isPlaying)
         }
     }
@@ -231,6 +231,10 @@ class MediaPlaybackService : MediaSessionService() {
                 val nextIndex = intent.getIntExtra("NEXT_INDEX", 0)
                 updatePlaylistAfterDeletion(playlist, nextIndex)
             }
+            "RESUME_LOCAL_PLAYBACK" -> {
+                Log.d("MediaPlaybackService", "Resuming local playback after cast")
+                resumeLocalPlayback()
+            }
             "STOP_SERVICE" -> {
                 Log.d("MediaPlaybackService", "Stopping service and clearing everything")
                 player?.run {
@@ -250,10 +254,10 @@ class MediaPlaybackService : MediaSessionService() {
 
     // Funções de playlist (mantém)
     private fun updatePlaylist(playlist: List<String>, initialIndex: Int) {
-        if (!requestAudioFocus()) {
-            Log.w("MediaPlaybackService", "Não foi possível obter AudioFocus")
-            return
-        }
+//        if (!requestAudioFocus()) {
+//            Log.w("MediaPlaybackService", "Não foi possível obter AudioFocus")
+//            return
+//        }
 
         player?.run {
             clearMediaItems()
@@ -302,15 +306,20 @@ class MediaPlaybackService : MediaSessionService() {
 
         val currentPosition = currentPlayer.currentPosition
         val currentMediaIndex = currentPlayer.currentMediaItemIndex
-        val isCurrentlyPlaying = currentPlayer.isPlaying
         val currentPlaylist = (0 until currentPlayer.mediaItemCount).map { index ->
             currentPlayer.getMediaItemAt(index).localConfiguration?.uri.toString()
         }
 
         currentPlayer.release()
 
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+            .build()
+
         player = ExoPlayer.Builder(this).build().apply {
             repeatMode = Player.REPEAT_MODE_OFF
+            setAudioAttributes(audioAttributes, true)
             addListener(playerListener)
         }
 
@@ -328,7 +337,6 @@ class MediaPlaybackService : MediaSessionService() {
             }
         }
 
-        // Atualizar intent após refresh
         updateNotificationIntent()
     }
 
@@ -344,6 +352,15 @@ class MediaPlaybackService : MediaSessionService() {
         super.onDestroy()
     }
 
+    private fun resumeLocalPlayback() {
+        player?.let {
+            if (!it.isPlaying) {
+                it.play()
+            }
+            Log.d("MediaPlaybackService", "✅ Playback local retomado")
+        }
+    }
+
     // AudioFocus functions (mantém código existente)
     private fun setupAudioManager() {
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -351,9 +368,9 @@ class MediaPlaybackService : MediaSessionService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).apply {
                 setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
+                    android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MOVIE)
                         .build()
                 )
                 setOnAudioFocusChangeListener(audioFocusChangeListener)
@@ -361,6 +378,7 @@ class MediaPlaybackService : MediaSessionService() {
             }.build()
         }
     }
+
 
     private fun requestAudioFocus(): Boolean {
         val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -427,6 +445,13 @@ class MediaPlaybackService : MediaSessionService() {
         fun refreshPlayer(context: Context) {
             val intent = Intent(context, MediaPlaybackService::class.java).apply {
                 action = "REFRESH_PLAYER"
+            }
+            context.startService(intent)
+        }
+
+        fun resumeLocalPlayback(context: Context) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = "RESUME_LOCAL_PLAYBACK"
             }
             context.startService(intent)
         }

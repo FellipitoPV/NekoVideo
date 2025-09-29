@@ -198,18 +198,18 @@ fun PlaybackSettingsScreen() {
             )
         }
 
-        item {
-            SettingsSwitchItem(
-                icon = Icons.Default.PictureInPictureAlt,
-                title = stringResource(R.string.playback_pip),
-                subtitle = stringResource(R.string.playback_pip_desc),
-                checked = pipEnabled,
-                onCheckedChange = {
-                    pipEnabled = it
-                    prefs.edit().putBoolean("pip_enabled", it).apply()
-                }
-            )
-        }
+//        item {
+//            SettingsSwitchItem(
+//                icon = Icons.Default.PictureInPictureAlt,
+//                title = stringResource(R.string.playback_pip),
+//                subtitle = stringResource(R.string.playback_pip_desc),
+//                checked = pipEnabled,
+//                onCheckedChange = {
+//                    pipEnabled = it
+//                    prefs.edit().putBoolean("pip_enabled", it).apply()
+//                }
+//            )
+//        }
     }
 }
 

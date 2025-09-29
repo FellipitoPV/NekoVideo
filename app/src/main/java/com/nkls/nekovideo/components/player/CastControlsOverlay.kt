@@ -46,11 +46,11 @@ fun CastControlsOverlay(
     var currentPosition by remember { mutableStateOf(0L) }
     var duration by remember { mutableStateOf(0L) }
     var isSeeking by remember { mutableStateOf(false) }
-
+    var currentTitle by remember { mutableStateOf(videoTitle) } // Para título dinâmico
 
     // Atualizar estado do cast
     DisposableEffect(remoteMediaClient) {
-        var firstItemId = -1L  // Salvar o primeiro itemId
+        var firstItemId = -1L
         var lastReportedIndex = -1
         var lastUpdateTime = 0L
 
@@ -67,13 +67,18 @@ fun CastControlsOverlay(
                     if (status != null) {
                         val currentItemId = status.currentItemId
 
-                        // Salvar primeiro itemId
-                        if (firstItemId == -1L && currentItemId > 0) {
-                            firstItemId = currentItemId.toLong()
-                            Log.d("CastControlsOverlay", "Primeiro itemId: $firstItemId")
+                        // Atualizar título atual
+                        status.mediaInfo?.metadata?.let { metadata ->
+                            val title = metadata.getString(com.google.android.gms.cast.MediaMetadata.KEY_TITLE)
+                            if (!title.isNullOrEmpty()) {
+                                currentTitle = title
+                            }
                         }
 
-                        // Calcular índice baseado no offset do itemId
+                        if (firstItemId == -1L && currentItemId > 0) {
+                            firstItemId = currentItemId.toLong()
+                        }
+
                         val indexOffset = if (firstItemId > 0) {
                             (currentItemId - firstItemId).toInt()
                         } else {
@@ -87,7 +92,6 @@ fun CastControlsOverlay(
                             lastUpdateTime = currentTime
                             currentQueueIndex = indexOffset
                             onCurrentIndexChanged(indexOffset)
-                            Log.d("CastControlsOverlay", "Offset calculado: $indexOffset (itemId atual: $currentItemId, primeiro: $firstItemId)")
                         }
                     }
                 }
@@ -101,7 +105,6 @@ fun CastControlsOverlay(
 
         remoteMediaClient?.registerCallback(listener)
 
-        // Update loop
         kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
             while (true) {
                 remoteMediaClient?.let { client ->
@@ -125,7 +128,6 @@ fun CastControlsOverlay(
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
         onDispose {
-            // Voltar ao comportamento automático ao sair
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
@@ -135,34 +137,7 @@ fun CastControlsOverlay(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // Indicador de Cast no centro
-        Column(
-            modifier = Modifier.align(Alignment.Center),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Cast,
-                contentDescription = "Casting",
-                tint = Color(0xFF4CAF50),
-                modifier = Modifier.size(80.dp)
-            )
-
-            Text(
-                text = "Reproduzindo em",
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 14.sp
-            )
-
-            Text(
-                text = deviceName,
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        // Header
+        // Header - só com botões de navegação
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -194,18 +169,6 @@ fun CastControlsOverlay(
                     )
                 }
 
-                Text(
-                    text = videoTitle,
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 16.dp)
-                )
-
                 IconButton(
                     onClick = onDisconnect,
                     modifier = Modifier
@@ -221,28 +184,69 @@ fun CastControlsOverlay(
             }
         }
 
-        // Bottom controls
+        // Área central - indicador de Cast, títulos e controles principais
         Column(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
+                .align(Alignment.Center)
                 .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.8f)
-                        )
-                    )
-                )
-                .padding(16.dp)
+                .padding(horizontal = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Controles de play/pause
+            // Ícone Cast
+            Icon(
+                imageVector = Icons.Default.Cast,
+                contentDescription = "Casting",
+                tint = Color(0xFF4CAF50),
+                modifier = Modifier.size(80.dp)
+            )
+
+            // Informações de Cast e título
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Reproduzindo em",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 14.sp
+                )
+
+                Text(
+                    text = deviceName,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                // Título do vídeo atual
+                if (currentTitle.isNotEmpty()) {
+                    Text(
+                        text = currentTitle,
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+
+                // Tempo atual / total
+                if (duration > 0) {
+                    Text(
+                        text = "${formatTime(currentPosition)} / ${formatTime(duration)}",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 14.sp
+                    )
+                }
+            }
+
+            // Controles principais centralizados
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp),
                 horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
             ) {
                 IconButton(
                     onClick = {
@@ -258,8 +262,9 @@ fun CastControlsOverlay(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(24.dp))
+                Spacer(modifier = Modifier.width(32.dp))
 
+                // Botão play/pause maior e destacado
                 IconButton(
                     onClick = {
                         if (isPlaying) {
@@ -270,17 +275,17 @@ fun CastControlsOverlay(
                     },
                     modifier = Modifier
                         .background(Color.White.copy(alpha = 0.9f), CircleShape)
-                        .size(72.dp)
+                        .size(80.dp)
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) "Pause" else "Play",
                         tint = Color.Black,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(44.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(24.dp))
+                Spacer(modifier = Modifier.width(32.dp))
 
                 IconButton(
                     onClick = {
@@ -296,11 +301,26 @@ fun CastControlsOverlay(
                     )
                 }
             }
+        }
 
-            // Seek bar
-            if (duration > 0) {
-                var tempPosition by remember { mutableStateOf(currentPosition) }
+        // Seek bar na parte inferior
+        if (duration > 0) {
+            var tempPosition by remember { mutableStateOf(currentPosition) }
 
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.6f)
+                            )
+                        )
+                    )
+                    .padding(24.dp)
+            ) {
                 Slider(
                     value = if (isSeeking) tempPosition.toFloat() else currentPosition.toFloat(),
                     onValueChange = { newValue ->
@@ -315,28 +335,12 @@ fun CastControlsOverlay(
                     },
                     valueRange = 0f..duration.toFloat(),
                     colors = SliderDefaults.colors(
-                        thumbColor = Color.White,
-                        activeTrackColor = Color.White,
+                        thumbColor = Color(0xFF4CAF50),
+                        activeTrackColor = Color(0xFF4CAF50),
                         inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                    )
+                    ),
+                    modifier = Modifier.fillMaxWidth()
                 )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = formatTime(if (isSeeking) tempPosition else currentPosition),
-                        color = Color.White,
-                        fontSize = 14.sp
-                    )
-
-                    Text(
-                        text = formatTime(duration),
-                        color = Color.White,
-                        fontSize = 14.sp
-                    )
-                }
             }
         }
     }
