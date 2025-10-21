@@ -380,23 +380,23 @@ fun DisplaySettingsScreen() {
             )
         }
 
-        item {
-            SettingsSectionHeader(stringResource(R.string.display_quality))
-        }
+//        item {
+//            SettingsSectionHeader(stringResource(R.string.display_quality))
+//        }
 
-        item {
-            SettingsDropdownItem(
-                icon = Icons.Default.HighQuality,
-                title = stringResource(R.string.display_thumbnail_quality),
-                subtitle = stringResource(R.string.display_thumbnail_quality_desc),
-                options = qualityOptions,
-                selectedValue = thumbnailQuality,
-                onValueChange = {
-                    thumbnailQuality = it
-                    prefs.edit().putString("thumbnail_quality", it).apply()
-                }
-            )
-        }
+//        item {
+//            SettingsDropdownItem(
+//                icon = Icons.Default.HighQuality,
+//                title = stringResource(R.string.display_thumbnail_quality),
+//                subtitle = stringResource(R.string.display_thumbnail_quality_desc),
+//                options = qualityOptions,
+//                selectedValue = thumbnailQuality,
+//                onValueChange = {
+//                    thumbnailQuality = it
+//                    prefs.edit().putString("thumbnail_quality", it).apply()
+//                }
+//            )
+//        }
     }
 }
 
@@ -496,17 +496,17 @@ fun AboutSettingsScreen() {
                     val appVersion = BuildConfig.VERSION_NAME
                     val deviceInfo = "${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})"
                     val emailBody = """
-                Descreva o problema encontrado:
+                Describe the issue you found:
                 
                 
                 
-                --- Informações do Sistema ---
+                --- System Information ---
                 App Version: $appVersion
                 Device: $deviceInfo
             """.trimIndent()
 
                     // Método 1: Tenta com mailto direto
-                    val mailtoUri = Uri.parse("mailto:nklssuport@gmail.com\n?subject=${Uri.encode("Bug Report - ${context.getString(R.string.app_name)}")}&body=${Uri.encode(emailBody)}")
+                    val mailtoUri = Uri.parse("mailto:nklssuport@gmail.com?subject=${Uri.encode("Bug Report - ${context.getString(R.string.app_name)}")}&body=${Uri.encode(emailBody)}")
                     val mailtoIntent = Intent(Intent.ACTION_VIEW, mailtoUri)
 
                     Log.d("EmailIntent", "Tentando mailto direto...")
@@ -519,7 +519,7 @@ fun AboutSettingsScreen() {
                     // Método 2: Intent específico para email
                     val emailIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "message/rfc822"
-                        putExtra(Intent.EXTRA_EMAIL, arrayOf("suporte@seuapp.com"))
+                        putExtra(Intent.EXTRA_EMAIL, arrayOf("nklssuport@gmail.com"))
                         putExtra(Intent.EXTRA_SUBJECT, "Bug Report - ${context.getString(R.string.app_name)}")
                         putExtra(Intent.EXTRA_TEXT, emailBody)
                     }

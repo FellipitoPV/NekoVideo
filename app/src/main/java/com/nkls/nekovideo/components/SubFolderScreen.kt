@@ -66,6 +66,7 @@ import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
@@ -313,10 +314,20 @@ private fun applySorting(items: List<MediaItem>, sortType: SortType): List<Media
 
 // SIMPLIFICADO - Componente de ordenação
 @Composable
-fun SortRow(currentSort: SortType, onSortChange: (SortType) -> Unit) {
+fun SortRow(
+    currentSort: SortType,
+    onSortChange: (SortType) -> Unit,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {}
+) {
     var showDropdown by remember { mutableStateOf(false) }
 
-    Row(modifier = Modifier.fillMaxWidth().padding(16.dp, 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp, 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Icon(Icons.Default.Sort, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(modifier = Modifier.width(8.dp))
 
@@ -348,6 +359,27 @@ fun SortRow(currentSort: SortType, onSortChange: (SortType) -> Unit) {
                         leadingIcon = if (currentSort == sort) {{ Icon(Icons.Default.Check, contentDescription = null) }} else null
                     )
                 }
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f)) // ✅ Empurra o botão para direita
+
+        // ✅ BOTÃO DE REFRESH
+        IconButton(
+            onClick = onRefresh,
+            enabled = !isRefreshing
+        ) {
+            if (isRefreshing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Icon(
+                    Icons.Default.Refresh,
+                    contentDescription = "Atualizar",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
@@ -399,10 +431,6 @@ fun SubFolderScreen(
 
     // 🆕 Manual pull-to-refresh states
     var isRefreshing by remember { mutableStateOf(false) }
-    var pullOffset by remember { mutableStateOf(0f) }
-    val pullThreshold = with(density) { 80.dp.toPx() }
-
-    val shouldRefresh by remember { derivedStateOf { pullOffset >= pullThreshold } }
 
     // Observa o estado do scanner
     val scannerCache by FolderVideoScanner.cache.collectAsState()
@@ -443,7 +471,6 @@ fun SubFolderScreen(
                     Log.e("SubFolderScreen", "Erro no refresh", e)
                 } finally {
                     isRefreshing = false
-                    pullOffset = 0f
                 }
             }
         }
@@ -502,27 +529,13 @@ fun SubFolderScreen(
         val isEmptyState = items.isEmpty() && !isScanning
 
         Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .offset { IntOffset(0, pullOffset.roundToInt()) }
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragEnd = {
-                                if (shouldRefresh && !isRefreshing) {
-                                    performRefresh()
-                                } else {
-                                    pullOffset = 0f
-                                }
-                            }
-                        ) { _, dragAmount ->
-                            val newOffset = pullOffset + dragAmount.y
-                            pullOffset = newOffset.coerceAtLeast(0f).coerceAtMost(pullThreshold * 1.5f)
-                        }
-                    }
-            ) {
-                SortRow(sortType) { sortType = it }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+            Column(modifier = Modifier.fillMaxSize()) {
+                SortRow(
+                    currentSort = sortType,
+                    onSortChange = { sortType = it },
+                    isRefreshing = isRefreshing,
+                    onRefresh = { performRefresh() }
+                )
 
                 // 🆕 NOVO: Mostrar mensagem especial quando não há itens
                 if (isEmptyState) {
@@ -558,7 +571,7 @@ fun SubFolderScreen(
                 LazyColumn(
                     state = lazyListState,
                     contentPadding = PaddingValues(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(items.chunked(gridColumns), key = { chunk -> chunk.joinToString { it.path }}) { rowItems ->
                         MediaRow(
@@ -586,12 +599,12 @@ fun SubFolderScreen(
             }
 
             // 🆕 NOVO: Indicador de pull-to-refresh mais destacado quando vazio
-            if (isEmptyState && (pullOffset > 0 || isRefreshing)) {
+            if (isEmptyState && isRefreshing) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = 32.dp)
-                        .offset { IntOffset(0, (pullOffset * 0.5f).roundToInt()) }
+                        .offset { IntOffset(0, (1 * 0.5f).roundToInt()) }
                 ) {
                     Card(
                         colors = CardDefaults.cardColors(
@@ -630,25 +643,18 @@ fun SubFolderScreen(
                         }
                     }
                 }
-            } else if (pullOffset > 0 || isRefreshing) {
+            } else if (isRefreshing) {
                 // Indicador normal quando há itens
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = 16.dp)
-                        .offset { IntOffset(0, (pullOffset * 0.5f).roundToInt()) }
+                        .offset { IntOffset(0, (1 * 0.5f).roundToInt()) }
                 ) {
                     if (isRefreshing) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(32.dp),
                             color = MaterialTheme.colorScheme.primary
-                        )
-                    } else {
-                        val alpha = (pullOffset / pullThreshold).coerceAtMost(1f)
-                        CircularProgressIndicator(
-                            progress = alpha,
-                            modifier = Modifier.size(32.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = alpha)
                         )
                     }
                 }

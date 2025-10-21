@@ -1,3 +1,5 @@
+import com.android.build.api.dsl.Packaging
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -14,7 +16,7 @@ android {
         minSdk = 30
         targetSdk = 35
         versionCode = 1
-        versionName = "1.1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -23,7 +25,7 @@ android {
         release {
             isMinifyEnabled = true
             ndk {
-                debugSymbolLevel = "full" // ✅ Adicione isto
+                debugSymbolLevel = "full"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -55,7 +57,7 @@ android {
     }
 
     // Performance otimizations
-    packagingOptions {
+    packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
@@ -84,7 +86,6 @@ dependencies {
     implementation(libs.androidx.media3.session)
     implementation(libs.material.icons.extended.v168)
 
-    // Glide sem processor (funciona sem o warning)
     implementation(libs.glide)
 
     implementation(libs.androidx.navigation.compose)
