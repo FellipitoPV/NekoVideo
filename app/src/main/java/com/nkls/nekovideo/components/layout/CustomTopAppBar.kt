@@ -45,6 +45,11 @@ import com.nkls.nekovideo.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 
 // NOVA função para detectar se é pasta segura (qualquer pasta com . no início e com marcadores)
 private fun isSecureFolder(folderPath: String): Boolean {
@@ -142,15 +147,10 @@ fun CustomTopAppBar(
                     )
                 }
                 currentRoute == "folder" && isRootByRoute -> {
-                    Text(
-                        text = "NekoVideo",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .clickable(
-                                enabled = true,
-                                onClick = { /* Handled by pointerInput */ }
-                            )
+                            .clickable(enabled = true, onClick = { })
                             .pointerInput(Unit) {
                                 detectTapGestures { _ ->
                                     tapCount++
@@ -168,7 +168,19 @@ fun CustomTopAppBar(
                                     }
                                 }
                             }
-                    )
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_app_icon),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "NekoVideo",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
                 currentRoute == "folder" -> {
                     // NOVO: Breadcrumb simplificado - trata todas as pastas igual
@@ -234,12 +246,80 @@ fun CustomTopAppBar(
                         }
                     }
                 }
+                // Para o caso quando está na raiz (com triple tap)
+                currentRoute == "folder" && isRootByRoute -> {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clickable(enabled = true, onClick = { })
+                            .pointerInput(Unit) {
+                                detectTapGestures { _ ->
+                                    tapCount++
+                                    if (tapCount == 1) {
+                                        coroutineScope.launch {
+                                            delay(maxTapInterval)
+                                            if (tapCount < 3) {
+                                                tapCount = 0
+                                            }
+                                        }
+                                    }
+                                    if (tapCount >= 3) {
+                                        tapCount = 0
+                                        onPasswordDialog()
+                                    }
+                                }
+                            }
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_app_icon),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "NekoVideo",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+// Para o caso else (também com triple tap)
                 else -> {
-                    Text(
-                        text = "NekoVideo",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clickable(enabled = true, onClick = { })
+                            .pointerInput(Unit) {
+                                detectTapGestures { _ ->
+                                    tapCount++
+                                    if (tapCount == 1) {
+                                        coroutineScope.launch {
+                                            delay(maxTapInterval)
+                                            if (tapCount < 3) {
+                                                tapCount = 0
+                                            }
+                                        }
+                                    }
+                                    if (tapCount >= 3) {
+                                        tapCount = 0
+                                        onPasswordDialog()
+                                    }
+                                }
+                            }
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_app_icon),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "NekoVideo",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
         },

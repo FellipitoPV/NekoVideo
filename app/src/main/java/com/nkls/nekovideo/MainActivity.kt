@@ -87,14 +87,13 @@ class MainActivity : AppCompatActivity() {
                                     notificationReceived = notificationIntentReceived,
                                     lastAction = lastIntentAction,
                                     lastTime = lastIntentTime,
-                                    externalVideoReceived = true, // FORÇAR true
-                                    autoOpenOverlay = true // NOVO PARÂMETRO
+                                    externalVideoReceived = true,
+                                    autoOpenOverlay = true
                                 )
                             }
                         }
                     }
 
-                    Log.d("MainActivity", "Overlay deve abrir automaticamente")
                 }
             } catch (e: Exception) {
                 Log.e("MainActivity", "Erro ao processar vídeo externo", e)
