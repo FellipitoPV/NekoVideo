@@ -75,7 +75,7 @@
     <string name="updating_videos">वीडियो अपडेट हो रहे हैं...</string>
     <string name="pull_to_refresh">रिफ्रेश करने के लिए खींचें</string>
     <string name="release_to_refresh">रिफ्रेश करने के लिए छोड़ें</string>
-    <string name="pull_to_refresh_empty">वीडियो इंडेक्स को रिफ्रेश करने के लिए नीचे खींचें</string>
+    <string name="pull_to_refresh_empty">वीडियो इंडेक्स को रिफ्रेश करने के लिए आइकन पर क्लिक करें</string>
 
     <!-- Themes -->
     <string name="theme_light">लाइट</string>

@@ -225,8 +225,9 @@ fun CustomTopAppBar(
                                                 val targetSegments = pathSegments.take(index + 1)
                                                 val targetPath = "$rootPath/${targetSegments.joinToString("/")}"
                                                 val encodedPath = Uri.encode(targetPath)
+
                                                 navController.navigate("folder/$encodedPath") {
-                                                    popUpTo("folder/root") { inclusive = false }
+                                                    popUpTo("folder/$encodedPath") { inclusive = true }
                                                     launchSingleTop = true
                                                 }
                                             }

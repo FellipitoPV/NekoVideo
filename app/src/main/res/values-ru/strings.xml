@@ -75,7 +75,7 @@
     <string name="updating_videos">Обновление видео...</string>
     <string name="pull_to_refresh">Потяните для обновления</string>
     <string name="release_to_refresh">Отпустите для обновления</string>
-    <string name="pull_to_refresh_empty">Потяните вниз для обновления индекса видео</string>
+    <string name="pull_to_refresh_empty">Нажмите на значок, чтобы обновить индекс видео</string>
 
     <!-- Themes -->
     <string name="theme_light">Светлая</string>

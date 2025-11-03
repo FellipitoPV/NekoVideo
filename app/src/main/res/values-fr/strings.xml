@@ -75,7 +75,7 @@
     <string name="updating_videos">Mise à jour des vidéos...</string>
     <string name="pull_to_refresh">Tirez pour actualiser</string>
     <string name="release_to_refresh">Relâchez pour actualiser</string>
-    <string name="pull_to_refresh_empty">Tirez vers le bas pour actualiser l\'index des vidéos</string>
+    <string name="pull_to_refresh_empty">Cliquez sur l\'icône pour actualiser l\'index des vidéos</string>
 
     <!-- Themes -->
     <string name="theme_light">Clair</string>

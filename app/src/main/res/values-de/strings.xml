@@ -75,7 +75,7 @@
     <string name="updating_videos">Videos werden aktualisiert...</string>
     <string name="pull_to_refresh">Zum Aktualisieren ziehen</string>
     <string name="release_to_refresh">Loslassen zum Aktualisieren</string>
-    <string name="pull_to_refresh_empty">Nach unten ziehen, um Video-Index zu aktualisieren</string>
+    <string name="pull_to_refresh_empty">Klicken Sie auf das Symbol, um den Videoindex zu aktualisieren</string>
 
     <!-- Themes -->
     <string name="theme_light">Hell</string>
