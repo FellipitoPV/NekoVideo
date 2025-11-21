@@ -41,9 +41,9 @@ import com.nkls.nekovideo.components.RenameDialog
 import com.nkls.nekovideo.components.SortType
 import com.nkls.nekovideo.components.SubFolderScreen
 import com.nkls.nekovideo.components.helpers.FilesManager
-import com.nkls.nekovideo.components.layout.ActionBottomSheetFAB
+import com.nkls.nekovideo.components.layout.ActionFAB
 import com.nkls.nekovideo.components.layout.ActionType
-import com.nkls.nekovideo.components.layout.CustomTopAppBar
+import com.nkls.nekovideo.components.layout.TopBar
 import com.nkls.nekovideo.components.loadFolderContent
 import com.nkls.nekovideo.components.loadFolderContentRecursive
 import com.nkls.nekovideo.components.player.MiniPlayerImproved
@@ -127,6 +127,13 @@ fun MainScreen(
         val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
 
         folderPath == rootPath
+    }
+
+    // ✅ Função de refresh simplificada
+    fun quickRefresh() {
+        coroutineScope.launch {
+            FolderVideoScanner.startScan(context, coroutineScope, forceRefresh = true)
+        }
     }
 
     fun performRefresh() {
@@ -476,7 +483,7 @@ fun MainScreen(
     Scaffold(
         topBar = {
             if (currentRoute != "video_player" && !showPlayerOverlay) {
-                CustomTopAppBar(
+                TopBar(
                     currentRoute = currentRoute,
                     selectedItems = selectedItems.toList(),
                     folderPath = folderPath,
@@ -521,7 +528,7 @@ fun MainScreen(
         },
         floatingActionButton = {
             if (currentRoute != "video_player" && currentRoute?.startsWith("settings") != true && !showPlayerOverlay) {
-                ActionBottomSheetFAB(
+                ActionFAB(
                     hasSelectedItems = selectedItems.isNotEmpty(),
                     isMoveMode = isMoveMode,
                     isSecureMode = isSecureFolder(folderPath),
@@ -552,6 +559,7 @@ fun MainScreen(
                                                 }
                                                 selectedItems.clear()
                                                 renameTrigger++
+                                                quickRefresh()
                                             },
                                             onRefresh = ::performRefresh
                                         )
@@ -577,6 +585,7 @@ fun MainScreen(
                                                 }
                                                 selectedItems.clear()
                                                 renameTrigger++
+                                                quickRefresh()
                                             },
                                             onRefresh = ::performRefresh
                                         )
@@ -606,6 +615,7 @@ fun MainScreen(
                                                     }
                                                     selectedItems.clear()
                                                     renameTrigger++
+                                                    quickRefresh()
                                                 },
                                                 onRefresh = ::performRefresh
                                             )
@@ -640,6 +650,7 @@ fun MainScreen(
                                                     }
                                                     selectedItems.clear()
                                                     renameTrigger++
+                                                    quickRefresh()
                                                 },
                                                 onRefresh = ::performRefresh
                                             )
@@ -704,9 +715,28 @@ fun MainScreen(
                                             itemsToMove = emptyList()
                                             isMoveMode = false
                                             renameTrigger++
+                                            quickRefresh()
                                         },
                                         onRefresh = ::performRefresh
                                     )
+                                }
+                            }
+                            ActionType.SET_AS_SECURE_FOLDER -> {
+                                coroutineScope.launch {
+                                    val folderPath = selectedItems.first()
+                                    FilesManager.SecureStorage.setCustomSecureFolderPath(context, folderPath)
+
+                                    launch(Dispatchers.Main) {
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.secure_folder_set), // ou "Pasta segura definida!"
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+
+                                    selectedItems.clear()
+                                    renameTrigger++
+                                    quickRefresh()
                                 }
                             }
                         }

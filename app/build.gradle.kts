@@ -1,5 +1,7 @@
 import com.android.build.api.dsl.Packaging
 
+
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -24,12 +26,12 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             ndk {
                 debugSymbolLevel = "full"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
             )
         }
     }
@@ -75,6 +77,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose.android)
     implementation(libs.androidx.foundation.android)
+    implementation("com.google.code.gson:gson:2.13.2")
 
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.coil.video)

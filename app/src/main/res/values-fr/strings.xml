@@ -25,6 +25,8 @@
     <string name="items_moved">Éléments déplacés!</string>
     <string name="files_secured">Fichiers sécurisés!</string>
     <string name="folder_created">Dossier créé</string>
+    <string name="action_set_secure_folder">Définir Comme Dossier Sécurisé</string>
+    <string name="secure_folder_set">Ce dossier est maintenant le dossier sécurisé !</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Annuler</string>
@@ -35,6 +37,7 @@
     <string name="loading">Chargement...</string>
     <string name="updating_index">Mise à jour de l\'index...</string>
     <string name="indexing_videos">Indexation des vidéos...</string>
+    <string name="pull_down_to_scan">Glissez vers le bas pour rechercher des vidéos</string>
 
     <string name="searching_cast_devices">Recherche d\'appareils de diffusion...</string>
     <string name="no_cast_devices_found">Aucun appareil de diffusion trouvé</string>

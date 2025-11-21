@@ -25,6 +25,8 @@
     <string name="items_moved">Items moved!</string>
     <string name="files_secured">Files secured!</string>
     <string name="folder_created">Folder created</string>
+    <string name="action_set_secure_folder">Set as Secure Folder</string>
+    <string name="secure_folder_set">This folder is now the secure folder!</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Cancel</string>
@@ -35,6 +37,7 @@
     <string name="loading">Loading...</string>
     <string name="updating_index">Updating index...</string>
     <string name="indexing_videos">Indexing videos...</string>
+    <string name="pull_down_to_scan">Swipe down to search for videos</string>
 
     <string name="searching_cast_devices">Searching for cast devices...</string>
     <string name="no_cast_devices_found">No cast devices found</string>

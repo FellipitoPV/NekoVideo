@@ -25,6 +25,8 @@
     <string name="items_moved">आइटम मूव किए गए!</string>
     <string name="files_secured">फ़ाइलें सुरक्षित!</string>
     <string name="folder_created">फ़ोल्डर बनाया गया</string>
+    <string name="action_set_secure_folder">सुरक्षित फ़ोल्डर के रूप में सेट करें</string>
+    <string name="secure_folder_set">यह फ़ोल्डर अब सुरक्षित फ़ोल्डर है!</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">रद्द करें</string>
@@ -35,6 +37,7 @@
     <string name="loading">लोड हो रहा है...</string>
     <string name="updating_index">इंडेक्स अपडेट हो रहा है...</string>
     <string name="indexing_videos">वीडियो इंडेक्स हो रहे हैं...</string>
+    <string name="pull_down_to_scan">वीडियो खोजने के लिए नीचे स्वाइप करें</string>
 
     <string name="searching_cast_devices">कास्ट डिवाइस खोजा जा रहा है...</string>
     <string name="no_cast_devices_found">कोई कास्ट डिवाइस नहीं मिला</string>

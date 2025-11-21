@@ -4,6 +4,8 @@ import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,7 +39,47 @@ object FolderVideoScanner {
     private var scanJob: Job? = null
     private val videoExtensions = setOf("mp4", "mkv", "webm", "avi", "mov", "wmv", "m4v", "3gp", "flv")
 
-    fun startScan(context: Context, scope: CoroutineScope = GlobalScope) {
+    private const val PREFS_NAME = "nekovideo_cache"
+    private const val CACHE_KEY = "folder_cache"
+
+    private val gson = Gson()
+
+    // ✅ Carregar cache ao iniciar o app (sem expiração)
+    fun loadCacheFromDisk(context: Context) {
+        try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val cacheJson = prefs.getString(CACHE_KEY, null)
+
+            if (cacheJson != null) {
+                val type = object : TypeToken<Map<String, FolderInfo>>() {}.type
+                val loadedCache: Map<String, FolderInfo> = gson.fromJson(cacheJson, type)
+                _cache.value = loadedCache
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // ✅ Salvar cache no disco
+    private fun saveCacheToDisk(context: Context) {
+        try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val cacheJson = gson.toJson(_cache.value)
+
+            prefs.edit()
+                .putString(CACHE_KEY, cacheJson)
+                .apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun startScan(context: Context, scope: CoroutineScope = GlobalScope, forceRefresh: Boolean = false) {
+        // Se não for refresh forçado e já tem cache, não escaneia
+        if (!forceRefresh && _cache.value.isNotEmpty()) {
+            return
+        }
+
         scanJob?.cancel()
 
         scanJob = scope.launch(Dispatchers.IO) {
@@ -52,10 +94,13 @@ object FolderVideoScanner {
                 // Scan secure folders (com .nomedia/.nekovideo)
                 scanSecureFolders(folderMap)
 
-                // ✅ Scan direto das pastas principais para pegar arquivos não indexados (como Downloads)
+                // Scan direto das pastas principais para pegar arquivos não indexados
                 scanDirectFolders(folderMap)
 
                 _cache.value = folderMap.toMap()
+
+                // ✅ Salva o cache após o scan
+                saveCacheToDisk(context)
 
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -65,11 +110,10 @@ object FolderVideoScanner {
         }
     }
 
-    // Escanear diretamente pastas principais para pegar vídeos não indexados (como Downloads)
     private suspend fun scanDirectFolders(folderMap: ConcurrentHashMap<String, FolderInfo>) {
         val directScanPaths = listOf(
             "/storage/emulated/0/Download",
-            "/storage/emulated/0/Downloads", // Algumas ROMs usam plural
+            "/storage/emulated/0/Downloads",
             "/storage/emulated/0/Movies",
             "/storage/emulated/0/DCIM",
             "/storage/emulated/0/Pictures"
@@ -83,7 +127,6 @@ object FolderVideoScanner {
         }
     }
 
-    // Escanear diretório específico em busca de vídeos
     private suspend fun scanDirectoryForVideos(
         directory: File,
         folderMap: ConcurrentHashMap<String, FolderInfo>
@@ -93,12 +136,10 @@ object FolderVideoScanner {
         if (!directory.exists() || !directory.isDirectory) return
 
         try {
-            // Escanear arquivos de vídeo diretamente na pasta
             val videoFiles = directory.listFiles()?.filter { file ->
                 file.isFile && file.extension.lowercase() in videoExtensions
             } ?: emptyList()
 
-            // Adicionar vídeos encontrados
             videoFiles.forEach { videoFile ->
                 val videoInfo = VideoInfo(
                     path = videoFile.absolutePath,
@@ -110,7 +151,6 @@ object FolderVideoScanner {
                 addVideoToFolder(folderMap, directory.absolutePath, videoInfo, false)
             }
 
-            // Escanear subpastas também
             directory.listFiles()?.forEach { subDir ->
                 if (subDir.isDirectory && !subDir.name.startsWith(".")) {
                     scanDirectoryForVideos(subDir, folderMap)
@@ -184,7 +224,7 @@ object FolderVideoScanner {
 
         if (!directory.exists() || !directory.isDirectory) return
 
-        val isSecure = File(directory, ".nomedia").exists() || File(directory, ".nekovideo").exists()
+        val isSecure = File(directory, ".nekovideo").exists()
 
         if (isSecure) {
             val videoFiles = directory.listFiles()?.filter { file ->
@@ -214,7 +254,7 @@ object FolderVideoScanner {
 
         directory.listFiles()?.forEach { subDir ->
             if (subDir.isDirectory) {
-                if (!subDir.name.startsWith(".") || isSecure || File(subDir, ".nomedia").exists() || File(subDir, ".nekovideo").exists()) {
+                if (!subDir.name.startsWith(".") || isSecure || File(subDir, ".nekovideo").exists()) {
                     scanSecureFoldersRecursive(subDir, folderMap)
                 }
             }
@@ -238,7 +278,6 @@ object FolderVideoScanner {
                     videos = listOf(videoInfo)
                 )
             } else {
-                // Evitar duplicatas
                 val existingVideos = existing.videos
                 val isDuplicate = existingVideos.any { it.path == videoInfo.path }
 
@@ -249,7 +288,7 @@ object FolderVideoScanner {
                         videos = existingVideos + videoInfo
                     )
                 } else {
-                    existing // Não adiciona se já existe
+                    existing
                 }
             }
         }
@@ -305,7 +344,6 @@ object FolderVideoScanner {
         }
     }
 
-    // Public methods for the UI
     fun hasFolderVideos(folderPath: String): Boolean {
         return _cache.value[folderPath]?.hasVideos ?: false
     }
@@ -329,5 +367,12 @@ object FolderVideoScanner {
 
     fun clearCache() {
         _cache.value = emptyMap()
+    }
+
+    // ✅ Limpar cache do disco também
+    fun clearPersistentCache(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().clear().apply()
+        clearCache()
     }
 }

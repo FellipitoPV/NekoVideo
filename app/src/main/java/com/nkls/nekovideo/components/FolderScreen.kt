@@ -18,6 +18,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -52,7 +53,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.random.Random
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -63,19 +63,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import com.nkls.nekovideo.R
 import kotlin.math.roundToInt
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import kotlinx.coroutines.delay
 
-// SIMPLIFICADO - Enum de ordenação
 enum class SortType { NAME_ASC, NAME_DESC, DATE_NEWEST, DATE_OLDEST, SIZE_LARGEST, SIZE_SMALLEST }
 
 @Composable
@@ -208,7 +199,7 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
 
     val items = folder.listFiles()?.mapNotNull { file ->
         when {
-            file.name in listOf(".nomedia", ".nekovideo") -> null
+            file.name in listOf(".nekovideo") -> null
             file.isDirectory -> MediaItem(file.absolutePath, null, true, lastModified = file.lastModified(), sizeInBytes = getFolderSize(file))
             file.isFile && file.extension.lowercase() in videoExtensions -> MediaItem(file.absolutePath, null, false, lastModified = file.lastModified(), sizeInBytes = file.length())
             else -> null
@@ -232,11 +223,11 @@ private fun loadNormalContentFromCache(
 
     // Carregar pastas usando o cache
     folder.listFiles()?.filter { it.isDirectory }?.forEach { subfolder ->
-        if (subfolder.name in listOf(".nomedia", ".nekovideo")) return@forEach
+        if (subfolder.name in listOf(".nekovideo")) return@forEach
 
         val folderInfo = folderCache[subfolder.absolutePath]
         // 🔧 CORREÇÃO: Verifica diretamente se é pasta segura mesmo que não esteja no cache
-        val isSecure = folderInfo?.isSecure ?: (File(subfolder, ".nomedia").exists() || File(subfolder, ".nekovideo").exists())
+        val isSecure = folderInfo?.isSecure ?: (File(subfolder, ".nomedia").exists())
         val hasVideos = folderInfo?.hasVideos ?: false
 
         val shouldShow = when {
@@ -312,7 +303,7 @@ private fun applySorting(items: List<MediaItem>, sortType: SortType): List<Media
     return folders.sortedWith(comparator) + videos.sortedWith(comparator)
 }
 
-// SIMPLIFICADO - Componente de ordenação
+// ✅ SortRow otimizado
 @Composable
 fun SortRow(
     currentSort: SortType,
@@ -321,71 +312,136 @@ fun SortRow(
     onRefresh: () -> Unit = {}
 ) {
     var showDropdown by remember { mutableStateOf(false) }
+    var pullOffset by remember { mutableStateOf(0f) }
+    var isReadyToRefresh by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+    val refreshThreshold = with(density) { 80.dp.toPx() }
 
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp, 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .pointerInput(isRefreshing) {
+                if (!isRefreshing) {
+                    detectVerticalDragGestures(
+                        onDragEnd = {
+                            if (isReadyToRefresh) {
+                                onRefresh()
+                            }
+                            pullOffset = 0f
+                            isReadyToRefresh = false
+                        },
+                        onDragCancel = {
+                            pullOffset = 0f
+                            isReadyToRefresh = false
+                        },
+                        onVerticalDrag = { _, dragAmount ->
+                            if (dragAmount > 0) {
+                                pullOffset = (pullOffset + dragAmount * 0.5f).coerceIn(0f, refreshThreshold * 1.5f)
+                                isReadyToRefresh = pullOffset >= refreshThreshold
+                            } else if (dragAmount < 0 && pullOffset > 0) {
+                                // ✅ Permite cancelar puxando de volta
+                                pullOffset = (pullOffset + dragAmount * 0.5f).coerceAtLeast(0f)
+                                isReadyToRefresh = pullOffset >= refreshThreshold
+                            }
+                        }
+                    )
+                }
+            }
     ) {
-        Icon(Icons.Default.Sort, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Box {
-            TextButton(onClick = { showDropdown = true }) {
-                Text(when (currentSort) {
-                    SortType.NAME_ASC -> stringResource(R.string.sort_name_asc)
-                    SortType.NAME_DESC -> stringResource(R.string.sort_name_desc)
-                    SortType.DATE_NEWEST -> stringResource(R.string.sort_date_newest)
-                    SortType.DATE_OLDEST -> stringResource(R.string.sort_date_oldest)
-                    SortType.SIZE_LARGEST -> stringResource(R.string.sort_size_largest)
-                    SortType.SIZE_SMALLEST -> stringResource(R.string.sort_size_smallest)
-                })
-                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+        Column {
+            // ✅ Indicador discreto no topo (linha de gaveta)
+            if (!isRefreshing && pullOffset == 0f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(40.dp)
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
+                    )
+                }
             }
 
-            DropdownMenu(expanded = showDropdown, onDismissRequest = { showDropdown = false }) {
-                SortType.values().forEach { sort ->
-                    DropdownMenuItem(
-                        text = { Text(when (sort) {
+            // ✅ Indicador de pull-to-refresh
+            if (pullOffset > 0 ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(with(density) { pullOffset.toDp() })
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isRefreshing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Icon(
+                            imageVector = if (isReadyToRefresh) Icons.Default.Refresh else Icons.Default.ArrowDownward,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .alpha((pullOffset / refreshThreshold).coerceIn(0f, 1f))
+                        )
+                    }
+                }
+            }
+
+            // ✅ Conteúdo do SortRow (sem loadings extras)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp, 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Sort, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Box {
+                    TextButton(onClick = { showDropdown = true }) {
+                        Text(when (currentSort) {
                             SortType.NAME_ASC -> stringResource(R.string.sort_name_asc)
                             SortType.NAME_DESC -> stringResource(R.string.sort_name_desc)
                             SortType.DATE_NEWEST -> stringResource(R.string.sort_date_newest)
                             SortType.DATE_OLDEST -> stringResource(R.string.sort_date_oldest)
                             SortType.SIZE_LARGEST -> stringResource(R.string.sort_size_largest)
                             SortType.SIZE_SMALLEST -> stringResource(R.string.sort_size_smallest)
-                        })},
-                        onClick = { onSortChange(sort); showDropdown = false },
-                        leadingIcon = if (currentSort == sort) {{ Icon(Icons.Default.Check, contentDescription = null) }} else null
-                    )
+                        })
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                    }
+
+                    DropdownMenu(expanded = showDropdown, onDismissRequest = { showDropdown = false }) {
+                        SortType.values().forEach { sort ->
+                            DropdownMenuItem(
+                                text = { Text(when (sort) {
+                                    SortType.NAME_ASC -> stringResource(R.string.sort_name_asc)
+                                    SortType.NAME_DESC -> stringResource(R.string.sort_name_desc)
+                                    SortType.DATE_NEWEST -> stringResource(R.string.sort_date_newest)
+                                    SortType.DATE_OLDEST -> stringResource(R.string.sort_date_oldest)
+                                    SortType.SIZE_LARGEST -> stringResource(R.string.sort_size_largest)
+                                    SortType.SIZE_SMALLEST -> stringResource(R.string.sort_size_smallest)
+                                })},
+                                onClick = { onSortChange(sort); showDropdown = false },
+                                leadingIcon = if (currentSort == sort) {{ Icon(Icons.Default.Check, contentDescription = null) }} else null
+                            )
+                        }
+                    }
                 }
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1f)) // ✅ Empurra o botão para direita
-
-        // ✅ BOTÃO DE REFRESH
-        IconButton(
-            onClick = onRefresh,
-            enabled = !isRefreshing
-        ) {
-            if (isRefreshing) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp
-                )
-            } else {
-                Icon(
-                    Icons.Default.Refresh,
-                    contentDescription = "Atualizar",
-                    tint = MaterialTheme.colorScheme.primary
-                )
             }
         }
     }
 }
 
-// COMPONENTE PRINCIPAL COM LOADING
+// ✅ COMPONENTE PRINCIPAL COM LOADING SIMPLIFICADO
+
 @Composable
 fun SubFolderScreen(
     folderPath: String,
@@ -400,80 +456,55 @@ fun SubFolderScreen(
     isMoveMode: Boolean = false,
     itemsToMove: List<String> = emptyList()
 ) {
-    // ===== NOVO: ESTADO PARA VERIFICAR PERMISSÃO =====
     var hasPermission by remember { mutableStateOf(hasManageExternalStoragePermission()) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // ===== NOVO: VERIFICA PERMISSÃO QUANDO O USUÁRIO VOLTA PARA O APP =====
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 hasPermission = hasManageExternalStoragePermission()
             }
         }
-
         lifecycleOwner.lifecycle.addObserver(observer)
-
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val density = LocalDensity.current
 
     var items by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var sortType by remember { mutableStateOf(SortType.NAME_ASC) }
     val lazyListState = rememberLazyListState()
 
-    // 🆕 Manual pull-to-refresh states
-    var isRefreshing by remember { mutableStateOf(false) }
-
-    // Observa o estado do scanner
     val scannerCache by FolderVideoScanner.cache.collectAsState()
     val isScanning by FolderVideoScanner.isScanning.collectAsState()
 
-    // Configurações
-    val showThumbnails by remember { derivedStateOf {
-        OptimizedThumbnailManager.isShowThumbnailsEnabled(
-            context
-        )
-    }}
-    val showDurations by remember { derivedStateOf {
-        OptimizedThumbnailManager.isShowDurationsEnabled(
-            context
-        )
-    }}
-    val showFileSizes by remember { derivedStateOf {
-        OptimizedThumbnailManager.isShowFileSizesEnabled(
-            context
-        )
-    }}
+    val showThumbnails by remember { derivedStateOf { OptimizedThumbnailManager.isShowThumbnailsEnabled(context) }}
+    val showDurations by remember { derivedStateOf { OptimizedThumbnailManager.isShowDurationsEnabled(context) }}
+    val showFileSizes by remember { derivedStateOf { OptimizedThumbnailManager.isShowFileSizesEnabled(context) }}
     val gridColumns by remember { derivedStateOf { SettingsManager.getGridColumns(context) }}
 
-    // 🆕 Função de refresh
+    // ✅ Função de refresh simplificada
     fun performRefresh() {
-        if (!isRefreshing) {
-            coroutineScope.launch {
-                try {
-                    isRefreshing = true
-                    FolderVideoScanner.startScan(context, coroutineScope)
+        coroutineScope.launch {
+            FolderVideoScanner.startScan(context, coroutineScope, forceRefresh = true)
+        }
+    }
 
-                    while (FolderVideoScanner.isScanning.value) {
-                        delay(100)
-                    }
-
-                    delay(300)
-                } catch (e: Exception) {
-                    Log.e("SubFolderScreen", "Erro no refresh", e)
-                } finally {
-                    isRefreshing = false
+    // ✅ Auto-refresh quando volta para a tela (opcional)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && scannerCache.isNotEmpty()) {
+                // Refresh suave em background quando volta para o app
+                coroutineScope.launch {
+                    delay(500)
+                    FolderVideoScanner.startScan(context, coroutineScope, forceRefresh = false)
                 }
             }
         }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     if (!hasPermission) {
@@ -481,7 +512,6 @@ fun SubFolderScreen(
         return
     }
 
-    // Carregamento com loading
     LaunchedEffect(folderPath, sortType, renameTrigger, isSecureMode, showPrivateFolders, scannerCache) {
         isLoading = true
         items = withContext(Dispatchers.IO) {
@@ -490,7 +520,6 @@ fun SubFolderScreen(
         isLoading = false
     }
 
-    // Remoção de item deletado
     LaunchedEffect(deletedVideoPath) {
         deletedVideoPath?.let { path ->
             items = items.filterNot { it.path == path }
@@ -499,6 +528,7 @@ fun SubFolderScreen(
         }
     }
 
+    // ✅ Loading inicial grande (primeira vez)
     if (scannerCache.isEmpty() && isScanning) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -514,18 +544,13 @@ fun SubFolderScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = when {
-                        isScanning && isRefreshing -> stringResource(R.string.updating_index)
-                        isScanning -> stringResource(R.string.indexing_videos)
-                        else -> stringResource(R.string.loading)
-                    },
+                    text = stringResource(R.string.indexing_videos),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     } else {
-        // 🆕 NOVO: Verificar se não há itens para mostrar
         val isEmptyState = items.isEmpty() && !isScanning
 
         Box(modifier = Modifier.fillMaxSize()) {
@@ -533,11 +558,10 @@ fun SubFolderScreen(
                 SortRow(
                     currentSort = sortType,
                     onSortChange = { sortType = it },
-                    isRefreshing = isRefreshing,
+                    isRefreshing = isScanning, // ✅ Usa isScanning direto
                     onRefresh = { performRefresh() }
                 )
 
-                // 🆕 NOVO: Mostrar mensagem especial quando não há itens
                 if (isEmptyState) {
                     Box(
                         modifier = Modifier
@@ -552,16 +576,23 @@ fun SubFolderScreen(
                             verticalArrangement = Arrangement.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Refresh,
+                                imageVector = Icons.Default.VideoLibrary,
                                 contentDescription = null,
                                 modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = stringResource(R.string.pull_to_refresh_empty),
+                                text = stringResource(R.string.no_videos_found),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = stringResource(R.string.pull_down_to_scan),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -589,86 +620,22 @@ fun SubFolderScreen(
                         )
                     }
 
-                    // 🆕 NOVO: Adicionar espaço extra quando não há itens
                     if (isEmptyState) {
-                        item {
-                            Spacer(modifier = Modifier.height(200.dp))
-                        }
+                        item { Spacer(modifier = Modifier.height(200.dp)) }
                     }
                 }
             }
 
-            // 🆕 NOVO: Indicador de pull-to-refresh mais destacado quando vazio
-            if (isEmptyState && isRefreshing) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 32.dp)
-                        .offset { IntOffset(0, (1 * 0.5f).roundToInt()) }
-                ) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp, 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (isRefreshing) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDownward,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(24.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = if (isRefreshing) {
-                                    stringResource(R.string.updating_index)
-                                } else {
-                                    stringResource(R.string.pull_to_refresh)
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                }
-            } else if (isRefreshing) {
-                // Indicador normal quando há itens
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 16.dp)
-                        .offset { IntOffset(0, (1 * 0.5f).roundToInt()) }
-                ) {
-                    if (isRefreshing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(32.dp),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
-            // Indicador quando scan roda em background
-            if (isScanning && !isRefreshing) {
+            // ✅ ÚNICO indicador de scan em background (discreto, no topo)
+            if (isScanning && items.isNotEmpty()) {
                 Card(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 60.dp),
+                        .padding(top = 8.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp, 8.dp),
@@ -681,7 +648,7 @@ fun SubFolderScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Atualizando índice...",
+                            text = "Atualizando...",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -1175,7 +1142,7 @@ private fun loadSecureContentRecursive(folderPath: String, allItems: MutableList
 
     folder.listFiles()?.forEach { file ->
         when {
-            file.name in listOf(".nomedia", ".nekovideo") -> return@forEach
+            file.name in listOf(".nekovideo") -> return@forEach
             file.isDirectory -> {
                 loadSecureContentRecursive(file.absolutePath, allItems)
             }

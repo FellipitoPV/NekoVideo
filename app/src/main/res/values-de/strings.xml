@@ -25,6 +25,8 @@
     <string name="items_moved">Elemente verschoben!</string>
     <string name="files_secured">Dateien gesichert!</string>
     <string name="folder_created">Ordner erstellt</string>
+    <string name="action_set_secure_folder">Als Sicheren Ordner Festlegen</string>
+    <string name="secure_folder_set">Dieser Ordner ist jetzt der sichere Ordner!</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Abbrechen</string>
@@ -35,6 +37,7 @@
     <string name="loading">Laden...</string>
     <string name="updating_index">Index wird aktualisiert...</string>
     <string name="indexing_videos">Videos werden indexiert...</string>
+    <string name="pull_down_to_scan">Nach unten wischen, um Videos zu suchen</string>
 
     <string name="searching_cast_devices">Suche nach Cast-Geräten...</string>
     <string name="no_cast_devices_found">Keine Cast-Geräte gefunden</string>

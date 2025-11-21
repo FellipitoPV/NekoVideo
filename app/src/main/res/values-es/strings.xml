@@ -25,6 +25,8 @@
     <string name="items_moved">¡Elementos movidos!</string>
     <string name="files_secured">¡Archivos asegurados!</string>
     <string name="folder_created">Carpeta creada</string>
+    <string name="action_set_secure_folder">Establecer Como Carpeta Segura</string>
+    <string name="secure_folder_set">¡Esta carpeta ahora es la carpeta segura!</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Cancelar</string>
@@ -35,6 +37,7 @@
     <string name="loading">Cargando...</string>
     <string name="updating_index">Actualizando índice...</string>
     <string name="indexing_videos">Indexando videos...</string>
+    <string name="pull_down_to_scan">Desliza hacia abajo para buscar videos</string>
 
     <string name="searching_cast_devices">Buscando dispositivos de transmisión...</string>
     <string name="no_cast_devices_found">No se encontraron dispositivos de transmisión</string>

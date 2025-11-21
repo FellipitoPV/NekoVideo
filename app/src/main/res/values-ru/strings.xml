@@ -25,6 +25,8 @@
     <string name="items_moved">Элементы перемещены!</string>
     <string name="files_secured">Файлы защищены!</string>
     <string name="folder_created">Папка создана</string>
+    <string name="action_set_secure_folder">Установить Защищённой Папкой</string>
+    <string name="secure_folder_set">Эта папка теперь защищённая папка!</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Отмена</string>
@@ -35,6 +37,7 @@
     <string name="loading">Загрузка...</string>
     <string name="updating_index">Обновление индекса...</string>
     <string name="indexing_videos">Индексация видео...</string>
+    <string name="pull_down_to_scan">Проведите вниз для поиска видео</string>
 
     <string name="searching_cast_devices">Поиск устройств трансляции...</string>
     <string name="no_cast_devices_found">Устройства трансляции не найдены</string>

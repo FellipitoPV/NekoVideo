@@ -31,7 +31,7 @@ import com.nkls.nekovideo.R
 
 enum class ActionType {
     UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS, PASTE,
-    PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE // NOVA AÇÃO
+    PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE, SET_AS_SECURE_FOLDER // ✅ NOVO
 }
 
 data class ActionItem(
@@ -44,7 +44,7 @@ data class ActionItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ActionBottomSheetFAB(
+fun ActionFAB(
     hasSelectedItems: Boolean,
     isMoveMode: Boolean,
     isSecureMode: Boolean,
@@ -69,6 +69,7 @@ fun ActionBottomSheetFAB(
     val shufflePlayText = stringResource(R.string.action_shuffle_play)
     val createFolderText = stringResource(R.string.action_create_folder)
     val settingsText = stringResource(R.string.action_settings)
+    val secureFolderSet = stringResource(R.string.action_set_secure_folder)
     val moveItemsText = pluralStringResource(R.plurals.move_items_count, itemsToMoveCount, itemsToMoveCount)
 
     // NOVOS: strings que estavam hardcoded
@@ -100,7 +101,7 @@ fun ActionBottomSheetFAB(
     }
 
     // Define as ações baseado no contexto
-    val actions = remember(hasSelectedItems, isSecureMode, hasPrivateFolders, hasNormalFolders, isMoveMode, moveItemsText, isRootDirectory) {
+    val actions = remember(hasSelectedItems, isSecureMode, hasPrivateFolders, hasNormalFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems) {
         when {
             isMoveMode -> {
                 listOf(
@@ -110,6 +111,11 @@ fun ActionBottomSheetFAB(
             }
             hasSelectedItems -> {
                 val actionsList = mutableListOf<ActionItem>()
+
+                // ✅ NOVO: Botão "Set as Secure Folder" apenas quando 1 pasta selecionada
+                val isSingleFolder = selectedItems.size == 1 &&
+                        java.io.File(selectedItems.first()).isDirectory
+
 
                 if (isSecureMode) {
                     actionsList.add(ActionItem(ActionType.UNLOCK, Icons.Default.LockOpen, unlockText))
@@ -129,6 +135,16 @@ fun ActionBottomSheetFAB(
                     ActionItem(ActionType.RENAME, Icons.Default.Edit, renameText),
                     ActionItem(ActionType.MOVE, Icons.Default.DriveFileMove, moveText)
                 ))
+
+                if (isSingleFolder) {
+                    actionsList.add(
+                        ActionItem(
+                            ActionType.SET_AS_SECURE_FOLDER,
+                            Icons.Default.FolderSpecial,
+                            secureFolderSet
+                        )
+                    )
+                }
 
                 actionsList
             }
@@ -322,9 +338,9 @@ private fun ActionGridItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(if (isMoveMode) 100.dp else 80.dp)
-            .clickable(enabled = action.isEnabled) { // ✅ Só clica se habilitado
-                if (action.isEnabled) onClick() // ✅ Dupla verificação
+            .height(if (isMoveMode) 110.dp else 100.dp)
+            .clickable(enabled = action.isEnabled) { // ✅ ADICIONE ESSA LINHA
+                if (action.isEnabled) onClick()
             },
         color = Color.Transparent,
         shape = RoundedCornerShape(12.dp)
@@ -337,7 +353,8 @@ private fun ActionGridItem(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth() // ✅ ADICIONE
             ) {
                 Surface(
                     modifier = Modifier.size(40.dp),
@@ -379,17 +396,21 @@ private fun ActionGridItem(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = action.title,
                     style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
+                        fontSize = 11.sp, // ✅ Diminuí de 12 para 11
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 13.sp // ✅ Ajustei o lineHeight
                     ),
                     textAlign = TextAlign.Center,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp), // ✅ ADICIONE
                     color = if (action.isEnabled) {
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                     } else {

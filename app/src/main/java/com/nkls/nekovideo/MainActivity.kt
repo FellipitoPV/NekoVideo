@@ -34,7 +34,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
-    // NOVO: Adicionar ThemeManager
     private lateinit var themeManager: ThemeManager
 
     var externalVideoReceived = false
@@ -151,7 +150,9 @@ class MainActivity : AppCompatActivity() {
 
         themeManager = ThemeManager(this)
 
-        // 🚀 Inicia scan imediatamente, em background
+        // 🚀 Carrega cache e inicia scan se necessário
+        FolderVideoScanner.loadCacheFromDisk(this)
+
         lifecycleScope.launch {
             FolderVideoScanner.startScan(this@MainActivity)
         }
@@ -183,7 +184,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         OptimizedThumbnailManager.startPeriodicCleanup()
-        Log.d("MainActivity", "✅ onCreate FINALIZADO")
     }
 
     fun keepScreenOn(keep: Boolean) {
@@ -233,17 +233,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        Log.d("MainActivity", "🔄 ==> onNewIntent CHAMADO <==")
-        Log.d("MainActivity", "Nova intent: ${intent}")
-        Log.d("MainActivity", "Nova action: ${intent?.action}")
 
         setIntent(intent)
 
         // PROCESSAR nova intent
         handleNotificationIntent(intent)
-
-        // IMPORTANTE: Recompor sem recreate para não perder estado
-        Log.d("MainActivity", "🔄 Recompondo interface...")
 
         setContent {
             NekoVideoTheme(themeManager = themeManager) {
@@ -264,7 +258,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        Log.d("MainActivity", "✅ onNewIntent FINALIZADO")
     }
 
 }

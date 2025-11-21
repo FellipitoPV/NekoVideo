@@ -475,7 +475,29 @@ object FilesManager {
         private const val PREFS_NAME = "NekoVideoPrefs"
         private const val PREF_PASSWORD_KEY = "secure_password"
 
+        private const val PREF_CUSTOM_SECURE_PATH = "custom_secure_folder_path"
+
+        fun setCustomSecureFolderPath(context: Context, folderPath: String) {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putString(PREF_CUSTOM_SECURE_PATH, folderPath).apply()
+        }
+
+        fun getCustomSecureFolderPath(context: Context): String? {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            return prefs.getString(PREF_CUSTOM_SECURE_PATH, null)
+        }
+
+        fun hasCustomSecureFolder(context: Context): Boolean {
+            return getCustomSecureFolderPath(context) != null
+        }
+
         fun getSecureFolderPath(context: Context): String {
+            // Primeiro tenta pegar o caminho customizado
+            val customPath = getCustomSecureFolderPath(context)
+            if (customPath != null) {
+                return customPath
+            }
+            // Se não tiver, retorna o padrão
             return File("/storage/emulated/0", SECURE_FOLDER_NAME).absolutePath
         }
 

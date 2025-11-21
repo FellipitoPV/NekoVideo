@@ -67,7 +67,7 @@ private fun isAtRootLevel(folderPath: String): Boolean {
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-fun CustomTopAppBar(
+fun TopBar(
     currentRoute: String?,
     selectedItems: List<String>,
     folderPath: String,
