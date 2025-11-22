@@ -29,6 +29,56 @@ data class VideoInfo(
     val sizeInBytes: Long
 )
 
+// ✅ NOVA - Versão serializável (sem Uri)
+data class SerializableVideoInfo(
+    val path: String,
+    val uriString: String,
+    val lastModified: Long,
+    val sizeInBytes: Long
+)
+
+data class SerializableFolderInfo(
+    val path: String,
+    val hasVideos: Boolean = false,
+    val videoCount: Int = 0,
+    val isSecure: Boolean = false,
+    val lastModified: Long = 0L,
+    val videos: List<SerializableVideoInfo> = emptyList()
+)
+
+// ✅ Conversores
+fun VideoInfo.toSerializable() = SerializableVideoInfo(
+    path = path,
+    uriString = uri.toString(),
+    lastModified = lastModified,
+    sizeInBytes = sizeInBytes
+)
+
+fun SerializableVideoInfo.toVideoInfo() = VideoInfo(
+    path = path,
+    uri = Uri.parse(uriString),
+    lastModified = lastModified,
+    sizeInBytes = sizeInBytes
+)
+
+fun FolderInfo.toSerializable() = SerializableFolderInfo(
+    path = path,
+    hasVideos = hasVideos,
+    videoCount = videoCount,
+    isSecure = isSecure,
+    lastModified = lastModified,
+    videos = videos.map { it.toSerializable() }
+)
+
+fun SerializableFolderInfo.toFolderInfo() = FolderInfo(
+    path = path,
+    hasVideos = hasVideos,
+    videoCount = videoCount,
+    isSecure = isSecure,
+    lastModified = lastModified,
+    videos = videos.map { it.toVideoInfo() }
+)
+
 object FolderVideoScanner {
     private val _cache = MutableStateFlow<Map<String, FolderInfo>>(emptyMap())
     val cache: StateFlow<Map<String, FolderInfo>> = _cache.asStateFlow()
@@ -44,27 +94,33 @@ object FolderVideoScanner {
 
     private val gson = Gson()
 
-    // ✅ Carregar cache ao iniciar o app (sem expiração)
+    // ✅ Carregar cache (CORRIGIDO)
     fun loadCacheFromDisk(context: Context) {
         try {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val cacheJson = prefs.getString(CACHE_KEY, null)
 
             if (cacheJson != null) {
-                val type = object : TypeToken<Map<String, FolderInfo>>() {}.type
-                val loadedCache: Map<String, FolderInfo> = gson.fromJson(cacheJson, type)
-                _cache.value = loadedCache
+                val type = object : TypeToken<Map<String, SerializableFolderInfo>>() {}.type
+                val loadedCache: Map<String, SerializableFolderInfo> = gson.fromJson(cacheJson, type)
+
+                // ✅ Converte de volta para FolderInfo com Uri reconstruído
+                _cache.value = loadedCache.mapValues { it.value.toFolderInfo() }
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            _cache.value = emptyMap() // ✅ Limpa se falhar
         }
     }
 
-    // ✅ Salvar cache no disco
+    // ✅ Salvar cache (CORRIGIDO)
     private fun saveCacheToDisk(context: Context) {
         try {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            val cacheJson = gson.toJson(_cache.value)
+
+            // ✅ Converte para versão serializável
+            val serializableCache = _cache.value.mapValues { it.value.toSerializable() }
+            val cacheJson = gson.toJson(serializableCache)
 
             prefs.edit()
                 .putString(CACHE_KEY, cacheJson)
