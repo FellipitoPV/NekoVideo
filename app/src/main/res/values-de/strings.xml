@@ -45,6 +45,14 @@
     <string name="refresh">Aktualisieren</string>
     <string name="select_cast_device">Cast-Gerät auswählen</string>
 
+    <!-- Premium -->
+    <string name="premium_title">Werbung Entfernen</string>
+    <string name="premium_description">Unterstützen Sie die Entwicklung und genießen Sie ein werbefreies Erlebnis!</string>
+    <string name="premium_no_ads">Keine Werbung</string>
+    <string name="premium_support">Entwickler unterstützen</string>
+    <string name="premium_active">Premium Aktiv</string>
+    <string name="premium_thanks">Vielen Dank für Ihre Unterstützung!</string>
+
     <!-- Bottom sheet headers -->
     <string name="mode_move_files">Modus: Dateien verschieben</string>
     <string name="item_actions">Element-Aktionen</string>
@@ -70,7 +78,7 @@
     <string name="permission_title">Dateizugriff erforderlich</string>
     <string name="permission_description">Um ordnungsgemäß zu funktionieren, benötigt diese App Zugriff auf alle Dateien auf Ihrem Gerät. Dies ermöglicht es Ihnen, Ihre Videos zu durchsuchen und abzuspielen.</string>
     <string name="permission_button">Dateizugriff erlauben</string>
-    <string name="permission_instructions">Tippen Sie auf die Schaltfläche oben und aktivieren Sie \'Zugriff zur Verwaltung aller Dateien erlauben\' in den Systemeinstellungen.</string>
+    <string name="permission_instructions">Tippen Sie auf die Schaltfläche oben und aktivieren Sie Zugriff zur Verwaltung aller Dateien erlauben in den Systemeinstellungen.</string>
 
     <!-- Pull to Refresh Tutorial -->
     <string name="pull_to_refresh_title">Nach unten ziehen zum Aktualisieren</string>

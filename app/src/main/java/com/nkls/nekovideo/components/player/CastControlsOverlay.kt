@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.nkls.nekovideo.components.helpers.CastManager
+import com.nkls.nekovideo.components.layout.BannerAd
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -47,6 +48,7 @@ fun CastControlsOverlay(
     var duration by remember { mutableStateOf(0L) }
     var isSeeking by remember { mutableStateOf(false) }
     var currentTitle by remember { mutableStateOf(videoTitle) } // Para título dinâmico
+
 
     // Atualizar estado do cast
     DisposableEffect(remoteMediaClient) {
@@ -341,6 +343,11 @@ fun CastControlsOverlay(
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                BannerAd()
+
             }
         }
     }

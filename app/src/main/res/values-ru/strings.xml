@@ -45,6 +45,14 @@
     <string name="refresh">Обновить</string>
     <string name="select_cast_device">Выбрать устройство трансляции</string>
 
+    <!-- Premium -->
+    <string name="premium_title">Убрать Рекламу</string>
+    <string name="premium_description">Поддержите разработку и наслаждайтесь без рекламы!</string>
+    <string name="premium_no_ads">Без рекламы</string>
+    <string name="premium_support">Поддержать разработчика</string>
+    <string name="premium_active">Премиум Активен</string>
+    <string name="premium_thanks">Спасибо за вашу поддержку!</string>
+
     <!-- Bottom sheet headers -->
     <string name="mode_move_files">Режим: Перемещение файлов</string>
     <string name="item_actions">Действия с элементом</string>
@@ -70,7 +78,7 @@
     <string name="permission_title">Требуется доступ к файлам</string>
     <string name="permission_description">Для правильной работы это приложение нуждается в доступе ко всем файлам на вашем устройстве. Это позволяет просматривать и воспроизводить ваши видео.</string>
     <string name="permission_button">Разрешить доступ к файлам</string>
-    <string name="permission_instructions">Нажмите кнопку выше и включите \'Разрешить доступ для управления всеми файлами\' в системных настройках.</string>
+    <string name="permission_instructions">Нажмите кнопку выше и включите Разрешить доступ для управления всеми файлами в системных настройках.</string>
 
     <!-- Pull to Refresh Tutorial -->
     <string name="pull_to_refresh_title">Потяните вниз для обновления</string>

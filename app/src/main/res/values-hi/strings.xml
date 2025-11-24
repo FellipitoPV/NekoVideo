@@ -45,6 +45,14 @@
     <string name="refresh">रीफ्रेश</string>
     <string name="select_cast_device">कास्ट डिवाइस चुनें</string>
 
+    <!-- Premium -->
+    <string name="premium_title">विज्ञापन हटाएं</string>
+    <string name="premium_description">विकास का समर्थन करें और विज्ञापन-मुक्त अनुभव का आनंद लें!</string>
+    <string name="premium_no_ads">कोई विज्ञापन नहीं</string>
+    <string name="premium_support">डेवलपर का समर्थन करें</string>
+    <string name="premium_active">प्रीमियम सक्रिय</string>
+    <string name="premium_thanks">आपके समर्थन के लिए धन्यवाद!</string>
+
     <!-- Bottom sheet headers -->
     <string name="mode_move_files">मोड: फाइलें स्थानांतरित करें</string>
     <string name="item_actions">आइटम कार्य</string>
@@ -70,7 +78,7 @@
     <string name="permission_title">फाइल एक्सेस की आवश्यकता</string>
     <string name="permission_description">सही तरीके से काम करने के लिए, इस ऐप को आपके डिवाइस की सभी फाइलों तक पहुंच चाहिए। यह आपको अपने वीडियो ब्राउज़ करने और चलाने की अनुमति देता है।</string>
     <string name="permission_button">फाइल एक्सेस की अनुमति दें</string>
-    <string name="permission_instructions">ऊपर दिए गए बटन पर टैप करें और सिस्टम सेटिंग्स में \'सभी फाइलों को मैनेज करने की एक्सेस की अनुमति दें\' को सक्षम करें।</string>
+    <string name="permission_instructions">ऊपर दिए गए बटन पर टैप करें और सिस्टम सेटिंग्स में सभी फाइलों को मैनेज करने की एक्सेस की अनुमति दें को सक्षम करें।</string>
 
     <!-- Pull to Refresh Tutorial -->
     <string name="pull_to_refresh_title">रिफ्रेश करने के लिए नीचे खींचें</string>

@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -43,6 +44,7 @@ import com.nkls.nekovideo.components.SubFolderScreen
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.layout.ActionFAB
 import com.nkls.nekovideo.components.layout.ActionType
+import com.nkls.nekovideo.components.layout.BannerAd
 import com.nkls.nekovideo.components.layout.TopBar
 import com.nkls.nekovideo.components.loadFolderContent
 import com.nkls.nekovideo.components.loadFolderContentRecursive
@@ -105,6 +107,8 @@ fun MainScreen(
     var itemsToMove by remember { mutableStateOf<List<String>>(emptyList()) }
     var showFolderActions by remember { mutableStateOf(false) }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
+
+
 
     fun isSecureFolder(folderPath: String): Boolean {
         val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
@@ -373,9 +377,8 @@ fun MainScreen(
             onDismiss = { showRenameDialog = false },
             onComplete = {
                 selectedItems.clear()
-                showFabMenu = false
-                showRenameDialog = false
                 renameTrigger++
+                quickRefresh()
             },
             onRefresh = ::performRefresh  // ✅ ADICIONAR
         )
@@ -423,6 +426,7 @@ fun MainScreen(
             onFolderCreated = {
                 renameTrigger++
                 Toast.makeText(context, context.getString(R.string.folder_created), Toast.LENGTH_SHORT).show()
+                quickRefresh()
             },
             onRefresh = ::performRefresh
         )
@@ -452,6 +456,7 @@ fun MainScreen(
                                 selectedItems.clear()
                                 showFabMenu = false
                                 renameTrigger++
+                                quickRefresh()
                             },
                             onRefresh = ::performRefresh
                         )
@@ -471,6 +476,7 @@ fun MainScreen(
                                 selectedItems.clear()
                                 showFabMenu = false
                                 renameTrigger++
+                                quickRefresh()
                             },
                             onRefresh = ::performRefresh
                         )
@@ -746,12 +752,15 @@ fun MainScreen(
         },
         bottomBar = {
             if (currentRoute != "video_player" && currentRoute?.startsWith("settings") != true && !showPlayerOverlay) {
-                Box(
+                Column(
                     modifier = Modifier.navigationBarsPadding()
                 ) {
                     MiniPlayerImproved(
                         onOpenPlayer = { showPlayerOverlay = true }
                     )
+
+                    // Banner Ad
+                    BannerAd()
                 }
             }
         },
@@ -767,25 +776,25 @@ fun MainScreen(
                 enterTransition = {
                     slideInHorizontally(
                         initialOffsetX = { fullWidth -> fullWidth },
-                        animationSpec = tween(durationMillis = 300)
+                        animationSpec = tween(durationMillis = 50)
                     )
                 },
                 exitTransition = {
                     slideOutHorizontally(
                         targetOffsetX = { fullWidth -> -fullWidth },
-                        animationSpec = tween(durationMillis = 300)
+                        animationSpec = tween(durationMillis = 50)
                     )
                 },
                 popEnterTransition = {
                     slideInHorizontally(
                         initialOffsetX = { fullWidth -> -fullWidth },
-                        animationSpec = tween(durationMillis = 300)
+                        animationSpec = tween(durationMillis = 50)
                     )
                 },
                 popExitTransition = {
                     slideOutHorizontally(
                         targetOffsetX = { fullWidth -> fullWidth },
-                        animationSpec = tween(durationMillis = 300)
+                        animationSpec = tween(durationMillis = 50)
                     )
                 }
             ) {

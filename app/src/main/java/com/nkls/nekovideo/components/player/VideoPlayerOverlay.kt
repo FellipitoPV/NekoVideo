@@ -86,6 +86,7 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.helpers.CastManager
+import com.nkls.nekovideo.components.layout.InterstitialAdManager
 import com.nkls.nekovideo.components.settings.SettingsManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -96,6 +97,8 @@ enum class RepeatMode {
     REPEAT_ALL,
     REPEAT_ONE
 }
+
+private var interstitialAdManager: InterstitialAdManager? = null
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @SuppressLint("OpaqueUnitKey")
@@ -116,7 +119,14 @@ fun VideoPlayerOverlay(
     var isCasting by remember { mutableStateOf(false) }
     var connectedDeviceName by remember { mutableStateOf("") }
     val castManager = remember { CastManager(context) }
-    var castCurrentIndex by remember { mutableStateOf(0) }
+
+    val interstitialManager = remember {
+        if (interstitialAdManager == null) {
+            interstitialAdManager = InterstitialAdManager(context)
+            interstitialAdManager?.loadAd()
+        }
+        interstitialAdManager!!
+    }
 
     // Estados para controles customizados
     var controlsVisible by remember { mutableStateOf(false) }
@@ -565,32 +575,41 @@ fun VideoPlayerOverlay(
 
         val listener = object : SessionManagerListener<Session> {
             override fun onSessionStarted(session: Session, sessionId: String) {
-                // Pegar playlist
-                val playlist = mutableListOf<String>()
-                val titles = mutableListOf<String>()
+                // Mostrar anúncio intersticial ANTES de iniciar cast
+                interstitialManager.showAdOnCast {
+                    // Código executa APÓS fechar o anúncio (ou se falhar)
 
-                for (i in 0 until (mediaController?.mediaItemCount ?: 0)) {
-                    val item = mediaController?.getMediaItemAt(i)
-                    val path = item?.localConfiguration?.uri?.path?.removePrefix("file://") ?: ""
-                    if (path.isNotEmpty()) {
-                        playlist.add(path)
-                        titles.add(File(path).nameWithoutExtension)
+                    // Pegar playlist
+                    val playlist = mutableListOf<String>()
+                    val titles = mutableListOf<String>()
+
+                    for (i in 0 until (mediaController?.mediaItemCount ?: 0)) {
+                        val item = mediaController?.getMediaItemAt(i)
+                        val path = item?.localConfiguration?.uri?.path?.removePrefix("file://") ?: ""
+                        if (path.isNotEmpty()) {
+                            playlist.add(path)
+                            titles.add(File(path).nameWithoutExtension)
+                        }
                     }
+
+                    val currentIndex = mediaController?.currentMediaItemIndex ?: 0
+
+                    // Parar MediaPlaybackService
+                    MediaPlaybackService.stopService(context)
+
+                    // Iniciar Cast
+                    castManager.castPlaylist(playlist, titles, currentIndex)
+
+                    // Fechar overlay
+                    onDismiss()
                 }
-
-                val currentIndex = mediaController?.currentMediaItemIndex ?: 0
-
-                // Parar MediaPlaybackService
-                MediaPlaybackService.stopService(context)
-
-                // Iniciar Cast
-                castManager.castPlaylist(playlist, titles, currentIndex)
-
-                // Fechar overlay
-                onDismiss()
             }
 
-            override fun onSessionEnded(session: Session, error: Int) {}
+            override fun onSessionEnded(session: Session, error: Int) {
+                // Reseta flag para poder mostrar ad novamente na próxima sessão
+                interstitialManager.resetCastAdFlag()
+            }
+
             override fun onSessionResumed(session: Session, wasSuspended: Boolean) {}
             override fun onSessionSuspended(session: Session, reason: Int) {}
             override fun onSessionStarting(session: Session) {}
@@ -633,7 +652,7 @@ fun VideoPlayerOverlay(
                 },
                 onBack = onDismiss,
                 onCurrentIndexChanged = { index ->
-                    castCurrentIndex = index // Atualizar índice rastreado
+                    var castCurrentIndex = index // Atualizar índice rastreado
                 }
             )
         } else {

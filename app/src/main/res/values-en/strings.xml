@@ -45,6 +45,14 @@
     <string name="refresh">Refresh</string>
     <string name="select_cast_device">Select cast device</string>
 
+    <!-- Premium -->
+    <string name="premium_title">Remove Ads</string>
+    <string name="premium_description">Support development and enjoy an ad-free experience!</string>
+    <string name="premium_no_ads">No ads</string>
+    <string name="premium_support">Support the developer</string>
+    <string name="premium_active">Premium Active</string>
+    <string name="premium_thanks">Thank you for your support!</string>
+
     <!-- Bottom sheet headers -->
     <string name="mode_move_files">Mode: Move Files</string>
     <string name="item_actions">Item Actions</string>
@@ -70,7 +78,7 @@
     <string name="permission_title">File Access Required</string>
     <string name="permission_description">To work properly, this app needs access to all files on your device. This allows you to browse and play your videos.</string>
     <string name="permission_button">Allow File Access</string>
-    <string name="permission_instructions">Tap the button above and enable \'Allow access to manage all files\' in system settings.</string>
+    <string name="permission_instructions">Tap the button above and enable Allow access to manage all files in system settings.</string>
 
     <!-- Pull to Refresh Tutorial -->
     <string name="pull_to_refresh_title">Pull down to refresh</string>
@@ -127,7 +135,7 @@
     <string name="playback_double_tap_seek">Double Tap Seek</string>
     <string name="playback_double_tap_seek_desc">Seconds to skip forward/backward</string>
     <string name="playback_keep_screen_on">Keep Screen On</string>
-    <string name="playback_keep_screen_on_desc">Don\'t turn off screen during playback</string>
+    <string name="playback_keep_screen_on_desc">Dont turn off screen during playback</string>
     <string name="playback_pip">Picture in Picture</string>
     <string name="playback_pip_desc">Continue playback in floating window</string>
 

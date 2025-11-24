@@ -17,7 +17,7 @@ android {
         applicationId = "com.nkls.nekovideo"
         minSdk = 30
         targetSdk = 35
-        versionCode = 1
+        versionCode = 2
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -80,6 +80,9 @@ dependencies {
     implementation(libs.androidx.navigation.compose.android)
     implementation(libs.androidx.foundation.android)
     implementation("com.google.code.gson:gson:2.13.2")
+
+    implementation("com.google.android.gms:play-services-ads:24.8.0")
+    implementation("com.android.billingclient:billing-ktx:8.1.0")
 
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.coil.video)

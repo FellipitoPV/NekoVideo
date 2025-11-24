@@ -45,6 +45,14 @@
     <string name="refresh">Actualizar</string>
     <string name="select_cast_device">Seleccionar dispositivo de transmisión</string>
 
+    <!-- Premium -->
+    <string name="premium_title">Eliminar Anuncios</string>
+    <string name="premium_description">¡Apoya el desarrollo y disfruta de una experiencia sin anuncios!</string>
+    <string name="premium_no_ads">Sin anuncios</string>
+    <string name="premium_support">Apoyar al desarrollador</string>
+    <string name="premium_active">Premium Activo</string>
+    <string name="premium_thanks">¡Gracias por tu apoyo!</string>
+
     <!-- Bottom sheet headers -->
     <string name="mode_move_files">Modo: Mover Archivos</string>
     <string name="item_actions">Acciones del Elemento</string>
@@ -70,7 +78,7 @@
     <string name="permission_title">Acceso a Archivos Requerido</string>
     <string name="permission_description">Para funcionar correctamente, esta app necesita acceso a todos los archivos de tu dispositivo. Esto te permite navegar y reproducir tus videos.</string>
     <string name="permission_button">Permitir Acceso a Archivos</string>
-    <string name="permission_instructions">Toca el botón de arriba y activa \'Permitir acceso para administrar todos los archivos\' en la configuración del sistema.</string>
+    <string name="permission_instructions">Toca el botón de arriba y activa Permitir acceso para administrar todos los archivos en la configuración del sistema.</string>
 
     <!-- Pull to Refresh Tutorial -->
     <string name="pull_to_refresh_title">Desliza hacia abajo para actualizar</string>

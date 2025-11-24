@@ -75,9 +75,17 @@ import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.language.LanguageManager
 import com.nkls.nekovideo.theme.ThemeManager
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import com.nkls.nekovideo.findActivity
 
 @Composable
 fun SettingsScreen(navController: NavController) {
+    val context = LocalContext.current
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -129,6 +137,7 @@ fun SettingsScreen(navController: NavController) {
                 onClick = { navController.navigate("settings/about") }
             )
         }
+
     }
 }
 

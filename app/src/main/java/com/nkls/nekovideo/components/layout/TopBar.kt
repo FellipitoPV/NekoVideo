@@ -50,6 +50,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.runtime.collectAsState
 
 // NOVA função para detectar se é pasta segura (qualquer pasta com . no início e com marcadores)
 private fun isSecureFolder(folderPath: String): Boolean {
@@ -76,7 +79,7 @@ fun TopBar(
     onPasswordDialog: () -> Unit,
     onSelectionClear: () -> Unit,
     onSelectAll: () -> Unit,
-    showPrivateFolders: Boolean
+    showPrivateFolders: Boolean,
 ) {
     val coroutineScope = rememberCoroutineScope()
     val maxTapInterval = 500L

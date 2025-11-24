@@ -82,6 +82,12 @@
             </intent-filter>
 
         </activity>
+
+        <!-- AdMob App ID -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3950822881129619~5775028280"/>
+
         <meta-data
             android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
             android:value="com.nkls.nekovideo.CastOptionsProvider" />

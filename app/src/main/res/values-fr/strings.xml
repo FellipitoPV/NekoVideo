@@ -3,7 +3,7 @@
     <!-- Button actions -->
     <string name="action_paste_here">Coller Ici</string>
     <string name="action_cancel">Annuler</string>
-    <string name="action_cancel_operation">Annuler l\'opération</string>
+    <string name="action_cancel_operation">Annuler lopération</string>
     <string name="action_unlock">Déverrouiller</string>
     <string name="action_protect">Protéger</string>
     <string name="action_unprivatize">Rendre Public</string>
@@ -35,19 +35,27 @@
     <string name="options_description">Options</string>
 
     <string name="loading">Chargement...</string>
-    <string name="updating_index">Mise à jour de l\'index...</string>
+    <string name="updating_index">Mise à jour de lindex...</string>
     <string name="indexing_videos">Indexation des vidéos...</string>
     <string name="pull_down_to_scan">Glissez vers le bas pour rechercher des vidéos</string>
 
-    <string name="searching_cast_devices">Recherche d\'appareils de diffusion...</string>
+    <string name="searching_cast_devices">Recherche dappareils de diffusion...</string>
     <string name="no_cast_devices_found">Aucun appareil de diffusion trouvé</string>
     <string name="available_devices">Appareils disponibles</string>
     <string name="refresh">Actualiser</string>
     <string name="select_cast_device">Sélectionner un appareil de diffusion</string>
 
+    <!-- Premium -->
+    <string name="premium_title">Supprimer les Publicités</string>
+    <string name="premium_description">Soutenez le développement et profitez dune expérience sans publicité!</string>
+    <string name="premium_no_ads">Sans publicités</string>
+    <string name="premium_support">Soutenir le développeur</string>
+    <string name="premium_active">Premium Actif</string>
+    <string name="premium_thanks">Merci pour votre soutien!</string>
+
     <!-- Bottom sheet headers -->
     <string name="mode_move_files">Mode : Déplacer les Fichiers</string>
-    <string name="item_actions">Actions de l\'Élément</string>
+    <string name="item_actions">Actions de lÉlément</string>
     <string name="options">Options</string>
     <string name="navigate_to_destination">Naviguez vers la destination et collez les fichiers</string>
 
@@ -55,22 +63,22 @@
     <string name="settings_appearance">Apparence</string>
     <string name="settings_language">Langue</string>
     <string name="settings_dark_mode">Mode Sombre</string>
-    <string name="settings_dark_mode_desc">Apparence de l\'interface</string>
-    <string name="settings_app_language">Langue de l\'App</string>
-    <string name="settings_app_language_desc">Langue de l\'interface</string>
+    <string name="settings_dark_mode_desc">Apparence de linterface</string>
+    <string name="settings_app_language">Langue de lApp</string>
+    <string name="settings_app_language_desc">Langue de linterface</string>
 
     <!-- Rename dialogs -->
-    <string name="rename_item">Renommer l\'élément</string>
-    <string name="renaming_item">Renommage de l\'élément...</string>
+    <string name="rename_item">Renommer lélément</string>
+    <string name="renaming_item">Renommage de lélément...</string>
     <string name="new_name">Nouveau nom</string>
     <string name="rename_multiple_items">Renommer plusieurs éléments</string>
     <string name="selected_items_count">%d élément(s) sélectionné(s)</string>
 
     <!-- Permissions -->
     <string name="permission_title">Accès aux Fichiers Requis</string>
-    <string name="permission_description">Pour fonctionner correctement, cette application nécessite l\'accès à tous les fichiers de votre appareil. Cela vous permet de naviguer et de lire vos vidéos.</string>
-    <string name="permission_button">Autoriser l\'Accès aux Fichiers</string>
-    <string name="permission_instructions">Appuyez sur le bouton ci-dessus et activez \'Autoriser l\'accès pour gérer tous les fichiers\' dans les paramètres système.</string>
+    <string name="permission_description">Pour fonctionner correctement, cette application nécessite laccès à tous les fichiers de votre appareil. Cela vous permet de naviguer et de lire vos vidéos.</string>
+    <string name="permission_button">Autoriser lAccès aux Fichiers</string>
+    <string name="permission_instructions">Appuyez sur le bouton ci-dessus et activez Autoriser laccès pour gérer tous les fichiers dans les paramètres système.</string>
 
     <!-- Pull to Refresh Tutorial -->
     <string name="pull_to_refresh_title">Tirez vers le bas pour actualiser</string>
@@ -78,7 +86,7 @@
     <string name="updating_videos">Mise à jour des vidéos...</string>
     <string name="pull_to_refresh">Tirez pour actualiser</string>
     <string name="release_to_refresh">Relâchez pour actualiser</string>
-    <string name="pull_to_refresh_empty">Cliquez sur l\'icône pour actualiser l\'index des vidéos</string>
+    <string name="pull_to_refresh_empty">Cliquez sur licône pour actualiser lindex des vidéos</string>
 
     <!-- Themes -->
     <string name="theme_light">Clair</string>
@@ -99,7 +107,7 @@
     <string name="settings_playback">Lecture</string>
     <string name="settings_playback_desc">Contrôles de lecture et comportement du lecteur</string>
     <string name="settings_interface">Interface</string>
-    <string name="settings_interface_desc">Apparence et thème de l\'application</string>
+    <string name="settings_interface_desc">Apparence et thème de lapplication</string>
     <string name="settings_display">Affichage</string>
     <string name="settings_display_desc">Vignettes, grille et affichage des informations</string>
     <string name="settings_files">Fichiers</string>
@@ -107,7 +115,7 @@
     <string name="settings_performance">Performance</string>
     <string name="settings_performance_desc">Cache et optimisations de performance</string>
     <string name="settings_about">À Propos</string>
-    <string name="settings_about_desc">Informations de l\'application et support</string>
+    <string name="settings_about_desc">Informations de lapplication et support</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Paramètres</string>
@@ -126,9 +134,9 @@
     <string name="playback_auto_hide_controls_desc">Masquer automatiquement pendant la lecture</string>
     <string name="playback_double_tap_seek">Recherche par Double Tap</string>
     <string name="playback_double_tap_seek_desc">Secondes à avancer/reculer</string>
-    <string name="playback_keep_screen_on">Garder l\'Écran Allumé</string>
-    <string name="playback_keep_screen_on_desc">Ne pas éteindre l\'écran pendant la lecture</string>
-    <string name="playback_pip">Image dans l\'Image</string>
+    <string name="playback_keep_screen_on">Garder lÉcran Allumé</string>
+    <string name="playback_keep_screen_on_desc">Ne pas éteindre lécran pendant la lecture</string>
+    <string name="playback_pip">Image dans lImage</string>
     <string name="playback_pip_desc">Continuer la lecture dans une fenêtre flottante</string>
 
     <!-- Display Settings Screen -->
@@ -154,7 +162,7 @@
 
     <!-- Files Settings Screen -->
     <string name="files_management">Gestion</string>
-    <string name="files_app_only_folders">Dossiers Exclusifs à l\'App</string>
+    <string name="files_app_only_folders">Dossiers Exclusifs à lApp</string>
     <string name="files_app_only_folders_desc">Créer des dossiers visibles uniquement dans NekoVideo</string>
     <string name="files_confirm_delete">Confirmer la Suppression</string>
     <string name="files_confirm_delete_desc">Demander confirmation avant de supprimer des fichiers</string>
@@ -166,7 +174,7 @@
 
     <!-- About Settings Screen -->
     <string name="about_information">Informations</string>
-    <string name="about_app_version">Version de l\'App</string>
+    <string name="about_app_version">Version de lApp</string>
     <string name="about_source_code">Code Source</string>
     <string name="about_source_code_desc">Voir sur GitHub</string>
     <string name="about_report_bug">Signaler un Bug</string>
