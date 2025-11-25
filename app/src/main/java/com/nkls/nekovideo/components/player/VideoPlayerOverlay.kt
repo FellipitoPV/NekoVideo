@@ -26,11 +26,14 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -41,6 +44,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material3.AlertDialog
@@ -61,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -72,13 +77,18 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.SubtitleView
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.Session
 import com.google.android.gms.cast.framework.SessionManagerListener
@@ -91,11 +101,21 @@ import com.nkls.nekovideo.components.settings.SettingsManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.window.DialogProperties
 
 enum class RepeatMode {
     NONE,
     REPEAT_ALL,
     REPEAT_ONE
+}
+
+enum class RotationMode {
+    AUTO,      // Adaptar ao vídeo (comportamento atual)
+    PORTRAIT,  // Sempre vertical
+    LANDSCAPE  // Sempre horizontal
 }
 
 private var interstitialAdManager: InterstitialAdManager? = null
@@ -137,6 +157,11 @@ fun VideoPlayerOverlay(
     var isSeekingActive by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(RepeatMode.NONE) }
 
+    //Controle de rotação
+    var rotationMode by remember { mutableStateOf(RotationMode.AUTO) }
+    var lastValidOrientation by remember { mutableStateOf<Int?>(null) }
+
+
     // Timer regressivo para UI (em segundos)
     var uiTimer by remember { mutableStateOf(0) }
 
@@ -167,13 +192,114 @@ fun VideoPlayerOverlay(
     var tapCount by remember { mutableStateOf(0) }
     val doubleTapTimeWindow = 300L // 300ms para detectar double tap
 
+    //Legendas
+    var availableSubtitles by remember { mutableStateOf<List<Tracks.Group>>(emptyList()) }
+    var availableAudioTracks by remember { mutableStateOf<List<Tracks.Group>>(emptyList()) }
+    var selectedSubtitleTrack by remember { mutableStateOf<Int?>(null) }
+    var selectedAudioTrack by remember { mutableStateOf<Int?>(null) }
+    var showTrackSelectionDialog by remember { mutableStateOf(false) }
+
     // PlayerView sem controles nativos
     val playerView = remember {
         PlayerView(context).apply {
             useController = false
             setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
             resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+
+            subtitleView?.apply {
+                // NÃO usar setStyle() - deixa usar estilo nativo da legenda
+                setApplyEmbeddedStyles(true)  // IMPORTANTE
+                setApplyEmbeddedFontSizes(true)
+            }
         }
+    }
+
+    fun applyRotation(videoSize: VideoSize? = null) {
+        val activity = context.findActivity() ?: return
+
+        val targetOrientation = when (rotationMode) {
+            RotationMode.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            RotationMode.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            RotationMode.AUTO -> {
+                if (videoSize != null && videoSize.width > 0 && videoSize.height > 0) {
+                    // VideoSize válido - calcular orientação
+                    if (videoSize.width > videoSize.height) {
+                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                    } else {
+                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    }
+                } else {
+                    // VideoSize inválido - manter última orientação conhecida
+                    lastValidOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                }
+            }
+        }
+
+        // Só aplicar se mudou e atualizar cache
+        if (targetOrientation != ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED) {
+            lastValidOrientation = targetOrientation
+            activity.requestedOrientation = targetOrientation
+        }
+    }
+
+    fun selectSubtitleTrack(groupIndex: Int, trackIndex: Int) {
+        mediaController?.let { controller ->
+            val trackSelectionParameters = controller.trackSelectionParameters
+                .buildUpon()
+                .setOverrideForType(
+                    TrackSelectionOverride(
+                        availableSubtitles[groupIndex].mediaTrackGroup,
+                        trackIndex
+                    )
+                )
+                .build()
+
+            controller.trackSelectionParameters = trackSelectionParameters
+            selectedSubtitleTrack = groupIndex
+        }
+    }
+
+    fun disableSubtitles() {
+        mediaController?.let { controller ->
+            controller.trackSelectionParameters = controller.trackSelectionParameters
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                .build()
+            selectedSubtitleTrack = null
+        }
+    }
+
+    fun checkAvailableTracks(controller: MediaController) {
+        val tracks = controller.currentTracks
+        val subtitleGroups = mutableListOf<Tracks.Group>()
+        val audioGroups = mutableListOf<Tracks.Group>()
+
+        Log.d("VideoPlayer", "Verificando tracks disponíveis...")
+        Log.d("VideoPlayer", "Total de grupos: ${tracks.groups.size}")
+
+        for (trackGroup in tracks.groups) {
+            Log.d("VideoPlayer", "Grupo tipo: ${trackGroup.type}, Tracks: ${trackGroup.length}")
+
+            if (trackGroup.type == C.TRACK_TYPE_TEXT) {
+                subtitleGroups.add(trackGroup)
+                for (i in 0 until trackGroup.length) {
+                    val format = trackGroup.getTrackFormat(i)
+                    Log.d("VideoPlayer", "Legenda encontrada: ${format.language ?: "Unknown"} - ${format.label ?: "No label"}")
+                }
+            } else if (trackGroup.type == C.TRACK_TYPE_AUDIO) {
+                audioGroups.add(trackGroup)
+                for (i in 0 until trackGroup.length) {
+                    val format = trackGroup.getTrackFormat(i)
+                    Log.d("VideoPlayer", "Áudio encontrado: ${format.language ?: "Unknown"}")
+                }
+            }
+        }
+
+        availableSubtitles = subtitleGroups
+        availableAudioTracks = audioGroups
+
+        Log.d("VideoPlayer", "Legendas disponíveis: ${subtitleGroups.size}")
+        Log.d("VideoPlayer", "Áudios disponíveis: ${audioGroups.size}")
     }
 
     fun setupController(controller: MediaController) {
@@ -185,17 +311,10 @@ fun VideoPlayerOverlay(
             currentVideoTitle = File(currentVideoPath).nameWithoutExtension
         }
 
+        checkAvailableTracks(controller)
+
         if (overlayActuallyVisible) {
-            val videoSize = controller.videoSize
-            if (videoSize.width > 0 && videoSize.height > 0) {
-                val activity = context.findActivity()
-                val newOrientation = if (videoSize.width > videoSize.height) {
-                    ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                } else {
-                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                }
-                activity?.requestedOrientation = newOrientation
-            }
+            applyRotation(mediaController!!.videoSize)
         }
 
         Log.d("VideoPlayer", "Controller configurado - Posição: ${controller.currentPosition}ms, Tocando: ${controller.isPlaying}")
@@ -207,16 +326,7 @@ fun VideoPlayerOverlay(
             // Pequeno delay para garantir que saiu do CastControlsOverlay
             delay(100)
 
-            val videoSize = mediaController!!.videoSize
-            if (videoSize.width > 0 && videoSize.height > 0) {
-                val activity = context.findActivity()
-                val newOrientation = if (videoSize.width > videoSize.height) {
-                    ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                } else {
-                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                }
-                activity?.requestedOrientation = newOrientation
-            }
+            applyRotation(mediaController!!.videoSize)
         }
     }
 
@@ -310,6 +420,48 @@ fun VideoPlayerOverlay(
         }
     }
 
+    fun getSubtitleDisplayName(group: Tracks.Group, index: Int): String {
+        val format = group.getTrackFormat(index)
+
+        // Prioridade: label > language > "Legenda X"
+        val label = format.label?.takeIf { it.isNotBlank() }
+        val language = format.language?.takeIf { it.isNotBlank() }
+
+        return when {
+            label != null && language != null -> "$label - [$language]"
+            label != null -> label
+            language != null -> {
+                // Traduzir códigos comuns
+                val langName = when(language.lowercase()) {
+                    "pt", "pt-br", "por" -> "Português"
+                    "en", "eng" -> "Inglês"
+                    "es", "spa" -> "Espanhol"
+                    "ja", "jpn" -> "Japonês"
+                    else -> language.uppercase()
+                }
+                langName
+            }
+            else -> "Legenda ${index + 1}"
+        }
+    }
+
+    fun selectAudioTrack(groupIndex: Int, trackIndex: Int) {
+        mediaController?.let { controller ->
+            val trackSelectionParameters = controller.trackSelectionParameters
+                .buildUpon()
+                .setOverrideForType(
+                    TrackSelectionOverride(
+                        availableAudioTracks[groupIndex].mediaTrackGroup,
+                        trackIndex
+                    )
+                )
+                .build()
+
+            controller.trackSelectionParameters = trackSelectionParameters
+            selectedAudioTrack = groupIndex
+        }
+    }
+
     // Dialog de confirmação para deletar
     if (showDeleteDialog) {
         AlertDialog(
@@ -355,6 +507,213 @@ fun VideoPlayerOverlay(
                     }
                 ) {
                     Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showTrackSelectionDialog) {
+        AlertDialog(
+            onDismissRequest = { showTrackSelectionDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),  // ADICIONE ESTA LINHA
+            modifier = Modifier.fillMaxWidth(0.95f),  // ADICIONE ESTA LINHA (95% da largura da tela)
+            title = {
+                Text(
+                    "Legendas e Áudio",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(400.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // COLUNA LEGENDAS
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                    ) {
+                        Text(
+                            "LEGENDAS",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(1.dp)
+                        ) {
+                            // Desativado
+                            item {
+                                TextButton(
+                                    onClick = {
+                                        disableSubtitles()
+                                        showTrackSelectionDialog = false
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            "Desativado",
+                                            fontSize = 13.sp,
+                                            color = if (selectedSubtitleTrack == null)
+                                                MaterialTheme.colorScheme.primary
+                                            else
+                                                MaterialTheme.colorScheme.onSurface
+                                        )
+                                        if (selectedSubtitleTrack == null) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Todas as legendas
+                            items(availableSubtitles.size) { groupIndex ->
+                                val group = availableSubtitles[groupIndex]
+                                for (trackIndex in 0 until group.length) {
+                                    val displayName = getSubtitleDisplayName(group, trackIndex)
+                                    val isSelected = selectedSubtitleTrack == groupIndex
+
+                                    TextButton(
+                                        onClick = {
+                                            selectSubtitleTrack(groupIndex, trackIndex)
+                                            showTrackSelectionDialog = false
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                displayName,
+                                                modifier = Modifier.weight(1f),
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                fontSize = 13.sp,
+                                                color = if (isSelected)
+                                                    MaterialTheme.colorScheme.primary
+                                                else
+                                                    MaterialTheme.colorScheme.onSurface
+                                            )
+                                            if (isSelected) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // DIVISOR VERTICAL
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .fillMaxHeight()
+                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                    )
+
+                    // COLUNA ÁUDIO
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                    ) {
+                        Text(
+                            "ÁUDIO",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        if (availableAudioTracks.isEmpty()) {
+                            Text(
+                                "Nenhuma faixa disponível",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                items(availableAudioTracks.size) { groupIndex ->
+                                    val group = availableAudioTracks[groupIndex]
+                                    for (trackIndex in 0 until group.length) {
+                                        val format = group.getTrackFormat(trackIndex)
+                                        val displayName = format.label ?: format.language ?: "Áudio ${trackIndex + 1}"
+                                        val isSelected = selectedAudioTrack == groupIndex
+
+                                        TextButton(
+                                            onClick = {
+                                                selectAudioTrack(groupIndex, trackIndex)
+                                                showTrackSelectionDialog = false
+                                            },
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    displayName,
+                                                    modifier = Modifier.weight(1f),
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    fontSize = 13.sp,
+                                                    color = if (isSelected)
+                                                        MaterialTheme.colorScheme.primary
+                                                    else
+                                                        MaterialTheme.colorScheme.onSurface
+                                                )
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { showTrackSelectionDialog = false },
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)  // ADICIONE ISTO
+                ) {
+                    Text("Fechar")
                 }
             }
         )
@@ -444,16 +803,7 @@ fun VideoPlayerOverlay(
             listener = object : Player.Listener {
                 override fun onVideoSizeChanged(videoSize: VideoSize) {
                     if (!overlayActuallyVisible) return
-
-                    val activity = context.findActivity()
-                    if (activity != null && videoSize.width > 0 && videoSize.height > 0) {
-                        val newOrientation = if (videoSize.width > videoSize.height) {
-                            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                        } else {
-                            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                        }
-                        activity.requestedOrientation = newOrientation
-                    }
+                    applyRotation(videoSize)
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -466,16 +816,7 @@ fun VideoPlayerOverlay(
                         currentVideoTitle = File(currentVideoPath).nameWithoutExtension
                     }
 
-                    val videoSize = mediaController!!.videoSize
-                    if (videoSize.width > 0 && videoSize.height > 0) {
-                        val activity = context.findActivity()
-                        val newOrientation = if (videoSize.width > videoSize.height) {
-                            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                        } else {
-                            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                        }
-                        activity?.requestedOrientation = newOrientation
-                    }
+                    applyRotation(mediaController!!.videoSize)
 
                     if (controlsVisible) {
                         resetUITimer()
@@ -489,14 +830,12 @@ fun VideoPlayerOverlay(
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     Log.d("VideoPlayer", "onPlaybackStateChanged: playbackState=$playbackState, repeatMode=$repeatMode")
 
-                    // NOVA LÓGICA para os modos de repetição
                     if (playbackState == Player.STATE_ENDED) {
                         Log.d("VideoPlayer", "Repetição mudada - repeatMode atual: $repeatMode")
 
                         when (repeatMode) {
                             RepeatMode.REPEAT_ONE -> {
                                 Log.d("VideoPlayer", "Repetição mudada: Voltando para início do vídeo")
-                                // Loop do vídeo atual
                                 mediaController!!.seekTo(0)
                                 mediaController!!.play()
                             }
@@ -520,6 +859,12 @@ fun VideoPlayerOverlay(
                             }
                         }
                     }
+                }
+
+                // ADICIONE AQUI DENTRO:
+                override fun onTracksChanged(tracks: Tracks) {
+                    Log.d("VideoPlayer", "onTracksChanged chamado!")
+                    checkAvailableTracks(mediaController!!)
                 }
             }
 
@@ -856,7 +1201,16 @@ fun VideoPlayerOverlay(
                         onCastClick = {
 
                             resetUITimer()
-                        }
+                        },
+                        rotationMode = rotationMode,
+                        onRotationModeChange = { newMode ->       // NOVO
+                            rotationMode = newMode
+                            applyRotation(mediaController?.videoSize)
+                        },
+                        // Legendas
+                        hasSubtitles = availableSubtitles.isNotEmpty(),
+                        subtitlesEnabled = selectedSubtitleTrack != null,
+                        onSubtitlesClick = { showTrackSelectionDialog = true }
                     )
                 }
             }

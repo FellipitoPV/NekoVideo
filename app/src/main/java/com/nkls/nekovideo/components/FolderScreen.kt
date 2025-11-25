@@ -192,6 +192,30 @@ fun loadFolderContent(
     }
 }
 
+private fun naturalComparator(s1: String, s2: String): Int {
+    val pattern = "\\d+|\\D+".toRegex()
+    val tokens1 = pattern.findAll(s1.lowercase()).map { it.value }.toList()
+    val tokens2 = pattern.findAll(s2.lowercase()).map { it.value }.toList()
+
+    for (i in 0 until minOf(tokens1.size, tokens2.size)) {
+        val token1 = tokens1[i]
+        val token2 = tokens2[i]
+
+        val num1 = token1.toIntOrNull()
+        val num2 = token2.toIntOrNull()
+
+        val comparison = if (num1 != null && num2 != null) {
+            num1.compareTo(num2)
+        } else {
+            token1.compareTo(token2)
+        }
+
+        if (comparison != 0) return comparison
+    }
+
+    return tokens1.size.compareTo(tokens2.size)
+}
+
 // SIMPLIFICADO - Carregamento secure
 private fun loadSecureContent(folderPath: String, sortType: SortType): List<MediaItem> {
     val folder = File(folderPath)
@@ -292,8 +316,8 @@ private fun applySorting(items: List<MediaItem>, sortType: SortType): List<Media
     val videos = items.filter { !it.isFolder }
 
     val comparator: Comparator<MediaItem> = when (sortType) {
-        SortType.NAME_ASC -> compareBy { it.displayName.lowercase() }
-        SortType.NAME_DESC -> compareByDescending { it.displayName.lowercase() }
+        SortType.NAME_ASC -> Comparator { a, b -> naturalComparator(a.displayName, b.displayName) }
+        SortType.NAME_DESC -> Comparator { a, b -> naturalComparator(b.displayName, a.displayName) }
         SortType.DATE_NEWEST -> compareByDescending { it.lastModified }
         SortType.DATE_OLDEST -> compareBy { it.lastModified }
         SortType.SIZE_LARGEST -> compareByDescending { it.sizeInBytes }

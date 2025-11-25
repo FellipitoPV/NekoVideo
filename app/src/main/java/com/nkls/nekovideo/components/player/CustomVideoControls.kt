@@ -47,6 +47,10 @@ import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.components.helpers.FilesManager
 import kotlinx.coroutines.withContext
 import java.io.File
+import androidx.compose.material.icons.filled.ScreenRotation
+import androidx.compose.material.icons.filled.StayCurrentPortrait
+import androidx.compose.material.icons.filled.StayCurrentLandscape
+import androidx.compose.material.icons.filled.Subtitles
 
 @Composable
 fun CustomVideoControls(
@@ -63,7 +67,13 @@ fun CustomVideoControls(
     repeatMode: RepeatMode,
     onRepeatModeChange: (RepeatMode) -> Unit,
     isCasting: Boolean,
-    onCastClick: () -> Unit
+    onCastClick: () -> Unit,
+    rotationMode: RotationMode,
+    onRotationModeChange: (RotationMode) -> Unit,
+    // NOVOS PARÂMETROS PARA LEGENDAS:
+    hasSubtitles: Boolean,
+    subtitlesEnabled: Boolean,
+    onSubtitlesClick: () -> Unit
 ) {
     val controller = mediaController ?: return
 
@@ -117,41 +127,6 @@ fun CustomVideoControls(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Botão de Repetição no header
-                    IconButton(
-                        onClick = {
-                            val nextMode = when (repeatMode) {
-                                RepeatMode.NONE -> RepeatMode.REPEAT_ALL
-                                RepeatMode.REPEAT_ALL -> RepeatMode.REPEAT_ONE
-                                RepeatMode.REPEAT_ONE -> RepeatMode.NONE
-                            }
-                            onRepeatModeChange(nextMode)
-                            resetUITimer()
-                        },
-                        modifier = Modifier
-                            .background(
-                                when (repeatMode) {
-                                    RepeatMode.NONE -> Color.Black.copy(alpha = 0.5f)
-                                    RepeatMode.REPEAT_ALL -> Color(0xFF4CAF50).copy(alpha = 0.8f)
-                                    RepeatMode.REPEAT_ONE -> Color(0xFF2196F3).copy(alpha = 0.8f)
-                                },
-                                CircleShape
-                            )
-                            .size(48.dp)
-                    ) {
-                        val (icon, contentDescription) = when (repeatMode) {
-                            RepeatMode.NONE -> Pair(Icons.Default.PlaylistPlay, "Normal Play")
-                            RepeatMode.REPEAT_ALL -> Pair(Icons.Default.Repeat, "Repeat Playlist")
-                            RepeatMode.REPEAT_ONE -> Pair(Icons.Default.RepeatOne, "Repeat One")
-                        }
-
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = contentDescription,
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
 
                     // Casting
                     AndroidView(
@@ -237,7 +212,7 @@ fun CustomVideoControls(
                     imageVector = Icons.Default.SkipPrevious,
                     contentDescription = "Previous",
                     tint = if (controller.hasPreviousMediaItem()) Color.White else Color.Gray,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(64.dp)
                 )
             }
 
@@ -279,7 +254,7 @@ fun CustomVideoControls(
                     imageVector = Icons.Default.SkipNext,
                     contentDescription = "Next",
                     tint = if (controller.hasNextMediaItem()) Color.White else Color.Gray,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(64.dp)
                 )
             }
         }
@@ -343,30 +318,89 @@ fun CustomVideoControls(
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)  // Espaçamento maior também
                     ) {
                         Text(
                             text = formatTime(duration),
                             color = Color.White,
-                            fontSize = 14.sp
+                            fontSize = 16.sp  // Era 14.sp
                         )
 
-                        // Botão de modo de repetição (inferior direito)
+                        // Botão de legendas (só aparece se houver legendas disponíveis)
+                        if (hasSubtitles) {
+                            IconButton(
+                                onClick = {
+                                    onSubtitlesClick()
+                                    resetUITimer()
+                                },
+                                modifier = Modifier
+                                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                                    .size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Subtitles,  // Ícone nativo do Material
+                                    contentDescription = "Legendas",
+                                    tint = if (subtitlesEnabled) Color.Yellow else Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+
+                        // Botão de rotação
                         IconButton(
                             onClick = {
-                                // Dentro do onClick do botão de repeat:
+                                val nextMode = when (rotationMode) {
+                                    RotationMode.AUTO -> RotationMode.PORTRAIT
+                                    RotationMode.PORTRAIT -> RotationMode.LANDSCAPE
+                                    RotationMode.LANDSCAPE -> RotationMode.AUTO
+                                }
+                                onRotationModeChange(nextMode)
+                                resetUITimer()
+                            },
+                            modifier = Modifier
+                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                                .size(40.dp)  // Era 32.dp
+                        ) {
+                            val (icon, contentDescription, iconColor) = when (rotationMode) {
+                                RotationMode.AUTO -> Triple(
+                                    Icons.Default.ScreenRotation,
+                                    "Auto Rotation",
+                                    Color(0xFFFF9800)
+                                )
+                                RotationMode.PORTRAIT -> Triple(
+                                    Icons.Default.StayCurrentPortrait,
+                                    "Portrait Lock",
+                                    Color(0xFF2196F3)
+                                )
+                                RotationMode.LANDSCAPE -> Triple(
+                                    Icons.Default.StayCurrentLandscape,
+                                    "Landscape Lock",
+                                    Color(0xFF4CAF50)
+                                )
+                            }
+
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = contentDescription,
+                                tint = iconColor,
+                                modifier = Modifier.size(24.dp)  // Era 18.dp
+                            )
+                        }
+
+                        // Botão de modo de repetição
+                        IconButton(
+                            onClick = {
                                 val nextMode = when (repeatMode) {
                                     RepeatMode.NONE -> RepeatMode.REPEAT_ALL
                                     RepeatMode.REPEAT_ALL -> RepeatMode.REPEAT_ONE
                                     RepeatMode.REPEAT_ONE -> RepeatMode.NONE
                                 }
-
                                 onRepeatModeChange(nextMode)
                                 resetUITimer()
                             },
                             modifier = Modifier
                                 .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                                .size(32.dp)
+                                .size(40.dp)  // Era 32.dp
                         ) {
                             val (icon, contentDescription, iconColor) = when (repeatMode) {
                                 RepeatMode.NONE -> Triple(
@@ -390,7 +424,7 @@ fun CustomVideoControls(
                                 imageVector = icon,
                                 contentDescription = contentDescription,
                                 tint = iconColor,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(24.dp)  // Era 18.dp
                             )
                         }
                     }

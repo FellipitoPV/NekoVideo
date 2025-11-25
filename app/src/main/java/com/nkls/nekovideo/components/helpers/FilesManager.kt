@@ -38,7 +38,7 @@ object FilesManager {
             var newName: String
 
             while (true) {
-                newName = if (currentNumber == 0) baseName else "$baseName $currentNumber"
+                newName = if (currentNumber == 0) baseName else "${baseName} $currentNumber"
                 val fullNewName = "$newName$extension"
                 if (fullNewName !in existingFiles && !File(parentDir, fullNewName).exists()) {
                     break
