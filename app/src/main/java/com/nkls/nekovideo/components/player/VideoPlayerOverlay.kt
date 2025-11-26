@@ -8,7 +8,9 @@ import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
 import android.provider.Settings
+import android.text.Layout
 import android.util.Log
+import android.util.TypedValue
 import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
@@ -105,6 +107,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.DialogProperties
+import androidx.media3.common.text.Cue
 
 enum class RepeatMode {
     NONE,
@@ -200,6 +203,7 @@ fun VideoPlayerOverlay(
     var showTrackSelectionDialog by remember { mutableStateOf(false) }
 
     // PlayerView sem controles nativos
+
     val playerView = remember {
         PlayerView(context).apply {
             useController = false
@@ -207,14 +211,38 @@ fun VideoPlayerOverlay(
             resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
 
             subtitleView?.apply {
-                // ADICIONE ESTA LINHA - isso faz TODA a diferença!
+                // Renderização via WebView para melhor suporte a estilos
                 setViewType(SubtitleView.VIEW_TYPE_WEB)
 
-                setApplyEmbeddedStyles(true)
-                setApplyEmbeddedFontSizes(true)
+                // Define tamanho fixo da fonte
+                setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
+
+                // Remove estilos e tamanhos embutidos para ter controle total
+                setApplyEmbeddedStyles(false)
+                setApplyEmbeddedFontSizes(false)
+
+                // Ajusta padding inferior (opcional)
+                setBottomPaddingFraction(0.08f)
             }
+
+            // Listener para interceptar e ajustar os Cues (legendas)
+            player?.addListener(object : Player.Listener {
+                override fun onCues(cues: MutableList<Cue>) {
+                    val adjustedCues = cues.map { cue ->
+                        cue.buildUpon()
+                            // Aumenta largura para 95% da tela
+                            .setSize(0.95f)
+                            // Alinha texto à esquerda (pode usar ALIGN_CENTER se preferir)
+                            .setTextAlignment(Layout.Alignment.ALIGN_NORMAL)
+                            // Mantém posição vertical padrão (ou ajuste com setLine)
+                            .build()
+                    }
+                    subtitleView?.setCues(adjustedCues)
+                }
+            })
         }
     }
+
 
     fun applyRotation(videoSize: VideoSize? = null) {
         val activity = context.findActivity() ?: return

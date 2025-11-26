@@ -22,6 +22,9 @@ import kotlinx.coroutines.Job
 import java.io.File
 import androidx.media3.common.C
 import androidx.media3.common.AudioAttributes
+import android.media.MediaMetadataRetriever
+import com.nkls.nekovideo.components.OptimizedThumbnailManager
+import kotlinx.coroutines.launch
 
 @OptIn(UnstableApi::class)
 class MediaPlaybackService : MediaSessionService() {
@@ -201,16 +204,25 @@ class MediaPlaybackService : MediaSessionService() {
     private fun createMediaItemWithMetadata(uri: String): MediaItem {
         val file = File(uri.removePrefix("file://"))
         val title = file.nameWithoutExtension
+        val videoPath = uri.removePrefix("file://")
 
-        val metadata = MediaMetadata.Builder()
+        // Tenta pegar thumbnail do cache do ThumbnailManager
+        val cachedThumbnail = OptimizedThumbnailManager.getCachedThumbnail(videoPath)
+
+        val metadataBuilder = MediaMetadata.Builder()
             .setTitle(title)
             .setDisplayTitle(title)
             .setArtist("NekoVideo")
-            .build()
+
+        // Se tiver thumbnail em cache, usa
+        cachedThumbnail?.let {
+            val artworkData = bitmapToByteArray(it)
+            metadataBuilder.setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+        }
 
         return MediaItem.Builder()
             .setUri(uri)
-            .setMediaMetadata(metadata)
+            .setMediaMetadata(metadataBuilder.build())
             .build()
     }
 
@@ -472,4 +484,23 @@ class MediaPlaybackService : MediaSessionService() {
             context.startService(intent)
         }
     }
+}
+
+private fun extractThumbnail(videoPath: String): Bitmap? {
+    return try {
+        val retriever = MediaMetadataRetriever()
+        retriever.setDataSource(videoPath)
+        val bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+        retriever.release()
+        bitmap
+    } catch (e: Exception) {
+        Log.e("MediaPlaybackService", "Erro ao extrair thumbnail: ${e.message}")
+        null
+    }
+}
+
+private fun bitmapToByteArray(bitmap: Bitmap): ByteArray {
+    val stream = java.io.ByteArrayOutputStream()
+    bitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream)
+    return stream.toByteArray()
 }
