@@ -344,9 +344,9 @@ fun CastControlsOverlay(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                BannerAd()
+//                Spacer(modifier = Modifier.height(16.dp))
+//
+//                BannerAd()
 
             }
         }

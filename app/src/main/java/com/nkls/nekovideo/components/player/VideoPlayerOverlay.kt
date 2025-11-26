@@ -207,8 +207,10 @@ fun VideoPlayerOverlay(
             resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
 
             subtitleView?.apply {
-                // NÃO usar setStyle() - deixa usar estilo nativo da legenda
-                setApplyEmbeddedStyles(true)  // IMPORTANTE
+                // ADICIONE ESTA LINHA - isso faz TODA a diferença!
+                setViewType(SubtitleView.VIEW_TYPE_WEB)
+
+                setApplyEmbeddedStyles(true)
                 setApplyEmbeddedFontSizes(true)
             }
         }

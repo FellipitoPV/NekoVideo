@@ -760,7 +760,7 @@ fun MainScreen(
                     )
 
                     // Banner Ad
-                    BannerAd()
+//                    BannerAd()
                 }
             }
         },
