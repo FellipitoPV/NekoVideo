@@ -100,7 +100,6 @@ class CastManager(private val context: Context) {
 
             session.remoteMediaClient?.load(request)
 
-            Log.d("CastManager", "Video cast iniciado: $videoUrl")
 
         } catch (e: Exception) {
             Log.e("CastManager", "Erro ao fazer cast", e)

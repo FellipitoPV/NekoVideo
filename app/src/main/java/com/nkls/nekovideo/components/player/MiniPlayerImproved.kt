@@ -5,7 +5,6 @@ import android.media.MediaMetadataRetriever
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,10 +15,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -53,7 +51,6 @@ fun MiniPlayerImproved(
     // Estados locais
     val mediaController by MediaControllerManager.mediaController.collectAsStateWithLifecycle()
 
-    // Estados do Cast
     var isCasting by remember { mutableStateOf(false) }
     var remoteMediaClient by remember { mutableStateOf<RemoteMediaClient?>(null) }
 
@@ -65,24 +62,21 @@ fun MiniPlayerImproved(
     var duration by remember { mutableStateOf(0L) }
     var hasNext by remember { mutableStateOf(false) }
     var hasPrevious by remember { mutableStateOf(false) }
-    var isExpanded by remember { mutableStateOf(false) }
 
-    // Cores (manter as mesmas)
-    val backgroundColor = Color(0xFF1A1A1A)
-    val surfaceColor = Color(0xFF2D2D2D)
-    val primaryColor = Color(0xFF6366F1)
-    val onSurfaceColor = Color(0xFFE0E0E0)
-    val onSurfaceVariant = Color(0xFFB0B0B0)
-
-    // Animações (manter as mesmas)
-    val expandedHeight by animateDpAsState(
-        targetValue = if (isExpanded) 120.dp else 80.dp,
-        animationSpec = tween(300)
+    // ✅ Animações suaves e minimalistas
+    val playButtonScale by animateFloatAsState(
+        targetValue = if (isPlaying) 1f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "playButtonScale"
     )
 
-    val playButtonScale by animateFloatAsState(
-        targetValue = if (isPlaying) 1f else 1.1f,
-        animationSpec = tween(200)
+    val thumbnailScale by animateFloatAsState(
+        targetValue = if (isPlaying) 1f else 0.95f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "thumbnailScale"
     )
 
     // Detectar sessão Cast
@@ -116,22 +110,19 @@ fun MiniPlayerImproved(
 
         sessionManager.addSessionManagerListener(listener)
 
-        // Verificar se já há sessão ativa
         sessionManager.currentCastSession?.let { session ->
             isCasting = true
             remoteMediaClient = session.remoteMediaClient
         }
     }
 
-    // Atualizar posição - CAST ou LOCAL
+    // Atualizar posição
     LaunchedEffect(isCasting, remoteMediaClient, mediaController, isPlaying) {
         while (isPlaying) {
             if (isCasting && remoteMediaClient != null) {
-                // Dados do Cast
                 currentPosition = remoteMediaClient!!.approximateStreamPosition
                 duration = remoteMediaClient!!.streamDuration.takeIf { it > 0 } ?: 0L
             } else if (!isCasting && mediaController != null) {
-                // Dados locais
                 currentPosition = mediaController!!.currentPosition
                 duration = mediaController!!.duration.takeIf { it > 0 } ?: 0L
             }
@@ -187,7 +178,7 @@ fun MiniPlayerImproved(
 
     // Listener do player local
     LaunchedEffect(mediaController) {
-        if (!isCasting) {  // Só atualizar se NÃO estiver casting
+        if (!isCasting) {
             mediaController?.let { controller ->
                 val listener = object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
@@ -223,7 +214,6 @@ fun MiniPlayerImproved(
 
                 controller.addListener(listener)
 
-                // Estado inicial
                 isPlaying = controller.isPlaying
                 hasNext = controller.hasNextMediaItem()
                 hasPrevious = controller.hasPreviousMediaItem()
@@ -248,13 +238,11 @@ fun MiniPlayerImproved(
         }
     }
 
-// Conectar ao MediaController
     DisposableEffect(Unit) {
         MediaControllerManager.connect(context)
         onDispose { }
     }
 
-    // Função para fechar
     fun closePlayer() {
         if (isCasting) {
             CastContext.getSharedInstance(context)
@@ -263,7 +251,6 @@ fun MiniPlayerImproved(
         } else {
             MediaPlaybackService.stopService(context)
         }
-        // Reset states
         currentTitle = ""
         currentUri = ""
         thumbnail = null
@@ -272,69 +259,59 @@ fun MiniPlayerImproved(
         isPlaying = false
         hasNext = false
         hasPrevious = false
-        isExpanded = false
     }
 
-    // UI - Mostrar se há Cast OU MediaController
+    // ✅ UI MINIMALISTA E CLEAN
     if ((isCasting && remoteMediaClient != null) || (mediaController != null && currentTitle.isNotEmpty())) {
         Card(
             modifier = modifier
                 .fillMaxWidth()
-                .height(expandedHeight)
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = { onOpenPlayer() },
-                        onLongPress = { isExpanded = !isExpanded }
-                    )
-                },
-            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                .height(80.dp)
+                .clickable { onOpenPlayer() },
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
             colors = CardDefaults.cardColors(
-                containerColor = backgroundColor
+                containerColor = MaterialTheme.colorScheme.surface
             ),
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
         ) {
             Column {
-                // Progress bar no topo
+                // ✅ Progress bar minimalista no topo
                 if (duration > 0) {
                     val progress = (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
                     LinearProgressIndicator(
                         progress = progress,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(3.dp),
-                        color = primaryColor,
-                        trackColor = onSurfaceVariant.copy(alpha = 0.3f)
+                            .height(2.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 }
 
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .fillMaxSize()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Thumbnail com ícone Cast quando casting
+                    // ✅ Thumbnail com animação sutil
                     Box(
                         modifier = Modifier
                             .size(56.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(surfaceColor)
+                            .scale(thumbnailScale)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         if (isCasting) {
-                            // Ícone Cast ao invés de thumbnail
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Cast,
-                                    contentDescription = "Casting",
-                                    tint = Color(0xFF4CAF50),
-                                    modifier = Modifier.size(32.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Cast,
+                                contentDescription = "Casting",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .align(Alignment.Center)
+                            )
                         } else {
-                            // Thumbnail normal
                             thumbnail?.let { thumb ->
                                 Image(
                                     bitmap = thumb.asImageBitmap(),
@@ -345,15 +322,16 @@ fun MiniPlayerImproved(
                             }
                         }
 
+                        // ✅ Overlay de pause discreto
                         if (!isPlaying) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = 0.6f)),
+                                    .background(Color.Black.copy(alpha = 0.4f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.PlayArrow,
+                                    imageVector = Icons.Default.Pause,
                                     contentDescription = "Paused",
                                     tint = Color.White,
                                     modifier = Modifier.size(24.dp)
@@ -364,45 +342,33 @@ fun MiniPlayerImproved(
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-// Título e informações
+                    // ✅ Informações do vídeo
                     Column(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
                             text = currentTitle,
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontWeight = FontWeight.SemiBold
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Medium
                             ),
-                            color = onSurfaceColor,
-                            maxLines = if (isExpanded) 2 else 1,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "${formatTime(currentPosition)} / ${formatTime(duration)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = onSurfaceVariant,
-                                fontSize = 11.sp
-                            )
-
-                            if (isExpanded) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    imageVector = if (isPlaying) Icons.Default.PlayArrow else Icons.Default.Pause,
-                                    contentDescription = "Status",
-                                    tint = onSurfaceVariant,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                            }
-                        }
+                        Text(
+                            text = "${formatTime(currentPosition)} / ${formatTime(duration)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp
+                        )
                     }
 
-                    // Controles adaptados
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    // ✅ Controles minimalistas
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -417,17 +383,21 @@ fun MiniPlayerImproved(
                                 }
                             },
                             enabled = hasPrevious,
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SkipPrevious,
                                 contentDescription = "Previous",
-                                tint = if (hasPrevious) onSurfaceColor else onSurfaceVariant.copy(alpha = 0.4f),
-                                modifier = Modifier.size(18.dp)
+                                tint = if (hasPrevious) {
+                                    MaterialTheme.colorScheme.onSurface
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                                },
+                                modifier = Modifier.size(24.dp)
                             )
                         }
 
-                        // Play/Pause
+                        // ✅ Play/Pause com animação
                         Surface(
                             onClick = {
                                 if (isCasting) {
@@ -439,21 +409,28 @@ fun MiniPlayerImproved(
                                 }
                             },
                             modifier = Modifier
-                                .size(48.dp)
-                                .graphicsLayer(
-                                    scaleX = playButtonScale,
-                                    scaleY = playButtonScale
-                                ),
+                                .size(44.dp)
+                                .scale(playButtonScale),
                             shape = CircleShape,
-                            color = surfaceColor
+                            color = MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (isPlaying) "Pause" else "Play",
-                                    tint = onSurfaceColor,
-                                    modifier = Modifier.size(22.dp)
-                                )
+                                // ✅ Animação de troca de ícone
+                                AnimatedContent(
+                                    targetState = isPlaying,
+                                    transitionSpec = {
+                                        fadeIn(animationSpec = tween(150)) togetherWith
+                                                fadeOut(animationSpec = tween(150))
+                                    },
+                                    label = "playPauseIcon"
+                                ) { playing ->
+                                    Icon(
+                                        imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = if (playing) "Pause" else "Play",
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
                         }
 
@@ -467,59 +444,30 @@ fun MiniPlayerImproved(
                                 }
                             },
                             enabled = hasNext,
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SkipNext,
                                 contentDescription = "Next",
-                                tint = if (hasNext) onSurfaceColor else onSurfaceVariant.copy(alpha = 0.4f),
-                                modifier = Modifier.size(18.dp)
+                                tint = if (hasNext) {
+                                    MaterialTheme.colorScheme.onSurface
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                                },
+                                modifier = Modifier.size(24.dp)
                             )
                         }
 
-                        // Close
+                        // ✅ Close minimalista
                         IconButton(
                             onClick = { closePlayer() },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Close",
-                                tint = onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                }
-
-                // Área expandida (mesmo código, mas adaptar seek)
-                AnimatedVisibility(
-                    visible = isExpanded,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        if (duration > 0) {
-                            val sliderProgress = (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-
-                            Slider(
-                                value = sliderProgress,
-                                onValueChange = { newProgress ->
-                                    val newPosition = (newProgress * duration).toLong()
-                                    if (isCasting) {
-                                        remoteMediaClient?.seek(newPosition)
-                                    } else {
-                                        mediaController?.seekTo(newPosition)
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = primaryColor,
-                                    activeTrackColor = primaryColor,
-                                    inactiveTrackColor = onSurfaceVariant.copy(alpha = 0.3f)
-                                )
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }

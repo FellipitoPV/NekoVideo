@@ -5,7 +5,7 @@
     <string name="action_cancel">Cancelar</string>
     <string name="action_cancel_operation">Cancelar operación</string>
     <string name="action_unlock">Desbloquear</string>
-    <string name="action_protect">Proteger</string>
+    <string name="action_protect">Mover a carpeta segura</string>
     <string name="action_unprivatize">Hacer Público</string>
     <string name="action_privatize">Hacer Privado</string>
     <string name="action_delete">Eliminar</string>
@@ -27,6 +27,7 @@
     <string name="folder_created">Carpeta creada</string>
     <string name="action_set_secure_folder">Establecer Como Carpeta Segura</string>
     <string name="secure_folder_set">¡Esta carpeta ahora es la carpeta segura!</string>
+    <string name="pull_to_refresh_tutorial">Arrastra hacia abajo para actualizar videos</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Cancelar</string>

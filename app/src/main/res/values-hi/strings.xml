@@ -5,7 +5,7 @@
     <string name="action_cancel">रद्द करें</string>
     <string name="action_cancel_operation">ऑपरेशन रद्द करें</string>
     <string name="action_unlock">अनलॉक करें</string>
-    <string name="action_protect">सुरक्षित करें</string>
+    <string name="action_protect">सुरक्षित फ़ोल्डर में ले जाएं</string>
     <string name="action_unprivatize">सार्वजनिक बनाएं</string>
     <string name="action_privatize">निजी बनाएं</string>
     <string name="action_delete">डिलीट करें</string>
@@ -27,6 +27,7 @@
     <string name="folder_created">फ़ोल्डर बनाया गया</string>
     <string name="action_set_secure_folder">सुरक्षित फ़ोल्डर के रूप में सेट करें</string>
     <string name="secure_folder_set">यह फ़ोल्डर अब सुरक्षित फ़ोल्डर है!</string>
+    <string name="pull_to_refresh_tutorial">वीडियो अपडेट करने के लिए नीचे खींचें</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">रद्द करें</string>

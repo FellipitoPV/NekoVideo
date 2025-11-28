@@ -335,11 +335,29 @@ fun SortRow(
     isRefreshing: Boolean = false,
     onRefresh: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
+
+    // ✅ Verifica se é primeira vez
+    var showTutorial by remember { mutableStateOf(!prefs.getBoolean("pull_to_refresh_tutorial_shown", false)) }
+    var tutorialAlpha by remember { mutableStateOf(0f) }
+
     var showDropdown by remember { mutableStateOf(false) }
     var pullOffset by remember { mutableStateOf(0f) }
     var isReadyToRefresh by remember { mutableStateOf(false) }
     val density = LocalDensity.current
     val refreshThreshold = with(density) { 80.dp.toPx() }
+
+    // ✅ Animação APENAS de fade in (sem timer)
+    LaunchedEffect(showTutorial) {
+        if (showTutorial && tutorialAlpha == 0f) {
+            // Fade in suave
+            for (i in 0..10) {
+                tutorialAlpha = i / 10f
+                delay(30)
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -350,6 +368,18 @@ fun SortRow(
                         onDragEnd = {
                             if (isReadyToRefresh) {
                                 onRefresh()
+                                // ✅ ESCONDE tutorial APENAS ao usar pull-to-refresh
+                                if (showTutorial) {
+                                    // Fade out rápido
+                                    kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                                        for (i in 10 downTo 0) {
+                                            tutorialAlpha = i / 10f
+                                            delay(20)
+                                        }
+                                        showTutorial = false
+                                        prefs.edit().putBoolean("pull_to_refresh_tutorial_shown", true).apply()
+                                    }
+                                }
                             }
                             pullOffset = 0f
                             isReadyToRefresh = false
@@ -363,7 +393,6 @@ fun SortRow(
                                 pullOffset = (pullOffset + dragAmount * 0.5f).coerceIn(0f, refreshThreshold * 1.5f)
                                 isReadyToRefresh = pullOffset >= refreshThreshold
                             } else if (dragAmount < 0 && pullOffset > 0) {
-                                // ✅ Permite cancelar puxando de volta
                                 pullOffset = (pullOffset + dragAmount * 0.5f).coerceAtLeast(0f)
                                 isReadyToRefresh = pullOffset >= refreshThreshold
                             }
@@ -373,7 +402,7 @@ fun SortRow(
             }
     ) {
         Column {
-            // ✅ Indicador discreto no topo (linha de gaveta)
+            // Indicador discreto no topo (linha de gaveta)
             if (!isRefreshing && pullOffset == 0f) {
                 Box(
                     modifier = Modifier
@@ -391,8 +420,8 @@ fun SortRow(
                 }
             }
 
-            // ✅ Indicador de pull-to-refresh
-            if (pullOffset > 0 ) {
+            // Indicador de pull-to-refresh
+            if (pullOffset > 0) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -419,7 +448,7 @@ fun SortRow(
                 }
             }
 
-            // ✅ Conteúdo do SortRow (sem loadings extras)
+            // Conteúdo do SortRow
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -461,10 +490,61 @@ fun SortRow(
                 }
             }
         }
+
+        // ✅ TUTORIAL - Fica até usar o pull-to-refresh
+        if (showTutorial && tutorialAlpha > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .offset(y = with(density) { pullOffset.toDp() })
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .alpha(tutorialAlpha)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .border(
+                            width = 3.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .background(
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.75f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .padding(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SwipeDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .offset(y = (tutorialAlpha * 8).dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Text(
+                            text = stringResource(R.string.pull_to_refresh_tutorial),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
-// ✅ COMPONENTE PRINCIPAL COM LOADING SIMPLIFICADO
 
 @Composable
 fun SubFolderScreen(

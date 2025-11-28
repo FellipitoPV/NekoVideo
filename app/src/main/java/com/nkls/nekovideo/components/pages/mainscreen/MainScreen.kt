@@ -160,30 +160,17 @@ fun MainScreen(
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
 
 
-    LaunchedEffect(intent, notificationReceived, lastAction, lastTime) {
+    LaunchedEffect(notificationReceived, lastAction, lastTime) {
 
-        // Lógica original (para abrir player pela primeira vez)
-        if (intent?.action == "OPEN_PLAYER" && !notificationReceived) {
-            val playlist = intent.getStringArrayListExtra("PLAYLIST") ?: emptyList()
-            if (playlist.isNotEmpty()) {
-                Log.d("MainScreen", "✅ Abrindo player - playlist: ${playlist.size} itens")
-                showPlayerOverlay = true
-            }
-            intent.action = null
-        }
 
-        // NOVA lógica para notificação - APENAS abre overlay
         if (notificationReceived && lastAction == "OPEN_PLAYER") {
 
             val playlist = intent?.getStringArrayListExtra("PLAYLIST") ?: emptyList()
 
             if (playlist.isNotEmpty()) {
-
-                // ✅ APENAS abre overlay, NÃO chama startWithPlaylist!
                 showPlayerOverlay = true
-
             } else {
-                Log.w("MainScreen", "❌ Playlist vazia na notificação")
+                Log.w("MainScreen", "   ⚠️ Playlist vazia")
             }
         }
     }
@@ -349,7 +336,6 @@ fun MainScreen(
 
     LaunchedEffect(externalVideoReceived) {
         if (externalVideoReceived) {
-            Log.d("MainScreen", "Abrindo overlay automaticamente para vídeo externo")
 
             // Aguardar um pouco para garantir que tudo carregou
             delay(500)
@@ -365,7 +351,6 @@ fun MainScreen(
 
     LaunchedEffect(autoOpenOverlay) {
         if (autoOpenOverlay) {
-            Log.d("MainScreen", "Auto-abrindo overlay para vídeo externo")
             delay(100) // Pequeno delay para estabilizar
             showPlayerOverlay = true
         }

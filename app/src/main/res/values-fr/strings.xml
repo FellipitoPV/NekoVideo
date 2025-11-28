@@ -5,7 +5,7 @@
     <string name="action_cancel">Annuler</string>
     <string name="action_cancel_operation">Annuler lopération</string>
     <string name="action_unlock">Déverrouiller</string>
-    <string name="action_protect">Protéger</string>
+    <string name="action_protect">Déplacer vers dossier sécurisé</string>
     <string name="action_unprivatize">Rendre Public</string>
     <string name="action_privatize">Rendre Privé</string>
     <string name="action_delete">Supprimer</string>
@@ -27,6 +27,7 @@
     <string name="folder_created">Dossier créé</string>
     <string name="action_set_secure_folder">Définir Comme Dossier Sécurisé</string>
     <string name="secure_folder_set">Ce dossier est maintenant le dossier sécurisé !</string>
+    <string name="pull_to_refresh_tutorial">Faites glisser vers le bas pour actualiser les vidéos</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Annuler</string>

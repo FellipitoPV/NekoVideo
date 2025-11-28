@@ -304,23 +304,18 @@ fun VideoPlayerOverlay(
         val subtitleGroups = mutableListOf<Tracks.Group>()
         val audioGroups = mutableListOf<Tracks.Group>()
 
-        Log.d("VideoPlayer", "Verificando tracks disponíveis...")
-        Log.d("VideoPlayer", "Total de grupos: ${tracks.groups.size}")
 
         for (trackGroup in tracks.groups) {
-            Log.d("VideoPlayer", "Grupo tipo: ${trackGroup.type}, Tracks: ${trackGroup.length}")
 
             if (trackGroup.type == C.TRACK_TYPE_TEXT) {
                 subtitleGroups.add(trackGroup)
                 for (i in 0 until trackGroup.length) {
                     val format = trackGroup.getTrackFormat(i)
-                    Log.d("VideoPlayer", "Legenda encontrada: ${format.language ?: "Unknown"} - ${format.label ?: "No label"}")
                 }
             } else if (trackGroup.type == C.TRACK_TYPE_AUDIO) {
                 audioGroups.add(trackGroup)
                 for (i in 0 until trackGroup.length) {
                     val format = trackGroup.getTrackFormat(i)
-                    Log.d("VideoPlayer", "Áudio encontrado: ${format.language ?: "Unknown"}")
                 }
             }
         }
@@ -328,8 +323,6 @@ fun VideoPlayerOverlay(
         availableSubtitles = subtitleGroups
         availableAudioTracks = audioGroups
 
-        Log.d("VideoPlayer", "Legendas disponíveis: ${subtitleGroups.size}")
-        Log.d("VideoPlayer", "Áudios disponíveis: ${audioGroups.size}")
     }
 
     fun setupController(controller: MediaController) {
@@ -347,7 +340,6 @@ fun VideoPlayerOverlay(
             applyRotation(mediaController!!.videoSize)
         }
 
-        Log.d("VideoPlayer", "Controller configurado - Posição: ${controller.currentPosition}ms, Tocando: ${controller.isPlaying}")
     }
 
     // Ajustar orientação ao desconectar do cast
@@ -809,7 +801,6 @@ fun VideoPlayerOverlay(
                         }
                     } else {
                         // Player está funcionando, só conecta normalmente
-                        Log.d("VideoPlayer", "Conectando ao player existente...")
                         setupController(newController)
                     }
 
@@ -858,30 +849,24 @@ fun VideoPlayerOverlay(
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
-                    Log.d("VideoPlayer", "onPlaybackStateChanged: playbackState=$playbackState, repeatMode=$repeatMode")
 
                     if (playbackState == Player.STATE_ENDED) {
-                        Log.d("VideoPlayer", "Repetição mudada - repeatMode atual: $repeatMode")
 
                         when (repeatMode) {
                             RepeatMode.REPEAT_ONE -> {
-                                Log.d("VideoPlayer", "Repetição mudada: Voltando para início do vídeo")
                                 mediaController!!.seekTo(0)
                                 mediaController!!.play()
                             }
                             RepeatMode.REPEAT_ALL -> {
                                 if (mediaController!!.hasNextMediaItem()) {
-                                    Log.d("VideoPlayer", "Repetição mudada: Avançando para próximo vídeo")
                                     mediaController!!.seekToNextMediaItem()
                                 } else {
-                                    Log.d("VideoPlayer", "Repetição mudada: Fim da playlist, voltando ao início")
                                     mediaController!!.seekTo(0, 0)
                                     mediaController!!.play()
                                 }
                             }
                             RepeatMode.NONE -> {
                                 if (mediaController!!.hasNextMediaItem()) {
-                                    Log.d("VideoPlayer", "Repetição mudada: Avançando para próximo vídeo")
                                     mediaController!!.seekToNextMediaItem()
                                 } else {
                                     Log.d("VideoPlayer", "Repetição mudada: Fim da playlist, parando reprodução")
@@ -893,7 +878,6 @@ fun VideoPlayerOverlay(
 
                 // ADICIONE AQUI DENTRO:
                 override fun onTracksChanged(tracks: Tracks) {
-                    Log.d("VideoPlayer", "onTracksChanged chamado!")
                     checkAvailableTracks(mediaController!!)
                 }
             }

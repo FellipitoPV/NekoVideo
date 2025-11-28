@@ -5,7 +5,7 @@
     <string name="action_cancel">Abbrechen</string>
     <string name="action_cancel_operation">Vorgang abbrechen</string>
     <string name="action_unlock">Entsperren</string>
-    <string name="action_protect">Schützen</string>
+    <string name="action_protect">In sicheren Ordner verschieben</string>
     <string name="action_unprivatize">Öffentlich machen</string>
     <string name="action_privatize">Privat machen</string>
     <string name="action_delete">Löschen</string>
@@ -27,6 +27,7 @@
     <string name="folder_created">Ordner erstellt</string>
     <string name="action_set_secure_folder">Als Sicheren Ordner Festlegen</string>
     <string name="secure_folder_set">Dieser Ordner ist jetzt der sichere Ordner!</string>
+    <string name="pull_to_refresh_tutorial">Nach unten ziehen, um Videos zu aktualisieren</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Abbrechen</string>

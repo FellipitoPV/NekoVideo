@@ -5,7 +5,7 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_cancel_operation">Cancel operation</string>
     <string name="action_unlock">Unlock</string>
-    <string name="action_protect">Protect</string>
+    <string name="action_protect">Move to secure folder</string>
     <string name="action_unprivatize">Unprivatize</string>
     <string name="action_privatize">Privatize</string>
     <string name="action_delete">Delete</string>
@@ -27,6 +27,7 @@
     <string name="folder_created">Folder created</string>
     <string name="action_set_secure_folder">Set as Secure Folder</string>
     <string name="secure_folder_set">This folder is now the secure folder!</string>
+    <string name="pull_to_refresh_tutorial">Drag down to refresh videos</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Cancel</string>

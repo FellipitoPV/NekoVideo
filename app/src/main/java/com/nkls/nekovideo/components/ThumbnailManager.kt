@@ -105,7 +105,6 @@ object OptimizedThumbnailManager {
             // Limpa cache antigo de forma segura
             oldCache?.evictAll()
 
-            android.util.Log.d("ThumbnailManager", "Cache reconfigurado para ${newCacheSizeMB}MB")
         }
     }
 

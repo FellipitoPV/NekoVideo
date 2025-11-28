@@ -25,6 +25,7 @@ import androidx.media3.common.AudioAttributes
 import android.media.MediaMetadataRetriever
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import kotlinx.coroutines.launch
+import android.net.Uri
 
 @OptIn(UnstableApi::class)
 class MediaPlaybackService : MediaSessionService() {
@@ -61,7 +62,6 @@ class MediaPlaybackService : MediaSessionService() {
     // NOVO: Callback da MediaSession seguindo documentação
     private val mediaSessionCallback = object : MediaSession.Callback {
         override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
-            Log.d("MediaPlaybackService", "🔗 Controller conectado: ${controller.packageName}")
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS)
                 .setAvailablePlayerCommands(MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS)
@@ -71,7 +71,6 @@ class MediaPlaybackService : MediaSessionService() {
         // NOVO: Método para configurar intent personalizada da notificação
         override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
             super.onPostConnect(session, controller)
-            Log.d("MediaPlaybackService", "📱 Configurando intent da notificação")
 
             // SOLUÇÃO: Configurar intent diretamente na sessão
             try {
@@ -99,7 +98,6 @@ class MediaPlaybackService : MediaSessionService() {
                 // CRÍTICO: Configurar o sessionActivity para a notificação
                 session.setSessionActivity(pendingIntent)
 
-                Log.d("MediaPlaybackService", "✅ SessionActivity configurado para notificação")
 
             } catch (e: Exception) {
                 Log.e("MediaPlaybackService", "❌ Erro ao configurar intent: ${e.message}")
@@ -114,26 +112,22 @@ class MediaPlaybackService : MediaSessionService() {
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            Log.d("MediaPlaybackService", "Transition to media item: ${mediaItem?.mediaId}, reason: $reason")
 
-            // IMPORTANTE: Atualizar intent da notificação quando muda vídeo
-            updateNotificationIntent()
+            // ✅ ADICIONA: Gera thumbnail do vídeo atual
+            generateCurrentVideoThumbnail()
 
             // Auto-play quando usuário pula/volta pela notificação
             when (reason) {
                 Player.MEDIA_ITEM_TRANSITION_REASON_SEEK -> {
-                    Log.d("MediaPlaybackService", "Usuário pulou vídeo - dando play automaticamente")
                     player?.play()
                 }
                 Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> {
-                    Log.d("MediaPlaybackService", "Vídeo repetindo - dando play")
                     player?.play()
                 }
             }
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
-            Log.d("MediaPlaybackService", "Playback state changed: $playbackState")
 
             // Broadcast do estado
             val isPlaying = player?.isPlaying ?: false
@@ -187,7 +181,6 @@ class MediaPlaybackService : MediaSessionService() {
             // Atualizar sessionActivity
             mediaSession?.setSessionActivity(pendingIntent)
 
-            Log.d("MediaPlaybackService", "🔄 Intent da notificação atualizado")
 
         } catch (e: Exception) {
             Log.e("MediaPlaybackService", "❌ Erro ao atualizar intent: ${e.message}")
@@ -196,34 +189,65 @@ class MediaPlaybackService : MediaSessionService() {
 
     // OFICIAL: Como na documentação
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
-        Log.d("MediaPlaybackService", "🎮 onGetSession chamado para: ${controllerInfo.packageName}")
         return mediaSession
     }
 
     // Função para criar MediaItem com metadata (mantém existente)
-    private fun createMediaItemWithMetadata(uri: String): MediaItem {
+    private fun createMediaItemWithMetadata(uri: String, generateThumbnail: Boolean = false): MediaItem {
         val file = File(uri.removePrefix("file://"))
         val title = file.nameWithoutExtension
         val videoPath = uri.removePrefix("file://")
-
-        // Tenta pegar thumbnail do cache do ThumbnailManager
-        val cachedThumbnail = OptimizedThumbnailManager.getCachedThumbnail(videoPath)
 
         val metadataBuilder = MediaMetadata.Builder()
             .setTitle(title)
             .setDisplayTitle(title)
             .setArtist("NekoVideo")
 
-        // Se tiver thumbnail em cache, usa
-        cachedThumbnail?.let {
-            val artworkData = bitmapToByteArray(it)
+        // ✅ SÓ adiciona artwork se já tiver em cache
+        val cachedThumbnail = OptimizedThumbnailManager.getCachedThumbnail(videoPath)
+        if (cachedThumbnail != null) {
+            val artworkData = bitmapToByteArray(cachedThumbnail)
             metadataBuilder.setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
         }
+        // ✅ REMOVIDO: generateThumbnailInBackground daqui
 
         return MediaItem.Builder()
             .setUri(uri)
             .setMediaMetadata(metadataBuilder.build())
             .build()
+    }
+
+    // ✅ NOVA: Gera thumbnail apenas do vídeo que está tocando
+    private fun generateCurrentVideoThumbnail() {
+        player?.let { player ->
+            val currentItem = player.currentMediaItem ?: return
+            val uri = currentItem.localConfiguration?.uri.toString()
+            val videoPath = uri.removePrefix("file://")
+
+            // Verifica se já tem em cache
+            if (OptimizedThumbnailManager.getCachedThumbnail(videoPath) != null) {
+                return
+            }
+
+            serviceScope.launch(Dispatchers.IO) {
+                try {
+                    OptimizedThumbnailManager.loadVideoMetadataWithDelay(
+                        context = this@MediaPlaybackService,
+                        videoUri = Uri.parse(uri),
+                        videoPath = videoPath,
+                        imageLoader = null,
+                        delayMs = 0L,
+                        onMetadataLoaded = { metadata ->
+                            metadata.thumbnail?.let { bitmap ->
+                                updateMediaItemArtwork(uri, bitmap)
+                            }
+                        }
+                    )
+                } catch (e: Exception) {
+                    Log.e("MediaPlaybackService", "Erro ao gerar thumbnail: ${e.message}")
+                }
+            }
+        }
     }
 
     // onStartCommand (mantém lógica existente)
@@ -235,7 +259,6 @@ class MediaPlaybackService : MediaSessionService() {
                 updatePlaylist(playlist, initialIndex)
             }
             "REFRESH_PLAYER" -> {
-                Log.d("MediaPlaybackService", "Received REFRESH_PLAYER action")
                 refreshPlayerWithCurrentState()
             }
             "UPDATE_PLAYLIST_AFTER_DELETION" -> {
@@ -244,11 +267,9 @@ class MediaPlaybackService : MediaSessionService() {
                 updatePlaylistAfterDeletion(playlist, nextIndex)
             }
             "RESUME_LOCAL_PLAYBACK" -> {
-                Log.d("MediaPlaybackService", "Resuming local playback after cast")
                 resumeLocalPlayback()
             }
             "STOP_SERVICE" -> {
-                Log.d("MediaPlaybackService", "Stopping service and clearing everything")
                 player?.run {
                     pause()
                     clearMediaItems()
@@ -266,32 +287,26 @@ class MediaPlaybackService : MediaSessionService() {
 
     // Funções de playlist (mantém)
     private fun updatePlaylist(playlist: List<String>, initialIndex: Int) {
-//        if (!requestAudioFocus()) {
-//            Log.w("MediaPlaybackService", "Não foi possível obter AudioFocus")
-//            return
-//        }
-
         player?.run {
             clearMediaItems()
             setMediaItems(
-                playlist.map { createMediaItemWithMetadata(it) },
+                playlist.map { createMediaItemWithMetadata(it) }, // ✅ Sem generateThumbnail
                 initialIndex,
                 0L
             )
             prepare()
             playWhenReady = true
+
+            // ✅ ADICIONA: Gera thumb do primeiro vídeo
+            generateCurrentVideoThumbnail()
         }
 
-        // IMPORTANTE: Atualizar intent após carregar playlist
         updateNotificationIntent()
-
-        Log.d("MediaPlaybackService", "✅ Playlist atualizada com notificação")
     }
 
     private fun updatePlaylistAfterDeletion(playlist: List<String>, nextIndex: Int) {
         player?.run {
             if (playlist.isEmpty()) {
-                Log.d("MediaPlaybackService", "Playlist vazia após deleção - parando player")
                 pause()
                 clearMediaItems()
                 abandonAudioFocus()
@@ -353,7 +368,6 @@ class MediaPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
-        Log.d("MediaPlaybackService", "🔚 onDestroy")
         abandonAudioFocus()
         mediaSession?.run {
             player?.release()
@@ -369,7 +383,6 @@ class MediaPlaybackService : MediaSessionService() {
             if (!it.isPlaying) {
                 it.play()
             }
-            Log.d("MediaPlaybackService", "✅ Playback local retomado")
         }
     }
 
@@ -444,6 +457,56 @@ class MediaPlaybackService : MediaSessionService() {
         }
     }
 
+    private fun generateThumbnailInBackground(uri: String, videoPath: String) {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                OptimizedThumbnailManager.loadVideoMetadataWithDelay(
+                    context = this@MediaPlaybackService,
+                    videoUri = Uri.parse(uri),
+                    videoPath = videoPath,
+                    imageLoader = null,
+                    delayMs = 0L, // Sem delay, gera imediatamente
+                    onMetadataLoaded = { metadata ->
+                        metadata.thumbnail?.let { bitmap ->
+                            // Atualiza o MediaItem com a thumbnail gerada
+                            updateMediaItemArtwork(uri, bitmap)
+                        }
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e("MediaPlaybackService", "Erro ao gerar thumbnail: ${e.message}")
+            }
+        }
+    }
+
+    private fun updateMediaItemArtwork(uri: String, bitmap: Bitmap) {
+        player?.let { player ->
+            val artworkData = bitmapToByteArray(bitmap)
+
+            for (i in 0 until player.mediaItemCount) {
+                val item = player.getMediaItemAt(i)
+                if (item.localConfiguration?.uri.toString() == uri) {
+                    val updatedMetadata = item.mediaMetadata.buildUpon()
+                        .setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                        .build()
+
+                    val updatedItem = item.buildUpon()
+                        .setMediaMetadata(updatedMetadata)
+                        .build()
+
+                    player.replaceMediaItem(i, updatedItem)
+                    break
+                }
+            }
+        }
+    }
+
+    private fun bitmapToByteArray(bitmap: Bitmap): ByteArray {
+        val stream = java.io.ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 75, stream)
+        return stream.toByteArray()
+    }
+
     companion object {
         fun startWithPlaylist(context: Context, playlist: List<String>, initialIndex: Int = 0) {
             val intent = Intent(context, MediaPlaybackService::class.java).apply {
@@ -484,23 +547,4 @@ class MediaPlaybackService : MediaSessionService() {
             context.startService(intent)
         }
     }
-}
-
-private fun extractThumbnail(videoPath: String): Bitmap? {
-    return try {
-        val retriever = MediaMetadataRetriever()
-        retriever.setDataSource(videoPath)
-        val bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-        retriever.release()
-        bitmap
-    } catch (e: Exception) {
-        Log.e("MediaPlaybackService", "Erro ao extrair thumbnail: ${e.message}")
-        null
-    }
-}
-
-private fun bitmapToByteArray(bitmap: Bitmap): ByteArray {
-    val stream = java.io.ByteArrayOutputStream()
-    bitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream)
-    return stream.toByteArray()
 }

@@ -6,7 +6,7 @@
     <string name="action_cancel">Cancelar</string>
     <string name="action_cancel_operation">Cancelar operação</string>
     <string name="action_unlock">Desbloquear</string>
-    <string name="action_protect">Proteger</string>
+    <string name="action_protect">Mover para pasta segura</string>
     <string name="action_unprivatize">Desprivar</string>
     <string name="action_privatize">Privar</string>
     <string name="action_delete">Excluir</string>
@@ -28,6 +28,7 @@
     <string name="folder_created">Pasta criada</string>
     <string name="action_set_secure_folder">Definir Como Pasta Segura</string>
     <string name="secure_folder_set">Esta pasta agora é a pasta segura!</string>
+    <string name="pull_to_refresh_tutorial">Arraste para baixo para atualizar vídeos</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Cancelar</string>

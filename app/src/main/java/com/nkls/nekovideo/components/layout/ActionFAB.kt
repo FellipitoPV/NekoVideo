@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -83,7 +84,6 @@ fun ActionFAB(
     val options = stringResource(R.string.options)
     val navigateToDestination = stringResource(R.string.navigate_to_destination)
 
-
     // Verifica se algum item selecionado é pasta privada
     val hasPrivateFolders = remember(selectedItems) {
         selectedItems.any { path ->
@@ -99,6 +99,11 @@ fun ActionFAB(
             file.isDirectory && !file.name.startsWith(".")
         }
     }
+
+    val isSingleNomediaFolder = selectedItems.size == 1 &&
+            java.io.File(selectedItems.first()).let { file ->
+                file.isDirectory && file.name.startsWith(".")
+            }
 
     // Define as ações baseado no contexto
     val actions = remember(hasSelectedItems, isSecureMode, hasPrivateFolders, hasNormalFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems) {
@@ -133,10 +138,10 @@ fun ActionFAB(
                 actionsList.addAll(listOf(
                     ActionItem(ActionType.DELETE, Icons.Default.Delete, deleteText),
                     ActionItem(ActionType.RENAME, Icons.Default.Edit, renameText),
-                    ActionItem(ActionType.MOVE, Icons.Default.DriveFileMove, moveText)
+                    ActionItem(ActionType.MOVE, Icons.AutoMirrored.Filled.DriveFileMove, moveText)
                 ))
 
-                if (isSingleFolder) {
+                if (isSingleNomediaFolder) {
                     actionsList.add(
                         ActionItem(
                             ActionType.SET_AS_SECURE_FOLDER,

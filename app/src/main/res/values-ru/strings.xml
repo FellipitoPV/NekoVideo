@@ -5,7 +5,7 @@
     <string name="action_cancel">Отмена</string>
     <string name="action_cancel_operation">Отменить операцию</string>
     <string name="action_unlock">Разблокировать</string>
-    <string name="action_protect">Защитить</string>
+    <string name="action_protect">Переместить в защищённую папку</string>
     <string name="action_unprivatize">Сделать публичным</string>
     <string name="action_privatize">Сделать приватным</string>
     <string name="action_delete">Удалить</string>
@@ -27,6 +27,7 @@
     <string name="folder_created">Папка создана</string>
     <string name="action_set_secure_folder">Установить Защищённой Папкой</string>
     <string name="secure_folder_set">Эта папка теперь защищённая папка!</string>
+    <string name="pull_to_refresh_tutorial">Потяните вниз, чтобы обновить видео</string>
 
     <!-- Content descriptions -->
     <string name="cancel_description">Отмена</string>

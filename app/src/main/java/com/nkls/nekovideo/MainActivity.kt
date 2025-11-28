@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
@@ -49,10 +50,13 @@ class MainActivity : AppCompatActivity() {
     private var lastIntentAction: String? = null
     private var lastIntentTime: Long = 0
 
+    private var _notificationReceived = mutableStateOf(false)
+    private var _lastIntentAction = mutableStateOf<String?>(null)
+    private var _lastIntentTime = mutableStateOf(0L)
+
     private fun handleExternalVideo(videoUri: Uri) {
         lifecycleScope.launch {
             try {
-                Log.d("MainActivity", "Processando vídeo externo: $videoUri")
 
                 val videoPath = when (videoUri.scheme) {
                     "file" -> videoUri.toString()
@@ -61,7 +65,6 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 if (videoPath.isNotEmpty()) {
-                    Log.d("MainActivity", "Iniciando MediaPlaybackService com: $videoPath")
 
                     // Iniciar o serviço
                     MediaPlaybackService.startWithPlaylist(
@@ -75,6 +78,12 @@ class MainActivity : AppCompatActivity() {
 
                     // FORÇAR abertura do overlay via recomposição
                     setContent {
+                        // ✅ Observar os states diretamente (sem by)
+                        val notificationState = _notificationReceived.value
+                        val actionState = _lastIntentAction.value
+                        val timeState = _lastIntentTime.value
+
+
                         NekoVideoTheme(themeManager = themeManager) {
                             Surface(
                                 modifier = Modifier.fillMaxSize(),
@@ -83,11 +92,9 @@ class MainActivity : AppCompatActivity() {
                                 MainScreen(
                                     intent = intent,
                                     themeManager = themeManager,
-                                    notificationReceived = notificationIntentReceived,
-                                    lastAction = lastIntentAction,
-                                    lastTime = lastIntentTime,
-                                    externalVideoReceived = true,
-                                    autoOpenOverlay = true
+                                    notificationReceived = notificationState,
+                                    lastAction = actionState,
+                                    lastTime = timeState
                                 )
                             }
                         }
@@ -105,24 +112,22 @@ class MainActivity : AppCompatActivity() {
         lastIntentTime = currentTime
         lastIntentAction = intent?.action
 
-        // Processar action
+
         when (intent?.action) {
             "OPEN_PLAYER" -> {
                 notificationIntentReceived = true
             }
             "android.intent.action.VIEW" -> {
-                // NOVO: Capturar arquivo enviado via "Abrir com"
                 val videoUri = intent.data
                 if (videoUri != null) {
-                    Log.d("MainActivity", "Arquivo recebido via 'Abrir com': $videoUri")
                     handleExternalVideo(videoUri)
                 }
             }
             null -> {
-                Log.d("MainActivity", "Intent com action NULL")
+                Log.d("MainActivity", "   ⚠️ Action NULL")
             }
             else -> {
-                Log.d("MainActivity", "Action desconhecida: ${intent.action}")
+                Log.d("MainActivity", "   ❓ Action desconhecida: ${intent.action}")
             }
         }
     }
@@ -160,27 +165,31 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val currentLanguage by LanguageManager.currentLanguage.collectAsState()
 
+            // ✅ Observar os states
+            val notificationState = _notificationReceived.value
+            val actionState = _lastIntentAction.value
+            val timeState = _lastIntentTime.value
+
             // Criar contexto localizado
             val localizedContext = remember(currentLanguage) {
                 LanguageManager.getLocalizedContext(this@MainActivity, currentLanguage)
             }
 
-                NekoVideoTheme(themeManager = themeManager) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        // USAR SUA FUNÇÃO MAINSCREEN ORIGINAL, só adicionando parâmetros de debug
-                        MainScreen(
-                            intent = intent,
-                            themeManager = themeManager,
-                            // Debug info
-                            notificationReceived = notificationIntentReceived,
-                            lastAction = lastIntentAction,
-                            lastTime = lastIntentTime
-                        )
-                    }
+            NekoVideoTheme(themeManager = themeManager) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    MainScreen(
+                        intent = intent,
+                        themeManager = themeManager,
+                        // ✅ Usar os states observáveis
+                        notificationReceived = notificationState,
+                        lastAction = actionState,
+                        lastTime = timeState
+                    )
                 }
+            }
         }
 
         OptimizedThumbnailManager.startPeriodicCleanup()
@@ -235,28 +244,12 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
 
         setIntent(intent)
-
-        // PROCESSAR nova intent
         handleNotificationIntent(intent)
 
-        setContent {
-            NekoVideoTheme(themeManager = themeManager) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    MainScreen(
-                        intent = intent,
-                        themeManager = themeManager,
-                        // Debug info atualizado
-                        notificationReceived = notificationIntentReceived,
-                        lastAction = lastIntentAction,
-                        lastTime = lastIntentTime,
-                        externalVideoReceived = externalVideoReceived
-                    )
-                }
-            }
-        }
+        // Atualizar states
+        _notificationReceived.value = notificationIntentReceived
+        _lastIntentAction.value = lastIntentAction
+        _lastIntentTime.value = lastIntentTime
 
     }
 
