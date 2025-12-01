@@ -2,6 +2,7 @@ package com.nkls.nekovideo.components
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.drawable.Drawable
 import android.media.MediaMetadataRetriever
 import android.net.Uri
@@ -16,6 +17,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.io.File
+import java.io.FileOutputStream
+import java.security.MessageDigest
 import java.text.DecimalFormat
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -39,76 +42,255 @@ object OptimizedThumbnailManager {
     private val thumbnailStates = ConcurrentHashMap<String, ThumbnailState>()
     private val activeTargets = ConcurrentHashMap<String, CustomTarget<Bitmap>>()
 
-    // ✅ NOVO: Cache configurável baseado nas configurações do usuário
+    // ✅ Cache em memória (RAM)
     private var _thumbnailCache: LruCache<String, Bitmap>? = null
     private var lastCacheSize = -1
 
     val thumbnailCache: LruCache<String, Bitmap>
         get() = _thumbnailCache ?: createDefaultCache().also { _thumbnailCache = it }
 
-    // ✅ NOVO: Função para obter tamanho do cache das configurações
-    private fun getCacheSizeFromSettings(context: Context): Int {
-        val prefs = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-        return prefs.getInt("cache_size_mb", 100) // Padrão: 100MB
+    // ✅ NOVO: Diretório para cache persistente
+    private fun getThumbnailCacheDir(context: Context): File {
+        val cacheDir = File(context.cacheDir, "video_thumbnails")
+        if (!cacheDir.exists()) {
+            cacheDir.mkdirs()
+        }
+        return cacheDir
     }
 
-    // ✅ NOVO: Função para criar cache padrão (fallback)
+    // ✅ NOVO: Gera hash MD5 do path do vídeo para nome único
+    private fun getVideoPathHash(videoPath: String): String {
+        val digest = MessageDigest.getInstance("MD5")
+        val hashBytes = digest.digest(videoPath.toByteArray())
+        return hashBytes.joinToString("") { "%02x".format(it) }
+    }
+
+    // ✅ NOVO: Arquivo da thumbnail em disco
+    private fun getThumbnailFile(context: Context, videoPath: String): File {
+        val hash = getVideoPathHash(videoPath)
+        return File(getThumbnailCacheDir(context), "$hash.jpg")
+    }
+
+    // ✅ NOVO: Salva thumbnail no disco
+    private fun saveThumbnailToDisk(context: Context, videoPath: String, bitmap: Bitmap): Boolean {
+        return try {
+            val file = getThumbnailFile(context, videoPath)
+            FileOutputStream(file).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
+            }
+
+            // Atualiza índice de cache
+            updateCacheIndex(context, videoPath, file.length())
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // ✅ NOVO: Carrega thumbnail do disco
+    private fun loadThumbnailFromDisk(context: Context, videoPath: String): Bitmap? {
+        return try {
+            val file = getThumbnailFile(context, videoPath)
+            if (file.exists()) {
+                // Verifica se o arquivo de vídeo ainda existe
+                if (!File(videoPath).exists()) {
+                    // Vídeo foi deletado, remove thumbnail
+                    file.delete()
+                    removeCacheIndexEntry(context, videoPath)
+                    return null
+                }
+
+                BitmapFactory.decodeFile(file.absolutePath)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // ✅ NOVO: Índice de cache (para gerenciar tamanho)
+    private data class CacheEntry(
+        val videoPath: String,
+        val fileSize: Long,
+        val lastAccess: Long
+    )
+
+    private fun getCacheIndexFile(context: Context): File {
+        return File(context.cacheDir, "thumbnail_cache_index.txt")
+    }
+
+    private fun readCacheIndex(context: Context): MutableMap<String, CacheEntry> {
+        val entries = mutableMapOf<String, CacheEntry>()
+        val indexFile = getCacheIndexFile(context)
+
+        if (!indexFile.exists()) return entries
+
+        try {
+            indexFile.readLines().forEach { line ->
+                val parts = line.split("|")
+                if (parts.size == 3) {
+                    val videoPath = parts[0]
+                    val fileSize = parts[1].toLongOrNull() ?: 0L
+                    val lastAccess = parts[2].toLongOrNull() ?: System.currentTimeMillis()
+                    entries[videoPath] = CacheEntry(videoPath, fileSize, lastAccess)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        return entries
+    }
+
+    private fun writeCacheIndex(context: Context, entries: Map<String, CacheEntry>) {
+        val indexFile = getCacheIndexFile(context)
+        try {
+            indexFile.writeText(
+                entries.values.joinToString("\n") { entry ->
+                    "${entry.videoPath}|${entry.fileSize}|${entry.lastAccess}"
+                }
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun updateCacheIndex(context: Context, videoPath: String, fileSize: Long) {
+        val entries = readCacheIndex(context)
+        entries[videoPath] = CacheEntry(videoPath, fileSize, System.currentTimeMillis())
+        writeCacheIndex(context, entries)
+
+        // Verifica se precisa limpar cache
+        cleanupDiskCacheIfNeeded(context)
+    }
+
+    private fun removeCacheIndexEntry(context: Context, videoPath: String) {
+        val entries = readCacheIndex(context)
+        entries.remove(videoPath)
+        writeCacheIndex(context, entries)
+    }
+
+    // ✅ NOVO: Limpeza automática do cache em disco
+    private fun cleanupDiskCacheIfNeeded(context: Context) {
+        val maxCacheSizeMB = getCacheSizeFromSettings(context)
+        val maxCacheSizeBytes = maxCacheSizeMB * 1024 * 1024L
+
+        val entries = readCacheIndex(context)
+        var totalSize = entries.values.sumOf { it.fileSize }
+
+        // Se excedeu o limite, remove os mais antigos
+        if (totalSize > maxCacheSizeBytes) {
+            val sortedEntries = entries.values.sortedBy { it.lastAccess }
+
+            for (entry in sortedEntries) {
+                if (totalSize <= maxCacheSizeBytes * 0.8) break // Limpa até 80% do limite
+
+                val file = getThumbnailFile(context, entry.videoPath)
+                if (file.exists()) {
+                    file.delete()
+                    totalSize -= entry.fileSize
+                    entries.remove(entry.videoPath)
+                }
+            }
+
+            writeCacheIndex(context, entries)
+        }
+    }
+
+    // ✅ NOVA função pública síncrona para buscar do disco
+    fun loadThumbnailFromDiskSync(context: Context, videoPath: String): Bitmap? {
+        return try {
+            val file = getThumbnailFile(context, videoPath)
+            if (file.exists()) {
+                // Verifica se vídeo ainda existe
+                if (!File(videoPath).exists()) {
+                    file.delete()
+                    removeCacheIndexEntry(context, videoPath)
+                    return null
+                }
+
+                val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+
+                // Atualiza tempo de acesso
+                if (bitmap != null) {
+                    updateCacheIndex(context, videoPath, file.length())
+                }
+
+                bitmap
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // ✅ NOVO: Limpa thumbnails de vídeos deletados
+    fun cleanupDeletedVideos(context: Context) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val entries = readCacheIndex(context)
+            val entriesToRemove = mutableListOf<String>()
+
+            entries.forEach { (videoPath, _) ->
+                if (!File(videoPath).exists()) {
+                    entriesToRemove.add(videoPath)
+                    getThumbnailFile(context, videoPath).delete()
+                }
+            }
+
+            if (entriesToRemove.isNotEmpty()) {
+                entriesToRemove.forEach { entries.remove(it) }
+                writeCacheIndex(context, entries)
+            }
+        }
+    }
+
+    private fun getCacheSizeFromSettings(context: Context): Int {
+        val prefs = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+        return prefs.getInt("cache_size_mb", 100)
+    }
+
     private fun createDefaultCache(): LruCache<String, Bitmap> {
-        val defaultSizeBytes = 100 * 1024 * 1024 // 100MB em bytes
+        val defaultSizeBytes = 50 * 1024 * 1024 // 50MB em memória
         return object : LruCache<String, Bitmap>(defaultSizeBytes) {
             override fun sizeOf(key: String, bitmap: Bitmap): Int {
                 return bitmap.byteCount
             }
 
             override fun entryRemoved(evicted: Boolean, key: String?, oldValue: Bitmap?, newValue: Bitmap?) {
-                // ✅ REMOVIDO: Não chama recycle() aqui
-                // O Android/Compose vai gerenciar automaticamente
+                // Não recicla - Android gerencia
             }
         }
     }
 
-    // ✅ NOVO: Função para reconfigurar o cache baseado nas configurações
     fun reconfigureCache(context: Context) {
         val newCacheSizeMB = getCacheSizeFromSettings(context)
 
-        // Só recria o cache se o tamanho mudou
         if (newCacheSizeMB != lastCacheSize) {
-            val newCacheSizeBytes = newCacheSizeMB * 1024 * 1024 // MB para bytes
+            val newCacheSizeBytes = (newCacheSizeMB * 0.5 * 1024 * 1024).toInt() // 50% para RAM
 
-            // Salva bitmaps do cache antigo se existir
-            val oldBitmaps = mutableMapOf<String, Bitmap>()
-            _thumbnailCache?.let { oldCache ->
-                // Não podemos iterar diretamente, mas podemos salvar referências importantes
-                // O LruCache vai gerenciar a migração automaticamente
-            }
-
-            // Cria novo cache
             val newCache = object : LruCache<String, Bitmap>(newCacheSizeBytes) {
                 override fun sizeOf(key: String, bitmap: Bitmap): Int {
                     return bitmap.byteCount
                 }
 
                 override fun entryRemoved(evicted: Boolean, key: String?, oldValue: Bitmap?, newValue: Bitmap?) {
-                    oldValue?.let {
-                        if (!it.isRecycled) {
-                            it.recycle()
-                        }
-                    }
+                    // Não recicla
                 }
             }
 
-            // Substitui o cache
             val oldCache = _thumbnailCache
             _thumbnailCache = newCache
             lastCacheSize = newCacheSizeMB
 
-            // Limpa cache antigo de forma segura
             oldCache?.evictAll()
-
         }
     }
 
-    // ✅ ATUALIZADO: Função para inicializar cache na primeira vez
     private fun ensureCacheInitialized(context: Context) {
         if (_thumbnailCache == null) {
             reconfigureCache(context)
@@ -118,7 +300,6 @@ object OptimizedThumbnailManager {
     val durationCache = LruCache<String, String>(200)
     val fileSizeCache = LruCache<String, String>(200)
 
-    // Pool de MediaMetadataRetriever (mantém igual)
     private val retrieverPool = mutableListOf<MediaMetadataRetriever>()
     private val maxPoolSize = 2
 
@@ -138,15 +319,11 @@ object OptimizedThumbnailManager {
                 try {
                     retriever.release()
                     retrieverPool.add(MediaMetadataRetriever())
-                } catch (e: Exception) {
-                    // Erro ao reciclar, descarta
-                }
+                } catch (e: Exception) {}
             } else {
                 try {
                     retriever.release()
-                } catch (e: Exception) {
-                    // Ignora erro
-                }
+                } catch (e: Exception) {}
             }
         }
     }
@@ -189,21 +366,24 @@ object OptimizedThumbnailManager {
         return thumbnailStates[key] ?: ThumbnailState.IDLE
     }
 
+    // ✅ ATUALIZADO: Busca em RAM e depois em disco
     fun getCachedThumbnail(videoPath: String): Bitmap? {
         val key = videoPath.hashCode().toString()
-        val bitmap = thumbnailCache.get(key)
-        return if (bitmap != null && !bitmap.isRecycled) {
-            bitmap
-        } else {
-            // Remove entrada inválida do cache
-            if (bitmap?.isRecycled == true) {
-                thumbnailCache.remove(key)
-            }
-            null
+
+        // 1. Tenta RAM primeiro
+        val ramBitmap = thumbnailCache.get(key)
+        if (ramBitmap != null && !ramBitmap.isRecycled) {
+            return ramBitmap
         }
+
+        // 2. Se não tem em RAM, busca do disco (isso deve ser chamado em contexto apropriado)
+        // Nota: Esta função precisa de context, então retorna null aqui
+        // O carregamento do disco será feito no loadVideoMetadataWithDelay
+
+        return null
     }
 
-    // ✅ ATUALIZADO: Carregamento com inicialização do cache
+    // ✅ ATUALIZADO: Carregamento com cache persistente
     suspend fun loadVideoMetadataWithDelay(
         context: Context,
         videoUri: Uri,
@@ -217,7 +397,6 @@ object OptimizedThumbnailManager {
         ensureCacheInitialized(context)
         val key = videoPath.hashCode().toString()
 
-        // Cancela job anterior
         activeJobs[key]?.cancel()
         activeTargets[key]?.let { target ->
             try {
@@ -231,15 +410,25 @@ object OptimizedThumbnailManager {
         val showFileSizes = shouldShowFileSizes(context)
         val thumbnailSize = getThumbnailSizeFromSettings(context)
 
-        // ✅ VERIFICAÇÃO SEGURA: Checa se bitmap não está reciclado
-        val cachedThumbnail = if (showThumbnails) {
-            getCachedThumbnail(videoPath) // Usa função segura
+        // ✅ 1. Verifica cache em RAM
+        var cachedThumbnail = if (showThumbnails) {
+            val ramBitmap = thumbnailCache.get(key)
+            if (ramBitmap != null && !ramBitmap.isRecycled) {
+                ramBitmap
+            } else {
+                // ✅ 2. Se não tem em RAM, busca do disco
+                loadThumbnailFromDisk(context, videoPath)?.also { diskBitmap ->
+                    // Coloca de volta na RAM
+                    thumbnailCache.put(key, diskBitmap)
+                    // Atualiza tempo de acesso
+                    updateCacheIndex(context, videoPath, getThumbnailFile(context, videoPath).length())
+                }
+            }
         } else null
 
         val cachedDuration = if (showDurations) durationCache.get(videoPath) else null
         val cachedFileSize = if (showFileSizes) fileSizeCache.get(videoPath) else null
 
-        // ✅ REGENERA se necessário
         val hasAllNeeded = (!showThumbnails || cachedThumbnail != null) &&
                 (!showDurations || cachedDuration != null) &&
                 (!showFileSizes || cachedFileSize != null)
@@ -251,7 +440,6 @@ object OptimizedThumbnailManager {
             return
         }
 
-        // Resto do código...
         thumbnailStates[key] = ThumbnailState.WAITING
         onStateChanged(ThumbnailState.WAITING)
 
@@ -283,9 +471,14 @@ object OptimizedThumbnailManager {
                         async(Dispatchers.IO) { getFileSize(videoPath) }
                     } else null
 
-                    // ✅ SEMPRE regenera se não tiver thumbnail válido
+                    // ✅ Gera thumbnail se necessário
                     val thumbnail = if (showThumbnails && cachedThumbnail == null) {
-                        loadThumbnailWithGlide(context, videoUri, key, thumbnailSize)
+                        loadThumbnailWithGlide(context, videoUri, key, thumbnailSize)?.also { newBitmap ->
+                            // ✅ Salva no disco
+                            withContext(Dispatchers.IO) {
+                                saveThumbnailToDisk(context, videoPath, newBitmap)
+                            }
+                        }
                     } else {
                         cachedThumbnail
                     }
@@ -297,7 +490,6 @@ object OptimizedThumbnailManager {
                         loadedThumbnails[key] = true
                         thumbnailStates[key] = ThumbnailState.LOADED
 
-                        // ✅ VERIFICA antes de colocar no cache
                         if (showThumbnails && thumbnail != null && !thumbnail.isRecycled) {
                             thumbnailCache.put(key, thumbnail)
                         }
@@ -324,7 +516,6 @@ object OptimizedThumbnailManager {
         }
     }
 
-    // Função para thumbnail (mantém igual)
     private suspend fun loadThumbnailWithGlide(
         context: Context,
         videoUri: Uri,
@@ -335,7 +526,7 @@ object OptimizedThumbnailManager {
             override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
                 activeTargets.remove(key)
                 if (continuation.isActive) {
-                    val compressedBitmap = if (resource.byteCount > 1024 * 1024) { // 1MB
+                    val compressedBitmap = if (resource.byteCount > 1024 * 1024) {
                         Bitmap.createScaledBitmap(resource, thumbnailSize, thumbnailSize, true).also {
                             if (resource != it) resource.recycle()
                         }
@@ -395,7 +586,7 @@ object OptimizedThumbnailManager {
         activeJobs.remove(key)
         activeTargets[key]?.let { target ->
             try {
-                target.hashCode() // Test se ainda é válido
+                target.hashCode()
             } catch (e: Exception) {}
             activeTargets.remove(key)
         }
@@ -410,7 +601,6 @@ object OptimizedThumbnailManager {
         loadedThumbnails.clear()
         thumbnailStates.clear()
 
-        // ✅ SÓ limpa, não recicla manualmente
         _thumbnailCache?.evictAll()
         durationCache.evictAll()
         fileSizeCache.evictAll()
@@ -429,13 +619,14 @@ object OptimizedThumbnailManager {
         lastCacheSize = -1
     }
 
+    // ✅ ATUALIZADO: Limpa tanto RAM quanto disco
     fun clearCacheForPath(videoPath: String) {
         val key = videoPath.hashCode().toString()
 
-        // Remove do cache principal
+        // Remove da RAM
         thumbnailCache.remove(key)
 
-        // Remove dos estados
+        // Remove estados
         loadedThumbnails.remove(key)
         thumbnailStates[key] = ThumbnailState.IDLE
 
@@ -443,10 +634,17 @@ object OptimizedThumbnailManager {
         activeJobs[key]?.cancel()
         activeJobs.remove(key)
         activeTargets.remove(key)
-
     }
 
-    // Usa pool de retrievers (mantém igual)
+    // ✅ NOVO: Limpa cache em disco completamente
+    fun clearDiskCache(context: Context) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val cacheDir = getThumbnailCacheDir(context)
+            cacheDir.listFiles()?.forEach { it.delete() }
+            getCacheIndexFile(context).delete()
+        }
+    }
+
     private fun getVideoDuration(videoPath: String): String? {
         if (!File(videoPath).exists()) return null
 
@@ -485,7 +683,6 @@ object OptimizedThumbnailManager {
         }
     }
 
-    // Limpeza automática periódica (mantém igual)
     private var cleanupJob: Job? = null
 
     fun startPeriodicCleanup() {
@@ -512,23 +709,34 @@ object OptimizedThumbnailManager {
     fun isShowFileSizesEnabled(context: Context) = shouldShowFileSizes(context)
     fun getCurrentThumbnailSize(context: Context) = getThumbnailSizeFromSettings(context)
 
-    // ✅ ATUALIZADO: Estatísticas incluem configuração atual
+    // ✅ ATUALIZADO: Estatísticas incluem disco
     fun getCacheStats(context: Context? = null): String {
         val currentCacheSizeMB = context?.let { getCacheSizeFromSettings(it) } ?: lastCacheSize
         val thumbnailSize = _thumbnailCache?.size() ?: 0
         val thumbnailMemoryBytes = _thumbnailCache?.size() ?: 0
         val thumbnailMemoryMB = thumbnailMemoryBytes / (1024 * 1024)
+
+        val diskCacheSizeMB = context?.let {
+            val cacheDir = getThumbnailCacheDir(it)
+            val totalBytes = cacheDir.listFiles()?.sumOf { file -> file.length() } ?: 0L
+            totalBytes / (1024 * 1024)
+        } ?: 0
+
+        val diskFileCount = context?.let {
+            getThumbnailCacheDir(it).listFiles()?.size ?: 0
+        } ?: 0
+
         val activeJobsCount = activeJobs.size
         val activeTargetsCount = activeTargets.size
 
         return """
             Cache Config: ${currentCacheSizeMB}MB
-            Thumbnails: $thumbnailSize (${thumbnailMemoryMB}MB)
+            RAM: $thumbnailSize (${thumbnailMemoryMB}MB)
+            Disk: $diskFileCount files (${diskCacheSizeMB}MB)
             Jobs: $activeJobsCount | Targets: $activeTargetsCount
         """.trimIndent()
     }
 
-    // ✅ NOVO: Função para chamar quando as configurações mudarem
     fun onSettingsChanged(context: Context) {
         reconfigureCache(context)
     }

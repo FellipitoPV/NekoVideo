@@ -16,26 +16,17 @@ import androidx.media3.session.MediaSessionService
 import androidx.media3.common.util.UnstableApi
 import android.media.AudioFocusRequest
 import android.media.AudioManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import java.io.File
 import androidx.media3.common.C
 import androidx.media3.common.AudioAttributes
-import android.media.MediaMetadataRetriever
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
-import kotlinx.coroutines.launch
-import android.net.Uri
 
 @OptIn(UnstableApi::class)
 class MediaPlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var player: ExoPlayer? = null
 
-    private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
-    private var currentNotificationThumbnail: Bitmap? = null
-
-    // AudioFocus (mantém o código existente)
+    // AudioFocus
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
     private var hasAudioFocus = false
@@ -56,10 +47,8 @@ class MediaPlaybackService : MediaSessionService() {
         mediaSession = MediaSession.Builder(this, player!!)
             .setCallback(mediaSessionCallback)
             .build()
-
     }
 
-    // NOVO: Callback da MediaSession seguindo documentação
     private val mediaSessionCallback = object : MediaSession.Callback {
         override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
@@ -68,11 +57,9 @@ class MediaPlaybackService : MediaSessionService() {
                 .build()
         }
 
-        // NOVO: Método para configurar intent personalizada da notificação
         override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
             super.onPostConnect(session, controller)
 
-            // SOLUÇÃO: Configurar intent diretamente na sessão
             try {
                 val intent = Intent(this@MediaPlaybackService, MainActivity::class.java).apply {
                     action = "OPEN_PLAYER"
@@ -95,27 +82,19 @@ class MediaPlaybackService : MediaSessionService() {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
 
-                // CRÍTICO: Configurar o sessionActivity para a notificação
                 session.setSessionActivity(pendingIntent)
-
-
             } catch (e: Exception) {
                 Log.e("MediaPlaybackService", "❌ Erro ao configurar intent: ${e.message}")
             }
         }
     }
 
-    // Player listener (mantém lógica existente)
     private val playerListener = object : Player.Listener {
         override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
             Log.e("MediaPlaybackService", "Player error: ${error.message}")
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-
-            // ✅ ADICIONA: Gera thumbnail do vídeo atual
-            generateCurrentVideoThumbnail()
-
             // Auto-play quando usuário pula/volta pela notificação
             when (reason) {
                 Player.MEDIA_ITEM_TRANSITION_REASON_SEEK -> {
@@ -128,7 +107,6 @@ class MediaPlaybackService : MediaSessionService() {
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
-
             // Broadcast do estado
             val isPlaying = player?.isPlaying ?: false
             val intent = Intent("PLAYBACK_STATE_CHANGED")
@@ -141,20 +119,10 @@ class MediaPlaybackService : MediaSessionService() {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-//            if (isPlaying) {
-//                if (!hasAudioFocus) {
-//                    if (!requestAudioFocus()) {
-//                        player?.pause()
-//                        return
-//                    }
-//                }
-//            }
             super.onIsPlayingChanged(isPlaying)
         }
     }
 
-
-    // NOVA função para atualizar intent da notificação
     private fun updateNotificationIntent() {
         try {
             val intent = Intent(this, MainActivity::class.java).apply {
@@ -173,27 +141,24 @@ class MediaPlaybackService : MediaSessionService() {
 
             val pendingIntent = PendingIntent.getActivity(
                 this,
-                System.currentTimeMillis().toInt(), // RequestCode único
+                System.currentTimeMillis().toInt(),
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            // Atualizar sessionActivity
             mediaSession?.setSessionActivity(pendingIntent)
-
-
         } catch (e: Exception) {
             Log.e("MediaPlaybackService", "❌ Erro ao atualizar intent: ${e.message}")
         }
     }
 
-    // OFICIAL: Como na documentação
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
         return mediaSession
     }
 
-    // Função para criar MediaItem com metadata (mantém existente)
-    private fun createMediaItemWithMetadata(uri: String, generateThumbnail: Boolean = false): MediaItem {
+    // ✅ SIMPLIFICADO: Apenas usa thumbnail do cache, não gera
+    // MediaPlaybackService.kt
+    private fun createMediaItemWithMetadata(uri: String): MediaItem {
         val file = File(uri.removePrefix("file://"))
         val title = file.nameWithoutExtension
         val videoPath = uri.removePrefix("file://")
@@ -203,13 +168,12 @@ class MediaPlaybackService : MediaSessionService() {
             .setDisplayTitle(title)
             .setArtist("NekoVideo")
 
-        // ✅ SÓ adiciona artwork se já tiver em cache
-        val cachedThumbnail = OptimizedThumbnailManager.getCachedThumbnail(videoPath)
+        // ✅ CORRIGIDO: Usa função que busca do disco
+        val cachedThumbnail = loadThumbnailWithContext(videoPath)
         if (cachedThumbnail != null) {
             val artworkData = bitmapToByteArray(cachedThumbnail)
             metadataBuilder.setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
         }
-        // ✅ REMOVIDO: generateThumbnailInBackground daqui
 
         return MediaItem.Builder()
             .setUri(uri)
@@ -217,40 +181,23 @@ class MediaPlaybackService : MediaSessionService() {
             .build()
     }
 
-    // ✅ NOVA: Gera thumbnail apenas do vídeo que está tocando
-    private fun generateCurrentVideoThumbnail() {
-        player?.let { player ->
-            val currentItem = player.currentMediaItem ?: return
-            val uri = currentItem.localConfiguration?.uri.toString()
-            val videoPath = uri.removePrefix("file://")
+    // ✅ NOVA função que carrega do disco
+    private fun loadThumbnailWithContext(videoPath: String): Bitmap? {
+        val key = videoPath.hashCode().toString()
 
-            // Verifica se já tem em cache
-            if (OptimizedThumbnailManager.getCachedThumbnail(videoPath) != null) {
-                return
-            }
+        // 1. Tenta RAM primeiro
+        val ramBitmap = OptimizedThumbnailManager.thumbnailCache.get(key)
+        if (ramBitmap != null && !ramBitmap.isRecycled) {
+            return ramBitmap
+        }
 
-            serviceScope.launch(Dispatchers.IO) {
-                try {
-                    OptimizedThumbnailManager.loadVideoMetadataWithDelay(
-                        context = this@MediaPlaybackService,
-                        videoUri = Uri.parse(uri),
-                        videoPath = videoPath,
-                        imageLoader = null,
-                        delayMs = 0L,
-                        onMetadataLoaded = { metadata ->
-                            metadata.thumbnail?.let { bitmap ->
-                                updateMediaItemArtwork(uri, bitmap)
-                            }
-                        }
-                    )
-                } catch (e: Exception) {
-                    Log.e("MediaPlaybackService", "Erro ao gerar thumbnail: ${e.message}")
-                }
-            }
+        // 2. Busca do disco com Context
+        return OptimizedThumbnailManager.loadThumbnailFromDiskSync(this, videoPath)?.also { diskBitmap ->
+            // Coloca na RAM para próximas consultas
+            OptimizedThumbnailManager.thumbnailCache.put(key, diskBitmap)
         }
     }
 
-    // onStartCommand (mantém lógica existente)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             "UPDATE_PLAYLIST" -> {
@@ -285,20 +232,16 @@ class MediaPlaybackService : MediaSessionService() {
         return super.onStartCommand(intent, flags, startId)
     }
 
-    // Funções de playlist (mantém)
     private fun updatePlaylist(playlist: List<String>, initialIndex: Int) {
         player?.run {
             clearMediaItems()
             setMediaItems(
-                playlist.map { createMediaItemWithMetadata(it) }, // ✅ Sem generateThumbnail
+                playlist.map { createMediaItemWithMetadata(it) },
                 initialIndex,
                 0L
             )
             prepare()
             playWhenReady = true
-
-            // ✅ ADICIONA: Gera thumb do primeiro vídeo
-            generateCurrentVideoThumbnail()
         }
 
         updateNotificationIntent()
@@ -323,7 +266,6 @@ class MediaPlaybackService : MediaSessionService() {
             playWhenReady = true
         }
 
-        // Atualizar intent após deleção
         updateNotificationIntent()
     }
 
@@ -386,7 +328,6 @@ class MediaPlaybackService : MediaSessionService() {
         }
     }
 
-    // AudioFocus functions (mantém código existente)
     private fun setupAudioManager() {
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
@@ -403,7 +344,6 @@ class MediaPlaybackService : MediaSessionService() {
             }.build()
         }
     }
-
 
     private fun requestAudioFocus(): Boolean {
         val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -453,50 +393,6 @@ class MediaPlaybackService : MediaSessionService() {
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                 player?.volume = 0.2f
-            }
-        }
-    }
-
-    private fun generateThumbnailInBackground(uri: String, videoPath: String) {
-        serviceScope.launch(Dispatchers.IO) {
-            try {
-                OptimizedThumbnailManager.loadVideoMetadataWithDelay(
-                    context = this@MediaPlaybackService,
-                    videoUri = Uri.parse(uri),
-                    videoPath = videoPath,
-                    imageLoader = null,
-                    delayMs = 0L, // Sem delay, gera imediatamente
-                    onMetadataLoaded = { metadata ->
-                        metadata.thumbnail?.let { bitmap ->
-                            // Atualiza o MediaItem com a thumbnail gerada
-                            updateMediaItemArtwork(uri, bitmap)
-                        }
-                    }
-                )
-            } catch (e: Exception) {
-                Log.e("MediaPlaybackService", "Erro ao gerar thumbnail: ${e.message}")
-            }
-        }
-    }
-
-    private fun updateMediaItemArtwork(uri: String, bitmap: Bitmap) {
-        player?.let { player ->
-            val artworkData = bitmapToByteArray(bitmap)
-
-            for (i in 0 until player.mediaItemCount) {
-                val item = player.getMediaItemAt(i)
-                if (item.localConfiguration?.uri.toString() == uri) {
-                    val updatedMetadata = item.mediaMetadata.buildUpon()
-                        .setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-                        .build()
-
-                    val updatedItem = item.buildUpon()
-                        .setMediaMetadata(updatedMetadata)
-                        .build()
-
-                    player.replaceMediaItem(i, updatedItem)
-                    break
-                }
             }
         }
     }
