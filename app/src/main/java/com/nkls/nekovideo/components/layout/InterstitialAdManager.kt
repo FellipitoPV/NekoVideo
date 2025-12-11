@@ -8,13 +8,20 @@ import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.nkls.nekovideo.billing.PremiumManager
 
-class InterstitialAdManager(private val context: Context) {
+class InterstitialAdManager(
+    private val context: Context,
+    private val premiumManager: PremiumManager
+) {
     private var interstitialAd: InterstitialAd? = null
     private var isLoading = false
     private var hasShownCastAd = false
 
     fun loadAd() {
+        // Se for premium, não carrega
+        if (premiumManager.isPremium.value) return
+
         if (isLoading || interstitialAd != null) return
 
         isLoading = true
@@ -41,6 +48,13 @@ class InterstitialAdManager(private val context: Context) {
     }
 
     fun showAdOnCast(onAdClosed: () -> Unit = {}) {
+        // Se for premium, não mostra
+        if (premiumManager.isPremium.value) {
+            Log.d("InterstitialAd", "Usuário premium - anúncio ignorado")
+            onAdClosed()
+            return
+        }
+
         // Só mostra se não tiver mostrado ainda nesta sessão
         if (hasShownCastAd) {
             Log.d("InterstitialAd", "Anúncio já foi exibido nesta sessão")
@@ -54,9 +68,9 @@ class InterstitialAdManager(private val context: Context) {
             interstitialAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
                 override fun onAdDismissedFullScreenContent() {
                     Log.d("InterstitialAd", "Anúncio fechado")
-                    hasShownCastAd = true // Marca como exibido
+                    hasShownCastAd = true
                     interstitialAd = null
-                    loadAd() // Recarrega para próxima sessão
+                    loadAd()
                     onAdClosed()
                 }
 
@@ -75,13 +89,12 @@ class InterstitialAdManager(private val context: Context) {
             interstitialAd?.show(activity)
         } else {
             Log.w("InterstitialAd", "Anúncio não está pronto")
-            hasShownCastAd = true // Marca para não tentar novamente
+            hasShownCastAd = true
             onAdClosed()
         }
     }
 
     fun resetCastAdFlag() {
-        // Reseta flag quando desconecta (opcional)
         hasShownCastAd = false
     }
 }

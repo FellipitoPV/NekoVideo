@@ -108,6 +108,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.text.Cue
+import com.nkls.nekovideo.billing.PremiumManager
 
 enum class RepeatMode {
     NONE,
@@ -129,7 +130,8 @@ private var interstitialAdManager: InterstitialAdManager? = null
 fun VideoPlayerOverlay(
     isVisible: Boolean,
     onDismiss: () -> Unit,
-    onVideoDeleted: (String) -> Unit = {}
+    onVideoDeleted: (String) -> Unit = {},
+    premiumManager: PremiumManager
 ) {
     val context = LocalContext.current
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
@@ -145,7 +147,7 @@ fun VideoPlayerOverlay(
 
     val interstitialManager = remember {
         if (interstitialAdManager == null) {
-            interstitialAdManager = InterstitialAdManager(context)
+            interstitialAdManager = InterstitialAdManager(context, premiumManager)
             interstitialAdManager?.loadAd()
         }
         interstitialAdManager!!
@@ -1012,7 +1014,8 @@ fun VideoPlayerOverlay(
                 onBack = onDismiss,
                 onCurrentIndexChanged = { index ->
                     var castCurrentIndex = index // Atualizar índice rastreado
-                }
+                },
+                premiumManager = premiumManager
             )
         } else {
             Box(

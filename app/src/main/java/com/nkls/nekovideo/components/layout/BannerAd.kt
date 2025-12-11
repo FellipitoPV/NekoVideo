@@ -12,11 +12,16 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
+import com.nkls.nekovideo.billing.PremiumManager
 
 @Composable
 fun BannerAd(
+    isPremium: Boolean,
     modifier: Modifier = Modifier
 ) {
+    // Se for premium, não mostra nada
+    if (isPremium) return
+
     AndroidView(
         modifier = modifier
             .fillMaxWidth()
@@ -25,7 +30,7 @@ fun BannerAd(
         factory = { context ->
             AdView(context).apply {
                 setAdSize(AdSize.BANNER)
-                adUnitId = "ca-app-pub-3950822881129619/1173438298" // ID AdMob
+                adUnitId = "ca-app-pub-3950822881129619/1173438298"
                 loadAd(AdRequest.Builder().build())
             }
         }

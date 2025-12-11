@@ -35,6 +35,8 @@ import androidx.navigation.compose.rememberNavController
 import com.nkls.nekovideo.MainActivity
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.R
+import com.nkls.nekovideo.billing.BillingManager
+import com.nkls.nekovideo.billing.PremiumManager
 import com.nkls.nekovideo.components.CreateFolderDialog
 import com.nkls.nekovideo.components.DeleteConfirmationDialog
 import com.nkls.nekovideo.components.PasswordDialog
@@ -70,11 +72,14 @@ import java.io.File
 fun MainScreen(
     intent: Intent?,
     themeManager: ThemeManager,
+    premiumManager: PremiumManager,
+    billingManager: BillingManager,
     notificationReceived: Boolean = false,
     lastAction: String? = null,
     lastTime: Long = 0,
     externalVideoReceived: Boolean = false,
     autoOpenOverlay: Boolean = false
+
 ) {
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
@@ -108,7 +113,7 @@ fun MainScreen(
     var showFolderActions by remember { mutableStateOf(false) }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
 
-
+    val isPremium by premiumManager.isPremium.collectAsState()
 
     fun isSecureFolder(folderPath: String): Boolean {
         val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
@@ -513,7 +518,9 @@ fun MainScreen(
                             selectedItems.clear()
                             selectedItems.addAll(allItems.map { it.path })
                         }
-                    }
+                    },
+                    premiumManager = premiumManager,
+                    billingManager = billingManager
                 )
             }
         },
@@ -744,8 +751,7 @@ fun MainScreen(
                         onOpenPlayer = { showPlayerOverlay = true }
                     )
 
-                    // Banner Ad
-//                    BannerAd()
+                    BannerAd(isPremium = isPremium)
                 }
             }
         },
@@ -875,7 +881,8 @@ fun MainScreen(
                     delay(100)
                     deletedVideoPath = null
                 }
-            }
+            },
+            premiumManager = premiumManager
         )
     }
 }

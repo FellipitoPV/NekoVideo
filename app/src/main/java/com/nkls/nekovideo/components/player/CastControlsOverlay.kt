@@ -22,6 +22,7 @@ import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.nkls.nekovideo.components.helpers.CastManager
 import com.nkls.nekovideo.components.layout.BannerAd
+import com.nkls.nekovideo.billing.PremiumManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -32,7 +33,8 @@ fun CastControlsOverlay(
     videoTitle: String,
     onDisconnect: () -> Unit,
     onBack: () -> Unit,
-    onCurrentIndexChanged: (Int) -> Unit
+    onCurrentIndexChanged: (Int) -> Unit,
+    premiumManager: PremiumManager
 ) {
     val remoteMediaClient = remember {
         CastContext.getSharedInstance()
@@ -49,6 +51,7 @@ fun CastControlsOverlay(
     var isSeeking by remember { mutableStateOf(false) }
     var currentTitle by remember { mutableStateOf(videoTitle) } // Para título dinâmico
 
+    val isPremium by premiumManager.isPremium.collectAsState()
 
     // Atualizar estado do cast
     DisposableEffect(remoteMediaClient) {
@@ -344,9 +347,9 @@ fun CastControlsOverlay(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-//                Spacer(modifier = Modifier.height(16.dp))
-//
-//                BannerAd()
+                Spacer(modifier = Modifier.height(16.dp))
+
+                BannerAd(isPremium = isPremium)
 
             }
         }

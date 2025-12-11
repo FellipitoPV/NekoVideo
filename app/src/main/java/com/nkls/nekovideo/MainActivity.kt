@@ -23,6 +23,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.nkls.nekovideo.billing.BillingManager
+import com.nkls.nekovideo.billing.PremiumManager
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.pages.mainscreen.MainScreen
@@ -54,6 +56,10 @@ class MainActivity : AppCompatActivity() {
     private var _lastIntentAction = mutableStateOf<String?>(null)
     private var _lastIntentTime = mutableStateOf(0L)
 
+
+    private lateinit var billingManager: BillingManager
+    private lateinit var premiumManager: PremiumManager
+
     private fun handleExternalVideo(videoUri: Uri) {
         lifecycleScope.launch {
             try {
@@ -78,11 +84,9 @@ class MainActivity : AppCompatActivity() {
 
                     // FORÇAR abertura do overlay via recomposição
                     setContent {
-                        // ✅ Observar os states diretamente (sem by)
                         val notificationState = _notificationReceived.value
                         val actionState = _lastIntentAction.value
                         val timeState = _lastIntentTime.value
-
 
                         NekoVideoTheme(themeManager = themeManager) {
                             Surface(
@@ -92,6 +96,8 @@ class MainActivity : AppCompatActivity() {
                                 MainScreen(
                                     intent = intent,
                                     themeManager = themeManager,
+                                    premiumManager = premiumManager, // ADICIONAR ESTA LINHA
+                                    billingManager = billingManager,
                                     notificationReceived = notificationState,
                                     lastAction = actionState,
                                     lastTime = timeState
@@ -142,6 +148,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        premiumManager = PremiumManager(this)
+        billingManager = BillingManager(this, premiumManager)
+
         val currentLanguage = LanguageManager.getCurrentLanguage(this)
         if (currentLanguage != "system") {
             LanguageManager.setLocale(this, currentLanguage)
@@ -165,12 +174,10 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val currentLanguage by LanguageManager.currentLanguage.collectAsState()
 
-            // ✅ Observar os states
             val notificationState = _notificationReceived.value
             val actionState = _lastIntentAction.value
             val timeState = _lastIntentTime.value
 
-            // Criar contexto localizado
             val localizedContext = remember(currentLanguage) {
                 LanguageManager.getLocalizedContext(this@MainActivity, currentLanguage)
             }
@@ -183,7 +190,8 @@ class MainActivity : AppCompatActivity() {
                     MainScreen(
                         intent = intent,
                         themeManager = themeManager,
-                        // ✅ Usar os states observáveis
+                        premiumManager = premiumManager, // ADICIONAR ESTA LINHA
+                        billingManager = billingManager,
                         notificationReceived = notificationState,
                         lastAction = actionState,
                         lastTime = timeState
@@ -235,6 +243,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        billingManager.destroy()
         MediaControllerManager.disconnect()
         OptimizedThumbnailManager.stopPeriodicCleanup()
         OptimizedThumbnailManager.clearCache()

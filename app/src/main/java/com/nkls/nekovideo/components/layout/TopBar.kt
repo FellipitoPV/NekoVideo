@@ -2,6 +2,7 @@ package com.nkls.nekovideo.components.layout
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -52,7 +53,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.collectAsState
+import com.nkls.nekovideo.billing.BillingManager
+import com.nkls.nekovideo.billing.PremiumManager
 
 // NOVA função para detectar se é pasta segura (qualquer pasta com . no início e com marcadores)
 private fun isSecureFolder(folderPath: String): Boolean {
@@ -80,6 +84,8 @@ fun TopBar(
     onSelectionClear: () -> Unit,
     onSelectAll: () -> Unit,
     showPrivateFolders: Boolean,
+    premiumManager: PremiumManager,
+    billingManager: BillingManager,
 ) {
     val coroutineScope = rememberCoroutineScope()
     val maxTapInterval = 500L
@@ -89,6 +95,8 @@ fun TopBar(
     val currentBackStackEntry = navController.currentBackStackEntryAsState()
     val encodedFolderPath = currentBackStackEntry.value?.arguments?.getString("folderPath") ?: ""
     val isRootByRoute = encodedFolderPath == "root"
+
+    val isPremium by premiumManager.isPremium.collectAsState()
 
     SmallTopAppBar(
         title = {
@@ -361,6 +369,29 @@ fun TopBar(
             }
         },
         actions = {
+            // BOTÃO PARA COMPRAR PREMIUM
+            IconButton(onClick = {
+                if (!isPremium) {
+                    // Abre fluxo de compra
+                    billingManager.launchPurchaseFlow(
+                        onSuccess = {
+                            // Compra realizada
+                        },
+                        onError = { error ->
+                            Log.e("TopBar", "Erro na compra: $error")
+                        }
+                    )
+                }
+                // Se já é premium, não faz nada
+            }) {
+                Icon(
+                    imageVector = if (isPremium) Icons.Default.Star else Icons.Default.StarBorder,
+                    contentDescription = if (isPremium) "Premium Ativo" else "Comprar Premium",
+                    tint = if (isPremium) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            // Botão SelectAll
             if (selectedItems.isNotEmpty() && currentRoute == "folder") {
                 IconButton(onClick = onSelectAll) {
                     Icon(
