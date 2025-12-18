@@ -461,8 +461,8 @@ fun SortRow(
             // Conteúdo do SortRow
             AnimatedVisibility(
                 visible = !isSearchExpanded,
-                enter = fadeIn(animationSpec = tween(50)) + expandHorizontally(animationSpec = tween(50)),
-                exit = fadeOut(animationSpec = tween(50)) + shrinkHorizontally(animationSpec = tween(50))
+                enter = fadeIn(animationSpec = tween(150)) + expandHorizontally(animationSpec = tween(150)),
+                exit = fadeOut(animationSpec = tween(150)) + shrinkHorizontally(animationSpec = tween(150))
             ) {
                 Row(
                     modifier = Modifier
@@ -514,8 +514,8 @@ fun SortRow(
 // Campo de busca expandido
             AnimatedVisibility(
                 visible = isSearchExpanded,
-                enter = fadeIn(animationSpec = tween(50)) + expandHorizontally(animationSpec = tween(50)),
-                exit = fadeOut(animationSpec = tween(50)) + shrinkHorizontally(animationSpec = tween(50))
+                enter = fadeIn(animationSpec = tween(150)) + expandHorizontally(animationSpec = tween(150)),
+                exit = fadeOut(animationSpec = tween(150)) + shrinkHorizontally(animationSpec = tween(150))
             ) {
                 Row(
                     modifier = Modifier

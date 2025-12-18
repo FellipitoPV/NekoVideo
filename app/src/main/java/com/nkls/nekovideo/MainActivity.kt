@@ -228,6 +228,7 @@ class MainActivity : AppCompatActivity() {
             IntentFilter("PLAYBACK_STATE_CHANGED"),
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
+        billingManager.restorePurchases()
     }
 
     override fun onPause() {
