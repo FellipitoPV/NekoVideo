@@ -676,21 +676,78 @@ fun MainScreen(
                             ActionType.SHUFFLE_PLAY -> {
                                 coroutineScope.launch {
                                     val videos = withContext(Dispatchers.IO) {
-                                        val isSecure = isSecureFolder(folderPath)
-                                        loadFolderContentRecursive(
-                                            context = context,
-                                            folderPath = folderPath,
-                                            isSecureMode = isSecure,
-                                            showPrivateFolders = showPrivateFolders
-                                        ).filter { !it.isFolder }
-                                            .map { "file://${it.path}" }
-                                            .shuffled()
+                                        // Função auxiliar para buscar vídeos recursivamente de forma completa
+                                        fun getAllVideosRecursive(path: String, isSecure: Boolean): List<String> {
+                                            val videos = mutableListOf<String>()
+                                            val folder = File(path)
+
+                                            if (!folder.exists() || !folder.isDirectory) return videos
+
+                                            try {
+                                                folder.listFiles()?.forEach { file ->
+                                                    when {
+                                                        // Se é vídeo, adiciona
+                                                        file.isFile && file.extension.lowercase() in listOf(
+                                                            "mp4", "mkv", "webm", "avi", "mov", "wmv", "m4v", "3gp", "flv"
+                                                        ) -> {
+                                                            videos.add("file://${file.absolutePath}")
+                                                        }
+                                                        // Se é pasta, busca recursivamente
+                                                        file.isDirectory -> {
+                                                            // Respeita pastas privadas
+                                                            val shouldEnter = if (file.name.startsWith(".")) {
+                                                                showPrivateFolders || isSecure
+                                                            } else {
+                                                                true
+                                                            }
+
+                                                            if (shouldEnter) {
+                                                                val subFolderSecure = isSecureFolder(file.absolutePath)
+                                                                videos.addAll(getAllVideosRecursive(file.absolutePath, subFolderSecure))
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                                Log.e("SHUFFLE_PLAY", "Erro ao escanear: $path", e)
+                                            }
+
+                                            return videos
+                                        }
+
+                                        // Se há itens selecionados, usar apenas eles
+                                        if (selectedItems.isNotEmpty()) {
+                                            val allVideos = mutableListOf<String>()
+
+                                            selectedItems.forEach { selectedPath ->
+                                                val file = File(selectedPath)
+
+                                                if (file.isDirectory) {
+                                                    val isSelectedFolderSecure = isSecureFolder(selectedPath)
+                                                    allVideos.addAll(getAllVideosRecursive(selectedPath, isSelectedFolderSecure))
+                                                } else if (file.isFile) {
+                                                    allVideos.add("file://$selectedPath")
+                                                }
+                                            }
+
+                                            allVideos.shuffled()
+                                        } else {
+                                            // ✅ CORRIGIDO: Busca recursiva completa na pasta atual
+                                            val isSecure = isSecureFolder(folderPath)
+                                            getAllVideosRecursive(folderPath, isSecure).shuffled()
+                                        }
                                     }
+
                                     if (videos.isNotEmpty()) {
                                         MediaPlaybackService.startWithPlaylist(context, videos, 0)
                                         showPlayerOverlay = true
+                                        selectedItems.clear()
                                     } else {
-                                        Toast.makeText(context, context.getString(R.string.no_videos_found), Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.no_videos_found),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                     }
                                 }
                             }

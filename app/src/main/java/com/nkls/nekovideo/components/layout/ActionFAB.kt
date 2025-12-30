@@ -105,7 +105,6 @@ fun ActionFAB(
                 file.isDirectory && file.name.startsWith(".")
             }
 
-    // Define as ações baseado no contexto
     val actions = remember(hasSelectedItems, isSecureMode, hasPrivateFolders, hasNormalFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems) {
         when {
             isMoveMode -> {
@@ -117,10 +116,17 @@ fun ActionFAB(
             hasSelectedItems -> {
                 val actionsList = mutableListOf<ActionItem>()
 
-                // ✅ NOVO: Botão "Set as Secure Folder" apenas quando 1 pasta selecionada
                 val isSingleFolder = selectedItems.size == 1 &&
                         java.io.File(selectedItems.first()).isDirectory
 
+                // ✅ ADICIONAR O SHUFFLE_PLAY AQUI NO INÍCIO
+                actionsList.add(
+                    ActionItem(
+                        ActionType.SHUFFLE_PLAY,
+                        Icons.Default.Shuffle,
+                        shufflePlayText
+                    )
+                )
 
                 if (isSecureMode) {
                     actionsList.add(ActionItem(ActionType.UNLOCK, Icons.Default.LockOpen, unlockText))
@@ -159,9 +165,7 @@ fun ActionFAB(
                         ActionType.SHUFFLE_PLAY,
                         Icons.Default.Shuffle,
                         shufflePlayText,
-                        isEnabled = !isRootDirectory.also {
-                            println("isRootDirectory: $isRootDirectory, isEnabled: ${!isRootDirectory}")
-                        }
+                        isEnabled = !isRootDirectory
                     ),
                     ActionItem(ActionType.CREATE_FOLDER, Icons.Default.CreateNewFolder, createFolderText),
                     ActionItem(ActionType.SETTINGS, Icons.Default.Settings, settingsText)
@@ -169,7 +173,6 @@ fun ActionFAB(
             }
         }
     }
-
     // NOVO: Layout para modo Move - FAB duplo
     if (isMoveMode) {
         Column(

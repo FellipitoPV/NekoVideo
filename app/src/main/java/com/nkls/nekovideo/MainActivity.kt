@@ -151,6 +151,8 @@ class MainActivity : AppCompatActivity() {
         premiumManager = PremiumManager(this)
         billingManager = BillingManager(this, premiumManager)
 
+        billingManager.restorePurchases()
+
         val currentLanguage = LanguageManager.getCurrentLanguage(this)
         if (currentLanguage != "system") {
             LanguageManager.setLocale(this, currentLanguage)
