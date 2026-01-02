@@ -62,17 +62,7 @@ class MediaPlaybackService : MediaSessionService() {
 
             try {
                 val intent = Intent(this@MediaPlaybackService, MainActivity::class.java).apply {
-                    action = "OPEN_PLAYER"
-                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-
-                    player?.let { player ->
-                        val currentPlaylist = (0 until player.mediaItemCount).map { index ->
-                            player.getMediaItemAt(index).localConfiguration?.uri.toString()
-                        }
-                        putStringArrayListExtra("PLAYLIST", ArrayList(currentPlaylist))
-                        putExtra("INITIAL_INDEX", player.currentMediaItemIndex)
-                        putExtra("AUTO_OPEN_PLAYER", true)
-                    }
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
 
                 val pendingIntent = PendingIntent.getActivity(
@@ -84,7 +74,7 @@ class MediaPlaybackService : MediaSessionService() {
 
                 session.setSessionActivity(pendingIntent)
             } catch (e: Exception) {
-                Log.e("MediaPlaybackService", "❌ Erro ao configurar intent: ${e.message}")
+                Log.e("MediaPlaybackService", "Erro ao configurar intent: ${e.message}")
             }
         }
     }
@@ -126,29 +116,19 @@ class MediaPlaybackService : MediaSessionService() {
     private fun updateNotificationIntent() {
         try {
             val intent = Intent(this, MainActivity::class.java).apply {
-                action = "OPEN_PLAYER"
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-
-                player?.let { player ->
-                    val currentPlaylist = (0 until player.mediaItemCount).map { index ->
-                        player.getMediaItemAt(index).localConfiguration?.uri.toString()
-                    }
-                    putStringArrayListExtra("PLAYLIST", ArrayList(currentPlaylist))
-                    putExtra("INITIAL_INDEX", player.currentMediaItemIndex)
-                    putExtra("AUTO_OPEN_PLAYER", true)
-                }
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
 
             val pendingIntent = PendingIntent.getActivity(
                 this,
-                System.currentTimeMillis().toInt(),
+                0,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
             mediaSession?.setSessionActivity(pendingIntent)
         } catch (e: Exception) {
-            Log.e("MediaPlaybackService", "❌ Erro ao atualizar intent: ${e.message}")
+            Log.e("MediaPlaybackService", "Erro ao atualizar intent: ${e.message}")
         }
     }
 

@@ -333,35 +333,30 @@ private fun applySorting(items: List<MediaItem>, sortType: SortType): List<Media
     return folders.sortedWith(comparator) + videos.sortedWith(comparator)
 }
 
-// ✅ SortRow otimizado
 @Composable
 fun SortRow(
     currentSort: SortType,
     onSortChange: (SortType) -> Unit,
     isRefreshing: Boolean = false,
     onRefresh: () -> Unit = {},
-    searchQuery: String = "", // NOVO
-    isSearchExpanded: Boolean = false, // NOVO
-    onSearchQueryChange: (String) -> Unit = {}, // NOVO
-    onSearchExpandChange: (Boolean) -> Unit = {} // NOVO
+    searchQuery: String = "",
+    isSearchExpanded: Boolean = false,
+    onSearchQueryChange: (String) -> Unit = {},
+    onSearchExpandChange: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
 
-    // ✅ Verifica se é primeira vez
     var showTutorial by remember { mutableStateOf(!prefs.getBoolean("pull_to_refresh_tutorial_shown", false)) }
     var tutorialAlpha by remember { mutableStateOf(0f) }
-
     var showDropdown by remember { mutableStateOf(false) }
     var pullOffset by remember { mutableStateOf(0f) }
     var isReadyToRefresh by remember { mutableStateOf(false) }
     val density = LocalDensity.current
     val refreshThreshold = with(density) { 80.dp.toPx() }
 
-    // ✅ Animação APENAS de fade in (sem timer)
     LaunchedEffect(showTutorial) {
         if (showTutorial && tutorialAlpha == 0f) {
-            // Fade in suave
             for (i in 0..10) {
                 tutorialAlpha = i / 10f
                 delay(30)
@@ -378,16 +373,17 @@ fun SortRow(
                         onDragEnd = {
                             if (isReadyToRefresh) {
                                 onRefresh()
-                                // ✅ ESCONDE tutorial APENAS ao usar pull-to-refresh
                                 if (showTutorial) {
-                                    // Fade out rápido
                                     kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
                                         for (i in 10 downTo 0) {
                                             tutorialAlpha = i / 10f
                                             delay(20)
                                         }
                                         showTutorial = false
-                                        prefs.edit().putBoolean("pull_to_refresh_tutorial_shown", true).apply()
+                                        prefs
+                                            .edit()
+                                            .putBoolean("pull_to_refresh_tutorial_shown", true)
+                                            .apply()
                                     }
                                 }
                             }
@@ -412,7 +408,6 @@ fun SortRow(
             }
     ) {
         Column {
-            // Indicador discreto no topo (linha de gaveta)
             if (!isRefreshing && pullOffset == 0f) {
                 Box(
                     modifier = Modifier
@@ -430,7 +425,6 @@ fun SortRow(
                 }
             }
 
-            // Indicador de pull-to-refresh
             if (pullOffset > 0) {
                 Box(
                     modifier = Modifier
@@ -458,77 +452,79 @@ fun SortRow(
                 }
             }
 
-            // Conteúdo do SortRow
-            AnimatedVisibility(
-                visible = !isSearchExpanded,
-                enter = fadeIn(animationSpec = tween(150)) + expandHorizontally(animationSpec = tween(150)),
-                exit = fadeOut(animationSpec = tween(150)) + shrinkHorizontally(animationSpec = tween(150))
+            // Linha única com sort e busca
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp, 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp, 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Sort, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.width(8.dp))
+                // Ícone de sort sempre visível
+                Icon(
+                    Icons.Default.Sort,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-                    Box(modifier = Modifier.weight(1f)) {
-                        TextButton(onClick = { showDropdown = true }) {
-                            Text(when (currentSort) {
+                // Dropdown de ordenação
+                Box(modifier = Modifier.weight(1f, fill = !isSearchExpanded)) {
+                    TextButton(onClick = { showDropdown = true }) {
+                        Text(
+                            when (currentSort) {
                                 SortType.NAME_ASC -> stringResource(R.string.sort_name_asc)
                                 SortType.NAME_DESC -> stringResource(R.string.sort_name_desc)
                                 SortType.DATE_NEWEST -> stringResource(R.string.sort_date_newest)
                                 SortType.DATE_OLDEST -> stringResource(R.string.sort_date_oldest)
                                 SortType.SIZE_LARGEST -> stringResource(R.string.sort_size_largest)
                                 SortType.SIZE_SMALLEST -> stringResource(R.string.sort_size_smallest)
-                            })
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                        }
-
-                        DropdownMenu(expanded = showDropdown, onDismissRequest = { showDropdown = false }) {
-                            SortType.values().forEach { sort ->
-                                DropdownMenuItem(
-                                    text = { Text(when (sort) {
-                                        SortType.NAME_ASC -> stringResource(R.string.sort_name_asc)
-                                        SortType.NAME_DESC -> stringResource(R.string.sort_name_desc)
-                                        SortType.DATE_NEWEST -> stringResource(R.string.sort_date_newest)
-                                        SortType.DATE_OLDEST -> stringResource(R.string.sort_date_oldest)
-                                        SortType.SIZE_LARGEST -> stringResource(R.string.sort_size_largest)
-                                        SortType.SIZE_SMALLEST -> stringResource(R.string.sort_size_smallest)
-                                    })},
-                                    onClick = { onSortChange(sort); showDropdown = false },
-                                    leadingIcon = if (currentSort == sort) {{ Icon(Icons.Default.Check, contentDescription = null) }} else null
-                                )
                             }
-                        }
+                        )
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
                     }
 
-                    // Botão de busca
-                    IconButton(onClick = { onSearchExpandChange(true) }) {
-                        Icon(Icons.Default.Search, contentDescription = "Buscar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    DropdownMenu(
+                        expanded = showDropdown,
+                        onDismissRequest = { showDropdown = false }
+                    ) {
+                        SortType.values().forEach { sort ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        when (sort) {
+                                            SortType.NAME_ASC -> stringResource(R.string.sort_name_asc)
+                                            SortType.NAME_DESC -> stringResource(R.string.sort_name_desc)
+                                            SortType.DATE_NEWEST -> stringResource(R.string.sort_date_newest)
+                                            SortType.DATE_OLDEST -> stringResource(R.string.sort_date_oldest)
+                                            SortType.SIZE_LARGEST -> stringResource(R.string.sort_size_largest)
+                                            SortType.SIZE_SMALLEST -> stringResource(R.string.sort_size_smallest)
+                                        }
+                                    )
+                                },
+                                onClick = {
+                                    onSortChange(sort)
+                                    showDropdown = false
+                                },
+                                leadingIcon = if (currentSort == sort) {
+                                    { Icon(Icons.Default.Check, contentDescription = null) }
+                                } else null
+                            )
+                        }
                     }
                 }
-            }
 
-// Campo de busca expandido
-            AnimatedVisibility(
-                visible = isSearchExpanded,
-                enter = fadeIn(animationSpec = tween(150)) + expandHorizontally(animationSpec = tween(150)),
-                exit = fadeOut(animationSpec = tween(150)) + shrinkHorizontally(animationSpec = tween(150))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp, 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Campo de busca expansível
+                AnimatedVisibility(
+                    visible = isSearchExpanded,
+                    enter = fadeIn(animationSpec = tween(200)) + expandHorizontally(animationSpec = tween(200)),
+                    exit = fadeOut(animationSpec = tween(200)) + shrinkHorizontally(animationSpec = tween(200))
                 ) {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = onSearchQueryChange,
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Buscar vídeos...") },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        modifier = Modifier.width(200.dp),
+                        placeholder = { Text("Buscar...") },
+                        singleLine = true,
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
                                 IconButton(onClick = { onSearchQueryChange("") }) {
@@ -536,24 +532,34 @@ fun SortRow(
                                 }
                             }
                         },
-                        singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         )
                     )
+                }
 
-                    IconButton(onClick = {
-                        onSearchQueryChange("")
-                        onSearchExpandChange(false)
-                    }) {
-                        Icon(Icons.Default.Close, contentDescription = "Fechar busca")
+                // Botão de busca
+                IconButton(
+                    onClick = {
+                        if (isSearchExpanded) {
+                            onSearchQueryChange("")
+                            onSearchExpandChange(false)
+                        } else {
+                            onSearchExpandChange(true)
+                        }
                     }
+                ) {
+                    Icon(
+                        imageVector = if (isSearchExpanded) Icons.Default.Close else Icons.Default.Search,
+                        contentDescription = if (isSearchExpanded) "Fechar busca" else "Buscar",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
 
-        // ✅ TUTORIAL - Fica até usar o pull-to-refresh
+        // Tutorial
         if (showTutorial && tutorialAlpha > 0f) {
             Box(
                 modifier = Modifier
