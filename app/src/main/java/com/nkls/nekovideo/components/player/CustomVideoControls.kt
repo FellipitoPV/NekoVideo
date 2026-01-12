@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -33,7 +34,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -45,12 +45,14 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.components.helpers.FilesManager
+import com.nkls.nekovideo.components.helpers.PlaylistManager
 import kotlinx.coroutines.withContext
 import java.io.File
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.StayCurrentPortrait
 import androidx.compose.material.icons.filled.StayCurrentLandscape
 import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.ui.Modifier
 
 @Composable
 fun CustomVideoControls(
@@ -66,16 +68,18 @@ fun CustomVideoControls(
     resetUITimer: () -> Unit,
     repeatMode: RepeatMode,
     onRepeatModeChange: (RepeatMode) -> Unit,
+    isShuffleActive: Boolean,
+    onShuffleToggle: () -> Unit,
     isCasting: Boolean,
     onCastClick: () -> Unit,
     rotationMode: RotationMode,
     onRotationModeChange: (RotationMode) -> Unit,
-    // NOVOS PARÂMETROS PARA LEGENDAS:
     hasSubtitles: Boolean,
     subtitlesEnabled: Boolean,
     onSubtitlesClick: () -> Unit
 ) {
     val controller = mediaController ?: return
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Header com gradiente
@@ -123,11 +127,7 @@ fun CustomVideoControls(
                         .padding(horizontal = 16.dp)
                 )
 
-                // Botões do header: Repetição e Delete
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     // Casting
                     AndroidView(
                         factory = { context ->
@@ -148,12 +148,11 @@ fun CustomVideoControls(
 
                                 setPadding(12, 12, 12, 12)
 
-                                // CORRIGIDO: Usar setOnTouchListener para interceptar antes do click
                                 setOnTouchListener { _, event ->
                                     if (event.action == android.view.MotionEvent.ACTION_DOWN) {
                                         mediaController?.pause()
                                     }
-                                    false // Retornar false permite o evento continuar para o botão
+                                    false
                                 }
 
                                 post {
@@ -171,7 +170,6 @@ fun CustomVideoControls(
                         modifier = Modifier.size(48.dp)
                     )
 
-                    // Ícone delete
                     IconButton(
                         onClick = onDeleteClick,
                         modifier = Modifier
@@ -195,23 +193,37 @@ fun CustomVideoControls(
             horizontalArrangement = Arrangement.spacedBy(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Botão Previous
+            // ✅ BOTÃO PREVIOUS MODIFICADO
             IconButton(
                 onClick = {
-                    if (controller.hasPreviousMediaItem()) {
-                        resetUITimer()
-                        controller.seekToPreviousMediaItem()
+                    resetUITimer()
+                    // Usar PlaylistManager ao invés do MediaController
+                    when (val result = PlaylistManager.previous()) {
+                        is PlaylistManager.NavigationResult.Success -> {
+                            if (result.needsWindowUpdate) {
+                                val newWindow = PlaylistManager.getCurrentWindow()
+                                val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                                MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
+                            } else {
+                                // Só mover no player atual
+                                controller.seekToPreviousMediaItem()
+                            }
+                        }
+                        PlaylistManager.NavigationResult.StartOfPlaylist -> {
+                            // Já está no início
+                        }
+                        else -> {}
                     }
                 },
                 modifier = Modifier
                     .background(Color.Black.copy(alpha = 0.6f), CircleShape)
                     .size(56.dp),
-                enabled = controller.hasPreviousMediaItem()
+                enabled = PlaylistManager.hasPrevious()
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipPrevious,
                     contentDescription = "Previous",
-                    tint = if (controller.hasPreviousMediaItem()) Color.White else Color.Gray,
+                    tint = if (PlaylistManager.hasPrevious()) Color.White else Color.Gray,
                     modifier = Modifier.size(64.dp)
                 )
             }
@@ -237,31 +249,43 @@ fun CustomVideoControls(
                 )
             }
 
-            // Botão Next
+            // ✅ BOTÃO NEXT MODIFICADO
             IconButton(
                 onClick = {
-                    if (controller.hasNextMediaItem()) {
-                        resetUITimer()
-                        controller.seekToNextMediaItem()
+                    resetUITimer()
+                    // Usar PlaylistManager ao invés do MediaController
+                    when (val result = PlaylistManager.next()) {
+                        is PlaylistManager.NavigationResult.Success -> {
+                            if (result.needsWindowUpdate) {
+                                val newWindow = PlaylistManager.getCurrentWindow()
+                                val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                                MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
+                            } else {
+                                // Só mover no player atual
+                                controller.seekToNextMediaItem()
+                            }
+                        }
+                        PlaylistManager.NavigationResult.EndOfPlaylist -> {
+                            // Já está no fim
+                        }
+                        else -> {}
                     }
                 },
                 modifier = Modifier
                     .background(Color.Black.copy(alpha = 0.6f), CircleShape)
                     .size(56.dp),
-                enabled = controller.hasNextMediaItem()
+                enabled = PlaylistManager.hasNext()
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipNext,
                     contentDescription = "Next",
-                    tint = if (controller.hasNextMediaItem()) Color.White else Color.Gray,
+                    tint = if (PlaylistManager.hasNext()) Color.White else Color.Gray,
                     modifier = Modifier.size(64.dp)
                 )
             }
         }
 
-
-
-        // Bottom controls com gradiente
+        // Bottom controls
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -304,7 +328,6 @@ fun CustomVideoControls(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Time display com botão de repetição
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -316,17 +339,34 @@ fun CustomVideoControls(
                         fontSize = 14.sp
                     )
 
+                    // ✅ Indicador de posição na playlist (no meio)
+                    val playlistInfo = PlaylistManager.getPlaylistInfo()
+                    if (playlistInfo.totalVideos > 1) {
+                        Text(
+                            text = "${playlistInfo.currentIndex + 1}/${playlistInfo.totalVideos}",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .background(
+                                    Color.Black.copy(alpha = 0.3f),
+                                    androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)  // Espaçamento maior também
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
                             text = formatTime(duration),
                             color = Color.White,
-                            fontSize = 16.sp  // Era 14.sp
+                            fontSize = 16.sp
                         )
 
-                        // Botão de legendas (só aparece se houver legendas disponíveis)
+                        // Legendas
                         if (hasSubtitles) {
                             IconButton(
                                 onClick = {
@@ -338,7 +378,7 @@ fun CustomVideoControls(
                                     .size(40.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Subtitles,  // Ícone nativo do Material
+                                    imageVector = Icons.Default.Subtitles,
                                     contentDescription = "Legendas",
                                     tint = if (subtitlesEnabled) Color.Yellow else Color.White,
                                     modifier = Modifier.size(24.dp)
@@ -346,7 +386,7 @@ fun CustomVideoControls(
                             }
                         }
 
-                        // Botão de rotação
+                        // Rotação
                         IconButton(
                             onClick = {
                                 val nextMode = when (rotationMode) {
@@ -359,7 +399,7 @@ fun CustomVideoControls(
                             },
                             modifier = Modifier
                                 .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                                .size(40.dp)  // Era 32.dp
+                                .size(40.dp)
                         ) {
                             val (icon, contentDescription, iconColor) = when (rotationMode) {
                                 RotationMode.AUTO -> Triple(
@@ -383,11 +423,29 @@ fun CustomVideoControls(
                                 imageVector = icon,
                                 contentDescription = contentDescription,
                                 tint = iconColor,
-                                modifier = Modifier.size(24.dp)  // Era 18.dp
+                                modifier = Modifier.size(24.dp)
                             )
                         }
 
-                        // Botão de modo de repetição
+                        // ✅ BOTÃO SHUFFLE ADICIONADO
+                        IconButton(
+                            onClick = {
+                                onShuffleToggle()
+                                resetUITimer()
+                            },
+                            modifier = Modifier
+                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                                .size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Shuffle,
+                                contentDescription = if (isShuffleActive) "Shuffle On" else "Shuffle Off",
+                                tint = if (isShuffleActive) Color(0xFF9C27B0) else Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        // Repeat mode
                         IconButton(
                             onClick = {
                                 val nextMode = when (repeatMode) {
@@ -400,7 +458,7 @@ fun CustomVideoControls(
                             },
                             modifier = Modifier
                                 .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                                .size(40.dp)  // Era 32.dp
+                                .size(40.dp)
                         ) {
                             val (icon, contentDescription, iconColor) = when (repeatMode) {
                                 RepeatMode.NONE -> Triple(
@@ -424,7 +482,7 @@ fun CustomVideoControls(
                                 imageVector = icon,
                                 contentDescription = contentDescription,
                                 tint = iconColor,
-                                modifier = Modifier.size(24.dp)  // Era 18.dp
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
@@ -434,7 +492,6 @@ fun CustomVideoControls(
     }
 }
 
-// Função para deletar vídeo atual e atualizar playlist (mesmo código anterior)
 suspend fun deleteCurrentVideo(
     context: Context,
     videoPath: String,
@@ -443,27 +500,9 @@ suspend fun deleteCurrentVideo(
 ) {
     try {
         val controller = mediaController ?: return
-        val currentIndex = controller.currentMediaItemIndex
-        val totalItems = controller.mediaItemCount
 
         val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
         val isSecureVideo = videoPath.startsWith(secureFolderPath)
-
-        val updatedPlaylist = mutableListOf<String>()
-        for (i in 0 until totalItems) {
-            if (i != currentIndex) {
-                val itemUri = controller.getMediaItemAt(i).localConfiguration?.uri.toString()
-                updatedPlaylist.add(itemUri)
-            }
-        }
-
-        val nextIndex = when {
-            updatedPlaylist.isEmpty() -> {
-                return
-            }
-            currentIndex >= updatedPlaylist.size -> updatedPlaylist.size - 1
-            else -> currentIndex
-        }
 
         val success = if (isSecureVideo) {
             deleteSecureFile(context, videoPath)
@@ -472,23 +511,44 @@ suspend fun deleteCurrentVideo(
         }
 
         if (success) {
-
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 onVideoDeleted(videoPath)
             }
 
-            if (updatedPlaylist.isNotEmpty()) {
-                MediaPlaybackService.updatePlaylistAfterDeletion(context, updatedPlaylist, nextIndex)
-            } else {
-                MediaPlaybackService.stopService(context)
+            // ✅ Usar PlaylistManager
+            when (val result = PlaylistManager.removeCurrent()) {
+                is PlaylistManager.RemovalResult.Success -> {
+                    if (result.needsWindowUpdate) {
+                        val newWindow = PlaylistManager.getCurrentWindow()
+                        val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+
+                        MediaPlaybackService.updatePlayerWindow(
+                            context,
+                            newWindow,
+                            currentInWindow
+                        )
+                    }
+                }
+                PlaylistManager.RemovalResult.PlaylistEmpty -> {
+                    MediaPlaybackService.stopService(context)
+                }
+                else -> {}
             }
 
             withContext(kotlinx.coroutines.Dispatchers.Main) {
-                android.widget.Toast.makeText(context, "Video deleted successfully", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(
+                    context,
+                    "Video deleted successfully",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
             }
         } else {
             withContext(kotlinx.coroutines.Dispatchers.Main) {
-                android.widget.Toast.makeText(context, "Failed to delete video", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(
+                    context,
+                    "Failed to delete video",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
                 controller.play()
             }
         }
@@ -496,7 +556,11 @@ suspend fun deleteCurrentVideo(
     } catch (e: Exception) {
         Log.e("VideoPlayer", "Erro ao deletar vídeo", e)
         withContext(kotlinx.coroutines.Dispatchers.Main) {
-            android.widget.Toast.makeText(context, "Error deleting video: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(
+                context,
+                "Error deleting video: ${e.message}",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
             mediaController?.play()
         }
     }

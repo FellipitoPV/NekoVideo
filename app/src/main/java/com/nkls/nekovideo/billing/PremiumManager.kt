@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class PremiumManager(context: Context) {
     // 🔧 MODO DEV - Mude para true durante desenvolvimento
-    private val DEV_MODE = false
+    private val DEV_MODE = true
 
     private val prefs = context.getSharedPreferences("premium", Context.MODE_PRIVATE)
     private val _isPremium = MutableStateFlow(prefs.getBoolean("is_premium", false) || DEV_MODE)

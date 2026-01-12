@@ -109,6 +109,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.text.Cue
 import com.nkls.nekovideo.billing.PremiumManager
+import com.nkls.nekovideo.components.helpers.PlaylistManager
 
 enum class RepeatMode {
     NONE,
@@ -161,6 +162,8 @@ fun VideoPlayerOverlay(
     var currentVideoTitle by remember { mutableStateOf("") }
     var isSeekingActive by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(RepeatMode.NONE) }
+
+    var isShuffleActive by remember { mutableStateOf(PlaylistManager.isShuffleEnabled) }
 
     //Controle de rotação
     var rotationMode by remember { mutableStateOf(RotationMode.AUTO) }
@@ -848,30 +851,86 @@ fun VideoPlayerOverlay(
                     if (wasPlayerPaused && !mediaController!!.isPlaying) {
                         mediaController!!.play()
                     }
+
+                    // ✅ NOVO: Atualizar window PREVENTIVAMENTE
+                    // quando está próximo do fim
+                    coroutineScope.launch {
+                        val currentIndexInWindow = mediaController!!.currentMediaItemIndex
+                        val windowSize = mediaController!!.mediaItemCount
+
+                        // Se está nos últimos 3 vídeos da window, preparar próxima
+                        if (currentIndexInWindow >= windowSize - 3) {
+                            if (PlaylistManager.hasNext()) {
+                                val newWindow = PlaylistManager.getCurrentWindow()
+                                val adjustedIndex = PlaylistManager.getCurrentIndexInWindow()
+
+                                MediaPlaybackService.updatePlayerWindow(
+                                    context,
+                                    newWindow,
+                                    adjustedIndex
+                                )
+                            }
+                        }
+                    }
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
-
                     if (playbackState == Player.STATE_ENDED) {
-
                         when (repeatMode) {
                             RepeatMode.REPEAT_ONE -> {
                                 mediaController!!.seekTo(0)
                                 mediaController!!.play()
                             }
                             RepeatMode.REPEAT_ALL -> {
-                                if (mediaController!!.hasNextMediaItem()) {
-                                    mediaController!!.seekToNextMediaItem()
+                                // ✅ USAR PlaylistManager ao invés de hasNextMediaItem
+                                if (PlaylistManager.hasNext()) {
+                                    coroutineScope.launch {
+                                        when (val result = PlaylistManager.next()) {
+                                            is PlaylistManager.NavigationResult.Success -> {
+                                                if (result.needsWindowUpdate) {
+                                                    val newWindow = PlaylistManager.getCurrentWindow()
+                                                    val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                                                    MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
+                                                } else {
+                                                    mediaController!!.seekToNextMediaItem()
+                                                }
+                                            }
+                                            else -> {
+                                                // Voltar pro início da playlist
+                                                PlaylistManager.jumpTo(0)
+                                                val newWindow = PlaylistManager.getCurrentWindow()
+                                                MediaPlaybackService.updatePlayerWindow(context, newWindow, 0)
+                                            }
+                                        }
+                                    }
                                 } else {
-                                    mediaController!!.seekTo(0, 0)
-                                    mediaController!!.play()
+                                    // Voltar pro início
+                                    PlaylistManager.jumpTo(0)
+                                    val newWindow = PlaylistManager.getCurrentWindow()
+                                    MediaPlaybackService.updatePlayerWindow(context, newWindow, 0)
                                 }
                             }
                             RepeatMode.NONE -> {
-                                if (mediaController!!.hasNextMediaItem()) {
-                                    mediaController!!.seekToNextMediaItem()
+                                // ✅ USAR PlaylistManager
+                                if (PlaylistManager.hasNext()) {
+                                    coroutineScope.launch {
+                                        when (val result = PlaylistManager.next()) {
+                                            is PlaylistManager.NavigationResult.Success -> {
+                                                if (result.needsWindowUpdate) {
+                                                    val newWindow = PlaylistManager.getCurrentWindow()
+                                                    val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                                                    MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
+                                                } else {
+                                                    mediaController!!.seekToNextMediaItem()
+                                                }
+                                            }
+                                            else -> {
+                                                Log.d("VideoPlayer", "Fim da playlist")
+                                            }
+                                        }
+                                    }
                                 } else {
-                                    Log.d("VideoPlayer", "Repetição mudada: Fim da playlist, parando reprodução")
+                                    Log.d("VideoPlayer", "Fim da playlist, parando")
                                 }
                             }
                         }
@@ -936,29 +995,18 @@ fun VideoPlayerOverlay(
 
         val listener = object : SessionManagerListener<Session> {
             override fun onSessionStarted(session: Session, sessionId: String) {
-                // Mostrar anúncio intersticial ANTES de iniciar cast
                 interstitialManager.showAdOnCast {
-                    // Código executa APÓS fechar o anúncio (ou se falhar)
-
-                    // Pegar playlist
-                    val playlist = mutableListOf<String>()
-                    val titles = mutableListOf<String>()
-
-                    for (i in 0 until (mediaController?.mediaItemCount ?: 0)) {
-                        val item = mediaController?.getMediaItemAt(i)
-                        val path = item?.localConfiguration?.uri?.path?.removePrefix("file://") ?: ""
-                        if (path.isNotEmpty()) {
-                            playlist.add(path)
-                            titles.add(File(path).nameWithoutExtension)
-                        }
+                    // ✅ NOVO: Pegar playlist completa do PlaylistManager
+                    val playlist = PlaylistManager.getFullPlaylist()
+                    val titles = playlist.map { path ->
+                        File(path.removePrefix("file://")).nameWithoutExtension
                     }
-
-                    val currentIndex = mediaController?.currentMediaItemIndex ?: 0
+                    val currentIndex = PlaylistManager.getCurrentIndex()
 
                     // Parar MediaPlaybackService
                     MediaPlaybackService.stopService(context)
 
-                    // Iniciar Cast
+                    // Iniciar Cast com playlist completa
                     castManager.castPlaylist(playlist, titles, currentIndex)
 
                     // Fechar overlay
@@ -1213,6 +1261,15 @@ fun VideoPlayerOverlay(
                                     RepeatMode.REPEAT_ONE -> Player.REPEAT_MODE_ONE
                                 }
                             }
+                        },
+                        isShuffleActive = isShuffleActive,  // ✅ NOVO
+                        onShuffleToggle = {                  // ✅ NOVO
+                            if (PlaylistManager.isShuffleEnabled) {
+                                PlaylistManager.disableShuffle()
+                            } else {
+                                PlaylistManager.enableShuffle(PlaylistManager.getCurrentIndex())
+                            }
+                            isShuffleActive = PlaylistManager.isShuffleEnabled
                         },
                         isCasting = isCasting,
                         onCastClick = {

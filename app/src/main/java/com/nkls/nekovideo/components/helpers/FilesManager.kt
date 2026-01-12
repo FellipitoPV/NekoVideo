@@ -469,6 +469,81 @@ object FilesManager {
         return folder.isDirectory && !folder.name.startsWith(".")
     }
 
+    suspend fun getVideosRecursive(
+        context: Context,
+        folderPath: String,
+        isSecureMode: Boolean,
+        showPrivateFolders: Boolean,
+        selectedItems: List<String> = emptyList()
+    ): List<String> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+
+        fun isSecureFolder(folderPath: String): Boolean {
+            return folderPath.contains("/.private/") ||
+                    folderPath.contains("/secure/") ||
+                    folderPath.contains(".secure_videos") ||
+                    folderPath.endsWith(".secure_videos") ||
+                    File(folderPath, ".secure").exists() ||
+                    File(folderPath, ".nomedia").exists()
+        }
+
+        fun scanFolder(path: String, isSecure: Boolean): List<String> {
+            val videos = mutableListOf<String>()
+            val folder = File(path)
+
+            if (!folder.exists() || !folder.isDirectory) return videos
+
+            try {
+                folder.listFiles()?.forEach { file ->
+                    when {
+                        file.isFile && file.extension.lowercase() in listOf(
+                            "mp4", "mkv", "webm", "avi", "mov", "wmv", "m4v", "3gp", "flv"
+                        ) -> {
+                            videos.add("file://${file.absolutePath}")
+                        }
+                        file.isDirectory -> {
+                            val shouldEnter = if (file.name.startsWith(".")) {
+                                showPrivateFolders || isSecure
+                            } else {
+                                true
+                            }
+
+                            if (shouldEnter) {
+                                val subFolderSecure = isSecureFolder(file.absolutePath)
+                                videos.addAll(scanFolder(file.absolutePath, subFolderSecure))
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("FilesManager", "Erro ao escanear: $path", e)
+            }
+
+            return videos
+        }
+
+        if (selectedItems.isNotEmpty()) {
+            val allVideos = mutableListOf<String>()
+
+            selectedItems.forEach { selectedPath ->
+                val file = File(selectedPath)
+
+                when {
+                    file.isDirectory -> {
+                        val isSelectedSecure = isSecureFolder(selectedPath)
+                        allVideos.addAll(scanFolder(selectedPath, isSelectedSecure))
+                    }
+                    file.isFile -> {
+                        allVideos.add("file://$selectedPath")
+                    }
+                }
+            }
+
+            allVideos
+        } else {
+            scanFolder(folderPath, isSecureMode)
+        }
+    }
+
     object SecureStorage {
         private const val SECURE_FOLDER_NAME = ".secure_videos"
         private const val NOMEDIA_FILE = ".nomedia"
@@ -589,6 +664,7 @@ object FilesManager {
             return digest.digest(keyString.toByteArray(Charsets.UTF_8)).copyOf(16)
         }
     }
+
 
     object SecureFoldersVisibility {
         private const val PREF_SHOW_SECURE_FOLDERS = "show_secure_folders"

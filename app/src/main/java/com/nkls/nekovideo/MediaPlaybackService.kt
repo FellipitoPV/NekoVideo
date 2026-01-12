@@ -19,6 +19,7 @@ import android.media.AudioManager
 import java.io.File
 import androidx.media3.common.C
 import androidx.media3.common.AudioAttributes
+import com.google.common.util.concurrent.ListenableFuture
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 
 @OptIn(UnstableApi::class)
@@ -77,6 +78,25 @@ class MediaPlaybackService : MediaSessionService() {
                 Log.e("MediaPlaybackService", "Erro ao configurar intent: ${e.message}")
             }
         }
+
+        // ✅ ADICIONAR: Interceptar comandos da notificação
+        override fun onPlaybackResumption(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            return super.onPlaybackResumption(mediaSession, controller)
+        }
+
+        // ✅ NOVO: Interceptar Next
+        override fun onMediaButtonEvent(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            intent: Intent
+        ): Boolean {
+            // Aqui intercepta botões da notificação
+            return super.onMediaButtonEvent(session, controller, intent)
+        }
+
     }
 
     private val playerListener = object : Player.Listener {
@@ -92,6 +112,10 @@ class MediaPlaybackService : MediaSessionService() {
                 }
                 Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> {
                     player?.play()
+                }
+                Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> {
+                    // Aqui poderia verificar se precisa atualizar window
+                    // Mas isso será feito no VideoPlayerOverlay listener
                 }
             }
         }
@@ -185,6 +209,11 @@ class MediaPlaybackService : MediaSessionService() {
                 val initialIndex = intent.getIntExtra("INITIAL_INDEX", 0)
                 updatePlaylist(playlist, initialIndex)
             }
+            "UPDATE_WINDOW" -> {
+                val window = intent.getStringArrayListExtra("WINDOW") ?: emptyList()
+                val currentIndexInWindow = intent.getIntExtra("CURRENT_INDEX_IN_WINDOW", 0)
+                updateWindow(window, currentIndexInWindow)
+            }
             "REFRESH_PLAYER" -> {
                 refreshPlayerWithCurrentState()
             }
@@ -214,11 +243,13 @@ class MediaPlaybackService : MediaSessionService() {
 
     private fun updatePlaylist(playlist: List<String>, initialIndex: Int) {
         player?.run {
+            val currentPosition = currentPosition
+
             clearMediaItems()
             setMediaItems(
                 playlist.map { createMediaItemWithMetadata(it) },
                 initialIndex,
-                0L
+                currentPosition
             )
             prepare()
             playWhenReady = true
@@ -244,6 +275,33 @@ class MediaPlaybackService : MediaSessionService() {
             )
             prepare()
             playWhenReady = true
+        }
+
+        updateNotificationIntent()
+    }
+
+    private fun updateWindow(window: List<String>, currentIndexInWindow: Int) {
+        player?.run {
+            if (window.isEmpty()) {
+                pause()
+                clearMediaItems()
+                abandonAudioFocus()
+                return
+            }
+
+            val wasPlaying = isPlaying
+
+            clearMediaItems()
+            setMediaItems(
+                window.map { createMediaItemWithMetadata(it) },
+                currentIndexInWindow,
+                0L  // ✅ SEMPRE começar do início ao trocar window
+            )
+            prepare()
+
+            if (wasPlaying) {
+                playWhenReady = true
+            }
         }
 
         updateNotificationIntent()
@@ -396,6 +454,16 @@ class MediaPlaybackService : MediaSessionService() {
         fun refreshPlayer(context: Context) {
             val intent = Intent(context, MediaPlaybackService::class.java).apply {
                 action = "REFRESH_PLAYER"
+            }
+            context.startService(intent)
+        }
+
+        // ✅ NOVO: Atualizar apenas a window
+        fun updatePlayerWindow(context: Context, window: List<String>, currentIndexInWindow: Int) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = "UPDATE_WINDOW"
+                putStringArrayListExtra("WINDOW", ArrayList(window))
+                putExtra("CURRENT_INDEX_IN_WINDOW", currentIndexInWindow)
             }
             context.startService(intent)
         }

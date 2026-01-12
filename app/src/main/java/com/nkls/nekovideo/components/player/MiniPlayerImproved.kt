@@ -33,6 +33,7 @@ import com.google.android.gms.cast.framework.Session
 import com.google.android.gms.cast.framework.SessionManagerListener
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.nkls.nekovideo.MediaPlaybackService
+import com.nkls.nekovideo.components.helpers.PlaylistManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -195,8 +196,8 @@ fun MiniPlayerImproved(
                                 ?: File(item.localConfiguration?.uri?.path ?: "").nameWithoutExtension
                             currentUri = item.localConfiguration?.uri?.toString() ?: ""
 
-                            hasNext = controller.hasNextMediaItem()
-                            hasPrevious = controller.hasPreviousMediaItem()
+                            hasNext = PlaylistManager.hasNext()
+                            hasPrevious = PlaylistManager.hasPrevious()
                             currentPosition = controller.currentPosition
                             duration = controller.duration.takeIf { it > 0 } ?: 0L
 
@@ -215,8 +216,8 @@ fun MiniPlayerImproved(
                 controller.addListener(listener)
 
                 isPlaying = controller.isPlaying
-                hasNext = controller.hasNextMediaItem()
-                hasPrevious = controller.hasPreviousMediaItem()
+                hasNext = PlaylistManager.hasNext()
+                hasPrevious = PlaylistManager.hasPrevious()
                 currentPosition = controller.currentPosition
                 duration = controller.duration.takeIf { it > 0 } ?: 0L
 
@@ -379,7 +380,18 @@ fun MiniPlayerImproved(
                                 if (isCasting) {
                                     remoteMediaClient?.queuePrev(null)
                                 } else {
-                                    mediaController?.let { if (it.hasPreviousMediaItem()) it.seekToPreviousMediaItem() }
+                                    when (val result = PlaylistManager.previous()) {
+                                        is PlaylistManager.NavigationResult.Success -> {
+                                            if (result.needsWindowUpdate) {
+                                                val newWindow = PlaylistManager.getCurrentWindow()
+                                                val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                                                MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
+                                            } else {
+                                                mediaController?.seekToPreviousMediaItem()
+                                            }
+                                        }
+                                        else -> {}
+                                    }
                                 }
                             },
                             enabled = hasPrevious,
@@ -440,7 +452,18 @@ fun MiniPlayerImproved(
                                 if (isCasting) {
                                     remoteMediaClient?.queueNext(null)
                                 } else {
-                                    mediaController?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() }
+                                    when (val result = PlaylistManager.next()) {
+                                        is PlaylistManager.NavigationResult.Success -> {
+                                            if (result.needsWindowUpdate) {
+                                                val newWindow = PlaylistManager.getCurrentWindow()
+                                                val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                                                MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
+                                            } else {
+                                                mediaController?.seekToNextMediaItem()
+                                            }
+                                        }
+                                        else -> {}
+                                    }
                                 }
                             },
                             enabled = hasNext,
