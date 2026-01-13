@@ -21,6 +21,10 @@ import androidx.media3.common.C
 import androidx.media3.common.AudioAttributes
 import com.google.common.util.concurrent.ListenableFuture
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
+import kotlinx.coroutines.*
+import android.net.Uri
+import androidx.media3.session.SessionResult
+import com.nkls.nekovideo.components.helpers.PlaylistManager
 
 @OptIn(UnstableApi::class)
 class MediaPlaybackService : MediaSessionService() {
@@ -31,6 +35,9 @@ class MediaPlaybackService : MediaSessionService() {
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
     private var hasAudioFocus = false
+
+    private val preloadScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
 
     override fun onCreate() {
         super.onCreate()
@@ -52,51 +59,120 @@ class MediaPlaybackService : MediaSessionService() {
 
     private val mediaSessionCallback = object : MediaSession.Callback {
         override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
+            // ✅ Sempre habilitar next/previous
+            val availableCommands = MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS
+                .buildUpon()
+                .add(Player.COMMAND_SEEK_TO_NEXT)
+                .add(Player.COMMAND_SEEK_TO_PREVIOUS)
+                .build()
+
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS)
-                .setAvailablePlayerCommands(MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS)
+                .setAvailablePlayerCommands(availableCommands)
                 .build()
+        }
+
+        // ✅ INTERCEPTAR NEXT
+        override fun onPlayerCommandRequest(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            playerCommand: Int
+        ): Int {
+            when (playerCommand) {
+                Player.COMMAND_SEEK_TO_NEXT -> {
+                    when (val result = PlaylistManager.next()) {
+                        is PlaylistManager.NavigationResult.Success -> {
+                            if (result.needsWindowUpdate) {
+                                // ✅ Processa tudo manualmente
+                                val newWindow = PlaylistManager.getCurrentWindow()
+                                val newIndex = PlaylistManager.getCurrentIndexInWindow()
+                                updateWindow(newWindow, newIndex)
+                                return SessionResult.RESULT_SUCCESS // Bloqueia Media3
+                            } else {
+                                // ✅ Deixa Media3 processar naturalmente
+                                return super.onPlayerCommandRequest(session, controller, playerCommand)
+                            }
+                        }
+                        PlaylistManager.NavigationResult.EndOfPlaylist -> {
+                            return SessionResult.RESULT_SUCCESS // Não faz nada
+                        }
+                        else -> return SessionResult.RESULT_SUCCESS
+                    }
+                }
+
+                Player.COMMAND_SEEK_TO_PREVIOUS -> {
+                    when (val result = PlaylistManager.previous()) {
+                        is PlaylistManager.NavigationResult.Success -> {
+                            if (result.needsWindowUpdate) {
+                                val newWindow = PlaylistManager.getCurrentWindow()
+                                val newIndex = PlaylistManager.getCurrentIndexInWindow()
+                                updateWindow(newWindow, newIndex)
+                                return SessionResult.RESULT_SUCCESS
+                            } else {
+                                return super.onPlayerCommandRequest(session, controller, playerCommand)
+                            }
+                        }
+                        PlaylistManager.NavigationResult.StartOfPlaylist -> {
+                            return SessionResult.RESULT_SUCCESS
+                        }
+                        else -> return SessionResult.RESULT_SUCCESS
+                    }
+                }
+            }
+            return super.onPlayerCommandRequest(session, controller, playerCommand)
         }
 
         override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
             super.onPostConnect(session, controller)
-
             try {
                 val intent = Intent(this@MediaPlaybackService, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
-
                 val pendingIntent = PendingIntent.getActivity(
-                    this@MediaPlaybackService,
-                    0,
-                    intent,
+                    this@MediaPlaybackService, 0, intent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
-
                 session.setSessionActivity(pendingIntent)
             } catch (e: Exception) {
                 Log.e("MediaPlaybackService", "Erro ao configurar intent: ${e.message}")
             }
         }
+    }
 
-        // ✅ ADICIONAR: Interceptar comandos da notificação
-        override fun onPlaybackResumption(
-            mediaSession: MediaSession,
-            controller: MediaSession.ControllerInfo
-        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
-            return super.onPlaybackResumption(mediaSession, controller)
+    private fun handleNext() {
+        when (val result = PlaylistManager.next()) {
+            is PlaylistManager.NavigationResult.Success -> {
+                if (result.needsWindowUpdate) {
+                    val newWindow = PlaylistManager.getCurrentWindow()
+                    val newIndex = PlaylistManager.getCurrentIndexInWindow()
+                    updateWindow(newWindow, newIndex)
+                } else {
+                    player?.seekToNextMediaItem()
+                }
+            }
+            PlaylistManager.NavigationResult.EndOfPlaylist -> {
+                Log.d("MediaPlaybackService", "Fim da playlist")
+            }
+            else -> {}
         }
+    }
 
-        // ✅ NOVO: Interceptar Next
-        override fun onMediaButtonEvent(
-            session: MediaSession,
-            controller: MediaSession.ControllerInfo,
-            intent: Intent
-        ): Boolean {
-            // Aqui intercepta botões da notificação
-            return super.onMediaButtonEvent(session, controller, intent)
+    private fun handlePrevious() {
+        when (val result = PlaylistManager.previous()) {
+            is PlaylistManager.NavigationResult.Success -> {
+                if (result.needsWindowUpdate) {
+                    val newWindow = PlaylistManager.getCurrentWindow()
+                    val newIndex = PlaylistManager.getCurrentIndexInWindow()
+                    updateWindow(newWindow, newIndex)
+                } else {
+                    player?.seekToPreviousMediaItem()
+                }
+            }
+            PlaylistManager.NavigationResult.StartOfPlaylist -> {
+                Log.d("MediaPlaybackService", "Início da playlist")
+            }
+            else -> {}
         }
-
     }
 
     private val playerListener = object : Player.Listener {
@@ -104,31 +180,31 @@ class MediaPlaybackService : MediaSessionService() {
             Log.e("MediaPlaybackService", "Player error: ${error.message}")
         }
 
+        // ✅ ADICIONAR: Atualizar window preventivamente
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            // Auto-play quando usuário pula/volta pela notificação
-            when (reason) {
-                Player.MEDIA_ITEM_TRANSITION_REASON_SEEK -> {
-                    player?.play()
-                }
-                Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> {
-                    player?.play()
-                }
-                Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> {
-                    // Aqui poderia verificar se precisa atualizar window
-                    // Mas isso será feito no VideoPlayerOverlay listener
+            player?.let { currentPlayer ->
+                val currentIndexInWindow = currentPlayer.currentMediaItemIndex
+                val windowSize = currentPlayer.mediaItemCount
+
+                // Se está nos últimos 3 vídeos da window, atualizar
+                if (currentIndexInWindow >= windowSize - 3 && PlaylistManager.hasNext()) {
+                    val newWindow = PlaylistManager.getCurrentWindow()
+                    val adjustedIndex = PlaylistManager.getCurrentIndexInWindow()
+
+                    updateWindow(newWindow, adjustedIndex)
+                    Log.d("MediaPlaybackService", "Window atualizada preventivamente")
                 }
             }
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
-            // Broadcast do estado
             val isPlaying = player?.isPlaying ?: false
             val intent = Intent("PLAYBACK_STATE_CHANGED")
             intent.putExtra("IS_PLAYING", isPlaying)
             sendBroadcast(intent)
 
             if (playbackState == Player.STATE_ENDED && player?.hasNextMediaItem() == true) {
-                player?.seekToNextMediaItem()
+                handleNext()
             }
         }
 
@@ -136,6 +212,9 @@ class MediaPlaybackService : MediaSessionService() {
             super.onIsPlayingChanged(isPlaying)
         }
     }
+
+    // MediaPlaybackService.kt
+    private var lastMediaItemIndex = 0 // ✅ ADICIONAR esta variável
 
     private fun updateNotificationIntent() {
         try {
@@ -256,6 +335,9 @@ class MediaPlaybackService : MediaSessionService() {
         }
 
         updateNotificationIntent()
+
+        // ✅ ADICIONAR: Gera thumbnails em background
+        preloadThumbnailsForWindow(playlist)
     }
 
     private fun updatePlaylistAfterDeletion(playlist: List<String>, nextIndex: Int) {
@@ -280,6 +362,44 @@ class MediaPlaybackService : MediaSessionService() {
         updateNotificationIntent()
     }
 
+    private fun preloadThumbnailsForWindow(videoPaths: List<String>) {
+        preloadScope.launch {
+            videoPaths.forEach { videoPath ->
+                // Verifica se já existe no cache (RAM ou disco)
+                val key = videoPath.hashCode().toString()
+                val cached = OptimizedThumbnailManager.getCachedThumbnail(videoPath)
+                    ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(this@MediaPlaybackService, videoPath)
+
+                if (cached == null) {
+                    // Só gera se não existir
+                    try {
+                        val uri = Uri.parse("file://$videoPath")
+                        OptimizedThumbnailManager.loadVideoMetadataWithDelay(
+                            context = this@MediaPlaybackService,
+                            videoUri = uri,
+                            videoPath = videoPath,
+                            imageLoader = null,
+                            delayMs = 0L, // Sem delay aqui
+                            onMetadataLoaded = { metadata ->
+                                Log.d("MediaPlaybackService", "Thumbnail gerada: ${videoPath.substringAfterLast("/")}")
+                            },
+                            onCancelled = {
+                                Log.d("MediaPlaybackService", "Thumbnail cancelada: ${videoPath.substringAfterLast("/")}")
+                            }
+                        )
+
+                        // Pequeno delay entre gerações para não sobrecarregar
+                        delay(200)
+                    } catch (e: Exception) {
+                        Log.e("MediaPlaybackService", "Erro ao gerar thumbnail: ${e.message}")
+                    }
+                }
+            }
+
+            Log.d("MediaPlaybackService", "Preload de thumbnails concluído")
+        }
+    }
+
     private fun updateWindow(window: List<String>, currentIndexInWindow: Int) {
         player?.run {
             if (window.isEmpty()) {
@@ -295,7 +415,7 @@ class MediaPlaybackService : MediaSessionService() {
             setMediaItems(
                 window.map { createMediaItemWithMetadata(it) },
                 currentIndexInWindow,
-                0L  // ✅ SEMPRE começar do início ao trocar window
+                0L
             )
             prepare()
 
@@ -305,6 +425,9 @@ class MediaPlaybackService : MediaSessionService() {
         }
 
         updateNotificationIntent()
+
+        // ✅ ADICIONAR: Gera thumbnails em background
+        preloadThumbnailsForWindow(window)
     }
 
     private fun refreshPlayerWithCurrentState() {
@@ -348,6 +471,7 @@ class MediaPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        preloadScope.cancel() // Cancela thumbnails em progresso
         abandonAudioFocus()
         mediaSession?.run {
             player?.release()

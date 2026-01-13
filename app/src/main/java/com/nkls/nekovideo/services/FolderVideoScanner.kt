@@ -113,6 +113,8 @@ object FolderVideoScanner {
         }
     }
 
+
+
     // ✅ Salvar cache (CORRIGIDO)
     private fun saveCacheToDisk(context: Context) {
         try {

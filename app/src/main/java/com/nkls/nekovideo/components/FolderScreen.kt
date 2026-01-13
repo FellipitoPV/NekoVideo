@@ -72,6 +72,7 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.nkls.nekovideo.services.FolderInfo
 
 enum class SortType { NAME_ASC, NAME_DESC, DATE_NEWEST, DATE_OLDEST, SIZE_LARGEST, SIZE_SMALLEST }
 
@@ -167,6 +168,9 @@ data class MediaItem(
 
 // SIMPLIFICADO - Cache e constantes
 private val colorCache = LruCache<String, Color>(500)
+
+private val defaultAndroidFolders = setOf("DCIM", "Download", "Downloads", "Movies")
+
 val videoExtensions = setOf("mp4", "mkv", "webm", "avi", "mov", "wmv", "m4v", "3gp", "flv")
 
 // SIMPLIFICADO - Gerador de cores
@@ -239,7 +243,18 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
     return applySorting(items, sortType)
 }
 
-// SIMPLIFICADO - Carregamento normal
+private fun hasSecureSubfolderInCache(
+    folderPath: String,
+    folderCache: Map<String, FolderInfo>  // ✅ Remove "FolderVideoScanner." aqui
+): Boolean {
+    return folderCache.values.any { folderInfo ->
+        folderInfo.path.startsWith("$folderPath/") &&
+                folderInfo.isSecure &&
+                folderInfo.hasVideos
+    }
+}
+
+// ATUALIZAR loadNormalContentFromCache
 private fun loadNormalContentFromCache(
     context: Context,
     folderPath: String,
@@ -256,18 +271,22 @@ private fun loadNormalContentFromCache(
         if (subfolder.name in listOf(".nekovideo")) return@forEach
 
         val folderInfo = folderCache[subfolder.absolutePath]
-        // 🔧 CORREÇÃO: Verifica diretamente se é pasta segura mesmo que não esteja no cache
         val isSecure = folderInfo?.isSecure ?: (File(subfolder, ".nomedia").exists())
         val hasVideos = folderInfo?.hasVideos ?: false
+        val hasSecureSubfolders = hasSecureSubfolderInCache(subfolder.absolutePath, folderCache)
+
+        // ✅ NOVO: Verifica se é pasta padrão do Android
+        val isDefaultFolder = isRootLevel && subfolder.name in defaultAndroidFolders
 
         val shouldShow = when {
+            // ✅ NOVO: Sempre mostra pastas padrão no root
+            isDefaultFolder -> true
+
             subfolder.name.startsWith(".") -> {
                 if (isRootLevel) {
-                    // 🔧 Na raiz, respeita showPrivateFolders
-                    showPrivateFolders && (isSecure || hasVideos)
+                    showPrivateFolders && (isSecure || hasVideos || hasSecureSubfolders)
                 } else {
-                    // 🔧 Em subpastas, sempre mostra se é segura ou tem vídeos
-                    isSecure || hasVideos
+                    isSecure || hasVideos || hasSecureSubfolders
                 }
             }
             hasVideos -> true
@@ -275,7 +294,14 @@ private fun loadNormalContentFromCache(
                 if (isRootLevel) {
                     showPrivateFolders
                 } else {
-                    true // Em subpastas, sempre mostra pastas seguras
+                    true
+                }
+            }
+            hasSecureSubfolders -> {
+                if (isRootLevel) {
+                    showPrivateFolders
+                } else {
+                    true
                 }
             }
             else -> false
@@ -284,27 +310,27 @@ private fun loadNormalContentFromCache(
         if (shouldShow) {
             items.add(
                 MediaItem(
-                subfolder.absolutePath,
-                null,
-                true,
-                lastModified = folderInfo?.lastModified ?: subfolder.lastModified(),
-                sizeInBytes = 0L
-            )
+                    subfolder.absolutePath,
+                    null,
+                    true,
+                    lastModified = folderInfo?.lastModified ?: subfolder.lastModified(),
+                    sizeInBytes = 0L
+                )
             )
         }
     }
 
-    // ✅ ADICIONAR - Carregamento via cache
+    // Carregar vídeos (mantém igual)
     val folderInfo = folderCache[folderPath]
     folderInfo?.videos?.forEach { videoInfo ->
         items.add(
             MediaItem(
-            path = videoInfo.path,
-            uri = videoInfo.uri,
-            isFolder = false,
-            lastModified = videoInfo.lastModified,
-            sizeInBytes = videoInfo.sizeInBytes
-        )
+                path = videoInfo.path,
+                uri = videoInfo.uri,
+                isFolder = false,
+                lastModified = videoInfo.lastModified,
+                sizeInBytes = videoInfo.sizeInBytes
+            )
         )
     }
 

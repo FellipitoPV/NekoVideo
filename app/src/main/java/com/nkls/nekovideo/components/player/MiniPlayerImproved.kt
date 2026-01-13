@@ -382,6 +382,10 @@ fun MiniPlayerImproved(
                                 } else {
                                     when (val result = PlaylistManager.previous()) {
                                         is PlaylistManager.NavigationResult.Success -> {
+                                            // ✅ Atualizar ANTES de executar ação
+                                            hasNext = PlaylistManager.hasNext()
+                                            hasPrevious = PlaylistManager.hasPrevious()
+
                                             if (result.needsWindowUpdate) {
                                                 val newWindow = PlaylistManager.getCurrentWindow()
                                                 val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
@@ -390,7 +394,11 @@ fun MiniPlayerImproved(
                                                 mediaController?.seekToPreviousMediaItem()
                                             }
                                         }
-                                        else -> {}
+                                        else -> {
+                                            // ✅ Atualizar mesmo em casos de erro
+                                            hasNext = PlaylistManager.hasNext()
+                                            hasPrevious = PlaylistManager.hasPrevious()
+                                        }
                                     }
                                 }
                             },
@@ -454,6 +462,10 @@ fun MiniPlayerImproved(
                                 } else {
                                     when (val result = PlaylistManager.next()) {
                                         is PlaylistManager.NavigationResult.Success -> {
+                                            // ✅ Atualizar ANTES de executar ação
+                                            hasNext = PlaylistManager.hasNext()
+                                            hasPrevious = PlaylistManager.hasPrevious()
+
                                             if (result.needsWindowUpdate) {
                                                 val newWindow = PlaylistManager.getCurrentWindow()
                                                 val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
@@ -462,7 +474,11 @@ fun MiniPlayerImproved(
                                                 mediaController?.seekToNextMediaItem()
                                             }
                                         }
-                                        else -> {}
+                                        else -> {
+                                            // ✅ Atualizar mesmo em casos de erro
+                                            hasNext = PlaylistManager.hasNext()
+                                            hasPrevious = PlaylistManager.hasPrevious()
+                                        }
                                     }
                                 }
                             },
