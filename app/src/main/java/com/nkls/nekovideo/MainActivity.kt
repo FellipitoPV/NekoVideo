@@ -1,17 +1,21 @@
 package com.nkls.nekovideo
 
+import android.app.PictureInPictureParams
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.util.Rational
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -59,6 +63,60 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var billingManager: BillingManager
     private lateinit var premiumManager: PremiumManager
+
+    private var _isInPiPMode = mutableStateOf(false)
+    val isInPiPMode: Boolean get() = _isInPiPMode.value
+
+    private var playerIsVisible = false
+    private var playerIsPlaying = false
+
+    // ✅ FUNÇÕES PIP
+    fun enterPiPMode() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                val params = PictureInPictureParams.Builder()
+                    .setAspectRatio(Rational(16, 9))
+                    .build()
+
+                enterPictureInPictureMode(params)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Erro ao entrar em PiP: ${e.message}")
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun updatePiPParams(params: PictureInPictureParams) {
+        try {
+            setPictureInPictureParams(params)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Erro ao atualizar PiP params: ${e.message}")
+        }
+    }
+
+    fun setPlayerState(isVisible: Boolean, isPlaying: Boolean) {
+        playerIsVisible = isVisible
+        playerIsPlaying = isPlaying
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: android.content.res.Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        _isInPiPMode.value = isInPictureInPictureMode
+
+        Log.d("MainActivity", "PiP mode: $isInPictureInPictureMode")
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+
+        // Só entra em PiP se o player estiver visível E tocando
+        if (playerIsVisible && playerIsPlaying) {
+            enterPiPMode()
+        }
+    }
 
     private fun handleExternalVideo(videoUri: Uri) {
         lifecycleScope.launch {

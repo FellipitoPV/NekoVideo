@@ -2,18 +2,28 @@ package com.nkls.nekovideo.components.player
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.PendingIntent
+import android.app.PictureInPictureParams
+import android.app.RemoteAction
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ActivityInfo
+import android.graphics.drawable.Icon
 import android.media.AudioManager
+import android.os.Build
 import android.provider.Settings
 import android.text.Layout
 import android.util.Log
+import android.util.Rational
 import android.util.TypedValue
 import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -35,11 +45,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeDown
@@ -67,15 +77,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -85,31 +97,28 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
+import androidx.media3.common.text.Cue
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
-import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.SubtitleView
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.Session
 import com.google.android.gms.cast.framework.SessionManagerListener
 import com.google.common.util.concurrent.MoreExecutors
+import com.nkls.nekovideo.MainActivity
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.R
+import com.nkls.nekovideo.billing.PremiumManager
 import com.nkls.nekovideo.components.helpers.CastManager
+import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.layout.InterstitialAdManager
 import com.nkls.nekovideo.components.settings.SettingsManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.window.DialogProperties
-import androidx.media3.common.text.Cue
-import com.nkls.nekovideo.billing.PremiumManager
-import com.nkls.nekovideo.components.helpers.PlaylistManager
+
 
 enum class RepeatMode {
     NONE,
@@ -124,6 +133,72 @@ enum class RotationMode {
 }
 
 private var interstitialAdManager: InterstitialAdManager? = null
+
+// ✅ FUNÇÕES PIP - Adicionar ANTES do @Composable
+@RequiresApi(Build.VERSION_CODES.O)
+private fun createPiPParams(
+    context: Context,
+    mediaController: MediaController?
+): PictureInPictureParams {
+    val actions = ArrayList<RemoteAction>()
+
+    // Previous
+    actions.add(createRemoteAction(
+        context,
+        android.R.drawable.ic_media_previous,
+        "Previous",
+        REQUEST_CODE_PREVIOUS
+    ))
+
+    // Play/Pause
+    val isPlaying = mediaController?.isPlaying ?: false
+    actions.add(createRemoteAction(
+        context,
+        if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
+        if (isPlaying) "Pause" else "Play",
+        REQUEST_CODE_PLAY_PAUSE
+    ))
+
+    // Next
+    actions.add(createRemoteAction(
+        context,
+        android.R.drawable.ic_media_next,
+        "Next",
+        REQUEST_CODE_NEXT
+    ))
+
+    return PictureInPictureParams.Builder()
+        .setAspectRatio(Rational(16, 9))
+        .setActions(actions)
+        .build()
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+private fun createRemoteAction(
+    context: Context,
+    iconResId: Int,
+    title: String,
+    requestCode: Int
+): RemoteAction {
+    val intent = Intent("PIP_CONTROL").apply {
+        putExtra("action", requestCode)
+    }
+
+    val pendingIntent = PendingIntent.getBroadcast(
+        context,
+        requestCode,
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+
+    val icon = Icon.createWithResource(context, iconResId)
+
+    return RemoteAction(icon, title, title, pendingIntent)
+}
+
+private const val REQUEST_CODE_PLAY_PAUSE = 1
+private const val REQUEST_CODE_NEXT = 2
+private const val REQUEST_CODE_PREVIOUS = 3
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @SuppressLint("OpaqueUnitKey")
@@ -145,6 +220,8 @@ fun VideoPlayerOverlay(
     var isCasting by remember { mutableStateOf(false) }
     var connectedDeviceName by remember { mutableStateOf("") }
     val castManager = remember { CastManager(context) }
+
+    var isInPiPMode by remember { mutableStateOf(false) }
 
     val interstitialManager = remember {
         if (interstitialAdManager == null) {
@@ -345,6 +422,69 @@ fun VideoPlayerOverlay(
             applyRotation(mediaController!!.videoSize)
         }
 
+    }
+
+    val activity = context.findActivity() as? MainActivity
+    LaunchedEffect(isVisible, isPlaying) {
+        activity?.setPlayerState(isVisible, isPlaying)
+    }
+
+    // ✅ RECEPTOR DE COMANDOS PIP
+    DisposableEffect(Unit) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                when (intent.getIntExtra("action", -1)) {
+                    REQUEST_CODE_PLAY_PAUSE -> {
+                        mediaController?.let {
+                            if (it.isPlaying) it.pause() else it.play()
+                        }
+                    }
+                    REQUEST_CODE_NEXT -> {
+                        mediaController?.let {
+                            when (val result = PlaylistManager.next()) {
+                                is PlaylistManager.NavigationResult.Success -> {
+                                    if (result.needsWindowUpdate) {
+                                        val newWindow = PlaylistManager.getCurrentWindow()
+                                        val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                                        MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
+                                    } else {
+                                        it.seekToNextMediaItem()
+                                    }
+                                }
+                                else -> {}
+                            }
+                        }
+                    }
+                    REQUEST_CODE_PREVIOUS -> {
+                        mediaController?.let {
+                            when (val result = PlaylistManager.previous()) {
+                                is PlaylistManager.NavigationResult.Success -> {
+                                    if (result.needsWindowUpdate) {
+                                        val newWindow = PlaylistManager.getCurrentWindow()
+                                        val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                                        MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
+                                    } else {
+                                        it.seekToPreviousMediaItem()
+                                    }
+                                }
+                                else -> {}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        val filter = IntentFilter("PIP_CONTROL")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
+
+        onDispose {
+            context.unregisterReceiver(receiver)
+        }
     }
 
     // Ajustar orientação ao desconectar do cast
@@ -1232,7 +1372,7 @@ fun VideoPlayerOverlay(
 
                 // Interface customizada com ícones de volume e brilho
                 AnimatedVisibility(
-                    visible = controlsVisible,
+                    visible = controlsVisible && !isInPiPMode, // ✅ MANTER ASSIM
                     enter = fadeIn(animationSpec = tween(300)),
                     exit = fadeOut(animationSpec = tween(300))
                 ) {
@@ -1284,7 +1424,12 @@ fun VideoPlayerOverlay(
                         // Legendas
                         hasSubtitles = availableSubtitles.isNotEmpty(),
                         subtitlesEnabled = selectedSubtitleTrack != null,
-                        onSubtitlesClick = { showTrackSelectionDialog = true }
+                        onSubtitlesClick = { showTrackSelectionDialog = true },
+                        onPiPClick = { // ✅ ADICIONAR
+                            controlsVisible = false
+                            val activity = context.findActivity() as? MainActivity
+                            activity?.enterPiPMode()
+                        }
                     )
                 }
             }

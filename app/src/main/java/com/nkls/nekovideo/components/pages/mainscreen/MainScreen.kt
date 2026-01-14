@@ -2,6 +2,7 @@ package com.nkls.nekovideo.components.pages.mainscreen
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -105,6 +106,8 @@ fun MainScreen(
     var deletedVideoPath by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
+    var isInPiPMode by remember { mutableStateOf(false) }
+
     var showPrivateFolders by remember {
         mutableStateOf(FilesManager.SecureFoldersVisibility.areSecureFoldersVisible(context))
     }
@@ -165,6 +168,17 @@ fun MainScreen(
     val currentTheme by themeManager.themeMode.collectAsState()
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
 
+    // ✅ DETECTOR DE MODO PIP
+    LaunchedEffect(Unit) {
+        val activity = context.findActivity() as? MainActivity
+        if (activity != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Observar mudanças de configuração
+            while (true) {
+                isInPiPMode = activity.isInPiPMode
+                delay(200)
+            }
+        }
+    }
 
     LaunchedEffect(notificationReceived, lastAction, lastTime) {
 
@@ -881,7 +895,10 @@ fun MainScreen(
         }
         VideoPlayerOverlay(
             isVisible = showPlayerOverlay,
-            onDismiss = { showPlayerOverlay = false },
+            onDismiss = {
+                showPlayerOverlay = false
+                isInPiPMode = false // ✅ ADICIONAR
+            },
             onVideoDeleted = { deletedPath ->
                 deletedVideoPath = deletedPath
                 CoroutineScope(Dispatchers.Main).launch {

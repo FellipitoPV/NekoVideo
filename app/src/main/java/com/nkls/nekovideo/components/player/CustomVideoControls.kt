@@ -1,6 +1,7 @@
 package com.nkls.nekovideo.components.player
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Repeat
@@ -53,6 +55,8 @@ import androidx.compose.material.icons.filled.StayCurrentPortrait
 import androidx.compose.material.icons.filled.StayCurrentLandscape
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.ui.Modifier
+import com.nkls.nekovideo.MainActivity
+import kotlinx.coroutines.delay
 
 @Composable
 fun CustomVideoControls(
@@ -76,7 +80,8 @@ fun CustomVideoControls(
     onRotationModeChange: (RotationMode) -> Unit,
     hasSubtitles: Boolean,
     subtitlesEnabled: Boolean,
-    onSubtitlesClick: () -> Unit
+    onSubtitlesClick: () -> Unit,
+    onPiPClick: () -> Unit
 ) {
     val controller = mediaController ?: return
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -128,6 +133,23 @@ fun CustomVideoControls(
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // ✅ ADICIONAR BOTÃO PIP AQUI
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        IconButton(
+                            onClick = onPiPClick, // ✅ SIMPLIFICAR
+                            modifier = Modifier
+                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                                .size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PictureInPicture,
+                                contentDescription = "Picture in Picture",
+                                tint = Color(0xFF00BCD4),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
                     // Casting
                     AndroidView(
                         factory = { context ->
@@ -515,7 +537,6 @@ suspend fun deleteCurrentVideo(
                 onVideoDeleted(videoPath)
             }
 
-            // ✅ Usar PlaylistManager
             when (val result = PlaylistManager.removeCurrent()) {
                 is PlaylistManager.RemovalResult.Success -> {
                     if (result.needsWindowUpdate) {
@@ -527,6 +548,13 @@ suspend fun deleteCurrentVideo(
                             newWindow,
                             currentInWindow
                         )
+
+                        // ✅ FORÇA O PLAY APÓS ATUALIZAR WINDOW
+                        withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            delay(300) // Aguarda o player estar pronto
+                            controller.prepare()
+                            controller.play()
+                        }
                     }
                 }
                 PlaylistManager.RemovalResult.PlaylistEmpty -> {

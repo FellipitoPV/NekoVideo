@@ -43,7 +43,9 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|screenLayout|uiMode|keyboardHidden|layoutDirection|locale"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|keyboardHidden|layoutDirection|locale"
+            android:supportsPictureInPicture="true"
+            android:resizeableActivity="true"
             android:launchMode="singleTop"
             android:theme="@style/Theme.NekoVideo.Splash">
 
