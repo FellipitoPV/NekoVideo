@@ -5,7 +5,6 @@ import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
@@ -18,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -108,10 +106,7 @@ fun MainScreen(
     var deletedVideoPath by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
-    // ✅ BackHandler específico para o overlay - tem prioridade quando ativo
-    BackHandler(enabled = showPlayerOverlay) {
-        showPlayerOverlay = false
-    }
+    // Back press centralizado no BackHandler abaixo
 
     var isInPiPMode by remember { mutableStateOf(false) }
 
@@ -237,111 +232,21 @@ fun MainScreen(
         themeManager.forceStatusBarUpdate()
     }
 
-    LaunchedEffect(currentRoute, folderPath, selectedItems, isMoveMode, showPlayerOverlay) {
-        val activity = context.findActivity()
-        if (activity != null) {
-            activity.onBackPressedDispatcher.addCallback(object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() {
-                    if (showPlayerOverlay) {
-                        showPlayerOverlay = false
-                        return
-                    }
-
-                    if (showFolderActions) {
-                        showFolderActions = false
-                        return
-                    }
-
-                    if (selectedItems.isNotEmpty()) {
-                        selectedItems.clear()
-                        showFabMenu = false
-                        showRenameDialog = false
-                        return
-                    }
-
-                    when {
-                        currentRoute == "settings" || currentRoute?.startsWith("settings/") == true -> {
-                            navController.popBackStack()
-                        }
-
-                        currentRoute == "folder" -> {
-                            val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
-                            val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
-                            val encodedFolderPath = currentBackStackEntry?.arguments?.getString("folderPath") ?: ""
-
-                            if (encodedFolderPath == "root") {
-                                return
-                            }
-
-                            if (folderPath == secureFolderPath) {
-                                navController.navigate("folder/root") {
-                                    popUpTo("folder/root") { inclusive = true }
-                                    launchSingleTop = true
-                                }
-                                return
-                            }
-
-                            val isInSecureStructure = folderPath.startsWith(secureFolderPath)
-                            val isPrivateFolder = isSecureFolder(folderPath) && !isInSecureStructure
-
-                            val parentPath = if (isInSecureStructure) {
-                                val withoutSecurePrefix = folderPath.removePrefix(secureFolderPath).trimStart('/')
-
-                                val pathSegments = withoutSecurePrefix.split('/').filter { it.isNotEmpty() }
-
-                                if (pathSegments.size <= 1) {
-                                    secureFolderPath
-                                } else {
-                                    val parentSegments = pathSegments.dropLast(1)
-                                    val result = "$secureFolderPath/${parentSegments.joinToString("/")}"
-                                    result
-                                }
-                            } else {
-                                val withoutRootPrefix = folderPath.removePrefix(rootPath).trimStart('/')
-
-                                val pathSegments = withoutRootPrefix.split('/').filter { it.isNotEmpty() }
-
-                                if (pathSegments.size <= 1) {
-                                    rootPath
-                                } else {
-                                    val parentSegments = pathSegments.dropLast(1)
-                                    val result = "$rootPath/${parentSegments.joinToString("/")}"
-                                    result
-                                }
-                            }
-
-                            val isParentRoot = parentPath == rootPath || parentPath == secureFolderPath
-
-                            if (isParentRoot) {
-                                if (parentPath == secureFolderPath) {
-                                    val encodedSecurePath = Uri.encode(secureFolderPath)
-                                    navController.navigate("folder/$encodedSecurePath") {
-                                        popUpTo("folder/{folderPath}") { inclusive = false }
-                                        launchSingleTop = true
-                                    }
-                                } else {
-                                    navController.navigate("folder/root") {
-                                        popUpTo("folder/root") { inclusive = true }
-                                        launchSingleTop = true
-                                    }
-                                }
-                            } else {
-                                val encodedParentPath = Uri.encode(parentPath)
-                                navController.navigate("folder/$encodedParentPath") {
-                                    popUpTo("folder/{folderPath}") { inclusive = false }
-                                    launchSingleTop = true
-                                }
-                            }
-                        }
-
-                        else -> {
-                            activity.finish()
-                        }
-                    }
-                }
-            })
-        }
+    // Log do estado atual a cada recomposição relevante
+    LaunchedEffect(showPlayerOverlay, currentRoute, folderPath, showFolderActions, selectedItems.size) {
+        Log.d("BackDebug", "═══════════════════════════════════════")
+        Log.d("BackDebug", "📊 Estado atual:")
+        Log.d("BackDebug", "   showPlayerOverlay: $showPlayerOverlay")
+        Log.d("BackDebug", "   currentRoute: $currentRoute")
+        Log.d("BackDebug", "   folderPath: $folderPath")
+        Log.d("BackDebug", "   selectedItems: ${selectedItems.size}")
+        Log.d("BackDebug", "   showFolderActions: $showFolderActions")
+        Log.d("BackDebug", "───────────────────────────────────────")
+        Log.d("BackDebug", "🎯 BackHandler OVERLAY (após NavHost): enabled=$showPlayerOverlay")
+        Log.d("BackDebug", "═══════════════════════════════════════")
     }
+
+    // BackHandlers movidos para DEPOIS do NavHost para ter prioridade (ordem LIFO)
 
     LaunchedEffect(showPlayerOverlay) {
         val activity = context.findActivity()
@@ -893,6 +798,19 @@ fun MainScreen(
                 }
             }
         }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // BackHandlers DEPOIS do NavHost para ter prioridade (ordem LIFO)
+        // O último BackHandler registrado é o primeiro a ser verificado
+        // ═══════════════════════════════════════════════════════════════════
+
+        // BackHandler para o overlay - PRIORIDADE MÁXIMA (registrado por último)
+        BackHandler(enabled = showPlayerOverlay) {
+            Log.d("BackDebug", "🔙 BACK PRESSED - Handler: OVERLAY (após NavHost)")
+            Log.d("BackDebug", "   Ação: Fechando overlay")
+            showPlayerOverlay = false
+        }
+
         VideoPlayerOverlay(
             isVisible = showPlayerOverlay,
             onDismiss = {

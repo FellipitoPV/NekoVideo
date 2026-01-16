@@ -21,8 +21,6 @@ import android.util.Log
 import android.util.Rational
 import android.util.TypedValue
 import android.view.WindowManager
-import androidx.activity.OnBackPressedCallback
-import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -79,6 +77,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -210,7 +211,7 @@ fun VideoPlayerOverlay(
     premiumManager: PremiumManager
 ) {
     val context = LocalContext.current
-    val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+    val lifecycleOwner = LocalLifecycleOwner.current
     var mediaController by remember { mutableStateOf<MediaController?>(null) }
     var isFullscreen by remember { mutableStateOf(false) }
     var hasRefreshed by remember { mutableStateOf(false) }
@@ -1102,33 +1103,57 @@ fun VideoPlayerOverlay(
             }
             isFullscreen = true
 
+            // Manter tela ligada enquanto o vídeo está tocando
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
             onDispose {
                 WindowCompat.setDecorFitsSystemWindows(window, true)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
                 activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 isFullscreen = false
+
+                // Remover flag de manter tela ligada
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         } else {
             onDispose { }
         }
     }
 
-    // Handle back press - usar DisposableEffect para gerenciar callback corretamente
-    DisposableEffect(isVisible, backDispatcher) {
-        val callback = if (isVisible && backDispatcher != null) {
-            object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() {
-                    onDismiss()
+    // Reaplicar flags quando o app volta do background
+    DisposableEffect(lifecycleOwner, isVisible) {
+        Log.d("BackDebug", "🎬 VideoPlayerOverlay - DisposableEffect montado, isVisible: $isVisible")
+
+        val observer = LifecycleEventObserver { _, event ->
+            Log.d("BackDebug", "🎬 VideoPlayerOverlay - Lifecycle event: $event, isVisible: $isVisible")
+
+            if (event == Lifecycle.Event.ON_RESUME && isVisible) {
+                Log.d("BackDebug", "🎬 VideoPlayerOverlay - ON_RESUME com overlay visível, reaplicando flags")
+                val activity = context.findActivity() ?: return@LifecycleEventObserver
+                val window = activity.window
+                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+
+                // Reaplicar modo imersivo
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+                insetsController.apply {
+                    hide(WindowInsetsCompat.Type.systemBars())
+                    systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 }
-            }.also {
-                backDispatcher.addCallback(it)
+
+                // Reaplicar keep screen on
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
-        } else null
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
 
         onDispose {
-            callback?.remove()
+            Log.d("BackDebug", "🎬 VideoPlayerOverlay - DisposableEffect desmontado")
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
+
+    // Back press é gerenciado pelo MainScreen para evitar conflitos
 
     LaunchedEffect(Unit) {
         val sessionManager = CastContext.getSharedInstance(context).sessionManager

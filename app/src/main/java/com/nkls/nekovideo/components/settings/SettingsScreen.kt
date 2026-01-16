@@ -190,22 +190,22 @@ fun PlaybackSettingsScreen() {
             )
         }
 
-        item {
-            SettingsSectionHeader(stringResource(R.string.playback_features))
-        }
-
-        item {
-            SettingsSwitchItem(
-                icon = Icons.Default.ScreenSearchDesktop,
-                title = stringResource(R.string.playback_keep_screen_on),
-                subtitle = stringResource(R.string.playback_keep_screen_on_desc),
-                checked = keepScreenOn,
-                onCheckedChange = {
-                    keepScreenOn = it
-                    prefs.edit().putBoolean("keep_screen_on", it).apply()
-                }
-            )
-        }
+//        item {
+//            SettingsSectionHeader(stringResource(R.string.playback_features))
+//        }
+//
+//        item {
+//            SettingsSwitchItem(
+//                icon = Icons.Default.ScreenSearchDesktop,
+//                title = stringResource(R.string.playback_keep_screen_on),
+//                subtitle = stringResource(R.string.playback_keep_screen_on_desc),
+//                checked = keepScreenOn,
+//                onCheckedChange = {
+//                    keepScreenOn = it
+//                    prefs.edit().putBoolean("keep_screen_on", it).apply()
+//                }
+//            )
+//        }
 
 //        item {
 //            SettingsSwitchItem(

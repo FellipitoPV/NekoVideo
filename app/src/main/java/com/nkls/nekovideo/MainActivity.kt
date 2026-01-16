@@ -284,17 +284,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        ContextCompat.registerReceiver(
-            this,
-            playbackReceiver,
-            IntentFilter("PLAYBACK_STATE_CHANGED"),
-            ContextCompat.RECEIVER_NOT_EXPORTED
-        )
-        billingManager.restorePurchases()
-    }
-
     override fun onPause() {
         super.onPause()
         try {
@@ -316,6 +305,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        Log.d("BackDebug", "═══════════════════════════════════════")
+        Log.d("BackDebug", "📱 onNewIntent - Voltou ao app!")
+        Log.d("BackDebug", "   Action: ${intent.action}")
+        Log.d("BackDebug", "   Data: ${intent.data}")
+        Log.d("BackDebug", "═══════════════════════════════════════")
 
         setIntent(intent)
         handleNotificationIntent(intent)
@@ -325,6 +319,19 @@ class MainActivity : AppCompatActivity() {
         _lastIntentAction.value = lastIntentAction
         _lastIntentTime.value = lastIntentTime
 
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d("BackDebug", "📱 onResume - App em primeiro plano")
+
+        ContextCompat.registerReceiver(
+            this,
+            playbackReceiver,
+            IntentFilter("PLAYBACK_STATE_CHANGED"),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        billingManager.restorePurchases()
     }
 
 }
