@@ -24,7 +24,6 @@ import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -72,8 +71,6 @@ fun CustomVideoControls(
     resetUITimer: () -> Unit,
     repeatMode: RepeatMode,
     onRepeatModeChange: (RepeatMode) -> Unit,
-    isShuffleActive: Boolean,
-    onShuffleToggle: () -> Unit,
     isCasting: Boolean,
     onCastClick: () -> Unit,
     rotationMode: RotationMode,
@@ -215,21 +212,17 @@ fun CustomVideoControls(
             horizontalArrangement = Arrangement.spacedBy(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // ✅ BOTÃO PREVIOUS MODIFICADO
+            // ✅ BOTÃO PREVIOUS - SEMPRE ATIVO
             IconButton(
                 onClick = {
                     resetUITimer()
-                    // Usar PlaylistManager ao invés do MediaController
+                    // Usar PlaylistManager e SEMPRE atualizar window
                     when (val result = PlaylistManager.previous()) {
                         is PlaylistManager.NavigationResult.Success -> {
-                            if (result.needsWindowUpdate) {
-                                val newWindow = PlaylistManager.getCurrentWindow()
-                                val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                                MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                            } else {
-                                // Só mover no player atual
-                                controller.seekToPreviousMediaItem()
-                            }
+                            // SEMPRE atualizar window para garantir navegação correta
+                            val newWindow = PlaylistManager.getCurrentWindow()
+                            val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                            MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
                         }
                         PlaylistManager.NavigationResult.StartOfPlaylist -> {
                             // Já está no início
@@ -239,13 +232,12 @@ fun CustomVideoControls(
                 },
                 modifier = Modifier
                     .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                    .size(56.dp),
-                enabled = PlaylistManager.hasPrevious()
+                    .size(56.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipPrevious,
                     contentDescription = "Previous",
-                    tint = if (PlaylistManager.hasPrevious()) Color.White else Color.Gray,
+                    tint = Color.White,
                     modifier = Modifier.size(64.dp)
                 )
             }
@@ -271,21 +263,17 @@ fun CustomVideoControls(
                 )
             }
 
-            // ✅ BOTÃO NEXT MODIFICADO
+            // ✅ BOTÃO NEXT - SEMPRE ATIVO
             IconButton(
                 onClick = {
                     resetUITimer()
-                    // Usar PlaylistManager ao invés do MediaController
+                    // Usar PlaylistManager e SEMPRE atualizar window
                     when (val result = PlaylistManager.next()) {
                         is PlaylistManager.NavigationResult.Success -> {
-                            if (result.needsWindowUpdate) {
-                                val newWindow = PlaylistManager.getCurrentWindow()
-                                val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                                MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                            } else {
-                                // Só mover no player atual
-                                controller.seekToNextMediaItem()
-                            }
+                            // SEMPRE atualizar window para garantir navegação correta
+                            val newWindow = PlaylistManager.getCurrentWindow()
+                            val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                            MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
                         }
                         PlaylistManager.NavigationResult.EndOfPlaylist -> {
                             // Já está no fim
@@ -295,13 +283,12 @@ fun CustomVideoControls(
                 },
                 modifier = Modifier
                     .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                    .size(56.dp),
-                enabled = PlaylistManager.hasNext()
+                    .size(56.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipNext,
                     contentDescription = "Next",
-                    tint = if (PlaylistManager.hasNext()) Color.White else Color.Gray,
+                    tint = Color.White,
                     modifier = Modifier.size(64.dp)
                 )
             }
@@ -445,24 +432,6 @@ fun CustomVideoControls(
                                 imageVector = icon,
                                 contentDescription = contentDescription,
                                 tint = iconColor,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-
-                        // ✅ BOTÃO SHUFFLE ADICIONADO
-                        IconButton(
-                            onClick = {
-                                onShuffleToggle()
-                                resetUITimer()
-                            },
-                            modifier = Modifier
-                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                                .size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Shuffle,
-                                contentDescription = if (isShuffleActive) "Shuffle On" else "Shuffle Off",
-                                tint = if (isShuffleActive) Color(0xFF9C27B0) else Color.White.copy(alpha = 0.7f),
                                 modifier = Modifier.size(24.dp)
                             )
                         }

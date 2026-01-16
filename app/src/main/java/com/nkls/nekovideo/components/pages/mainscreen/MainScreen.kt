@@ -6,6 +6,7 @@ import android.os.Build
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -106,6 +108,11 @@ fun MainScreen(
     var deletedVideoPath by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
+    // ✅ BackHandler específico para o overlay - tem prioridade quando ativo
+    BackHandler(enabled = showPlayerOverlay) {
+        showPlayerOverlay = false
+    }
+
     var isInPiPMode by remember { mutableStateOf(false) }
 
     var showPrivateFolders by remember {
@@ -180,20 +187,9 @@ fun MainScreen(
         }
     }
 
-    LaunchedEffect(notificationReceived, lastAction, lastTime) {
-
-
-        if (notificationReceived && lastAction == "OPEN_PLAYER") {
-
-            val playlist = intent?.getStringArrayListExtra("PLAYLIST") ?: emptyList()
-
-            if (playlist.isNotEmpty()) {
-                showPlayerOverlay = true
-            } else {
-                Log.w("MainScreen", "   ⚠️ Playlist vazia")
-            }
-        }
-    }
+    // ✅ Ao clicar na notificação, NÃO abre o overlay automaticamente
+    // O usuário pode usar o mini player e abrir o overlay se desejar
+    // (Código removido para evitar problema de navegação com back press)
 
     LaunchedEffect(currentTheme, configuration.uiMode, showPlayerOverlay) { // Adicione showPlayerOverlay
         // SÓ EXECUTE SE O PLAYER NÃO ESTIVER ABERTO
@@ -849,12 +845,16 @@ fun MainScreen(
                                 val videos = items.filter { !it.isFolder }.map { "file://${it.path}" }
                                 val clickedVideoIndex = videos.indexOf("file://$itemPath")
                                 if (clickedVideoIndex >= 0) {
-                                    val orderedPlaylist = videos.subList(clickedVideoIndex, videos.size) +
-                                            videos.subList(0, clickedVideoIndex)
-                                    MediaPlaybackService.startWithPlaylist(context, orderedPlaylist, 0)
+                                    // ✅ Configurar PlaylistManager ANTES de iniciar o player
+                                    PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
+                                    val window = PlaylistManager.getCurrentWindow()
+                                    val windowIndex = PlaylistManager.getCurrentIndexInWindow()
+                                    MediaPlaybackService.startWithPlaylist(context, window, windowIndex)
                                     showPlayerOverlay = true
                                 } else {
                                     val videoUri = "file://$itemPath"
+                                    // ✅ Configurar PlaylistManager mesmo para vídeo único
+                                    PlaylistManager.setPlaylist(listOf(videoUri), startIndex = 0, shuffle = false)
                                     MediaPlaybackService.startWithPlaylist(context, listOf(videoUri), 0)
                                     showPlayerOverlay = true
                                 }

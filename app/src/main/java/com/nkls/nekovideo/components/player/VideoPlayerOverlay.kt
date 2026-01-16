@@ -221,7 +221,9 @@ fun VideoPlayerOverlay(
     var connectedDeviceName by remember { mutableStateOf("") }
     val castManager = remember { CastManager(context) }
 
-    var isInPiPMode by remember { mutableStateOf(false) }
+    // ✅ Observar estado de PIP da MainActivity (usando State para reatividade)
+    val mainActivity = context.findActivity() as? MainActivity
+    val isInPiPMode by mainActivity?.isInPiPModeState ?: remember { mutableStateOf(false) }
 
     val interstitialManager = remember {
         if (interstitialAdManager == null) {
@@ -239,8 +241,6 @@ fun VideoPlayerOverlay(
     var currentVideoTitle by remember { mutableStateOf("") }
     var isSeekingActive by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(RepeatMode.NONE) }
-
-    var isShuffleActive by remember { mutableStateOf(PlaylistManager.isShuffleEnabled) }
 
     //Controle de rotação
     var rotationMode by remember { mutableStateOf(RotationMode.AUTO) }
@@ -276,6 +276,13 @@ fun VideoPlayerOverlay(
     var lastTapTime by remember { mutableStateOf(0L) }
     var tapCount by remember { mutableStateOf(0) }
     val doubleTapTimeWindow = 300L // 300ms para detectar double tap
+
+    // ✅ Esconder controles quando entrar no PIP
+    LaunchedEffect(isInPiPMode) {
+        if (isInPiPMode) {
+            controlsVisible = false
+        }
+    }
 
     //Legendas
     var availableSubtitles by remember { mutableStateOf<List<Tracks.Group>>(emptyList()) }
@@ -443,13 +450,10 @@ fun VideoPlayerOverlay(
                         mediaController?.let {
                             when (val result = PlaylistManager.next()) {
                                 is PlaylistManager.NavigationResult.Success -> {
-                                    if (result.needsWindowUpdate) {
-                                        val newWindow = PlaylistManager.getCurrentWindow()
-                                        val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                                        MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                                    } else {
-                                        it.seekToNextMediaItem()
-                                    }
+                                    // SEMPRE atualizar window para garantir navegação correta
+                                    val newWindow = PlaylistManager.getCurrentWindow()
+                                    val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                                    MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
                                 }
                                 else -> {}
                             }
@@ -459,13 +463,10 @@ fun VideoPlayerOverlay(
                         mediaController?.let {
                             when (val result = PlaylistManager.previous()) {
                                 is PlaylistManager.NavigationResult.Success -> {
-                                    if (result.needsWindowUpdate) {
-                                        val newWindow = PlaylistManager.getCurrentWindow()
-                                        val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                                        MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                                    } else {
-                                        it.seekToPreviousMediaItem()
-                                    }
+                                    // SEMPRE atualizar window para garantir navegação correta
+                                    val newWindow = PlaylistManager.getCurrentWindow()
+                                    val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                                    MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
                                 }
                                 else -> {}
                             }
@@ -1027,13 +1028,10 @@ fun VideoPlayerOverlay(
                                     coroutineScope.launch {
                                         when (val result = PlaylistManager.next()) {
                                             is PlaylistManager.NavigationResult.Success -> {
-                                                if (result.needsWindowUpdate) {
-                                                    val newWindow = PlaylistManager.getCurrentWindow()
-                                                    val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                                                    MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                                                } else {
-                                                    mediaController!!.seekToNextMediaItem()
-                                                }
+                                                // SEMPRE atualizar window para garantir navegação correta
+                                                val newWindow = PlaylistManager.getCurrentWindow()
+                                                val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                                                MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
                                             }
                                             else -> {
                                                 // Voltar pro início da playlist
@@ -1056,13 +1054,10 @@ fun VideoPlayerOverlay(
                                     coroutineScope.launch {
                                         when (val result = PlaylistManager.next()) {
                                             is PlaylistManager.NavigationResult.Success -> {
-                                                if (result.needsWindowUpdate) {
-                                                    val newWindow = PlaylistManager.getCurrentWindow()
-                                                    val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                                                    MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                                                } else {
-                                                    mediaController!!.seekToNextMediaItem()
-                                                }
+                                                // SEMPRE atualizar window para garantir navegação correta
+                                                val newWindow = PlaylistManager.getCurrentWindow()
+                                                val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                                                MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
                                             }
                                             else -> {
                                                 Log.d("VideoPlayer", "Fim da playlist")
@@ -1118,15 +1113,20 @@ fun VideoPlayerOverlay(
         }
     }
 
-    // Handle back press (mesmo código)
-    LaunchedEffect(isVisible) {
-        if (isVisible && backDispatcher != null) {
-            val callback = object : OnBackPressedCallback(true) {
+    // Handle back press - usar DisposableEffect para gerenciar callback corretamente
+    DisposableEffect(isVisible, backDispatcher) {
+        val callback = if (isVisible && backDispatcher != null) {
+            object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
                     onDismiss()
                 }
+            }.also {
+                backDispatcher.addCallback(it)
             }
-            backDispatcher.addCallback(callback)
+        } else null
+
+        onDispose {
+            callback?.remove()
         }
     }
 
@@ -1401,15 +1401,6 @@ fun VideoPlayerOverlay(
                                     RepeatMode.REPEAT_ONE -> Player.REPEAT_MODE_ONE
                                 }
                             }
-                        },
-                        isShuffleActive = isShuffleActive,  // ✅ NOVO
-                        onShuffleToggle = {                  // ✅ NOVO
-                            if (PlaylistManager.isShuffleEnabled) {
-                                PlaylistManager.disableShuffle()
-                            } else {
-                                PlaylistManager.enableShuffle(PlaylistManager.getCurrentIndex())
-                            }
-                            isShuffleActive = PlaylistManager.isShuffleEnabled
                         },
                         isCasting = isCasting,
                         onCastClick = {

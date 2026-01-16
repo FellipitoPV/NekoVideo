@@ -31,6 +31,7 @@ import com.nkls.nekovideo.billing.BillingManager
 import com.nkls.nekovideo.billing.PremiumManager
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.FilesManager
+import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.pages.mainscreen.MainScreen
 import com.nkls.nekovideo.components.player.MediaControllerManager
 import com.nkls.nekovideo.language.LanguageManager
@@ -66,6 +67,7 @@ class MainActivity : AppCompatActivity() {
 
     private var _isInPiPMode = mutableStateOf(false)
     val isInPiPMode: Boolean get() = _isInPiPMode.value
+    val isInPiPModeState get() = _isInPiPMode  // ✅ Expor State para Compose observar
 
     private var playerIsVisible = false
     private var playerIsPlaying = false
@@ -129,6 +131,8 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 if (videoPath.isNotEmpty()) {
+                    // ✅ Configurar PlaylistManager ANTES de iniciar o player
+                    PlaylistManager.setPlaylist(listOf(videoPath), startIndex = 0, shuffle = false)
 
                     // Iniciar o serviço
                     MediaPlaybackService.startWithPlaylist(

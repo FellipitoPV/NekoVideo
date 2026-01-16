@@ -245,6 +245,10 @@ fun MiniPlayerImproved(
     }
 
     fun closePlayer() {
+        // ✅ Limpar PlaylistManager ANTES de parar o serviço
+        // para evitar que STATE_ENDED dispare o próximo vídeo
+        PlaylistManager.clear()
+
         if (isCasting) {
             CastContext.getSharedInstance(context)
                 .sessionManager
@@ -374,7 +378,7 @@ fun MiniPlayerImproved(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Previous
+                        // Previous - SEMPRE ATIVO
                         IconButton(
                             onClick = {
                                 if (isCasting) {
@@ -382,17 +386,14 @@ fun MiniPlayerImproved(
                                 } else {
                                     when (val result = PlaylistManager.previous()) {
                                         is PlaylistManager.NavigationResult.Success -> {
-                                            // ✅ Atualizar ANTES de executar ação
+                                            // ✅ Atualizar estado
                                             hasNext = PlaylistManager.hasNext()
                                             hasPrevious = PlaylistManager.hasPrevious()
 
-                                            if (result.needsWindowUpdate) {
-                                                val newWindow = PlaylistManager.getCurrentWindow()
-                                                val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                                                MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                                            } else {
-                                                mediaController?.seekToPreviousMediaItem()
-                                            }
+                                            // SEMPRE atualizar window para garantir navegação correta
+                                            val newWindow = PlaylistManager.getCurrentWindow()
+                                            val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                                            MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
                                         }
                                         else -> {
                                             // ✅ Atualizar mesmo em casos de erro
@@ -402,17 +403,12 @@ fun MiniPlayerImproved(
                                     }
                                 }
                             },
-                            enabled = hasPrevious,
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SkipPrevious,
                                 contentDescription = "Previous",
-                                tint = if (hasPrevious) {
-                                    MaterialTheme.colorScheme.onSurface
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                                },
+                                tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -454,7 +450,7 @@ fun MiniPlayerImproved(
                             }
                         }
 
-                        // Next
+                        // Next - SEMPRE ATIVO
                         IconButton(
                             onClick = {
                                 if (isCasting) {
@@ -462,17 +458,14 @@ fun MiniPlayerImproved(
                                 } else {
                                     when (val result = PlaylistManager.next()) {
                                         is PlaylistManager.NavigationResult.Success -> {
-                                            // ✅ Atualizar ANTES de executar ação
+                                            // ✅ Atualizar estado
                                             hasNext = PlaylistManager.hasNext()
                                             hasPrevious = PlaylistManager.hasPrevious()
 
-                                            if (result.needsWindowUpdate) {
-                                                val newWindow = PlaylistManager.getCurrentWindow()
-                                                val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                                                MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                                            } else {
-                                                mediaController?.seekToNextMediaItem()
-                                            }
+                                            // SEMPRE atualizar window para garantir navegação correta
+                                            val newWindow = PlaylistManager.getCurrentWindow()
+                                            val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                                            MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
                                         }
                                         else -> {
                                             // ✅ Atualizar mesmo em casos de erro
@@ -482,17 +475,12 @@ fun MiniPlayerImproved(
                                     }
                                 }
                             },
-                            enabled = hasNext,
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SkipNext,
                                 contentDescription = "Next",
-                                tint = if (hasNext) {
-                                    MaterialTheme.colorScheme.onSurface
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                                },
+                                tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(24.dp)
                             )
                         }

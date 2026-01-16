@@ -30,6 +30,7 @@ media3Ui = "1.7.1"
 media3Session = "1.7.1"
 datastorePreferencesCoreAndroid = "1.1.7"
 playServicesCastFramework = "22.1.0"
+runtime = "1.10.1"
 
 [libraries]
 androidx-animation = { module = "androidx.compose.animation:animation", version.ref = "animation" }
@@ -69,6 +70,7 @@ material-icons-extended-v168 = { module = "androidx.compose.material:material-ic
 androidx-datastore-preferences-core-android = { group = "androidx.datastore", name = "datastore-preferences-core-android", version.ref = "datastorePreferencesCoreAndroid" }
 nanohttpd = { module = "org.nanohttpd:nanohttpd", version.ref = "nanohttpd" }
 play-services-cast-framework = { module = "com.google.android.gms:play-services-cast-framework", version.ref = "playServicesCastFramework" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

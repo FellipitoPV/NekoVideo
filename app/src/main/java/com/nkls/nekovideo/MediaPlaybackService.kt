@@ -322,13 +322,11 @@ class MediaPlaybackService : MediaSessionService() {
 
     private fun updatePlaylist(playlist: List<String>, initialIndex: Int) {
         player?.run {
-            val currentPosition = currentPosition
-
             clearMediaItems()
             setMediaItems(
                 playlist.map { createMediaItemWithMetadata(it) },
                 initialIndex,
-                currentPosition
+                0L  // ✅ Sempre começar do início quando uma nova playlist é iniciada
             )
             prepare()
             playWhenReady = true
