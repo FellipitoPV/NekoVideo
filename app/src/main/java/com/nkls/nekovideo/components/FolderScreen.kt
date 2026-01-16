@@ -272,6 +272,7 @@ private fun loadNormalContentFromCache(
 
         val folderInfo = folderCache[subfolder.absolutePath]
         val isSecure = folderInfo?.isSecure ?: (File(subfolder, ".nomedia").exists())
+        val isNekoFolder = File(subfolder, ".nekovideo").exists() // Pasta criada pelo app
         val hasVideos = folderInfo?.hasVideos ?: false
         val hasSecureSubfolders = hasSecureSubfolderInCache(subfolder.absolutePath, folderCache)
 
@@ -281,6 +282,15 @@ private fun loadNormalContentFromCache(
         val shouldShow = when {
             // ✅ NOVO: Sempre mostra pastas padrão no root
             isDefaultFolder -> true
+
+            // ✅ Pastas criadas pelo app (com .nekovideo): respeita showPrivateFolders se for pasta privada
+            isNekoFolder -> {
+                if (subfolder.name.startsWith(".")) {
+                    showPrivateFolders // Pasta privada com .nekovideo só aparece se showPrivateFolders = true
+                } else {
+                    true // Pasta normal com .nekovideo sempre aparece
+                }
+            }
 
             subfolder.name.startsWith(".") -> {
                 if (isRootLevel) {

@@ -418,7 +418,7 @@ fun FilesSettingsScreen() {
     var confirmDelete by remember { mutableStateOf(prefs.getBoolean("confirm_delete", true)) }
 
     LaunchedEffect(Unit) {
-        appOnlyFolders = prefs.getBoolean("app_only_folders", true)
+        appOnlyFolders = prefs.getBoolean("app_only_folders", false)
     }
 
     LazyColumn(

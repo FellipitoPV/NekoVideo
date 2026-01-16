@@ -163,8 +163,8 @@
 
     <!-- Files Settings Screen -->
     <string name="files_management">Управление</string>
-    <string name="files_app_only_folders">Папки только для приложения</string>
-    <string name="files_app_only_folders_desc">Создавать папки, видимые только в NekoVideo</string>
+    <string name="files_app_only_folders">Создать приватные папки</string>
+    <string name="files_app_only_folders_desc">Создавать приватные папки по умолчанию</string>
     <string name="files_confirm_delete">Подтверждать удаление</string>
     <string name="files_confirm_delete_desc">Запрашивать подтверждение перед удалением файлов</string>
 

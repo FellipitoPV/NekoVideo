@@ -163,8 +163,8 @@
 
     <!-- Files Settings Screen -->
     <string name="files_management">Gestion</string>
-    <string name="files_app_only_folders">Dossiers Exclusifs à lApp</string>
-    <string name="files_app_only_folders_desc">Créer des dossiers visibles uniquement dans NekoVideo</string>
+    <string name="files_app_only_folders">Créer des dossiers privés</string>
+    <string name="files_app_only_folders_desc">Créer des dossiers privés par défaut</string>
     <string name="files_confirm_delete">Confirmer la Suppression</string>
     <string name="files_confirm_delete_desc">Demander confirmation avant de supprimer des fichiers</string>
 

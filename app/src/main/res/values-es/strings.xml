@@ -163,8 +163,8 @@
 
     <!-- Files Settings Screen -->
     <string name="files_management">Gestión</string>
-    <string name="files_app_only_folders">Carpetas Solo de la App</string>
-    <string name="files_app_only_folders_desc">Crear carpetas visibles solo en NekoVideo</string>
+    <string name="files_app_only_folders">Crear carpetas privadas</string>
+    <string name="files_app_only_folders_desc">Crear carpetas privadas por defecto</string>
     <string name="files_confirm_delete">Confirmar Eliminación</string>
     <string name="files_confirm_delete_desc">Pedir confirmación antes de eliminar archivos</string>
 

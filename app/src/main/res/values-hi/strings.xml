@@ -163,8 +163,8 @@
 
     <!-- Files Settings Screen -->
     <string name="files_management">प्रबंधन</string>
-    <string name="files_app_only_folders">केवल-ऐप फोल्डर</string>
-    <string name="files_app_only_folders_desc">NekoVideo में केवल दिखाई देने वाले फोल्डर बनाएं</string>
+    <string name="files_app_only_folders">निजी फोल्डर बनाएं</string>
+    <string name="files_app_only_folders_desc">डिफ़ॉल्ट रूप से निजी फोल्डर बनाएं</string>
     <string name="files_confirm_delete">डिलीट की पुष्टि करें</string>
     <string name="files_confirm_delete_desc">फाइलें डिलीट करने से पहले पुष्टि मांगें</string>
 

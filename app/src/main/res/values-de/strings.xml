@@ -163,8 +163,8 @@
 
     <!-- Files Settings Screen -->
     <string name="files_management">Verwaltung</string>
-    <string name="files_app_only_folders">Nur-App-Ordner</string>
-    <string name="files_app_only_folders_desc">Ordner erstellen, die nur in NekoVideo sichtbar sind</string>
+    <string name="files_app_only_folders">Private Ordner erstellen</string>
+    <string name="files_app_only_folders_desc">Private Ordner standardmäßig erstellen</string>
     <string name="files_confirm_delete">Löschen bestätigen</string>
     <string name="files_confirm_delete_desc">Vor dem Löschen von Dateien nach Bestätigung fragen</string>
 

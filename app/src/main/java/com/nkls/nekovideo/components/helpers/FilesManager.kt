@@ -132,7 +132,7 @@ object FilesManager {
         onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
     ): Boolean {
         val prefs = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-        val appOnlyFolders = prefs.getBoolean("app_only_folders", true)
+        val appOnlyFolders = prefs.getBoolean("app_only_folders", false)
 
         val finalFolderName = if (appOnlyFolders && !folderName.startsWith(".")) {
             ".$folderName"
