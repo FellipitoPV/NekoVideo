@@ -651,7 +651,7 @@ fun SortRow(
 
 
 @Composable
-fun SubFolderScreen(
+fun FolderScreen(
     folderPath: String,
     onFolderClick: (String) -> Unit,
     selectedItems: MutableList<String>,

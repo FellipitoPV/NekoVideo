@@ -16,7 +16,7 @@ class BillingManager(
     private val premiumManager: PremiumManager
 ) {
     private val TAG = "BillingManager"
-    private val PRODUCT_ID = "premium_no_ads"
+    private val PRODUCT_ID = "nekovideo_premium_purchase" // Compra única
 
     private var billingClient: BillingClient? = null
 
@@ -26,8 +26,7 @@ class BillingManager(
 
     private fun setupBillingClient() {
         val pendingPurchasesParams = PendingPurchasesParams.newBuilder()
-            .enableOneTimeProducts() // ✅ Obrigatório mesmo para SUBS
-            .enablePrepaidPlans()    // ✅ Para subscriptions
+            .enableOneTimeProducts()
             .build()
 
         billingClient = BillingClient.newBuilder(activity)
@@ -58,7 +57,7 @@ class BillingManager(
                 Manifest.permission.GET_ACCOUNTS
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            Log.e(TAG, "❌ SEM PERMISSÃO GET_ACCOUNTS")
+            Log.e(TAG, "SEM PERMISSAO GET_ACCOUNTS")
 
             // Pede permissão
             ActivityCompat.requestPermissions(
@@ -76,14 +75,14 @@ class BillingManager(
         Log.d(TAG, "Total de contas: ${accounts.size}")
 
         if (accounts.isEmpty()) {
-            Log.e(TAG, "❌ NENHUMA CONTA ENCONTRADA!")
+            Log.e(TAG, "NENHUMA CONTA ENCONTRADA!")
         } else {
             accounts.forEach { account ->
-                Log.d(TAG, "📧 Conta: ${account.name}")
+                Log.d(TAG, "Conta: ${account.name}")
             }
         }
 
-        Log.d(TAG, "⚠️ VERIFIQUE: Esta conta está nos TESTADORES DE LICENÇA?")
+        Log.d(TAG, "VERIFIQUE: Esta conta esta nos TESTADORES DE LICENCA?")
     }
 
     private fun connectToBilling() {
@@ -94,7 +93,7 @@ class BillingManager(
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                         Log.d(TAG, "Billing conectado")
-                        queryPurchases() // Apenas verifica compras, não busca detalhes do produto
+                        queryPurchases()
                     }
                 }
 
@@ -105,7 +104,7 @@ class BillingManager(
         }
     }
 
-    // Adicione esta função no BillingManager
+    // Função para consumir compra (útil para testes)
     fun consumePurchaseForTesting() {
         billingClient?.queryPurchasesAsync(
             QueryPurchasesParams.newBuilder()
@@ -114,7 +113,7 @@ class BillingManager(
         ) { billingResult, purchases ->
             purchases.forEach { purchase ->
                 if (purchase.products.contains(PRODUCT_ID)) {
-                    Log.d(TAG, "🔥 Consumindo compra de teste...")
+                    Log.d(TAG, "Consumindo compra de teste...")
 
                     val consumeParams = ConsumeParams.newBuilder()
                         .setPurchaseToken(purchase.purchaseToken)
@@ -122,9 +121,9 @@ class BillingManager(
 
                     billingClient?.consumeAsync(consumeParams) { result, _ ->
                         if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                            Log.d(TAG, "✅ Compra consumida!")
+                            Log.d(TAG, "Compra consumida!")
                             premiumManager.setPremium(false)
-                            queryPurchases() // Verifica novamente
+                            queryPurchases()
                         }
                     }
                 }
@@ -135,17 +134,16 @@ class BillingManager(
     fun queryPurchases() {
         billingClient?.queryPurchasesAsync(
             QueryPurchasesParams.newBuilder()
-                .setProductType(BillingClient.ProductType.SUBS) // ✅ Mudou de INAPP para SUBS
+                .setProductType(BillingClient.ProductType.INAPP) // Compra única
                 .build()
         ) { billingResult, purchases ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                Log.d(TAG, "=== VERIFICANDO ASSINATURAS ===")
+                Log.d(TAG, "=== VERIFICANDO COMPRAS ===")
                 Log.d(TAG, "Total: ${purchases.size}")
 
                 purchases.forEach { purchase ->
                     Log.d(TAG, "Products: ${purchase.products}")
                     Log.d(TAG, "PurchaseState: ${purchase.purchaseState}")
-                    Log.d(TAG, "AutoRenewing: ${purchase.isAutoRenewing}") // ✅ Específico de subscription
                 }
 
                 val hasPremium = purchases.any {
@@ -159,11 +157,10 @@ class BillingManager(
         }
     }
 
-    // IMPORTANTE: Só chame queryProductDetailsAsync quando o usuário clicar no botão
     fun launchPurchaseFlow(onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
         val product = QueryProductDetailsParams.Product.newBuilder()
             .setProductId(PRODUCT_ID)
-            .setProductType(BillingClient.ProductType.SUBS) // ✅ SUBS ao invés de INAPP
+            .setProductType(BillingClient.ProductType.INAPP) // Compra única
             .build()
 
         val params = QueryProductDetailsParams.newBuilder()
@@ -175,18 +172,9 @@ class BillingManager(
                 if (result.productDetailsList.isNotEmpty()) {
                     val productDetails = result.productDetailsList[0]
 
-                    // ✅ Para subscription, precisa pegar a oferta
-                    val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
-
-                    if (offerToken == null) {
-                        Log.e(TAG, "Nenhuma oferta disponível")
-                        onError("Assinatura sem oferta")
-                        return@queryProductDetailsAsync
-                    }
-
+                    // Para compra única (INAPP), não precisa de offerToken
                     val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
                         .setProductDetails(productDetails)
-                        .setOfferToken(offerToken) // ✅ OBRIGATÓRIO para subscriptions
                         .build()
 
                     val billingFlowParams = BillingFlowParams.newBuilder()
@@ -195,7 +183,7 @@ class BillingManager(
 
                     billingClient?.launchBillingFlow(activity, billingFlowParams)
                 } else {
-                    onError("Produto não disponível")
+                    onError("Produto nao disponivel")
                 }
             } else {
                 onError("Erro ao buscar produto")

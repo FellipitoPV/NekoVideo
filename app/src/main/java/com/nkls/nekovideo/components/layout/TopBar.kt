@@ -232,14 +232,19 @@ fun TopBar(
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier
                                             .clickable {
-                                                // Constrói o caminho até o segmento clicado
-                                                val targetSegments = pathSegments.take(index + 1)
-                                                val targetPath = "$rootPath/${targetSegments.joinToString("/")}"
-                                                val encodedPath = Uri.encode(targetPath)
+                                                // Se é a pasta atual (último segmento), não fazer nada
+                                                if (index == pathSegments.size - 1) {
+                                                    return@clickable
+                                                }
 
-                                                navController.navigate("folder/$encodedPath") {
-                                                    popUpTo("folder/$encodedPath") { inclusive = true }
-                                                    launchSingleTop = true
+                                                // Calcular quantos níveis precisamos voltar
+                                                val currentDepth = pathSegments.size
+                                                val targetDepth = index + 1
+                                                val levelsToGoBack = currentDepth - targetDepth
+
+                                                // Voltar o número necessário de vezes
+                                                repeat(levelsToGoBack) {
+                                                    navController.popBackStack()
                                                 }
                                             }
                                             .padding(horizontal = 4.dp, vertical = 2.dp)

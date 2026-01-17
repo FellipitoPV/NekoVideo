@@ -43,7 +43,7 @@ import com.nkls.nekovideo.components.DeleteConfirmationDialog
 import com.nkls.nekovideo.components.PasswordDialog
 import com.nkls.nekovideo.components.RenameDialog
 import com.nkls.nekovideo.components.SortType
-import com.nkls.nekovideo.components.SubFolderScreen
+import com.nkls.nekovideo.components.FolderScreen
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.layout.ActionFAB
@@ -726,7 +726,7 @@ fun MainScreen(
                     val isSecure = isSecureFolder(folderPath)
                     val isRootLevel = encodedFolderPath == "root"
 
-                    SubFolderScreen(
+                    FolderScreen(
                         folderPath = folderPath,
                         isSecureMode = isSecure,
                         isRootLevel = isRootLevel,
@@ -803,6 +803,11 @@ fun MainScreen(
         // BackHandlers DEPOIS do NavHost para ter prioridade (ordem LIFO)
         // O último BackHandler registrado é o primeiro a ser verificado
         // ═══════════════════════════════════════════════════════════════════
+
+        // BackHandler para ignorar voltar na root (não fecha o app)
+        BackHandler(enabled = !showPlayerOverlay && isAtRootLevel && currentRoute == "folder") {
+            // Não fazer nada - apenas consumir o evento para não fechar o app
+        }
 
         // BackHandler para o overlay - PRIORIDADE MÁXIMA (registrado por último)
         BackHandler(enabled = showPlayerOverlay) {
