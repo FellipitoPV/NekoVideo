@@ -45,7 +45,9 @@ import com.nkls.nekovideo.components.RenameDialog
 import com.nkls.nekovideo.components.SortType
 import com.nkls.nekovideo.components.FolderScreen
 import com.nkls.nekovideo.components.helpers.FilesManager
+import com.nkls.nekovideo.components.helpers.FolderNavigationState
 import com.nkls.nekovideo.components.helpers.PlaylistManager
+import com.nkls.nekovideo.components.helpers.rememberFolderNavigationState
 import com.nkls.nekovideo.components.layout.ActionFAB
 import com.nkls.nekovideo.components.layout.ActionType
 import com.nkls.nekovideo.components.layout.BannerAd
@@ -86,14 +88,11 @@ fun MainScreen(
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route?.substringBefore("/{folderPath}")?.substringBefore("/{playlist}")
-    val folderPath = remember(currentBackStackEntry) {
-        val encodedPath = currentBackStackEntry?.arguments?.getString("folderPath") ?: ""
-        if (encodedPath == "root") {
-            android.os.Environment.getExternalStorageDirectory().absolutePath
-        } else {
-            Uri.decode(encodedPath)
-        }
-    }
+
+    // Estado de navegação de pastas (gerencia pilha internamente)
+    val folderNavState = rememberFolderNavigationState()
+    val folderPath = folderNavState.currentPath
+    val isAtRootLevel = folderNavState.isAtRoot
     val selectedItems = remember { mutableStateListOf<String>() }
     var showFabMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
@@ -138,11 +137,6 @@ fun MainScreen(
         renameTrigger++
     }
 
-    val isAtRootLevel = remember(folderPath) {
-        val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
-
-        folderPath == rootPath
-    }
 
     // ✅ Função de refresh simplificada
     fun quickRefresh() {
@@ -314,11 +308,7 @@ fun MainScreen(
                     renameTrigger++
                 } else {
                     val securePath = FilesManager.SecureStorage.getSecureFolderPath(context)
-                    val encodedPath = Uri.encode(securePath)
-                    navController.navigate("folder/$encodedPath") {
-                        popUpTo("folder/root") { inclusive = false }
-                        launchSingleTop = true
-                    }
+                    folderNavState.navigateTo(securePath)
                 }
                 showPasswordDialog = false
             }
@@ -403,13 +393,10 @@ fun MainScreen(
                     navController = navController,
                     showPrivateFolders = showPrivateFolders,
                     onPasswordDialog = {
-                        // ✅ MODIFICADO: Lógica do triple tap
                         if (showPrivateFolders) {
-                            // Se já estiver visível, esconde diretamente
                             togglePrivateFolders()
                             Toast.makeText(context, context.getString(R.string.secure_folders_hidden), Toast.LENGTH_SHORT).show()
                         } else {
-                            // Se não estiver visível, abre diálogo de senha
                             showPasswordDialog = true
                         }
                     },
@@ -436,7 +423,16 @@ fun MainScreen(
                         }
                     },
                     premiumManager = premiumManager,
-                    billingManager = billingManager
+                    billingManager = billingManager,
+                    isAtRootLevel = isAtRootLevel,
+                    onNavigateToPath = { path ->
+                        selectedItems.clear()
+                        folderNavState.navigateToPath(path)
+                    },
+                    onNavigateBack = {
+                        selectedItems.clear()
+                        folderNavState.navigateBack()
+                    }
                 )
             }
         },
@@ -685,7 +681,7 @@ fun MainScreen(
         ) {
             NavHost(
                 navController = navController,
-                startDestination = "folder/root",
+                startDestination = "folder",
                 enterTransition = {
                     slideInHorizontally(
                         initialOffsetX = { fullWidth -> fullWidth },
@@ -711,25 +707,14 @@ fun MainScreen(
                     )
                 }
             ) {
-                composable("folder/{folderPath}") { backStackEntry ->
-                    val encodedFolderPath = backStackEntry.arguments?.getString("folderPath") ?: "root"
-
-                    val folderPath = remember(currentBackStackEntry) {
-                        val encodedPath = currentBackStackEntry?.arguments?.getString("folderPath") ?: ""
-                        if (encodedPath == "root") {
-                            android.os.Environment.getExternalStorageDirectory().absolutePath
-                        } else {
-                            Uri.decode(encodedPath)
-                        }
-                    }
-
+                // Rota única para pastas - navegação gerenciada por FolderNavigationState
+                composable("folder") {
                     val isSecure = isSecureFolder(folderPath)
-                    val isRootLevel = encodedFolderPath == "root"
 
                     FolderScreen(
                         folderPath = folderPath,
                         isSecureMode = isSecure,
-                        isRootLevel = isRootLevel,
+                        isRootLevel = isAtRootLevel,
                         showPrivateFolders = showPrivateFolders,
                         isMoveMode = isMoveMode,
                         itemsToMove = itemsToMove,
@@ -739,18 +724,17 @@ fun MainScreen(
                                 folderPath = folderPath,
                                 sortType = SortType.NAME_ASC,
                                 isSecureMode = isSecure,
-                                isRootLevel = isRootLevel,
+                                isRootLevel = isAtRootLevel,
                                 showPrivateFolders = showPrivateFolders
                             )
                             val item = items.find { it.path == itemPath }
                             if (item?.isFolder == true) {
-                                val encodedSubPath = Uri.encode(itemPath)
-                                navController.navigate("folder/$encodedSubPath")
+                                // Navega para subpasta usando estado (sem criar nova tela)
+                                folderNavState.navigateTo(itemPath)
                             } else {
                                 val videos = items.filter { !it.isFolder }.map { "file://${it.path}" }
                                 val clickedVideoIndex = videos.indexOf("file://$itemPath")
                                 if (clickedVideoIndex >= 0) {
-                                    // ✅ Configurar PlaylistManager ANTES de iniciar o player
                                     PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
                                     val window = PlaylistManager.getCurrentWindow()
                                     val windowIndex = PlaylistManager.getCurrentIndexInWindow()
@@ -758,7 +742,6 @@ fun MainScreen(
                                     showPlayerOverlay = true
                                 } else {
                                     val videoUri = "file://$itemPath"
-                                    // ✅ Configurar PlaylistManager mesmo para vídeo único
                                     PlaylistManager.setPlaylist(listOf(videoUri), startIndex = 0, shuffle = false)
                                     MediaPlaybackService.startWithPlaylist(context, listOf(videoUri), 0)
                                     showPlayerOverlay = true
@@ -803,6 +786,17 @@ fun MainScreen(
         // BackHandlers DEPOIS do NavHost para ter prioridade (ordem LIFO)
         // O último BackHandler registrado é o primeiro a ser verificado
         // ═══════════════════════════════════════════════════════════════════
+
+        // BackHandler para navegação de pastas (volta para pasta anterior)
+        BackHandler(enabled = !showPlayerOverlay && !isAtRootLevel && currentRoute == "folder") {
+            Log.d("BackDebug", "🔙 BACK PRESSED - Handler: FOLDER NAVIGATION")
+            Log.d("BackDebug", "   Ação: Voltando para pasta anterior")
+            // Limpa seleção ao voltar
+            if (selectedItems.isNotEmpty()) {
+                selectedItems.clear()
+            }
+            folderNavState.navigateBack()
+        }
 
         // BackHandler para ignorar voltar na root (não fecha o app)
         BackHandler(enabled = !showPlayerOverlay && isAtRootLevel && currentRoute == "folder") {

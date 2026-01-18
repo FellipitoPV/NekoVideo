@@ -1,6 +1,8 @@
-@file:OptIn(ExperimentalFoundationApi::class)
+@file:OptIn(ExperimentalFoundationApi::class, ExperimentalAnimationApi::class)
 
 package com.nkls.nekovideo.components
+
+import androidx.compose.animation.ExperimentalAnimationApi
 
 import android.content.ContentUris
 import android.content.Context
@@ -13,12 +15,16 @@ import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
 import android.util.LruCache
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -788,72 +794,106 @@ fun FolderScreen(
                     onSortChange = { sortType = it },
                     isRefreshing = isScanning,
                     onRefresh = { performRefresh() },
-                    searchQuery = searchQuery, // NOVO
-                    isSearchExpanded = isSearchExpanded, // NOVO
-                    onSearchQueryChange = { searchQuery = it }, // NOVO
-                    onSearchExpandChange = { isSearchExpanded = it } // NOVO
+                    searchQuery = searchQuery,
+                    isSearchExpanded = isSearchExpanded,
+                    onSearchQueryChange = { searchQuery = it },
+                    onSearchExpandChange = { isSearchExpanded = it }
                 )
 
-                if (isEmptyState) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.VideoLibrary,
-                                contentDescription = null,
-                                modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = stringResource(R.string.no_videos_found),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = stringResource(R.string.pull_down_to_scan),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                textAlign = TextAlign.Center
-                            )
+                // AnimatedContent para transição suave entre pastas
+                AnimatedContent(
+                    targetState = folderPath,
+                    transitionSpec = {
+                        // Determina a direção baseada na profundidade do path
+                        val isGoingDeeper = targetState.length > initialState.length
+
+                        if (isGoingDeeper) {
+                            // Navegando para subpasta: slide da direita
+                            (slideInHorizontally(
+                                animationSpec = tween(200),
+                                initialOffsetX = { fullWidth -> fullWidth / 4 }
+                            ) + fadeIn(animationSpec = tween(200))) togetherWith
+                            (slideOutHorizontally(
+                                animationSpec = tween(200),
+                                targetOffsetX = { fullWidth -> -fullWidth / 4 }
+                            ) + fadeOut(animationSpec = tween(150)))
+                        } else {
+                            // Voltando para pasta anterior: slide da esquerda
+                            (slideInHorizontally(
+                                animationSpec = tween(200),
+                                initialOffsetX = { fullWidth -> -fullWidth / 4 }
+                            ) + fadeIn(animationSpec = tween(200))) togetherWith
+                            (slideOutHorizontally(
+                                animationSpec = tween(200),
+                                targetOffsetX = { fullWidth -> fullWidth / 4 }
+                            ) + fadeOut(animationSpec = tween(150)))
                         }
-                    }
-                }
+                    },
+                    label = "FolderTransition"
+                ) { currentPath ->
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        if (isEmptyState) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.VideoLibrary,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(32.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = stringResource(R.string.no_videos_found),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = stringResource(R.string.pull_down_to_scan),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
 
-                LazyColumn(
-                    state = lazyListState,
-                    contentPadding = PaddingValues(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(items.chunked(gridColumns), key = { chunk -> chunk.joinToString { it.path }}) { rowItems ->
-                        MediaRow(
-                            items = rowItems,
-                            gridColumns = gridColumns,
-                            selectedItems = selectedItems,
-                            showThumbnails = showThumbnails,
-                            showDurations = showDurations,
-                            showFileSizes = showFileSizes,
-                            isSecureMode = isSecureMode,
-                            isMoveMode = isMoveMode,
-                            itemsToMove = itemsToMove,
-                            onFolderClick = onFolderClick,
-                            onSelectionChange = onSelectionChange
-                        )
-                    }
+                        LazyColumn(
+                            state = lazyListState,
+                            contentPadding = PaddingValues(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(items.chunked(gridColumns), key = { chunk -> chunk.joinToString { it.path }}) { rowItems ->
+                                MediaRow(
+                                    items = rowItems,
+                                    gridColumns = gridColumns,
+                                    selectedItems = selectedItems,
+                                    showThumbnails = showThumbnails,
+                                    showDurations = showDurations,
+                                    showFileSizes = showFileSizes,
+                                    isSecureMode = isSecureMode,
+                                    isMoveMode = isMoveMode,
+                                    itemsToMove = itemsToMove,
+                                    onFolderClick = onFolderClick,
+                                    onSelectionChange = onSelectionChange
+                                )
+                            }
 
-                    if (isEmptyState) {
-                        item { Spacer(modifier = Modifier.height(200.dp)) }
+                            if (isEmptyState) {
+                                item { Spacer(modifier = Modifier.height(200.dp)) }
+                            }
+                        }
                     }
                 }
             }

@@ -86,15 +86,13 @@ fun TopBar(
     showPrivateFolders: Boolean,
     premiumManager: PremiumManager,
     billingManager: BillingManager,
+    isAtRootLevel: Boolean = false,
+    onNavigateToPath: (String) -> Unit = {},
+    onNavigateBack: () -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
     val maxTapInterval = 500L
     var tapCount by remember { mutableStateOf(0) }
-
-    // Detectar se é raiz pela rota
-    val currentBackStackEntry = navController.currentBackStackEntryAsState()
-    val encodedFolderPath = currentBackStackEntry.value?.arguments?.getString("folderPath") ?: ""
-    val isRootByRoute = encodedFolderPath == "root"
 
     val isPremium by premiumManager.isPremium.collectAsState()
 
@@ -157,11 +155,11 @@ fun TopBar(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
-                currentRoute == "folder" && isRootByRoute -> {
+                currentRoute == "folder" && isAtRootLevel -> {
+                    // Está na raiz: mostra ícone e nome do app com triple tap
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .clickable(enabled = true, onClick = { })
                             .pointerInput(Unit) {
                                 detectTapGestures { _ ->
                                     tapCount++
@@ -194,114 +192,59 @@ fun TopBar(
                     }
                 }
                 currentRoute == "folder" -> {
-                    // NOVO: Breadcrumb simplificado - trata todas as pastas igual
+                    // Breadcrumb interativo para navegação entre pastas
                     val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath
                     val relativePath = folderPath.removePrefix(rootPath).trim('/')
                     val pathSegments = relativePath.split('/').filter { it.isNotEmpty() }
 
-                    // LazyRow para breadcrumb scrollable
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         itemsIndexed(pathSegments) { index, segment ->
-                            AnimatedVisibility(
-                                visible = true,
-                                enter = fadeIn(animationSpec = tween(300)),
-                                exit = fadeOut(animationSpec = tween(300))
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    val displayName = if (segment.startsWith(".")) {
-                                        // Remove o ponto inicial para display mais limpo
-                                        segment.drop(1)
-                                    } else {
-                                        segment
-                                    }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                val displayName = if (segment.startsWith(".")) {
+                                    segment.drop(1)
+                                } else {
+                                    segment
+                                }
 
+                                val isCurrentFolder = index == pathSegments.size - 1
+
+                                Text(
+                                    text = displayName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = if (isCurrentFolder) FontWeight.SemiBold else FontWeight.Medium,
+                                    color = when {
+                                        segment.startsWith(".") -> Color(0xFFFF6B35)
+                                        isCurrentFolder -> MaterialTheme.colorScheme.onSurface
+                                        else -> MaterialTheme.colorScheme.primary
+                                    },
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier
+                                        .clickable(enabled = !isCurrentFolder) {
+                                            // Construir o caminho até o segmento clicado
+                                            val targetPath = rootPath + "/" + pathSegments
+                                                .take(index + 1)
+                                                .joinToString("/")
+                                            onNavigateToPath(targetPath)
+                                        }
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                )
+
+                                if (index < pathSegments.size - 1) {
                                     Text(
-                                        text = displayName,
+                                        text = ">",
                                         style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        color = if (segment.startsWith(".")) {
-                                            // Cor diferente para pastas seguras
-                                            Color(0xFFFF6B35)
-                                        } else {
-                                            MaterialTheme.colorScheme.primary
-                                        },
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier
-                                            .clickable {
-                                                // Se é a pasta atual (último segmento), não fazer nada
-                                                if (index == pathSegments.size - 1) {
-                                                    return@clickable
-                                                }
-
-                                                // Calcular quantos níveis precisamos voltar
-                                                val currentDepth = pathSegments.size
-                                                val targetDepth = index + 1
-                                                val levelsToGoBack = currentDepth - targetDepth
-
-                                                // Voltar o número necessário de vezes
-                                                repeat(levelsToGoBack) {
-                                                    navController.popBackStack()
-                                                }
-                                            }
-                                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 4.dp)
                                     )
-
-                                    if (index < pathSegments.size - 1) {
-                                        Text(
-                                            text = ">",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(horizontal = 4.dp)
-                                        )
-                                    }
                                 }
                             }
                         }
                     }
                 }
-                // Para o caso quando está na raiz (com triple tap)
-                currentRoute == "folder" && isRootByRoute -> {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clickable(enabled = true, onClick = { })
-                            .pointerInput(Unit) {
-                                detectTapGestures { _ ->
-                                    tapCount++
-                                    if (tapCount == 1) {
-                                        coroutineScope.launch {
-                                            delay(maxTapInterval)
-                                            if (tapCount < 3) {
-                                                tapCount = 0
-                                            }
-                                        }
-                                    }
-                                    if (tapCount >= 3) {
-                                        tapCount = 0
-                                        onPasswordDialog()
-                                    }
-                                }
-                            }
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_app_icon),
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "NekoVideo",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-
-// Para o caso else (também com triple tap)
                 else -> {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -360,13 +303,11 @@ fun TopBar(
                         )
                     }
                 }
-                currentRoute == "folder" && !isRootByRoute -> {
-                    IconButton(onClick = {
-                        navController.popBackStack()
-                    }) {
+                currentRoute == "folder" && !isAtRootLevel -> {
+                    IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.back),
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
