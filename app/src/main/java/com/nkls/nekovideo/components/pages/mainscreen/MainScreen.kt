@@ -818,6 +818,7 @@ fun MainScreen(
 
         VideoPlayerOverlay(
             isVisible = showPlayerOverlay,
+            canControlRotation = showPlayerOverlay, // Só pode controlar rotação quando está visível
             onDismiss = {
                 showPlayerOverlay = false
                 isInPiPMode = false // ✅ ADICIONAR

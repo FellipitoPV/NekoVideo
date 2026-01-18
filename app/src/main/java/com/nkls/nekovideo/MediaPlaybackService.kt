@@ -180,11 +180,27 @@ class MediaPlaybackService : MediaSessionService() {
             Log.e("MediaPlaybackService", "Player error: ${error.message}")
         }
 
-        // ✅ ADICIONAR: Atualizar window preventivamente
+        // ✅ ATUALIZADO: Atualizar window preventivamente e gerar thumbnail
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             player?.let { currentPlayer ->
                 val currentIndexInWindow = currentPlayer.currentMediaItemIndex
                 val windowSize = currentPlayer.mediaItemCount
+
+                // Gera thumbnail do vídeo atual se não existir
+                mediaItem?.localConfiguration?.uri?.let { uri ->
+                    preloadScope.launch {
+                        val videoPath = uri.path ?: return@launch
+                        val thumbnail = OptimizedThumbnailManager.getOrGenerateThumbnailSync(
+                            this@MediaPlaybackService,
+                            videoPath
+                        )
+                        if (thumbnail != null) {
+                            withContext(Dispatchers.Main) {
+                                refreshCurrentMediaItemMetadata()
+                            }
+                        }
+                    }
+                }
 
                 // Se está nos últimos 3 vídeos da window, atualizar
                 if (currentIndexInWindow >= windowSize - 3 && PlaylistManager.hasNext()) {
@@ -264,7 +280,7 @@ class MediaPlaybackService : MediaSessionService() {
             .build()
     }
 
-    // ✅ NOVA função que carrega do disco
+    // ✅ ATUALIZADO: Carrega ou gera thumbnail
     private fun loadThumbnailWithContext(videoPath: String): Bitmap? {
         val key = videoPath.hashCode().toString()
 
@@ -274,11 +290,16 @@ class MediaPlaybackService : MediaSessionService() {
             return ramBitmap
         }
 
-        // 2. Busca do disco com Context
-        return OptimizedThumbnailManager.loadThumbnailFromDiskSync(this, videoPath)?.also { diskBitmap ->
-            // Coloca na RAM para próximas consultas
+        // 2. Busca do disco
+        val diskBitmap = OptimizedThumbnailManager.loadThumbnailFromDiskSync(this, videoPath)
+        if (diskBitmap != null) {
             OptimizedThumbnailManager.thumbnailCache.put(key, diskBitmap)
+            return diskBitmap
         }
+
+        // 3. Não existe - retorna null (será gerada em background)
+        // Não geramos aqui para não bloquear a thread principal
+        return null
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -362,39 +383,84 @@ class MediaPlaybackService : MediaSessionService() {
 
     private fun preloadThumbnailsForWindow(videoPaths: List<String>) {
         preloadScope.launch {
+            var generatedCount = 0
+
             videoPaths.forEach { videoPath ->
-                // Verifica se já existe no cache (RAM ou disco)
-                val key = videoPath.hashCode().toString()
-                val cached = OptimizedThumbnailManager.getCachedThumbnail(videoPath)
-                    ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(this@MediaPlaybackService, videoPath)
+                val cleanPath = videoPath.removePrefix("file://")
 
-                if (cached == null) {
-                    // Só gera se não existir
-                    try {
-                        val uri = Uri.parse("file://$videoPath")
-                        OptimizedThumbnailManager.loadVideoMetadataWithDelay(
-                            context = this@MediaPlaybackService,
-                            videoUri = uri,
-                            videoPath = videoPath,
-                            imageLoader = null,
-                            delayMs = 0L, // Sem delay aqui
-                            onMetadataLoaded = { metadata ->
-                                Log.d("MediaPlaybackService", "Thumbnail gerada: ${videoPath.substringAfterLast("/")}")
-                            },
-                            onCancelled = {
-                                Log.d("MediaPlaybackService", "Thumbnail cancelada: ${videoPath.substringAfterLast("/")}")
-                            }
-                        )
+                // Usa a função síncrona que verifica cache e gera se necessário
+                val thumbnail = OptimizedThumbnailManager.getOrGenerateThumbnailSync(
+                    this@MediaPlaybackService,
+                    cleanPath
+                )
 
-                        // Pequeno delay entre gerações para não sobrecarregar
-                        delay(200)
-                    } catch (e: Exception) {
-                        Log.e("MediaPlaybackService", "Erro ao gerar thumbnail: ${e.message}")
-                    }
+                if (thumbnail != null) {
+                    generatedCount++
+                    Log.d("MediaPlaybackService", "Thumbnail OK: ${cleanPath.substringAfterLast("/")}")
+                } else {
+                    Log.w("MediaPlaybackService", "Thumbnail falhou: ${cleanPath.substringAfterLast("/")}")
                 }
+
+                // Pequeno delay entre gerações para não sobrecarregar
+                delay(100)
             }
 
-            Log.d("MediaPlaybackService", "Preload de thumbnails concluído")
+            Log.d("MediaPlaybackService", "Preload concluído: $generatedCount/${videoPaths.size} thumbnails")
+
+            // Atualiza a notificação com as novas thumbnails
+            if (generatedCount > 0) {
+                withContext(Dispatchers.Main) {
+                    refreshCurrentMediaItemMetadata()
+                }
+            }
+        }
+    }
+
+    /**
+     * Atualiza os metadados do MediaItem atual para refletir thumbnails recém-geradas
+     */
+    private fun refreshCurrentMediaItemMetadata() {
+        player?.let { currentPlayer ->
+            val currentIndex = currentPlayer.currentMediaItemIndex
+            val currentItem = currentPlayer.currentMediaItem ?: return
+
+            val uri = currentItem.localConfiguration?.uri?.toString() ?: return
+            val videoPath = uri.removePrefix("file://")
+
+            // Busca thumbnail atualizada
+            val thumbnail = loadThumbnailWithContext(videoPath)
+
+            if (thumbnail != null) {
+                val file = File(videoPath)
+                val title = file.nameWithoutExtension
+
+                val newMetadata = MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setDisplayTitle(title)
+                    .setArtist("NekoVideo")
+                    .setArtworkData(bitmapToByteArray(thumbnail), MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                    .build()
+
+                val newMediaItem = currentItem.buildUpon()
+                    .setMediaMetadata(newMetadata)
+                    .build()
+
+                // Substitui o item atual mantendo a posição
+                val currentPosition = currentPlayer.currentPosition
+                val wasPlaying = currentPlayer.isPlaying
+
+                // Atualiza apenas o MediaItem atual
+                currentPlayer.replaceMediaItem(currentIndex, newMediaItem)
+
+                // Mantém a posição de reprodução
+                currentPlayer.seekTo(currentIndex, currentPosition)
+
+                if (wasPlaying) {
+                    currentPlayer.play()
+                }
+
+                Log.d("MediaPlaybackService", "Notificação atualizada com thumbnail")
+            }
         }
     }
 

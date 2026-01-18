@@ -203,6 +203,22 @@ object PlaylistManager {
 
     fun getFullPlaylist(): List<String> = fullPlaylist.toList()
 
+    /**
+     * Retorna os paths da window atual, limpos (sem prefixo "file://").
+     * Útil para pré-carregamento de thumbnails.
+     */
+    fun getWindowPathsForThumbnails(): List<String> {
+        return getCurrentWindow().map { it.removePrefix("file://") }
+    }
+
+    /**
+     * Verifica se um vídeo específico está na window atual
+     */
+    fun isVideoInCurrentWindow(videoPath: String): Boolean {
+        val cleanPath = videoPath.removePrefix("file://")
+        return getCurrentWindow().any { it.removePrefix("file://") == cleanPath }
+    }
+
     fun getPlaylistInfo(): PlaylistInfo {
         return PlaylistInfo(
             totalVideos = fullPlaylist.size,

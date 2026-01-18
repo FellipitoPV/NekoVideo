@@ -206,6 +206,7 @@ private const val REQUEST_CODE_PREVIOUS = 3
 @Composable
 fun VideoPlayerOverlay(
     isVisible: Boolean,
+    canControlRotation: Boolean, // Novo parâmetro: só pode rotacionar quando true
     onDismiss: () -> Unit,
     onVideoDeleted: (String) -> Unit = {},
     premiumManager: PremiumManager
@@ -285,6 +286,15 @@ fun VideoPlayerOverlay(
         }
     }
 
+    // ✅ Forçar PORTRAIT quando não pode controlar rotação
+    // Isso garante que ao reabrir o app, a tela não fique rotacionada
+    LaunchedEffect(canControlRotation) {
+        if (!canControlRotation) {
+            val activity = context.findActivity()
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+    }
+
     //Legendas
     var availableSubtitles by remember { mutableStateOf<List<Tracks.Group>>(emptyList()) }
     var availableAudioTracks by remember { mutableStateOf<List<Tracks.Group>>(emptyList()) }
@@ -336,6 +346,12 @@ fun VideoPlayerOverlay(
 
     fun applyRotation(videoSize: VideoSize? = null) {
         val activity = context.findActivity() ?: return
+
+        // Se não pode controlar rotação, forçar PORTRAIT e sair
+        if (!canControlRotation) {
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            return
+        }
 
         val targetOrientation = when (rotationMode) {
             RotationMode.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -1105,7 +1121,9 @@ fun VideoPlayerOverlay(
             onDispose {
                 WindowCompat.setDecorFitsSystemWindows(window, true)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
-                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                // Forçar PORTRAIT ao invés de UNSPECIFIED para evitar que a tela
+                // fique rotacionada ao voltar para o FolderScreen
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                 isFullscreen = false
 
                 // Remover flag de manter tela ligada

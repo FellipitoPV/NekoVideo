@@ -229,6 +229,88 @@ object OptimizedThumbnailManager {
         }
     }
 
+    /**
+     * Gera thumbnail de forma síncrona usando MediaMetadataRetriever.
+     * DEVE ser chamada em thread de background (IO).
+     * Retorna a thumbnail gerada e salva no disco, ou null se falhar.
+     */
+    fun generateThumbnailSync(context: Context, videoPath: String): Bitmap? {
+        // Primeiro verifica se já existe em cache (RAM ou disco)
+        val key = videoPath.hashCode().toString()
+
+        // 1. Verifica RAM
+        val ramBitmap = thumbnailCache.get(key)
+        if (ramBitmap != null && !ramBitmap.isRecycled) {
+            return ramBitmap
+        }
+
+        // 2. Verifica disco
+        val diskBitmap = loadThumbnailFromDiskSync(context, videoPath)
+        if (diskBitmap != null) {
+            thumbnailCache.put(key, diskBitmap)
+            return diskBitmap
+        }
+
+        // 3. Gera nova thumbnail
+        val retriever = MediaMetadataRetriever()
+        return try {
+            val cleanPath = videoPath.removePrefix("file://")
+            if (!File(cleanPath).exists()) return null
+
+            retriever.setDataSource(cleanPath)
+
+            // Pega frame do início (1 segundo)
+            val bitmap = retriever.getFrameAtTime(
+                1_000_000, // 1 segundo em microsegundos
+                MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+            )
+
+            if (bitmap != null) {
+                // Redimensiona para tamanho otimizado
+                val thumbnailSize = getThumbnailSizeFromSettings(context)
+                val scaledBitmap = Bitmap.createScaledBitmap(
+                    bitmap,
+                    thumbnailSize,
+                    thumbnailSize,
+                    true
+                )
+
+                // Salva no disco
+                saveThumbnailToDisk(context, cleanPath, scaledBitmap)
+
+                // Adiciona ao cache RAM
+                thumbnailCache.put(key, scaledBitmap)
+
+                // Recicla bitmap original se diferente
+                if (bitmap != scaledBitmap) {
+                    bitmap.recycle()
+                }
+
+                scaledBitmap
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        } finally {
+            try {
+                retriever.release()
+            } catch (e: Exception) {
+                // Ignora erro ao liberar
+            }
+        }
+    }
+
+    /**
+     * Obtém thumbnail de forma síncrona: busca em cache ou gera se necessário.
+     * DEVE ser chamada em thread de background (IO).
+     */
+    fun getOrGenerateThumbnailSync(context: Context, videoPath: String): Bitmap? {
+        val cleanPath = videoPath.removePrefix("file://")
+        return generateThumbnailSync(context, cleanPath)
+    }
+
     // ✅ NOVO: Limpa thumbnails de vídeos deletados
     fun cleanupDeletedVideos(context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
