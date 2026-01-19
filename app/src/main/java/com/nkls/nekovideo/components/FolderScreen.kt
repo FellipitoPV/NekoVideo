@@ -686,10 +686,13 @@ fun FolderScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    var items by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    // Cache de items por pasta para evitar flicker durante transições
+    var itemsByPath by remember { mutableStateOf<Map<String, List<MediaItem>>>(emptyMap()) }
+    var loadingPaths by remember { mutableStateOf<Set<String>>(emptySet()) }
     var sortType by remember { mutableStateOf(SortType.NAME_ASC) }
-    val lazyListState = rememberLazyListState()
+
+    // Items da pasta atual (para compatibilidade com indicador de scan)
+    val items = itemsByPath[folderPath] ?: emptyList()
 
     val scannerCache by FolderVideoScanner.cache.collectAsState()
     val isScanning by FolderVideoScanner.isScanning.collectAsState()
@@ -729,25 +732,12 @@ fun FolderScreen(
         return
     }
 
-    LaunchedEffect(folderPath, sortType, renameTrigger, isSecureMode, showPrivateFolders, scannerCache) {
-        isLoading = true
-        items = withContext(Dispatchers.IO) {
-            loadFolderContent(context, folderPath, sortType, isSecureMode, isRootLevel, showPrivateFolders)
-        }
-        isLoading = false
-    }
+    // Carrega items para a pasta atual e mantém cache das anteriores
+    LaunchedEffect(folderPath, sortType, renameTrigger, isSecureMode, showPrivateFolders, scannerCache, searchQuery) {
+        // Marca esta pasta como carregando
+        loadingPaths = loadingPaths + folderPath
 
-    LaunchedEffect(deletedVideoPath) {
-        deletedVideoPath?.let { path ->
-            items = items.filterNot { it.path == path }
-            selectedItems.remove(path)
-            onSelectionChange(selectedItems.toList())
-        }
-    }
-
-    LaunchedEffect(folderPath, sortType, renameTrigger, isSecureMode, showPrivateFolders, scannerCache, searchQuery) { // ADICIONE searchQuery
-        isLoading = true
-        items = withContext(Dispatchers.IO) {
+        val loadedItems = withContext(Dispatchers.IO) {
             val allItems = loadFolderContent(context, folderPath, sortType, isSecureMode, isRootLevel, showPrivateFolders)
 
             // Filtro de busca
@@ -759,7 +749,30 @@ fun FolderScreen(
                 allItems
             }
         }
-        isLoading = false
+
+        // Atualiza o cache mantendo apenas pastas relevantes (limita memória)
+        val parentPath = File(folderPath).parent ?: ""
+        itemsByPath = itemsByPath
+            .filterKeys { path ->
+                path == folderPath ||
+                path == parentPath ||
+                folderPath.startsWith("$path/")
+            }
+            .toMutableMap()
+            .apply { put(folderPath, loadedItems) }
+
+        loadingPaths = loadingPaths - folderPath
+    }
+
+    LaunchedEffect(deletedVideoPath) {
+        deletedVideoPath?.let { path ->
+            // Atualiza o cache removendo o item deletado
+            itemsByPath = itemsByPath.mapValues { (_, itemList) ->
+                itemList.filterNot { it.path == path }
+            }
+            selectedItems.remove(path)
+            onSelectionChange(selectedItems.toList())
+        }
     }
 
     // ✅ Loading inicial grande (primeira vez)
@@ -785,8 +798,6 @@ fun FolderScreen(
             }
         }
     } else {
-        val isEmptyState = items.isEmpty() && !isScanning
-
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
                 SortRow(
@@ -810,29 +821,47 @@ fun FolderScreen(
                         if (isGoingDeeper) {
                             // Navegando para subpasta: slide da direita
                             (slideInHorizontally(
-                                animationSpec = tween(200),
-                                initialOffsetX = { fullWidth -> fullWidth / 4 }
+                                animationSpec = tween(250),
+                                initialOffsetX = { fullWidth -> fullWidth / 3 }
                             ) + fadeIn(animationSpec = tween(200))) togetherWith
                             (slideOutHorizontally(
-                                animationSpec = tween(200),
-                                targetOffsetX = { fullWidth -> -fullWidth / 4 }
+                                animationSpec = tween(250),
+                                targetOffsetX = { fullWidth -> -fullWidth / 3 }
                             ) + fadeOut(animationSpec = tween(150)))
                         } else {
                             // Voltando para pasta anterior: slide da esquerda
                             (slideInHorizontally(
-                                animationSpec = tween(200),
-                                initialOffsetX = { fullWidth -> -fullWidth / 4 }
+                                animationSpec = tween(250),
+                                initialOffsetX = { fullWidth -> -fullWidth / 3 }
                             ) + fadeIn(animationSpec = tween(200))) togetherWith
                             (slideOutHorizontally(
-                                animationSpec = tween(200),
-                                targetOffsetX = { fullWidth -> fullWidth / 4 }
+                                animationSpec = tween(250),
+                                targetOffsetX = { fullWidth -> fullWidth / 3 }
                             ) + fadeOut(animationSpec = tween(150)))
                         }
                     },
                     label = "FolderTransition"
-                ) { currentPath ->
+                ) { targetPath ->
+                    // Usa os items específicos deste path do cache
+                    val pathItems = itemsByPath[targetPath] ?: emptyList()
+                    val isPathLoading = targetPath in loadingPaths
+                    val pathEmptyState = pathItems.isEmpty() && !isPathLoading && !isScanning
+
                     Column(modifier = Modifier.fillMaxSize()) {
-                        if (isEmptyState) {
+                        // Loading enquanto carrega os items desta pasta
+                        if (isPathLoading && pathItems.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(32.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        } else if (pathEmptyState) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -870,11 +899,10 @@ fun FolderScreen(
                         }
 
                         LazyColumn(
-                            state = lazyListState,
                             contentPadding = PaddingValues(8.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            items(items.chunked(gridColumns), key = { chunk -> chunk.joinToString { it.path }}) { rowItems ->
+                            items(pathItems.chunked(gridColumns), key = { chunk -> "${targetPath}_${chunk.joinToString { it.path }}" }) { rowItems ->
                                 MediaRow(
                                     items = rowItems,
                                     gridColumns = gridColumns,
@@ -890,7 +918,7 @@ fun FolderScreen(
                                 )
                             }
 
-                            if (isEmptyState) {
+                            if (pathEmptyState) {
                                 item { Spacer(modifier = Modifier.height(200.dp)) }
                             }
                         }

@@ -14,6 +14,7 @@
     <string name="action_shuffle_play">Случайно</string>
     <string name="action_create_folder">Новая папка</string>
     <string name="action_settings">Настройки</string>
+    <string name="action_find_duplicates">Дубликаты</string>
 
     <string name="no_videos_found">Видео не найдены</string>
     <string name="secure_folders_hidden">Защищённые папки скрыты</string>
@@ -251,4 +252,17 @@
         <item quantity="many">Перемещение %d элементов</item>
         <item quantity="other">Перемещение %d элементов</item>
     </plurals>
+
+    <!-- Duplicates Screen -->
+    <string name="duplicates_title">Возможные дубликаты</string>
+    <string name="duplicates_found_count">Найдено %d групп</string>
+    <string name="duplicates_scanning">Анализ видео...</string>
+    <string name="duplicates_none_found">Дубликаты не найдены</string>
+    <string name="duplicates_none_found_desc">Все ваши видео имеют разную продолжительность.</string>
+    <string name="duplicates_duration">Длительность: %s</string>
+    <string name="duplicates_video_count">%d видео</string>
+    <string name="duplicates_ready_title">Поиск дубликатов</string>
+    <string name="duplicates_ready_desc">Видео в приватных папках не будут включены. Включите видимость приватных папок, если хотите их включить.</string>
+    <string name="duplicates_ready_desc_with_private">Все видео будут проанализированы, включая видео из приватных папок.</string>
+    <string name="duplicates_search_button">Начать поиск</string>
 </resources>

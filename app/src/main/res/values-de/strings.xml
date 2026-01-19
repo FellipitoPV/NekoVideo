@@ -14,6 +14,7 @@
     <string name="action_shuffle_play">Zufällig</string>
     <string name="action_create_folder">Neuer Ordner</string>
     <string name="action_settings">Einstellungen</string>
+    <string name="action_find_duplicates">Duplikate</string>
 
     <string name="no_videos_found">Keine Videos gefunden</string>
     <string name="secure_folders_hidden">Sichere Ordner ausgeblendet</string>
@@ -245,4 +246,17 @@
         <item quantity="one">%d Element wird verschoben</item>
         <item quantity="other">%d Elemente werden verschoben</item>
     </plurals>
+
+    <!-- Duplicates Screen -->
+    <string name="duplicates_title">Mögliche Duplikate</string>
+    <string name="duplicates_found_count">%d Gruppen gefunden</string>
+    <string name="duplicates_scanning">Videos werden analysiert...</string>
+    <string name="duplicates_none_found">Keine Duplikate gefunden</string>
+    <string name="duplicates_none_found_desc">Alle Ihre Videos haben unterschiedliche Dauern.</string>
+    <string name="duplicates_duration">Dauer: %s</string>
+    <string name="duplicates_video_count">%d Videos</string>
+    <string name="duplicates_ready_title">Duplikate Suchen</string>
+    <string name="duplicates_ready_desc">Videos in privaten Ordnern werden nicht einbezogen. Aktivieren Sie die Sichtbarkeit privater Ordner, wenn Sie sie einbeziehen möchten.</string>
+    <string name="duplicates_ready_desc_with_private">Alle Videos werden analysiert, einschließlich der in privaten Ordnern.</string>
+    <string name="duplicates_search_button">Suche Starten</string>
 </resources>

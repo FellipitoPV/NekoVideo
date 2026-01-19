@@ -32,7 +32,7 @@ import com.nkls.nekovideo.R
 
 enum class ActionType {
     UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS, PASTE,
-    PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE, SET_AS_SECURE_FOLDER // ✅ NOVO
+    PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE, SET_AS_SECURE_FOLDER, FIND_DUPLICATES
 }
 
 data class ActionItem(
@@ -71,6 +71,7 @@ fun ActionFAB(
     val createFolderText = stringResource(R.string.action_create_folder)
     val settingsText = stringResource(R.string.action_settings)
     val secureFolderSet = stringResource(R.string.action_set_secure_folder)
+    val findDuplicatesText = stringResource(R.string.action_find_duplicates)
     val moveItemsText = pluralStringResource(R.plurals.move_items_count, itemsToMoveCount, itemsToMoveCount)
 
     // NOVOS: strings que estavam hardcoded
@@ -160,16 +161,24 @@ fun ActionFAB(
                 actionsList
             }
             else -> {
-                listOf(
-                    ActionItem(
+                buildList {
+                    add(ActionItem(
                         ActionType.SHUFFLE_PLAY,
                         Icons.Default.Shuffle,
                         shufflePlayText,
                         isEnabled = !isRootDirectory
-                    ),
-                    ActionItem(ActionType.CREATE_FOLDER, Icons.Default.CreateNewFolder, createFolderText),
-                    ActionItem(ActionType.SETTINGS, Icons.Default.Settings, settingsText)
-                )
+                    ))
+                    // Botão de duplicatas só aparece no ROOT
+                    if (isRootDirectory) {
+                        add(ActionItem(
+                            ActionType.FIND_DUPLICATES,
+                            Icons.Default.ContentCopy,
+                            findDuplicatesText
+                        ))
+                    }
+                    add(ActionItem(ActionType.CREATE_FOLDER, Icons.Default.CreateNewFolder, createFolderText))
+                    add(ActionItem(ActionType.SETTINGS, Icons.Default.Settings, settingsText))
+                }
             }
         }
     }
@@ -374,10 +383,11 @@ private fun ActionGridItem(
                         ActionType.SECURE, ActionType.UNLOCK -> Color(0xFF4CAF50).copy(alpha = 0.15f)
                         ActionType.PRIVATIZE -> Color(0xFFFF9800).copy(alpha = 0.15f)
                         ActionType.UNPRIVATIZE -> Color(0xFF2196F3).copy(alpha = 0.15f)
+                        ActionType.FIND_DUPLICATES -> Color(0xFF9C27B0).copy(alpha = 0.15f) // Roxo
                         else -> if (action.isEnabled) {
                             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
                         } else {
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f) // ✅ Bem apagado
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
                         }
                     }
                 ) {
@@ -393,10 +403,11 @@ private fun ActionGridItem(
                                 ActionType.PASTE, ActionType.SECURE, ActionType.UNLOCK -> Color(0xFF4CAF50)
                                 ActionType.PRIVATIZE -> Color(0xFFFF9800)
                                 ActionType.UNPRIVATIZE -> Color(0xFF2196F3)
+                                ActionType.FIND_DUPLICATES -> Color(0xFF9C27B0) // Roxo
                                 else -> if (action.isEnabled) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f) // ✅ Ícone apagado
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                                 }
                             },
                             modifier = Modifier.size(20.dp)

@@ -14,6 +14,7 @@
     <string name="action_shuffle_play">Shuffle</string>
     <string name="action_create_folder">New Folder</string>
     <string name="action_settings">Settings</string>
+    <string name="action_find_duplicates">Duplicates</string>
 
     <string name="no_videos_found">No videos found</string>
     <string name="secure_folders_hidden">Secure folders hidden</string>
@@ -245,4 +246,17 @@
         <item quantity="one">Moving %d item</item>
         <item quantity="other">Moving %d items</item>
     </plurals>
+
+    <!-- Duplicates Screen -->
+    <string name="duplicates_title">Possible Duplicates</string>
+    <string name="duplicates_found_count">%d groups found</string>
+    <string name="duplicates_scanning">Analyzing videos...</string>
+    <string name="duplicates_none_found">No duplicates found</string>
+    <string name="duplicates_none_found_desc">All your videos have different durations.</string>
+    <string name="duplicates_duration">Duration: %s</string>
+    <string name="duplicates_video_count">%d videos</string>
+    <string name="duplicates_ready_title">Find Duplicates</string>
+    <string name="duplicates_ready_desc">Videos in private folders will not be included. Enable private folder visibility if you want to include them.</string>
+    <string name="duplicates_ready_desc_with_private">All videos will be analyzed, including those in private folders.</string>
+    <string name="duplicates_search_button">Start Search</string>
 </resources>

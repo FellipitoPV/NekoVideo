@@ -15,6 +15,7 @@
     <string name="action_shuffle_play">Aleatório</string>
     <string name="action_create_folder">Nova Pasta</string>
     <string name="action_settings">Configurações</string>
+    <string name="action_find_duplicates">Duplicatas</string>
 
     <string name="no_videos_found">Nenhum vídeo encontrado</string>
     <string name="secure_folders_hidden">Pastas seguras ocultadas</string>
@@ -245,4 +246,17 @@
             <item quantity="one">Movendo %d item</item>
             <item quantity="other">Movendo %d itens</item>
         </plurals>
+
+    <!-- Duplicates Screen -->
+    <string name="duplicates_title">Possíveis Duplicatas</string>
+    <string name="duplicates_found_count">%d grupos encontrados</string>
+    <string name="duplicates_scanning">Analisando vídeos...</string>
+    <string name="duplicates_none_found">Nenhuma duplicata encontrada</string>
+    <string name="duplicates_none_found_desc">Todos os seus vídeos têm durações diferentes.</string>
+    <string name="duplicates_duration">Duração: %s</string>
+    <string name="duplicates_video_count">%d vídeos</string>
+    <string name="duplicates_ready_title">Buscar Duplicatas</string>
+    <string name="duplicates_ready_desc">Vídeos em pastas privadas não serão incluídos. Ative a visibilidade das pastas privadas se desejar incluí-los.</string>
+    <string name="duplicates_ready_desc_with_private">Todos os vídeos serão analisados, incluindo os de pastas privadas.</string>
+    <string name="duplicates_search_button">Iniciar Busca</string>
 </resources>
