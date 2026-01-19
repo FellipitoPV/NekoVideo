@@ -43,7 +43,6 @@ import com.nkls.nekovideo.components.DeleteConfirmationDialog
 import com.nkls.nekovideo.components.PasswordDialog
 import com.nkls.nekovideo.components.RenameDialog
 import com.nkls.nekovideo.components.SortType
-import com.nkls.nekovideo.components.DuplicatesScreen
 import com.nkls.nekovideo.components.FolderScreen
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderNavigationState
@@ -118,7 +117,6 @@ fun MainScreen(
     var itemsToMove by remember { mutableStateOf<List<String>>(emptyList()) }
     var showFolderActions by remember { mutableStateOf(false) }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
-    var showDuplicatesScreen by remember { mutableStateOf(false) }
 
     val isPremium by premiumManager.isPremium.collectAsState()
 
@@ -643,9 +641,6 @@ fun MainScreen(
                                     quickRefresh()
                                 }
                             }
-                            ActionType.FIND_DUPLICATES -> {
-                                showDuplicatesScreen = true
-                            }
                         }
                     }
                 )
@@ -818,33 +813,5 @@ fun MainScreen(
             premiumManager = premiumManager
         )
 
-        // Tela de duplicatas
-        if (showDuplicatesScreen) {
-            DuplicatesScreen(
-                onBack = { showDuplicatesScreen = false },
-                showPrivateFolders = showPrivateFolders,
-                onDeleteVideos = { videosToDelete ->
-                    coroutineScope.launch {
-                        FilesManager.deleteSelectedItems(
-                            context = context,
-                            selectedItems = videosToDelete,
-                            onError = { message ->
-                                launch(Dispatchers.Main) {
-                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            onSuccess = { message ->
-                                launch(Dispatchers.Main) {
-                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                }
-                                renameTrigger++
-                                quickRefresh()
-                            },
-                            onRefresh = ::performRefresh
-                        )
-                    }
-                }
-            )
-        }
     }
 }

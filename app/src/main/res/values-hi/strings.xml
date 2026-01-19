@@ -14,8 +14,6 @@
     <string name="action_shuffle_play">शफल</string>
     <string name="action_create_folder">नया फोल्डर</string>
     <string name="action_settings">सेटिंग्स</string>
-    <string name="action_find_duplicates">डुप्लीकेट</string>
-
     <string name="no_videos_found">कोई वीडियो नहीं मिला</string>
     <string name="secure_folders_hidden">सुरक्षित फ़ोल्डर छुपाए गए</string>
     <string name="secure_folders_shown">सुरक्षित फ़ोल्डर प्रदर्शित</string>
@@ -247,16 +245,4 @@
         <item quantity="other">%d आइटम स्थानांतरित हो रहे हैं</item>
     </plurals>
 
-    <!-- Duplicates Screen -->
-    <string name="duplicates_title">संभावित डुप्लीकेट</string>
-    <string name="duplicates_found_count">%d समूह मिले</string>
-    <string name="duplicates_scanning">वीडियो विश्लेषण हो रहा है...</string>
-    <string name="duplicates_none_found">कोई डुप्लीकेट नहीं मिला</string>
-    <string name="duplicates_none_found_desc">आपके सभी वीडियो की अवधि अलग-अलग है।</string>
-    <string name="duplicates_duration">अवधि: %s</string>
-    <string name="duplicates_video_count">%d वीडियो</string>
-    <string name="duplicates_ready_title">डुप्लीकेट खोजें</string>
-    <string name="duplicates_ready_desc">निजी फ़ोल्डर में वीडियो शामिल नहीं होंगे। यदि आप उन्हें शामिल करना चाहते हैं तो निजी फ़ोल्डर दृश्यता सक्षम करें।</string>
-    <string name="duplicates_ready_desc_with_private">निजी फ़ोल्डर में वीडियो सहित सभी वीडियो का विश्लेषण किया जाएगा।</string>
-    <string name="duplicates_search_button">खोज शुरू करें</string>
 </resources>

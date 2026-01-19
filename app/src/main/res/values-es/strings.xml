@@ -14,8 +14,6 @@
     <string name="action_shuffle_play">Aleatorio</string>
     <string name="action_create_folder">Nueva Carpeta</string>
     <string name="action_settings">Configuración</string>
-    <string name="action_find_duplicates">Duplicados</string>
-
     <string name="no_videos_found">No se encontraron videos</string>
     <string name="secure_folders_hidden">Carpetas seguras ocultas</string>
     <string name="secure_folders_shown">Carpetas seguras mostradas</string>
@@ -247,16 +245,4 @@
         <item quantity="other">Moviendo %d elementos</item>
     </plurals>
 
-    <!-- Duplicates Screen -->
-    <string name="duplicates_title">Posibles Duplicados</string>
-    <string name="duplicates_found_count">%d grupos encontrados</string>
-    <string name="duplicates_scanning">Analizando videos...</string>
-    <string name="duplicates_none_found">No se encontraron duplicados</string>
-    <string name="duplicates_none_found_desc">Todos tus videos tienen duraciones diferentes.</string>
-    <string name="duplicates_duration">Duración: %s</string>
-    <string name="duplicates_video_count">%d videos</string>
-    <string name="duplicates_ready_title">Buscar Duplicados</string>
-    <string name="duplicates_ready_desc">Los videos en carpetas privadas no se incluirán. Activa la visibilidad de carpetas privadas si deseas incluirlos.</string>
-    <string name="duplicates_ready_desc_with_private">Todos los videos serán analizados, incluidos los de carpetas privadas.</string>
-    <string name="duplicates_search_button">Iniciar Búsqueda</string>
 </resources>

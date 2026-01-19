@@ -14,8 +14,6 @@
     <string name="action_shuffle_play">Aléatoire</string>
     <string name="action_create_folder">Nouveau Dossier</string>
     <string name="action_settings">Paramètres</string>
-    <string name="action_find_duplicates">Doublons</string>
-
     <string name="no_videos_found">Aucune vidéo trouvée</string>
     <string name="secure_folders_hidden">Dossiers sécurisés masqués</string>
     <string name="secure_folders_shown">Dossiers sécurisés affichés</string>
@@ -247,16 +245,4 @@
         <item quantity="other">Déplacement de %d éléments</item>
     </plurals>
 
-    <!-- Duplicates Screen -->
-    <string name="duplicates_title">Doublons Possibles</string>
-    <string name="duplicates_found_count">%d groupes trouvés</string>
-    <string name="duplicates_scanning">Analyse des vidéos...</string>
-    <string name="duplicates_none_found">Aucun doublon trouvé</string>
-    <string name="duplicates_none_found_desc">Toutes vos vidéos ont des durées différentes.</string>
-    <string name="duplicates_duration">Durée : %s</string>
-    <string name="duplicates_video_count">%d vidéos</string>
-    <string name="duplicates_ready_title">Rechercher les Doublons</string>
-    <string name="duplicates_ready_desc">Les vidéos dans les dossiers privés ne seront pas incluses. Activez la visibilité des dossiers privés si vous souhaitez les inclure.</string>
-    <string name="duplicates_ready_desc_with_private">Toutes les vidéos seront analysées, y compris celles des dossiers privés.</string>
-    <string name="duplicates_search_button">Lancer la Recherche</string>
 </resources>

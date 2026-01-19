@@ -38,6 +38,9 @@ class MediaPlaybackService : MediaSessionService() {
 
     private val preloadScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    // Flag para evitar recursão na atualização de metadados
+    private var isUpdatingMetadata = false
+
 
     override fun onCreate() {
         super.onCreate()
@@ -182,23 +185,26 @@ class MediaPlaybackService : MediaSessionService() {
 
         // ✅ ATUALIZADO: Atualizar window preventivamente e gerar thumbnail
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            // ✅ Ignora transições causadas por SEEK ou atualização de metadados
+            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK || isUpdatingMetadata) {
+                Log.d("MediaPlaybackService", "onMediaItemTransition ignorado (reason=$reason, isUpdating=$isUpdatingMetadata)")
+                return
+            }
+
             player?.let { currentPlayer ->
                 val currentIndexInWindow = currentPlayer.currentMediaItemIndex
                 val windowSize = currentPlayer.mediaItemCount
 
-                // Gera thumbnail do vídeo atual se não existir
+                // Gera thumbnail do vídeo atual se não existir (sem chamar refresh depois)
                 mediaItem?.localConfiguration?.uri?.let { uri ->
                     preloadScope.launch {
                         val videoPath = uri.path ?: return@launch
-                        val thumbnail = OptimizedThumbnailManager.getOrGenerateThumbnailSync(
+                        OptimizedThumbnailManager.getOrGenerateThumbnailSync(
                             this@MediaPlaybackService,
                             videoPath
                         )
-                        if (thumbnail != null) {
-                            withContext(Dispatchers.Main) {
-                                refreshCurrentMediaItemMetadata()
-                            }
-                        }
+                        // ✅ REMOVIDO: Não chama mais refreshCurrentMediaItemMetadata() aqui
+                        // A thumbnail será usada na próxima vez que o MediaItem for criado
                     }
                 }
 
@@ -342,6 +348,8 @@ class MediaPlaybackService : MediaSessionService() {
     }
 
     private fun updatePlaylist(playlist: List<String>, initialIndex: Int) {
+        isUpdatingMetadata = true // ✅ Evita processamento de onMediaItemTransition
+
         player?.run {
             clearMediaItems()
             setMediaItems(
@@ -353,18 +361,23 @@ class MediaPlaybackService : MediaSessionService() {
             playWhenReady = true
         }
 
+        isUpdatingMetadata = false
+
         updateNotificationIntent()
 
-        // ✅ ADICIONAR: Gera thumbnails em background
+        // ✅ Gera thumbnails em background
         preloadThumbnailsForWindow(playlist)
     }
 
     private fun updatePlaylistAfterDeletion(playlist: List<String>, nextIndex: Int) {
+        isUpdatingMetadata = true // ✅ Evita processamento de onMediaItemTransition
+
         player?.run {
             if (playlist.isEmpty()) {
                 pause()
                 clearMediaItems()
                 abandonAudioFocus()
+                isUpdatingMetadata = false
                 return
             }
 
@@ -377,6 +390,8 @@ class MediaPlaybackService : MediaSessionService() {
             prepare()
             playWhenReady = true
         }
+
+        isUpdatingMetadata = false
 
         updateNotificationIntent()
     }
@@ -420,56 +435,56 @@ class MediaPlaybackService : MediaSessionService() {
      * Atualiza os metadados do MediaItem atual para refletir thumbnails recém-geradas
      */
     private fun refreshCurrentMediaItemMetadata() {
+        if (isUpdatingMetadata) return // ✅ Evita recursão
+
         player?.let { currentPlayer ->
-            val currentIndex = currentPlayer.currentMediaItemIndex
-            val currentItem = currentPlayer.currentMediaItem ?: return
+            isUpdatingMetadata = true // ✅ Marca que está atualizando
 
-            val uri = currentItem.localConfiguration?.uri?.toString() ?: return
-            val videoPath = uri.removePrefix("file://")
+            try {
+                val currentIndex = currentPlayer.currentMediaItemIndex
+                val currentItem = currentPlayer.currentMediaItem ?: return
 
-            // Busca thumbnail atualizada
-            val thumbnail = loadThumbnailWithContext(videoPath)
+                val uri = currentItem.localConfiguration?.uri?.toString() ?: return
+                val videoPath = uri.removePrefix("file://")
 
-            if (thumbnail != null) {
-                val file = File(videoPath)
-                val title = file.nameWithoutExtension
+                // Busca thumbnail atualizada
+                val thumbnail = loadThumbnailWithContext(videoPath)
 
-                val newMetadata = MediaMetadata.Builder()
-                    .setTitle(title)
-                    .setDisplayTitle(title)
-                    .setArtist("NekoVideo")
-                    .setArtworkData(bitmapToByteArray(thumbnail), MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-                    .build()
+                if (thumbnail != null) {
+                    val file = File(videoPath)
+                    val title = file.nameWithoutExtension
 
-                val newMediaItem = currentItem.buildUpon()
-                    .setMediaMetadata(newMetadata)
-                    .build()
+                    val newMetadata = MediaMetadata.Builder()
+                        .setTitle(title)
+                        .setDisplayTitle(title)
+                        .setArtist("NekoVideo")
+                        .setArtworkData(bitmapToByteArray(thumbnail), MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                        .build()
 
-                // Substitui o item atual mantendo a posição
-                val currentPosition = currentPlayer.currentPosition
-                val wasPlaying = currentPlayer.isPlaying
+                    val newMediaItem = currentItem.buildUpon()
+                        .setMediaMetadata(newMetadata)
+                        .build()
 
-                // Atualiza apenas o MediaItem atual
-                currentPlayer.replaceMediaItem(currentIndex, newMediaItem)
+                    // ✅ Apenas substitui o item - NÃO faz seekTo (já mantém a posição)
+                    currentPlayer.replaceMediaItem(currentIndex, newMediaItem)
 
-                // Mantém a posição de reprodução
-                currentPlayer.seekTo(currentIndex, currentPosition)
-
-                if (wasPlaying) {
-                    currentPlayer.play()
+                    Log.d("MediaPlaybackService", "Notificação atualizada com thumbnail")
                 }
-
-                Log.d("MediaPlaybackService", "Notificação atualizada com thumbnail")
+            } finally {
+                isUpdatingMetadata = false // ✅ Libera a flag
             }
         }
     }
 
     private fun updateWindow(window: List<String>, currentIndexInWindow: Int) {
+        isUpdatingMetadata = true // ✅ Evita que onMediaItemTransition processe durante update
+
         player?.run {
             if (window.isEmpty()) {
                 pause()
                 clearMediaItems()
                 abandonAudioFocus()
+                isUpdatingMetadata = false
                 return
             }
 
@@ -488,15 +503,19 @@ class MediaPlaybackService : MediaSessionService() {
             }
         }
 
+        isUpdatingMetadata = false // ✅ Libera após configurar
+
         updateNotificationIntent()
 
-        // ✅ ADICIONAR: Gera thumbnails em background
+        // ✅ Gera thumbnails em background
         preloadThumbnailsForWindow(window)
     }
 
     private fun refreshPlayerWithCurrentState() {
         val currentPlayer = player ?: return
         val currentSession = mediaSession ?: return
+
+        isUpdatingMetadata = true // ✅ Evita processamento de onMediaItemTransition
 
         val currentPosition = currentPlayer.currentPosition
         val currentMediaIndex = currentPlayer.currentMediaItemIndex
@@ -530,6 +549,8 @@ class MediaPlaybackService : MediaSessionService() {
                 playWhenReady = true
             }
         }
+
+        isUpdatingMetadata = false
 
         updateNotificationIntent()
     }
