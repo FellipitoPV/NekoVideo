@@ -1,69 +1,28 @@
 package com.nkls.nekovideo.components.player
 
 import android.annotation.SuppressLint
-import android.app.Activity
-import android.app.PendingIntent
-import android.app.PictureInPictureParams
-import android.app.RemoteAction
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
-import android.content.ContextWrapper
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
-import android.graphics.drawable.Icon
-import android.media.AudioManager
 import android.os.Build
-import android.provider.Settings
 import android.text.Layout
 import android.util.Log
-import android.util.Rational
 import android.util.TypedValue
 import android.view.WindowManager
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeDown
-import androidx.compose.material.icons.automirrored.filled.VolumeOff
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.Brightness6
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.FastForward
-import androidx.compose.material.icons.filled.FastRewind
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -80,14 +39,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -110,96 +63,17 @@ import com.google.android.gms.cast.framework.SessionManagerListener
 import com.google.common.util.concurrent.MoreExecutors
 import com.nkls.nekovideo.MainActivity
 import com.nkls.nekovideo.MediaPlaybackService
-import com.nkls.nekovideo.R
 import com.nkls.nekovideo.billing.PremiumManager
 import com.nkls.nekovideo.components.helpers.CastManager
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.layout.InterstitialAdManager
+import com.nkls.nekovideo.components.player.PlayerUtils.findActivity
 import com.nkls.nekovideo.components.settings.SettingsManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 
-
-enum class RepeatMode {
-    NONE,
-    REPEAT_ALL,
-    REPEAT_ONE
-}
-
-enum class RotationMode {
-    AUTO,      // Adaptar ao vídeo (comportamento atual)
-    PORTRAIT,  // Sempre vertical
-    LANDSCAPE  // Sempre horizontal
-}
-
 private var interstitialAdManager: InterstitialAdManager? = null
-
-// ✅ FUNÇÕES PIP - Adicionar ANTES do @Composable
-@RequiresApi(Build.VERSION_CODES.O)
-private fun createPiPParams(
-    context: Context,
-    mediaController: MediaController?
-): PictureInPictureParams {
-    val actions = ArrayList<RemoteAction>()
-
-    // Previous
-    actions.add(createRemoteAction(
-        context,
-        android.R.drawable.ic_media_previous,
-        "Previous",
-        REQUEST_CODE_PREVIOUS
-    ))
-
-    // Play/Pause
-    val isPlaying = mediaController?.isPlaying ?: false
-    actions.add(createRemoteAction(
-        context,
-        if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
-        if (isPlaying) "Pause" else "Play",
-        REQUEST_CODE_PLAY_PAUSE
-    ))
-
-    // Next
-    actions.add(createRemoteAction(
-        context,
-        android.R.drawable.ic_media_next,
-        "Next",
-        REQUEST_CODE_NEXT
-    ))
-
-    return PictureInPictureParams.Builder()
-        .setAspectRatio(Rational(16, 9))
-        .setActions(actions)
-        .build()
-}
-
-@RequiresApi(Build.VERSION_CODES.O)
-private fun createRemoteAction(
-    context: Context,
-    iconResId: Int,
-    title: String,
-    requestCode: Int
-): RemoteAction {
-    val intent = Intent("PIP_CONTROL").apply {
-        putExtra("action", requestCode)
-    }
-
-    val pendingIntent = PendingIntent.getBroadcast(
-        context,
-        requestCode,
-        intent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    )
-
-    val icon = Icon.createWithResource(context, iconResId)
-
-    return RemoteAction(icon, title, title, pendingIntent)
-}
-
-private const val REQUEST_CODE_PLAY_PAUSE = 1
-private const val REQUEST_CODE_NEXT = 2
-private const val REQUEST_CODE_PREVIOUS = 3
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @SuppressLint("OpaqueUnitKey")
@@ -257,19 +131,7 @@ fun VideoPlayerOverlay(
         uiTimer = 4
     }
 
-    // Estados para sliders laterais invisíveis
-    var leftSliderActive by remember { mutableStateOf(false) }
-    var rightSliderActive by remember { mutableStateOf(false) }
-    var brightnessIndicator by remember { mutableStateOf<Float?>(null) }
-    var volumeIndicator by remember { mutableStateOf<Int?>(null) }
-    var currentVolume by remember { mutableStateOf(50) }
-    var currentBrightness by remember { mutableStateOf(50f) }
-
-    // Variáveis para manter os últimos valores válidos durante a animação
-    var lastValidBrightness by remember { mutableStateOf(50f) }
-    var lastValidVolume by remember { mutableStateOf(50) }
-
-    // Estados para controles de gestos (mantendo só o seek)
+    // Estados para controles de gestos (apenas seek - brilho/volume removidos)
     var seekIndicator by remember { mutableStateOf<String?>(null) }
     var seekSide by remember { mutableStateOf(Alignment.Center) }
 
@@ -458,12 +320,12 @@ fun VideoPlayerOverlay(
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 when (intent.getIntExtra("action", -1)) {
-                    REQUEST_CODE_PLAY_PAUSE -> {
+                    PiPConstants.REQUEST_CODE_PLAY_PAUSE -> {
                         mediaController?.let {
                             if (it.isPlaying) it.pause() else it.play()
                         }
                     }
-                    REQUEST_CODE_NEXT -> {
+                    PiPConstants.REQUEST_CODE_NEXT -> {
                         mediaController?.let {
                             when (val result = PlaylistManager.next()) {
                                 is PlaylistManager.NavigationResult.Success -> {
@@ -476,7 +338,7 @@ fun VideoPlayerOverlay(
                             }
                         }
                     }
-                    REQUEST_CODE_PREVIOUS -> {
+                    PiPConstants.REQUEST_CODE_PREVIOUS -> {
                         mediaController?.let {
                             when (val result = PlaylistManager.previous()) {
                                 is PlaylistManager.NavigationResult.Success -> {
@@ -508,31 +370,6 @@ fun VideoPlayerOverlay(
             delay(100)
 
             applyRotation(mediaController!!.videoSize)
-        }
-    }
-
-    // Inicializar valores de volume e brilho
-    LaunchedEffect(Unit) {
-        // Volume inicial
-        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        val volume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-        currentVolume = ((volume.toFloat() / maxVolume) * 100).toInt()
-
-        // Brilho inicial
-        val activity = context.findActivity()
-        if (activity != null) {
-            val window = activity.window
-            val layoutParams = window.attributes
-            currentBrightness = if (layoutParams.screenBrightness == WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE) {
-                try {
-                    Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS) / 255f
-                } catch (e: Exception) {
-                    0.5f
-                }
-            } else {
-                layoutParams.screenBrightness
-            }
         }
     }
 
@@ -568,27 +405,11 @@ fun VideoPlayerOverlay(
         }
     }
 
-    // Esconder indicadores após tempo
+    // Esconder indicador de seek após tempo
     LaunchedEffect(seekIndicator) {
         if (seekIndicator != null) {
             delay(500)
             seekIndicator = null
-        }
-    }
-
-    LaunchedEffect(brightnessIndicator) {
-        if (brightnessIndicator != null) {
-            lastValidBrightness = brightnessIndicator!! // Salvar último valor válido
-            delay(2000)
-            brightnessIndicator = null
-        }
-    }
-
-    LaunchedEffect(volumeIndicator) {
-        if (volumeIndicator != null) {
-            lastValidVolume = volumeIndicator!! // Salvar último valor válido
-            delay(2000)
-            volumeIndicator = null
         }
     }
 
@@ -598,31 +419,6 @@ fun VideoPlayerOverlay(
             if (!connected) {
                 connectedDeviceName = ""
             }
-        }
-    }
-
-    fun getSubtitleDisplayName(group: Tracks.Group, index: Int): String {
-        val format = group.getTrackFormat(index)
-
-        // Prioridade: label > language > "Legenda X"
-        val label = format.label?.takeIf { it.isNotBlank() }
-        val language = format.language?.takeIf { it.isNotBlank() }
-
-        return when {
-            label != null && language != null -> "$label - [$language]"
-            label != null -> label
-            language != null -> {
-                // Traduzir códigos comuns
-                val langName = when(language.lowercase()) {
-                    "pt", "pt-br", "por" -> "Português"
-                    "en", "eng" -> "Inglês"
-                    "es", "spa" -> "Espanhol"
-                    "ja", "jpn" -> "Japonês"
-                    else -> language.uppercase()
-                }
-                langName
-            }
-            else -> "Legenda ${index + 1}"
         }
     }
 
@@ -643,260 +439,43 @@ fun VideoPlayerOverlay(
         }
     }
 
-    // Dialog de confirmação para deletar
+    // Dialog de confirmação para deletar (movido para Dialogs.kt)
     if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = {
+        com.nkls.nekovideo.components.DeleteVideoDialog(
+            videoPath = currentVideoPath,
+            onDismiss = {
                 showDeleteDialog = false
                 mediaController?.play()
             },
-            title = {
-                Text(
-                    text = stringResource(R.string.delete_video),
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                val fileName = File(currentVideoPath).nameWithoutExtension
-                Text(
-                    text = stringResource(R.string.delete_video_confirmation, fileName),
-                    textAlign = TextAlign.Center
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        coroutineScope.launch {
-                            deleteCurrentVideo(
-                                context = context,
-                                videoPath = currentVideoPath,
-                                mediaController = mediaController,
-                                onVideoDeleted = onVideoDeleted
-                            )
-                        }
-                    }
-                ) {
-                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        mediaController?.play()
-                    }
-                ) {
-                    Text(stringResource(R.string.cancel))
+            onConfirm = {
+                showDeleteDialog = false
+                coroutineScope.launch {
+                    deleteCurrentVideo(
+                        context = context,
+                        videoPath = currentVideoPath,
+                        mediaController = mediaController,
+                        onVideoDeleted = onVideoDeleted
+                    )
                 }
             }
         )
     }
 
+    // Diálogo de seleção de legendas/áudio (movido para TrackSelectionDialog.kt)
     if (showTrackSelectionDialog) {
-        AlertDialog(
-            onDismissRequest = { showTrackSelectionDialog = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false),  // ADICIONE ESTA LINHA
-            modifier = Modifier.fillMaxWidth(0.95f),  // ADICIONE ESTA LINHA (95% da largura da tela)
-            title = {
-                Text(
-                    "Legendas e Áudio",
-                    fontWeight = FontWeight.Bold
-                )
+        TrackSelectionDialog(
+            availableSubtitles = availableSubtitles,
+            availableAudioTracks = availableAudioTracks,
+            selectedSubtitleTrack = selectedSubtitleTrack,
+            selectedAudioTrack = selectedAudioTrack,
+            onSubtitleSelected = { groupIndex, trackIndex ->
+                selectSubtitleTrack(groupIndex, trackIndex)
             },
-            text = {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(400.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // COLUNA LEGENDAS
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                    ) {
-                        Text(
-                            "LEGENDAS",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(1.dp)
-                        ) {
-                            // Desativado
-                            item {
-                                TextButton(
-                                    onClick = {
-                                        disableSubtitles()
-                                        showTrackSelectionDialog = false
-                                    },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            "Desativado",
-                                            fontSize = 13.sp,
-                                            color = if (selectedSubtitleTrack == null)
-                                                MaterialTheme.colorScheme.primary
-                                            else
-                                                MaterialTheme.colorScheme.onSurface
-                                        )
-                                        if (selectedSubtitleTrack == null) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Todas as legendas
-                            items(availableSubtitles.size) { groupIndex ->
-                                val group = availableSubtitles[groupIndex]
-                                for (trackIndex in 0 until group.length) {
-                                    val displayName = getSubtitleDisplayName(group, trackIndex)
-                                    val isSelected = selectedSubtitleTrack == groupIndex
-
-                                    TextButton(
-                                        onClick = {
-                                            selectSubtitleTrack(groupIndex, trackIndex)
-                                            showTrackSelectionDialog = false
-                                        },
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                displayName,
-                                                modifier = Modifier.weight(1f),
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis,
-                                                fontSize = 13.sp,
-                                                color = if (isSelected)
-                                                    MaterialTheme.colorScheme.primary
-                                                else
-                                                    MaterialTheme.colorScheme.onSurface
-                                            )
-                                            if (isSelected) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Check,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // DIVISOR VERTICAL
-                    Box(
-                        modifier = Modifier
-                            .width(1.dp)
-                            .fillMaxHeight()
-                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-                    )
-
-                    // COLUNA ÁUDIO
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                    ) {
-                        Text(
-                            "ÁUDIO",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-
-                        if (availableAudioTracks.isEmpty()) {
-                            Text(
-                                "Nenhuma faixa disponível",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                modifier = Modifier.padding(8.dp)
-                            )
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                items(availableAudioTracks.size) { groupIndex ->
-                                    val group = availableAudioTracks[groupIndex]
-                                    for (trackIndex in 0 until group.length) {
-                                        val format = group.getTrackFormat(trackIndex)
-                                        val displayName = format.label ?: format.language ?: "Áudio ${trackIndex + 1}"
-                                        val isSelected = selectedAudioTrack == groupIndex
-
-                                        TextButton(
-                                            onClick = {
-                                                selectAudioTrack(groupIndex, trackIndex)
-                                                showTrackSelectionDialog = false
-                                            },
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    displayName,
-                                                    modifier = Modifier.weight(1f),
-                                                    maxLines = 2,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    fontSize = 13.sp,
-                                                    color = if (isSelected)
-                                                        MaterialTheme.colorScheme.primary
-                                                    else
-                                                        MaterialTheme.colorScheme.onSurface
-                                                )
-                                                if (isSelected) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Check,
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+            onSubtitlesDisabled = { disableSubtitles() },
+            onAudioSelected = { groupIndex, trackIndex ->
+                selectAudioTrack(groupIndex, trackIndex)
             },
-            confirmButton = {
-                TextButton(
-                    onClick = { showTrackSelectionDialog = false },
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)  // ADICIONE ISTO
-                ) {
-                    Text("Fechar")
-                }
-            }
+            onDismiss = { showTrackSelectionDialog = false }
         )
     }
 
@@ -1029,57 +608,18 @@ fun VideoPlayerOverlay(
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
+                    // ✅ SIMPLIFICADO: A navegação automática é feita pelo MediaPlaybackService
+                    // Aqui apenas tratamos o REPEAT_ONE (que precisa de seekTo local)
                     if (playbackState == Player.STATE_ENDED) {
                         when (repeatMode) {
                             RepeatMode.REPEAT_ONE -> {
+                                // Apenas REPEAT_ONE precisa de tratamento local
                                 mediaController!!.seekTo(0)
                                 mediaController!!.play()
                             }
-                            RepeatMode.REPEAT_ALL -> {
-                                // ✅ USAR PlaylistManager ao invés de hasNextMediaItem
-                                if (PlaylistManager.hasNext()) {
-                                    coroutineScope.launch {
-                                        when (val result = PlaylistManager.next()) {
-                                            is PlaylistManager.NavigationResult.Success -> {
-                                                // SEMPRE atualizar window para garantir navegação correta
-                                                val newWindow = PlaylistManager.getCurrentWindow()
-                                                val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                                                MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                                            }
-                                            else -> {
-                                                // Voltar pro início da playlist
-                                                PlaylistManager.jumpTo(0)
-                                                val newWindow = PlaylistManager.getCurrentWindow()
-                                                MediaPlaybackService.updatePlayerWindow(context, newWindow, 0)
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    // Voltar pro início
-                                    PlaylistManager.jumpTo(0)
-                                    val newWindow = PlaylistManager.getCurrentWindow()
-                                    MediaPlaybackService.updatePlayerWindow(context, newWindow, 0)
-                                }
-                            }
-                            RepeatMode.NONE -> {
-                                // ✅ USAR PlaylistManager
-                                if (PlaylistManager.hasNext()) {
-                                    coroutineScope.launch {
-                                        when (val result = PlaylistManager.next()) {
-                                            is PlaylistManager.NavigationResult.Success -> {
-                                                // SEMPRE atualizar window para garantir navegação correta
-                                                val newWindow = PlaylistManager.getCurrentWindow()
-                                                val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                                                MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                                            }
-                                            else -> {
-                                                Log.d("VideoPlayer", "Fim da playlist")
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    Log.d("VideoPlayer", "Fim da playlist, parando")
-                                }
+                            else -> {
+                                // REPEAT_ALL e NONE são tratados pelo MediaPlaybackService
+                                // O onMediaItemTransition vai atualizar os estados quando o vídeo mudar
                             }
                         }
                     }
@@ -1315,96 +855,8 @@ fun VideoPlayerOverlay(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Slider invisível do lado esquerdo (BRILHO) - 70% da altura, centralizado
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight(0.75f)
-                        .fillMaxWidth(0.35f) // 35% da largura da tela
-                        .align(Alignment.CenterStart)
-                        .pointerInput(Unit) {
-                            detectDragGestures(
-                                onDragStart = { offset ->
-                                    // Não fazer nada no início, aguardar o movimento
-                                },
-                                onDragEnd = {
-                                    leftSliderActive = false
-                                }
-                            ) { change, dragAmount ->
-                                // Verificar se o movimento é predominantemente vertical
-                                val isVerticalMovement =
-                                    kotlin.math.abs(dragAmount.y) > kotlin.math.abs(dragAmount.x) * 2
-
-                                if (isVerticalMovement) {
-                                    if (!leftSliderActive) {
-                                        // Primeira vez que detecta movimento vertical válido
-                                        leftSliderActive = true
-                                    }
-
-                                    // Calcular mudança relativa baseada no movimento
-                                    val sensitivity =
-                                        0.001f // Ajuste a sensibilidade conforme necessário
-                                    val brightnessChange =
-                                        -dragAmount.y * sensitivity // Negativo porque Y cresce para baixo
-
-                                    // Aplicar mudança ao valor atual
-                                    val newBrightness =
-                                        (currentBrightness + brightnessChange).coerceIn(0f, 1f)
-                                    currentBrightness = newBrightness
-                                    setBrightness(context, newBrightness)
-                                    brightnessIndicator = newBrightness
-                                }
-                            }
-                        }
-                )
-
-                // Slider invisível do lado direito (VOLUME) - 70% da altura, centralizado
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight(0.75f)
-                        .fillMaxWidth(0.35f) // 35% da largura da tela
-                        .align(Alignment.CenterEnd)
-                        .pointerInput(Unit) {
-                            detectDragGestures(
-                                onDragStart = { offset ->
-                                    // Não fazer nada no início, aguardar o movimento
-                                },
-                                onDragEnd = {
-                                    rightSliderActive = false
-                                }
-                            ) { change, dragAmount ->
-                                // Verificar se o movimento é predominantemente vertical
-                                val isVerticalMovement =
-                                    kotlin.math.abs(dragAmount.y) > kotlin.math.abs(dragAmount.x) * 2
-
-                                if (isVerticalMovement) {
-                                    if (!rightSliderActive) {
-                                        // Primeira vez que detecta movimento vertical válido
-                                        rightSliderActive = true
-                                    }
-
-                                    // Calcular mudança relativa baseada no movimento
-                                    val sensitivity =
-                                        0.1f // Ajuste a sensibilidade conforme necessário
-                                    val volumeChange =
-                                        -dragAmount.y * sensitivity // Negativo porque Y cresce para baixo
-
-                                    // Aplicar mudança ao valor atual
-                                    val newVolume =
-                                        (currentVolume + volumeChange).coerceIn(0f, 100f).toInt()
-                                    currentVolume = newVolume
-                                    setVolume(context, newVolume)
-                                    volumeIndicator = newVolume
-                                }
-                            }
-                        }
-                )
-
-                // Indicadores visuais
+                // Indicadores visuais (apenas seek - brilho/volume removidos)
                 GestureIndicators(
-                    brightnessLevel = brightnessIndicator,
-                    volumeLevel = volumeIndicator,
-                    lastValidBrightness = lastValidBrightness,
-                    lastValidVolume = lastValidVolume,
                     seekInfo = seekIndicator,
                     seekAlignment = seekSide
                 )
@@ -1447,7 +899,7 @@ fun VideoPlayerOverlay(
                             resetUITimer()
                         },
                         rotationMode = rotationMode,
-                        onRotationModeChange = { newMode ->       // NOVO
+                        onRotationModeChange = { newMode ->
                             rotationMode = newMode
                             applyRotation(mediaController?.videoSize)
                         },
@@ -1455,7 +907,7 @@ fun VideoPlayerOverlay(
                         hasSubtitles = availableSubtitles.isNotEmpty(),
                         subtitlesEnabled = selectedSubtitleTrack != null,
                         onSubtitlesClick = { showTrackSelectionDialog = true },
-                        onPiPClick = { // ✅ ADICIONAR
+                        onPiPClick = {
                             controlsVisible = false
                             val activity = context.findActivity() as? MainActivity
                             activity?.enterPiPMode()
@@ -1467,184 +919,5 @@ fun VideoPlayerOverlay(
     }
 }
 
-@Composable
-private fun GestureIndicators(
-    brightnessLevel: Float?,
-    volumeLevel: Int?,
-    lastValidBrightness: Float,
-    lastValidVolume: Int,
-    seekInfo: String?,
-    seekAlignment: Alignment = Alignment.Center
-) {
-    Box(modifier = Modifier.fillMaxSize()) {
-
-        // Indicadores de volume e brilho centralizados abaixo dos controles de play
-        Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .offset(y = 90.dp), // Posiciona abaixo dos controles de play
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-
-            // Indicador de brilho
-            AnimatedVisibility(
-                visible = brightnessLevel != null,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.Black.copy(alpha = 0.8f)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Brightness6,
-                            contentDescription = "Brightness",
-                            tint = Color(0xFFFF9800), // Laranja
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = "${(lastValidBrightness * 100).toInt()}%",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            // Indicador de volume
-            AnimatedVisibility(
-                visible = volumeLevel != null,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.Black.copy(alpha = 0.8f)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = when {
-                                lastValidVolume == 0 -> Icons.AutoMirrored.Filled.VolumeOff
-                                lastValidVolume < 50 -> Icons.AutoMirrored.Filled.VolumeDown
-                                else -> Icons.AutoMirrored.Filled.VolumeUp
-                            },
-                            contentDescription = "Volume",
-                            tint = Color(0xFF4CAF50), // Verde
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = "$lastValidVolume%",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-
-        // Indicador de seek (posição dinâmica conforme antes)
-        AnimatedVisibility(
-            visible = seekInfo != null,
-            enter = fadeIn(animationSpec = tween(200)) + scaleIn(animationSpec = tween(200)),
-            exit = fadeOut(animationSpec = tween(200)) + scaleOut(animationSpec = tween(200)),
-            modifier = Modifier.align(seekAlignment)
-        ) {
-            Box(
-                modifier = Modifier.padding(32.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val isAdvancing = seekInfo?.startsWith("+") == true
-                    val seekIcon = if (isAdvancing) Icons.Default.FastForward else Icons.Default.FastRewind
-
-                    if (isAdvancing) {
-                        Text(
-                            text = seekInfo ?: "",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            style = androidx.compose.ui.text.TextStyle(
-                                shadow = androidx.compose.ui.graphics.Shadow(
-                                    color = Color.Black,
-                                    offset = androidx.compose.ui.geometry.Offset(2f, 2f),
-                                    blurRadius = 4f
-                                )
-                            )
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            imageVector = seekIcon,
-                            contentDescription = "Seek Forward",
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    } else {
-                        Icon(
-                            imageVector = seekIcon,
-                            contentDescription = "Seek Backward",
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = seekInfo ?: "",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            style = androidx.compose.ui.text.TextStyle(
-                                shadow = androidx.compose.ui.graphics.Shadow(
-                                    color = Color.Black,
-                                    offset = androidx.compose.ui.geometry.Offset(2f, 2f),
-                                    blurRadius = 4f
-                                )
-                            )
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-// Funções para ajustar volume e brilho
-private fun setVolume(context: Context, volumePercent: Int) {
-    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-    val newVolume = ((volumePercent / 100f) * maxVolume).toInt()
-    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
-}
-
-private fun setBrightness(context: Context, brightnessPercent: Float) {
-    val activity = context.findActivity() ?: return
-    val window = activity.window
-    val layoutParams = window.attributes
-    layoutParams.screenBrightness = brightnessPercent.coerceIn(0.01f, 1.0f)
-    window.attributes = layoutParams
-}
-
-// Função auxiliar existente
-fun Context.findActivity(): Activity? {
-    var context = this
-    while (context is ContextWrapper) {
-        if (context is Activity) return context
-        context = context.baseContext
-    }
-    return null
-}
+// GestureIndicators, setVolume, setBrightness e findActivity movidos para arquivos separados
+// GestureIndicators.kt, PlayerUtils.kt

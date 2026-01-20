@@ -75,7 +75,7 @@ class MediaPlaybackService : MediaSessionService() {
                 .build()
         }
 
-        // ✅ INTERCEPTAR NEXT
+        // ✅ INTERCEPTAR NEXT/PREVIOUS - Sempre atualiza window para garantir sincronização
         override fun onPlayerCommandRequest(
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
@@ -85,19 +85,14 @@ class MediaPlaybackService : MediaSessionService() {
                 Player.COMMAND_SEEK_TO_NEXT -> {
                     when (val result = PlaylistManager.next()) {
                         is PlaylistManager.NavigationResult.Success -> {
-                            if (result.needsWindowUpdate) {
-                                // ✅ Processa tudo manualmente
-                                val newWindow = PlaylistManager.getCurrentWindow()
-                                val newIndex = PlaylistManager.getCurrentIndexInWindow()
-                                updateWindow(newWindow, newIndex)
-                                return SessionResult.RESULT_SUCCESS // Bloqueia Media3
-                            } else {
-                                // ✅ Deixa Media3 processar naturalmente
-                                return super.onPlayerCommandRequest(session, controller, playerCommand)
-                            }
+                            // ✅ SEMPRE atualizar window para garantir sincronização
+                            val newWindow = PlaylistManager.getCurrentWindow()
+                            val newIndex = PlaylistManager.getCurrentIndexInWindow()
+                            updateWindow(newWindow, newIndex)
+                            return SessionResult.RESULT_SUCCESS
                         }
                         PlaylistManager.NavigationResult.EndOfPlaylist -> {
-                            return SessionResult.RESULT_SUCCESS // Não faz nada
+                            return SessionResult.RESULT_SUCCESS
                         }
                         else -> return SessionResult.RESULT_SUCCESS
                     }
@@ -106,14 +101,11 @@ class MediaPlaybackService : MediaSessionService() {
                 Player.COMMAND_SEEK_TO_PREVIOUS -> {
                     when (val result = PlaylistManager.previous()) {
                         is PlaylistManager.NavigationResult.Success -> {
-                            if (result.needsWindowUpdate) {
-                                val newWindow = PlaylistManager.getCurrentWindow()
-                                val newIndex = PlaylistManager.getCurrentIndexInWindow()
-                                updateWindow(newWindow, newIndex)
-                                return SessionResult.RESULT_SUCCESS
-                            } else {
-                                return super.onPlayerCommandRequest(session, controller, playerCommand)
-                            }
+                            // ✅ SEMPRE atualizar window para garantir sincronização
+                            val newWindow = PlaylistManager.getCurrentWindow()
+                            val newIndex = PlaylistManager.getCurrentIndexInWindow()
+                            updateWindow(newWindow, newIndex)
+                            return SessionResult.RESULT_SUCCESS
                         }
                         PlaylistManager.NavigationResult.StartOfPlaylist -> {
                             return SessionResult.RESULT_SUCCESS
@@ -145,13 +137,10 @@ class MediaPlaybackService : MediaSessionService() {
     private fun handleNext() {
         when (val result = PlaylistManager.next()) {
             is PlaylistManager.NavigationResult.Success -> {
-                if (result.needsWindowUpdate) {
-                    val newWindow = PlaylistManager.getCurrentWindow()
-                    val newIndex = PlaylistManager.getCurrentIndexInWindow()
-                    updateWindow(newWindow, newIndex)
-                } else {
-                    player?.seekToNextMediaItem()
-                }
+                // ✅ SEMPRE atualizar window para garantir sincronização
+                val newWindow = PlaylistManager.getCurrentWindow()
+                val newIndex = PlaylistManager.getCurrentIndexInWindow()
+                updateWindow(newWindow, newIndex)
             }
             PlaylistManager.NavigationResult.EndOfPlaylist -> {
                 Log.d("MediaPlaybackService", "Fim da playlist")
@@ -163,13 +152,10 @@ class MediaPlaybackService : MediaSessionService() {
     private fun handlePrevious() {
         when (val result = PlaylistManager.previous()) {
             is PlaylistManager.NavigationResult.Success -> {
-                if (result.needsWindowUpdate) {
-                    val newWindow = PlaylistManager.getCurrentWindow()
-                    val newIndex = PlaylistManager.getCurrentIndexInWindow()
-                    updateWindow(newWindow, newIndex)
-                } else {
-                    player?.seekToPreviousMediaItem()
-                }
+                // ✅ SEMPRE atualizar window para garantir sincronização
+                val newWindow = PlaylistManager.getCurrentWindow()
+                val newIndex = PlaylistManager.getCurrentIndexInWindow()
+                updateWindow(newWindow, newIndex)
             }
             PlaylistManager.NavigationResult.StartOfPlaylist -> {
                 Log.d("MediaPlaybackService", "Início da playlist")
@@ -183,7 +169,7 @@ class MediaPlaybackService : MediaSessionService() {
             Log.e("MediaPlaybackService", "Player error: ${error.message}")
         }
 
-        // ✅ ATUALIZADO: Atualizar window preventivamente e gerar thumbnail
+        // ✅ ATUALIZADO: Sincronizar PlaylistManager quando vídeo avança automaticamente
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             // ✅ Ignora transições causadas por SEEK ou atualização de metadados
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK || isUpdatingMetadata) {
@@ -195,6 +181,17 @@ class MediaPlaybackService : MediaSessionService() {
                 val currentIndexInWindow = currentPlayer.currentMediaItemIndex
                 val windowSize = currentPlayer.mediaItemCount
 
+                // ✅ NOVO: Quando vídeo avança automaticamente (AUTO), sincronizar PlaylistManager
+                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                    // Calcular índice global baseado na window atual
+                    val globalIndex = PlaylistManager.getWindowStartIndex() + currentIndexInWindow
+                    // Sincronizar PlaylistManager com o índice correto
+                    if (globalIndex != PlaylistManager.getCurrentIndex()) {
+                        PlaylistManager.jumpTo(globalIndex)
+                        Log.d("MediaPlaybackService", "PlaylistManager sincronizado: índice $globalIndex")
+                    }
+                }
+
                 // Gera thumbnail do vídeo atual se não existir (sem chamar refresh depois)
                 mediaItem?.localConfiguration?.uri?.let { uri ->
                     preloadScope.launch {
@@ -203,8 +200,6 @@ class MediaPlaybackService : MediaSessionService() {
                             this@MediaPlaybackService,
                             videoPath
                         )
-                        // ✅ REMOVIDO: Não chama mais refreshCurrentMediaItemMetadata() aqui
-                        // A thumbnail será usada na próxima vez que o MediaItem for criado
                     }
                 }
 

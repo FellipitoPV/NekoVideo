@@ -83,6 +83,11 @@ fun CustomVideoControls(
     val controller = mediaController ?: return
     val context = androidx.compose.ui.platform.LocalContext.current
 
+    // ✅ CENTRALIZADO: Calcular índice global baseado no player + PlaylistManager
+    // índice_global = windowStartIndex + currentMediaItemIndex_do_player
+    val currentGlobalIndex = PlaylistManager.getWindowStartIndex() + controller.currentMediaItemIndex
+    val totalPlaylistSize = PlaylistManager.getTotalSize()
+
     Box(modifier = Modifier.fillMaxSize()) {
         // Header com gradiente
         Box(
@@ -348,11 +353,10 @@ fun CustomVideoControls(
                         fontSize = 14.sp
                     )
 
-                    // ✅ Indicador de posição na playlist (no meio)
-                    val playlistInfo = PlaylistManager.getPlaylistInfo()
-                    if (playlistInfo.totalVideos > 1) {
+                    // ✅ CENTRALIZADO: Indicador calculado diretamente do player + PlaylistManager
+                    if (totalPlaylistSize > 1) {
                         Text(
-                            text = "${playlistInfo.currentIndex + 1}/${playlistInfo.totalVideos}",
+                            text = "${currentGlobalIndex + 1}/${totalPlaylistSize}",
                             color = Color.White.copy(alpha = 0.6f),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
@@ -508,23 +512,17 @@ suspend fun deleteCurrentVideo(
 
             when (val result = PlaylistManager.removeCurrent()) {
                 is PlaylistManager.RemovalResult.Success -> {
-                    if (result.needsWindowUpdate) {
-                        val newWindow = PlaylistManager.getCurrentWindow()
-                        val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
+                    // SEMPRE atualizar o player após exclusão usando a função correta
+                    val newWindow = PlaylistManager.getCurrentWindow()
+                    val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
 
-                        MediaPlaybackService.updatePlayerWindow(
-                            context,
-                            newWindow,
-                            currentInWindow
-                        )
-
-                        // ✅ FORÇA O PLAY APÓS ATUALIZAR WINDOW
-                        withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            delay(300) // Aguarda o player estar pronto
-                            controller.prepare()
-                            controller.play()
-                        }
-                    }
+                    MediaPlaybackService.updatePlaylistAfterDeletion(
+                        context,
+                        newWindow,
+                        currentInWindow
+                    )
+                    // Não precisa de delay/prepare/play manual -
+                    // updatePlaylistAfterDeletion já faz prepare() e playWhenReady = true
                 }
                 PlaylistManager.RemovalResult.PlaylistEmpty -> {
                     MediaPlaybackService.stopService(context)

@@ -23,6 +23,7 @@ import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.nkls.nekovideo.components.helpers.CastManager
 import com.nkls.nekovideo.components.layout.BannerAd
 import com.nkls.nekovideo.billing.PremiumManager
+import com.nkls.nekovideo.components.player.PlayerUtils.findActivity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
