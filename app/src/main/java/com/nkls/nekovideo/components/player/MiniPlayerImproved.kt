@@ -34,6 +34,7 @@ import com.google.android.gms.cast.framework.SessionManagerListener
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.components.helpers.PlaylistManager
+import com.nkls.nekovideo.components.helpers.PlaylistNavigator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -384,23 +385,8 @@ fun MiniPlayerImproved(
                                 if (isCasting) {
                                     remoteMediaClient?.queuePrev(null)
                                 } else {
-                                    when (val result = PlaylistManager.previous()) {
-                                        is PlaylistManager.NavigationResult.Success -> {
-                                            // ✅ Atualizar estado
-                                            hasNext = PlaylistManager.hasNext()
-                                            hasPrevious = PlaylistManager.hasPrevious()
-
-                                            // SEMPRE atualizar window para garantir navegação correta
-                                            val newWindow = PlaylistManager.getCurrentWindow()
-                                            val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                                            MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                                        }
-                                        else -> {
-                                            // ✅ Atualizar mesmo em casos de erro
-                                            hasNext = PlaylistManager.hasNext()
-                                            hasPrevious = PlaylistManager.hasPrevious()
-                                        }
-                                    }
+                                    // ✅ CENTRALIZADO: Usa PlaylistNavigator
+                                    PlaylistNavigator.previous(context)
                                 }
                             },
                             modifier = Modifier.size(40.dp)
@@ -456,23 +442,8 @@ fun MiniPlayerImproved(
                                 if (isCasting) {
                                     remoteMediaClient?.queueNext(null)
                                 } else {
-                                    when (val result = PlaylistManager.next()) {
-                                        is PlaylistManager.NavigationResult.Success -> {
-                                            // ✅ Atualizar estado
-                                            hasNext = PlaylistManager.hasNext()
-                                            hasPrevious = PlaylistManager.hasPrevious()
-
-                                            // SEMPRE atualizar window para garantir navegação correta
-                                            val newWindow = PlaylistManager.getCurrentWindow()
-                                            val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                                            MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                                        }
-                                        else -> {
-                                            // ✅ Atualizar mesmo em casos de erro
-                                            hasNext = PlaylistManager.hasNext()
-                                            hasPrevious = PlaylistManager.hasPrevious()
-                                        }
-                                    }
+                                    // ✅ CENTRALIZADO: Usa PlaylistNavigator
+                                    PlaylistNavigator.next(context)
                                 }
                             },
                             modifier = Modifier.size(40.dp)

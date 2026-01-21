@@ -47,6 +47,7 @@ import androidx.media3.session.MediaController
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.PlaylistManager
+import com.nkls.nekovideo.components.helpers.PlaylistNavigator
 import kotlinx.coroutines.withContext
 import java.io.File
 import androidx.compose.material.icons.filled.ScreenRotation
@@ -217,23 +218,11 @@ fun CustomVideoControls(
             horizontalArrangement = Arrangement.spacedBy(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // ✅ BOTÃO PREVIOUS - SEMPRE ATIVO
+            // ✅ BOTÃO PREVIOUS - Usa PlaylistNavigator centralizado
             IconButton(
                 onClick = {
                     resetUITimer()
-                    // Usar PlaylistManager e SEMPRE atualizar window
-                    when (val result = PlaylistManager.previous()) {
-                        is PlaylistManager.NavigationResult.Success -> {
-                            // SEMPRE atualizar window para garantir navegação correta
-                            val newWindow = PlaylistManager.getCurrentWindow()
-                            val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                            MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                        }
-                        PlaylistManager.NavigationResult.StartOfPlaylist -> {
-                            // Já está no início
-                        }
-                        else -> {}
-                    }
+                    PlaylistNavigator.previous(context)
                 },
                 modifier = Modifier
                     .background(Color.Black.copy(alpha = 0.6f), CircleShape)
@@ -268,23 +257,11 @@ fun CustomVideoControls(
                 )
             }
 
-            // ✅ BOTÃO NEXT - SEMPRE ATIVO
+            // ✅ BOTÃO NEXT - Usa PlaylistNavigator centralizado
             IconButton(
                 onClick = {
                     resetUITimer()
-                    // Usar PlaylistManager e SEMPRE atualizar window
-                    when (val result = PlaylistManager.next()) {
-                        is PlaylistManager.NavigationResult.Success -> {
-                            // SEMPRE atualizar window para garantir navegação correta
-                            val newWindow = PlaylistManager.getCurrentWindow()
-                            val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                            MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                        }
-                        PlaylistManager.NavigationResult.EndOfPlaylist -> {
-                            // Já está no fim
-                        }
-                        else -> {}
-                    }
+                    PlaylistNavigator.next(context)
                 },
                 modifier = Modifier
                     .background(Color.Black.copy(alpha = 0.6f), CircleShape)

@@ -66,6 +66,7 @@ import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.billing.PremiumManager
 import com.nkls.nekovideo.components.helpers.CastManager
 import com.nkls.nekovideo.components.helpers.PlaylistManager
+import com.nkls.nekovideo.components.helpers.PlaylistNavigator
 import com.nkls.nekovideo.components.layout.InterstitialAdManager
 import com.nkls.nekovideo.components.player.PlayerUtils.findActivity
 import com.nkls.nekovideo.components.settings.SettingsManager
@@ -326,30 +327,12 @@ fun VideoPlayerOverlay(
                         }
                     }
                     PiPConstants.REQUEST_CODE_NEXT -> {
-                        mediaController?.let {
-                            when (val result = PlaylistManager.next()) {
-                                is PlaylistManager.NavigationResult.Success -> {
-                                    // SEMPRE atualizar window para garantir navegação correta
-                                    val newWindow = PlaylistManager.getCurrentWindow()
-                                    val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                                    MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                                }
-                                else -> {}
-                            }
-                        }
+                        // ✅ CENTRALIZADO: Usa PlaylistNavigator
+                        PlaylistNavigator.next(context)
                     }
                     PiPConstants.REQUEST_CODE_PREVIOUS -> {
-                        mediaController?.let {
-                            when (val result = PlaylistManager.previous()) {
-                                is PlaylistManager.NavigationResult.Success -> {
-                                    // SEMPRE atualizar window para garantir navegação correta
-                                    val newWindow = PlaylistManager.getCurrentWindow()
-                                    val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-                                    MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
-                                }
-                                else -> {}
-                            }
-                        }
+                        // ✅ CENTRALIZADO: Usa PlaylistNavigator
+                        PlaylistNavigator.previous(context)
                     }
                 }
             }
@@ -585,26 +568,8 @@ fun VideoPlayerOverlay(
                         mediaController!!.play()
                     }
 
-                    // ✅ NOVO: Atualizar window PREVENTIVAMENTE
-                    // quando está próximo do fim
-                    coroutineScope.launch {
-                        val currentIndexInWindow = mediaController!!.currentMediaItemIndex
-                        val windowSize = mediaController!!.mediaItemCount
-
-                        // Se está nos últimos 3 vídeos da window, preparar próxima
-                        if (currentIndexInWindow >= windowSize - 3) {
-                            if (PlaylistManager.hasNext()) {
-                                val newWindow = PlaylistManager.getCurrentWindow()
-                                val adjustedIndex = PlaylistManager.getCurrentIndexInWindow()
-
-                                MediaPlaybackService.updatePlayerWindow(
-                                    context,
-                                    newWindow,
-                                    adjustedIndex
-                                )
-                            }
-                        }
-                    }
+                    // ✅ REMOVIDO: A atualização de window agora é centralizada no MediaPlaybackService
+                    // Isso evita duplicação de chamadas e dessincronização
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {

@@ -25,6 +25,7 @@ import kotlinx.coroutines.*
 import android.net.Uri
 import androidx.media3.session.SessionResult
 import com.nkls.nekovideo.components.helpers.PlaylistManager
+import com.nkls.nekovideo.components.helpers.PlaylistNavigator
 
 @OptIn(UnstableApi::class)
 class MediaPlaybackService : MediaSessionService() {
@@ -40,6 +41,10 @@ class MediaPlaybackService : MediaSessionService() {
 
     // Flag para evitar recursão na atualização de metadados
     private var isUpdatingMetadata = false
+
+    // ✅ NOVO: Timestamp da última atualização de window para ignorar eventos assíncronos
+    private var lastWindowUpdateTime = 0L
+    private val WINDOW_UPDATE_COOLDOWN_MS = 500L // Ignora eventos por 500ms após atualização
 
 
     override fun onCreate() {
@@ -75,7 +80,7 @@ class MediaPlaybackService : MediaSessionService() {
                 .build()
         }
 
-        // ✅ INTERCEPTAR NEXT/PREVIOUS - Sempre atualiza window para garantir sincronização
+        // ✅ INTERCEPTAR NEXT/PREVIOUS - Bloqueia comando do ExoPlayer e usa PlaylistNavigator
         override fun onPlayerCommandRequest(
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
@@ -83,35 +88,19 @@ class MediaPlaybackService : MediaSessionService() {
         ): Int {
             when (playerCommand) {
                 Player.COMMAND_SEEK_TO_NEXT -> {
-                    when (val result = PlaylistManager.next()) {
-                        is PlaylistManager.NavigationResult.Success -> {
-                            // ✅ SEMPRE atualizar window para garantir sincronização
-                            val newWindow = PlaylistManager.getCurrentWindow()
-                            val newIndex = PlaylistManager.getCurrentIndexInWindow()
-                            updateWindow(newWindow, newIndex)
-                            return SessionResult.RESULT_SUCCESS
-                        }
-                        PlaylistManager.NavigationResult.EndOfPlaylist -> {
-                            return SessionResult.RESULT_SUCCESS
-                        }
-                        else -> return SessionResult.RESULT_SUCCESS
-                    }
+                    Log.d("MediaPlaybackService", "onPlayerCommandRequest: SEEK_TO_NEXT recebido")
+                    // ✅ CENTRALIZADO: Usa PlaylistNavigator (não deixa ExoPlayer navegar)
+                    PlaylistNavigator.next(this@MediaPlaybackService)
+                    // Retorna RESULT_SUCCESS para "consumir" o comando e evitar que ExoPlayer faça sua própria navegação
+                    return SessionResult.RESULT_SUCCESS
                 }
 
                 Player.COMMAND_SEEK_TO_PREVIOUS -> {
-                    when (val result = PlaylistManager.previous()) {
-                        is PlaylistManager.NavigationResult.Success -> {
-                            // ✅ SEMPRE atualizar window para garantir sincronização
-                            val newWindow = PlaylistManager.getCurrentWindow()
-                            val newIndex = PlaylistManager.getCurrentIndexInWindow()
-                            updateWindow(newWindow, newIndex)
-                            return SessionResult.RESULT_SUCCESS
-                        }
-                        PlaylistManager.NavigationResult.StartOfPlaylist -> {
-                            return SessionResult.RESULT_SUCCESS
-                        }
-                        else -> return SessionResult.RESULT_SUCCESS
-                    }
+                    Log.d("MediaPlaybackService", "onPlayerCommandRequest: SEEK_TO_PREVIOUS recebido")
+                    // ✅ CENTRALIZADO: Usa PlaylistNavigator (não deixa ExoPlayer navegar)
+                    PlaylistNavigator.previous(this@MediaPlaybackService)
+                    // Retorna RESULT_SUCCESS para "consumir" o comando e evitar que ExoPlayer faça sua própria navegação
+                    return SessionResult.RESULT_SUCCESS
                 }
             }
             return super.onPlayerCommandRequest(session, controller, playerCommand)
@@ -134,35 +123,7 @@ class MediaPlaybackService : MediaSessionService() {
         }
     }
 
-    private fun handleNext() {
-        when (val result = PlaylistManager.next()) {
-            is PlaylistManager.NavigationResult.Success -> {
-                // ✅ SEMPRE atualizar window para garantir sincronização
-                val newWindow = PlaylistManager.getCurrentWindow()
-                val newIndex = PlaylistManager.getCurrentIndexInWindow()
-                updateWindow(newWindow, newIndex)
-            }
-            PlaylistManager.NavigationResult.EndOfPlaylist -> {
-                Log.d("MediaPlaybackService", "Fim da playlist")
-            }
-            else -> {}
-        }
-    }
-
-    private fun handlePrevious() {
-        when (val result = PlaylistManager.previous()) {
-            is PlaylistManager.NavigationResult.Success -> {
-                // ✅ SEMPRE atualizar window para garantir sincronização
-                val newWindow = PlaylistManager.getCurrentWindow()
-                val newIndex = PlaylistManager.getCurrentIndexInWindow()
-                updateWindow(newWindow, newIndex)
-            }
-            PlaylistManager.NavigationResult.StartOfPlaylist -> {
-                Log.d("MediaPlaybackService", "Início da playlist")
-            }
-            else -> {}
-        }
-    }
+    // ✅ REMOVIDO: handleNext() e handlePrevious() - agora usa PlaylistNavigator centralizado
 
     private val playerListener = object : Player.Listener {
         override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
@@ -177,22 +138,38 @@ class MediaPlaybackService : MediaSessionService() {
                 return
             }
 
+            // ✅ NOVO: Ignora eventos que chegam logo após uma atualização de window
+            // Isso evita dessincronização causada por eventos assíncronos do ExoPlayer
+            val timeSinceLastUpdate = System.currentTimeMillis() - lastWindowUpdateTime
+            if (timeSinceLastUpdate < WINDOW_UPDATE_COOLDOWN_MS) {
+                Log.d("MediaPlaybackService", "onMediaItemTransition ignorado (cooldown: ${timeSinceLastUpdate}ms)")
+                return
+            }
+
             player?.let { currentPlayer ->
                 val currentIndexInWindow = currentPlayer.currentMediaItemIndex
                 val windowSize = currentPlayer.mediaItemCount
 
-                // ✅ NOVO: Quando vídeo avança automaticamente (AUTO), sincronizar PlaylistManager
+                // ✅ SIMPLIFICADO: Quando vídeo avança AUTOMATICAMENTE (AUTO), sincronizar PlaylistManager
+                // Isso acontece quando o vídeo termina e o ExoPlayer passa para o próximo na window
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-                    // Calcular índice global baseado na window atual
                     val globalIndex = PlaylistManager.getWindowStartIndex() + currentIndexInWindow
-                    // Sincronizar PlaylistManager com o índice correto
                     if (globalIndex != PlaylistManager.getCurrentIndex()) {
+                        // Apenas sincroniza o índice, não chama updateWindow para evitar loops
                         PlaylistManager.jumpTo(globalIndex)
-                        Log.d("MediaPlaybackService", "PlaylistManager sincronizado: índice $globalIndex")
+                        Log.d("MediaPlaybackService", "PlaylistManager sincronizado (AUTO): índice $globalIndex")
+                    }
+
+                    // Se está nos últimos 3 vídeos da window, atualizar preventivamente
+                    if (currentIndexInWindow >= windowSize - 3 && PlaylistManager.hasNext()) {
+                        val newWindow = PlaylistManager.getCurrentWindow()
+                        val adjustedIndex = PlaylistManager.getCurrentIndexInWindow()
+                        updateWindow(newWindow, adjustedIndex)
+                        Log.d("MediaPlaybackService", "Window atualizada preventivamente")
                     }
                 }
 
-                // Gera thumbnail do vídeo atual se não existir (sem chamar refresh depois)
+                // Gera thumbnail do vídeo atual se não existir
                 mediaItem?.localConfiguration?.uri?.let { uri ->
                     preloadScope.launch {
                         val videoPath = uri.path ?: return@launch
@@ -201,15 +178,6 @@ class MediaPlaybackService : MediaSessionService() {
                             videoPath
                         )
                     }
-                }
-
-                // Se está nos últimos 3 vídeos da window, atualizar
-                if (currentIndexInWindow >= windowSize - 3 && PlaylistManager.hasNext()) {
-                    val newWindow = PlaylistManager.getCurrentWindow()
-                    val adjustedIndex = PlaylistManager.getCurrentIndexInWindow()
-
-                    updateWindow(newWindow, adjustedIndex)
-                    Log.d("MediaPlaybackService", "Window atualizada preventivamente")
                 }
             }
         }
@@ -220,9 +188,9 @@ class MediaPlaybackService : MediaSessionService() {
             intent.putExtra("IS_PLAYING", isPlaying)
             sendBroadcast(intent)
 
-            if (playbackState == Player.STATE_ENDED && player?.hasNextMediaItem() == true) {
-                handleNext()
-            }
+            // ✅ REMOVIDO: handleNext() não é mais necessário aqui
+            // O ExoPlayer já navega automaticamente dentro da window
+            // e o onMediaItemTransition sincroniza o PlaylistManager
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -473,6 +441,9 @@ class MediaPlaybackService : MediaSessionService() {
 
     private fun updateWindow(window: List<String>, currentIndexInWindow: Int) {
         isUpdatingMetadata = true // ✅ Evita que onMediaItemTransition processe durante update
+        lastWindowUpdateTime = System.currentTimeMillis() // ✅ Marca timestamp para cooldown
+
+        Log.d("MediaPlaybackService", "updateWindow: windowSize=${window.size}, index=$currentIndexInWindow")
 
         player?.run {
             if (window.isEmpty()) {
