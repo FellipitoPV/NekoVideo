@@ -19,6 +19,10 @@
     <string name="secure_folders_shown">Sichere Ordner angezeigt</string>
     <string name="select_private_folders_to_unprivatize">Wählen Sie private Ordner zum Entprivatisieren aus</string>
     <string name="select_valid_folders_to_privatize">Wählen Sie gültige Ordner zum Privatisieren aus</string>
+    <string name="unprivatizing_folders">Ordner werden entprivatisiert...</string>
+    <string name="privatizing_folders">Ordner werden privatisiert...</string>
+    <string name="unprivatize_title">Entprivatisieren</string>
+    <string name="privatize_title">Privatisieren</string>
     <string name="move_mode_activated">Verschiebemodus aktiviert. Navigieren Sie zum Ziel und fügen Sie ein.</string>
     <string name="move_operation_cancelled">Verschiebeoperation abgebrochen</string>
     <string name="items_moved">Elemente verschoben!</string>

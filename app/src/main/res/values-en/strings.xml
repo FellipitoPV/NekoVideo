@@ -19,6 +19,10 @@
     <string name="secure_folders_shown">Secure folders displayed</string>
     <string name="select_private_folders_to_unprivatize">Select private folders to unprivatize</string>
     <string name="select_valid_folders_to_privatize">Select valid folders to privatize</string>
+    <string name="unprivatizing_folders">Unprivatizing folders...</string>
+    <string name="privatizing_folders">Privatizing folders...</string>
+    <string name="unprivatize_title">Unprivatize</string>
+    <string name="privatize_title">Privatize</string>
     <string name="move_mode_activated">Move mode activated. Navigate to destination and paste.</string>
     <string name="move_operation_cancelled">Move operation cancelled</string>
     <string name="items_moved">Items moved!</string>

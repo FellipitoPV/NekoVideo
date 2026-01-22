@@ -19,6 +19,10 @@
     <string name="secure_folders_shown">Carpetas seguras mostradas</string>
     <string name="select_private_folders_to_unprivatize">Selecciona carpetas privadas para desprivatizar</string>
     <string name="select_valid_folders_to_privatize">Selecciona carpetas válidas para privatizar</string>
+    <string name="unprivatizing_folders">Desprivatizando carpetas...</string>
+    <string name="privatizing_folders">Privatizando carpetas...</string>
+    <string name="unprivatize_title">Desprivatizar</string>
+    <string name="privatize_title">Privatizar</string>
     <string name="move_mode_activated">Modo mover activado. Navega al destino y pega.</string>
     <string name="move_operation_cancelled">Operación de mover cancelada</string>
     <string name="items_moved">¡Elementos movidos!</string>

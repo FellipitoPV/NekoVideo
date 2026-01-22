@@ -20,6 +20,10 @@
     <string name="secure_folders_shown">Pastas seguras exibidas</string>
     <string name="select_private_folders_to_unprivatize">Selecione pastas privadas para desprivar</string>
     <string name="select_valid_folders_to_privatize">Selecione pastas válidas para privar</string>
+    <string name="unprivatizing_folders">Desprivando pastas...</string>
+    <string name="privatizing_folders">Privando pastas...</string>
+    <string name="unprivatize_title">Desprivar</string>
+    <string name="privatize_title">Privar</string>
     <string name="move_mode_activated">Modo mover ativado. Navegue até o destino e cole.</string>
     <string name="move_operation_cancelled">Operação de mover cancelada</string>
     <string name="items_moved">Itens movidos!</string>

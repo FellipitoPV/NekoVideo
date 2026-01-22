@@ -19,6 +19,10 @@
     <string name="secure_folders_shown">सुरक्षित फ़ोल्डर प्रदर्शित</string>
     <string name="select_private_folders_to_unprivatize">अनप्राइवेटाइज़ करने के लिए प्राइवेट फ़ोल्डर चुनें</string>
     <string name="select_valid_folders_to_privatize">प्राइवेटाइज़ करने के लिए वैध फ़ोल्डर चुनें</string>
+    <string name="unprivatizing_folders">फ़ोल्डर सार्वजनिक किए जा रहे हैं...</string>
+    <string name="privatizing_folders">फ़ोल्डर निजी किए जा रहे हैं...</string>
+    <string name="unprivatize_title">सार्वजनिक बनाएं</string>
+    <string name="privatize_title">निजी बनाएं</string>
     <string name="move_mode_activated">मूव मोड सक्रिय। गंतव्य पर जाएं और पेस्ट करें।</string>
     <string name="move_operation_cancelled">मूव ऑपरेशन रद्द किया गया</string>
     <string name="items_moved">आइटम मूव किए गए!</string>

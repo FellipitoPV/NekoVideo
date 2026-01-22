@@ -801,3 +801,56 @@ fun DeleteVideoDialog(
         }
     }
 }
+
+/**
+ * Diálogo genérico de processamento com loading
+ */
+@Composable
+fun ProcessingDialog(
+    title: String,
+    message: String
+) {
+    Dialog(
+        onDismissRequest = { /* Não permite fechar durante processamento */ },
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false
+        )
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp)),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Header
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                // Progress Content
+                CircularProgressIndicator(
+                    modifier = Modifier.size(48.dp),
+                    strokeWidth = 4.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}

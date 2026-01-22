@@ -19,6 +19,10 @@
     <string name="secure_folders_shown">Защищённые папки отображены</string>
     <string name="select_private_folders_to_unprivatize">Выберите приватные папки для отмены приватности</string>
     <string name="select_valid_folders_to_privatize">Выберите подходящие папки для приватности</string>
+    <string name="unprivatizing_folders">Отмена приватности папок...</string>
+    <string name="privatizing_folders">Приватизация папок...</string>
+    <string name="unprivatize_title">Сделать публичным</string>
+    <string name="privatize_title">Сделать приватным</string>
     <string name="move_mode_activated">Режим перемещения активирован. Перейдите к назначению и вставьте.</string>
     <string name="move_operation_cancelled">Операция перемещения отменена</string>
     <string name="items_moved">Элементы перемещены!</string>

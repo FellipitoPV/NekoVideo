@@ -41,6 +41,7 @@ import com.nkls.nekovideo.billing.PremiumManager
 import com.nkls.nekovideo.components.CreateFolderDialog
 import com.nkls.nekovideo.components.DeleteConfirmationDialog
 import com.nkls.nekovideo.components.PasswordDialog
+import com.nkls.nekovideo.components.ProcessingDialog
 import com.nkls.nekovideo.components.RenameDialog
 import com.nkls.nekovideo.components.SortType
 import com.nkls.nekovideo.components.FolderScreen
@@ -117,6 +118,8 @@ fun MainScreen(
     var itemsToMove by remember { mutableStateOf<List<String>>(emptyList()) }
     var showFolderActions by remember { mutableStateOf(false) }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
+    var isUnprivatizing by remember { mutableStateOf(false) }
+    var isPrivatizing by remember { mutableStateOf(false) }
 
     val isPremium by premiumManager.isPremium.collectAsState()
 
@@ -314,6 +317,22 @@ fun MainScreen(
         )
     }
 
+    // Diálogo de loading para UNPRIVATIZE
+    if (isUnprivatizing) {
+        ProcessingDialog(
+            title = context.getString(R.string.unprivatize_title),
+            message = context.getString(R.string.unprivatizing_folders)
+        )
+    }
+
+    // Diálogo de loading para PRIVATIZE
+    if (isPrivatizing) {
+        ProcessingDialog(
+            title = context.getString(R.string.privatize_title),
+            message = context.getString(R.string.privatizing_folders)
+        )
+    }
+
     if (showDeleteConfirmDialog) {
         DeleteConfirmationDialog(
             itemCount = selectedItems.size,
@@ -495,6 +514,7 @@ fun MainScreen(
                                     }
 
                                     if (foldersToPrivatize.isNotEmpty()) {
+                                        isPrivatizing = true
                                         withContext(Dispatchers.IO) {
                                             FilesManager.privatizeFolders(
                                                 context = context,
@@ -502,11 +522,13 @@ fun MainScreen(
                                                 onProgress = { current, total -> },
                                                 onError = { message ->
                                                     launch(Dispatchers.Main) {
+                                                        isPrivatizing = false
                                                         Toast.makeText(context, "Erro: $message", Toast.LENGTH_SHORT).show()
                                                     }
                                                 },
                                                 onSuccess = { message ->
                                                     launch(Dispatchers.Main) {
+                                                        isPrivatizing = false
                                                         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                                                     }
                                                     selectedItems.clear()
@@ -530,6 +552,7 @@ fun MainScreen(
                                     }
 
                                     if (foldersToUnprivatize.isNotEmpty()) {
+                                        isUnprivatizing = true
                                         withContext(Dispatchers.IO) {
                                             FilesManager.unprivatizeFolders(
                                                 context = context,
@@ -537,11 +560,13 @@ fun MainScreen(
                                                 onProgress = { current, total -> },
                                                 onError = { message ->
                                                     launch(Dispatchers.Main) {
+                                                        isUnprivatizing = false
                                                         Toast.makeText(context, "Erro: $message", Toast.LENGTH_SHORT).show()
                                                     }
                                                 },
                                                 onSuccess = { message ->
                                                     launch(Dispatchers.Main) {
+                                                        isUnprivatizing = false
                                                         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                                                     }
                                                     selectedItems.clear()
