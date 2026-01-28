@@ -230,6 +230,37 @@ object OptimizedThumbnailManager {
     }
 
     /**
+     * Cria uma thumbnail quadrada com CENTER CROP (corta no centro ao invés de amassar)
+     */
+    private fun createCenterCroppedThumbnail(source: Bitmap, targetSize: Int): Bitmap {
+        val sourceWidth = source.width
+        val sourceHeight = source.height
+
+        // Determina o menor lado para cortar um quadrado no centro
+        val cropSize = minOf(sourceWidth, sourceHeight)
+
+        // Calcula offset para centralizar o corte
+        val xOffset = (sourceWidth - cropSize) / 2
+        val yOffset = (sourceHeight - cropSize) / 2
+
+        // Corta o quadrado central
+        val croppedBitmap = Bitmap.createBitmap(source, xOffset, yOffset, cropSize, cropSize)
+
+        // Redimensiona para o tamanho final
+        val scaledBitmap = if (cropSize != targetSize) {
+            Bitmap.createScaledBitmap(croppedBitmap, targetSize, targetSize, true).also {
+                if (croppedBitmap != source && croppedBitmap != it) {
+                    croppedBitmap.recycle()
+                }
+            }
+        } else {
+            croppedBitmap
+        }
+
+        return scaledBitmap
+    }
+
+    /**
      * Gera thumbnail de forma síncrona usando MediaMetadataRetriever.
      * DEVE ser chamada em thread de background (IO).
      * Retorna a thumbnail gerada e salva no disco, ou null se falhar.
@@ -266,14 +297,9 @@ object OptimizedThumbnailManager {
             )
 
             if (bitmap != null) {
-                // Redimensiona para tamanho otimizado
+                // Redimensiona para tamanho otimizado COM CENTER CROP
                 val thumbnailSize = getThumbnailSizeFromSettings(context)
-                val scaledBitmap = Bitmap.createScaledBitmap(
-                    bitmap,
-                    thumbnailSize,
-                    thumbnailSize,
-                    true
-                )
+                val scaledBitmap = createCenterCroppedThumbnail(bitmap, thumbnailSize)
 
                 // Salva no disco
                 saveThumbnailToDisk(context, cleanPath, scaledBitmap)
@@ -608,8 +634,9 @@ object OptimizedThumbnailManager {
             override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
                 activeTargets.remove(key)
                 if (continuation.isActive) {
+                    // Glide já faz centerCrop, então só precisa redimensionar se muito grande
                     val compressedBitmap = if (resource.byteCount > 1024 * 1024) {
-                        Bitmap.createScaledBitmap(resource, thumbnailSize, thumbnailSize, true).also {
+                        createCenterCroppedThumbnail(resource, thumbnailSize).also {
                             if (resource != it) resource.recycle()
                         }
                     } else {
