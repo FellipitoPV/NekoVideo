@@ -1153,9 +1153,9 @@ private fun MediaCard(
                     showThumbnails = showThumbnails,
                     randomColor = randomColor,
                     gridColumns = gridColumns,
-                    hasError = hasError, // ✅ NOVO: Passa estado de erro
-                    retryCount = retryCount, // ✅ NOVO: Para debug visual
-                    onRetry = { regenerateThumbnail() } // ✅ NOVO: Callback para retry manual
+                    hasError = hasError,
+                    retryCount = retryCount,
+                    onRetry = { regenerateThumbnail() }
                 )
             }
         }
@@ -1203,9 +1203,9 @@ private fun VideoContent(
     showThumbnails: Boolean,
     randomColor: Color,
     gridColumns: Int,
-    hasError: Boolean = false, // ✅ NOVO
-    retryCount: Int = 0, // ✅ NOVO
-    onRetry: () -> Unit = {} // ✅ NOVO
+    hasError: Boolean = false,
+    retryCount: Int = 0,
+    onRetry: () -> Unit = {}
 ) {
     val textSize = when (gridColumns) {
         2 -> 12.sp
@@ -1297,7 +1297,7 @@ private fun VideoContent(
             }
         }
 
-        // Resto do código continua igual...
+        // Overlay para vídeo sendo movido
         if (isBeingMoved && !isSelected) {
             Box(
                 modifier = Modifier

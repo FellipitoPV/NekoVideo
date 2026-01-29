@@ -254,7 +254,12 @@ object FolderVideoScanner {
                     videoId
                 )
 
-                val videoInfo = VideoInfo(videoPath, videoUri, lastModified, size)
+                val videoInfo = VideoInfo(
+                    path = videoPath,
+                    uri = videoUri,
+                    lastModified = lastModified,
+                    sizeInBytes = size
+                )
                 addVideoToFolder(folderMap, parentDir, videoInfo, false)
             }
         }

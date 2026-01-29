@@ -232,6 +232,14 @@
     <string name="delete_video">वीडियो डिलीट करें</string>
     <string name="delete_video_confirmation">क्या आप वाकई \"%1$s\" को डिलीट करना चाहते हैं?\n\nयह क्रिया पूर्ववत नहीं की जा सकती।</string>
 
+    <!-- Fix Video Metadata Dialog -->
+    <string name="fix_video_metadata_title">वीडियो में समस्या</string>
+    <string name="fix_video_metadata_description">समस्याएं मिलीं जो प्लेबैक को प्रभावित कर सकती हैं। अभी ठीक करें?</string>
+    <string name="fix_video_button">ठीक करें</string>
+    <string name="fixing_video">वीडियो ठीक हो रहा है…</string>
+    <string name="fix_video_success">वीडियो ठीक हो गया!</string>
+    <string name="fix_video_error">ठीक करने में त्रुटि</string>
+
     <!-- ADICIONAR plurals corretos -->
     <plurals name="items_selected">
         <item quantity="one">%d आइटम चुना गया</item>

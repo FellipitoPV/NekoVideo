@@ -232,6 +232,14 @@
     <string name="delete_video">Удалить видео</string>
     <string name="delete_video_confirmation">Вы уверены, что хотите удалить \"%1$s\"?\n\nЭто действие нельзя отменить.</string>
 
+    <!-- Fix Video Metadata Dialog -->
+    <string name="fix_video_metadata_title">Проблема с видео</string>
+    <string name="fix_video_metadata_description">Обнаружены проблемы, которые могут повлиять на воспроизведение. Исправить?</string>
+    <string name="fix_video_button">Исправить</string>
+    <string name="fixing_video">Исправление видео…</string>
+    <string name="fix_video_success">Видео исправлено!</string>
+    <string name="fix_video_error">Ошибка исправления</string>
+
     <!-- ADICIONAR plurals corretos -->
     <plurals name="items_selected">
         <item quantity="one">Выбран %d элемент</item>

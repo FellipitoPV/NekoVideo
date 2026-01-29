@@ -40,9 +40,11 @@ import com.nkls.nekovideo.billing.BillingManager
 import com.nkls.nekovideo.billing.PremiumManager
 import com.nkls.nekovideo.components.CreateFolderDialog
 import com.nkls.nekovideo.components.DeleteConfirmationDialog
+import com.nkls.nekovideo.components.FixVideoMetadataDialog
 import com.nkls.nekovideo.components.PasswordDialog
 import com.nkls.nekovideo.components.ProcessingDialog
 import com.nkls.nekovideo.components.RenameDialog
+import com.nkls.nekovideo.components.helpers.VideoRemuxer
 import com.nkls.nekovideo.components.SortType
 import com.nkls.nekovideo.components.FolderScreen
 import com.nkls.nekovideo.components.helpers.FilesManager
@@ -120,6 +122,12 @@ fun MainScreen(
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var isUnprivatizing by remember { mutableStateOf(false) }
     var isPrivatizing by remember { mutableStateOf(false) }
+
+    // Estados para correção de metadados de vídeo
+    var showFixMetadataDialog by remember { mutableStateOf(false) }
+    var videoToFix by remember { mutableStateOf<String?>(null) }
+    var isFixingVideo by remember { mutableStateOf(false) }
+    var pendingVideoPlayback: (() -> Unit)? by remember { mutableStateOf(null) }
 
     val isPremium by premiumManager.isPremium.collectAsState()
 
@@ -384,6 +392,65 @@ fun MainScreen(
                     }
                 }
             }
+        )
+    }
+
+    // Diálogo para corrigir metadados do vídeo
+    if (showFixMetadataDialog && videoToFix != null) {
+        FixVideoMetadataDialog(
+            videoPath = videoToFix!!,
+            onDismiss = {
+                showFixMetadataDialog = false
+                videoToFix = null
+                pendingVideoPlayback = null
+            },
+            onConfirm = {
+                showFixMetadataDialog = false
+                isFixingVideo = true
+
+                coroutineScope.launch {
+                    val result = VideoRemuxer.remuxVideo(
+                        context = context,
+                        inputPath = videoToFix!!
+                    )
+
+                    isFixingVideo = false
+
+                    when (result) {
+                        is VideoRemuxer.RemuxResult.Success -> {
+                            // Atualiza o cache do scanner após fix
+                            FolderVideoScanner.startScan(context, coroutineScope, forceRefresh = true)
+
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.fix_video_success),
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            // Reproduz o vídeo após corrigir
+                            pendingVideoPlayback?.invoke()
+                        }
+                        is VideoRemuxer.RemuxResult.Error -> {
+                            Toast.makeText(
+                                context,
+                                "${context.getString(R.string.fix_video_error)}: ${result.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+
+                    videoToFix = null
+                    pendingVideoPlayback = null
+                }
+            }
+        )
+    }
+
+    // Diálogo de loading durante correção do vídeo
+    if (isFixingVideo) {
+        ProcessingDialog(
+            title = context.getString(R.string.fix_video_metadata_title),
+            message = context.getString(R.string.fixing_video)
         )
     }
 
@@ -743,20 +810,25 @@ fun MainScreen(
                                 // Navega para subpasta usando estado (sem criar nova tela)
                                 folderNavState.navigateTo(itemPath)
                             } else {
-                                val videos = items.filter { !it.isFolder }.map { "file://${it.path}" }
-                                val clickedVideoIndex = videos.indexOf("file://$itemPath")
-                                if (clickedVideoIndex >= 0) {
-                                    PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
-                                    val window = PlaylistManager.getCurrentWindow()
-                                    val windowIndex = PlaylistManager.getCurrentIndexInWindow()
-                                    MediaPlaybackService.startWithPlaylist(context, window, windowIndex)
-                                    showPlayerOverlay = true
-                                } else {
-                                    val videoUri = "file://$itemPath"
-                                    PlaylistManager.setPlaylist(listOf(videoUri), startIndex = 0, shuffle = false)
-                                    MediaPlaybackService.startWithPlaylist(context, listOf(videoUri), 0)
-                                    showPlayerOverlay = true
+                                // Função para reproduzir o vídeo
+                                val playVideo = {
+                                    val videos = items.filter { !it.isFolder }.map { "file://${it.path}" }
+                                    val clickedVideoIndex = videos.indexOf("file://$itemPath")
+                                    if (clickedVideoIndex >= 0) {
+                                        PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
+                                        val window = PlaylistManager.getCurrentWindow()
+                                        val windowIndex = PlaylistManager.getCurrentIndexInWindow()
+                                        MediaPlaybackService.startWithPlaylist(context, window, windowIndex)
+                                        showPlayerOverlay = true
+                                    } else {
+                                        val videoUri = "file://$itemPath"
+                                        PlaylistManager.setPlaylist(listOf(videoUri), startIndex = 0, shuffle = false)
+                                        MediaPlaybackService.startWithPlaylist(context, listOf(videoUri), 0)
+                                        showPlayerOverlay = true
+                                    }
                                 }
+
+                                playVideo()
                             }
                         },
                         selectedItems = selectedItems,

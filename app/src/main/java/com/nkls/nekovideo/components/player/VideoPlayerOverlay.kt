@@ -70,6 +70,11 @@ import com.nkls.nekovideo.components.helpers.PlaylistNavigator
 import com.nkls.nekovideo.components.layout.InterstitialAdManager
 import com.nkls.nekovideo.components.player.PlayerUtils.findActivity
 import com.nkls.nekovideo.components.settings.SettingsManager
+import com.nkls.nekovideo.components.FixVideoMetadataDialog
+import com.nkls.nekovideo.components.helpers.VideoRemuxer
+import com.nkls.nekovideo.services.FolderVideoScanner
+import android.widget.Toast
+import com.nkls.nekovideo.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
@@ -118,6 +123,11 @@ fun VideoPlayerOverlay(
     var currentVideoTitle by remember { mutableStateOf("") }
     var isSeekingActive by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(RepeatMode.NONE) }
+
+    // Estados para fix de metadados
+    var showFixMetadataDialog by remember { mutableStateOf(false) }
+    var isFixingVideo by remember { mutableStateOf(false) }
+    var isSeekable by remember { mutableStateOf(true) }
 
     //Controle de rotação
     var rotationMode by remember { mutableStateOf(RotationMode.AUTO) }
@@ -363,6 +373,7 @@ fun VideoPlayerOverlay(
                 currentPosition = mediaController!!.currentPosition
                 duration = mediaController!!.duration.takeIf { it > 0 } ?: 0L
                 isPlaying = mediaController!!.isPlaying
+                isSeekable = mediaController!!.isCurrentMediaItemSeekable
                 delay(100)
             }
         }
@@ -439,6 +450,61 @@ fun VideoPlayerOverlay(
                         mediaController = mediaController,
                         onVideoDeleted = onVideoDeleted
                     )
+                }
+            }
+        )
+    }
+
+    // Dialog para corrigir metadados do vídeo (moov atom)
+    if (showFixMetadataDialog && currentVideoPath.isNotEmpty()) {
+        FixVideoMetadataDialog(
+            videoPath = currentVideoPath,
+            onDismiss = {
+                showFixMetadataDialog = false
+                mediaController?.play()
+            },
+            onConfirm = {
+                showFixMetadataDialog = false
+                isFixingVideo = true
+
+                coroutineScope.launch {
+                    val result = VideoRemuxer.remuxVideo(
+                        context = context,
+                        inputPath = currentVideoPath
+                    )
+
+                    isFixingVideo = false
+
+                    when (result) {
+                        is VideoRemuxer.RemuxResult.Success -> {
+                            // Atualiza o cache do scanner
+                            FolderVideoScanner.startScan(context, coroutineScope, forceRefresh = true)
+
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.fix_video_success),
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            // Para o serviço completamente para limpar cache
+                            MediaPlaybackService.stopService(context)
+
+                            // Aguarda e reinicia com a playlist atual
+                            delay(300)
+
+                            val window = PlaylistManager.getCurrentWindow()
+                            val currentIndexInWindow = PlaylistManager.getCurrentIndexInWindow()
+                            MediaPlaybackService.startWithPlaylist(context, window, currentIndexInWindow)
+                        }
+                        is VideoRemuxer.RemuxResult.Error -> {
+                            Toast.makeText(
+                                context,
+                                "${context.getString(R.string.fix_video_error)}: ${result.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            mediaController?.play()
+                        }
+                    }
                 }
             }
         )
@@ -826,6 +892,29 @@ fun VideoPlayerOverlay(
                     seekAlignment = seekSide
                 )
 
+                // Overlay de loading enquanto corrige o vídeo
+                if (isFixingVideo) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.7f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        androidx.compose.foundation.layout.Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)
+                        ) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                color = Color.White
+                            )
+                            androidx.compose.material3.Text(
+                                text = context.getString(R.string.fixing_video),
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+
                 // Interface customizada com ícones de volume e brilho
                 AnimatedVisibility(
                     visible = controlsVisible && !isInPiPMode, // ✅ MANTER ASSIM
@@ -876,6 +965,11 @@ fun VideoPlayerOverlay(
                             controlsVisible = false
                             val activity = context.findActivity() as? MainActivity
                             activity?.enterPiPMode()
+                        },
+                        needsMetadataFix = !isSeekable,
+                        onFixMetadataClick = {
+                            mediaController?.pause()
+                            showFixMetadataDialog = true
                         }
                     )
                 }

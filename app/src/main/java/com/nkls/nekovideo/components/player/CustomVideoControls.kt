@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -79,7 +80,9 @@ fun CustomVideoControls(
     hasSubtitles: Boolean,
     subtitlesEnabled: Boolean,
     onSubtitlesClick: () -> Unit,
-    onPiPClick: () -> Unit
+    onPiPClick: () -> Unit,
+    needsMetadataFix: Boolean = false,
+    onFixMetadataClick: () -> Unit = {}
 ) {
     val controller = mediaController ?: return
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -136,7 +139,27 @@ fun CustomVideoControls(
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // ✅ ADICIONAR BOTÃO PIP AQUI
+                    // Botão de aviso para vídeos com metadados corrompidos
+                    if (needsMetadataFix) {
+                        IconButton(
+                            onClick = {
+                                onFixMetadataClick()
+                                resetUITimer()
+                            },
+                            modifier = Modifier
+                                .background(Color(0xFFFF5722).copy(alpha = 0.9f), CircleShape)
+                                .size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "Fix video metadata",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    // Botão PIP
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         IconButton(
                             onClick = onPiPClick, // ✅ SIMPLIFICAR
