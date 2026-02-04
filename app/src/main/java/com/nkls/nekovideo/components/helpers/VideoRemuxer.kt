@@ -113,7 +113,7 @@ object VideoRemuxer {
                     bufferInfo.offset = 0
                     bufferInfo.size = sampleSize
                     bufferInfo.presentationTimeUs = extractor.sampleTime
-                    bufferInfo.flags = extractor.sampleFlags
+                    bufferInfo.flags = MediaCodec.BUFFER_FLAG_SYNC_FRAME
 
                     muxer.writeSampleData(muxerTrackIndex, buffer, bufferInfo)
                 }
