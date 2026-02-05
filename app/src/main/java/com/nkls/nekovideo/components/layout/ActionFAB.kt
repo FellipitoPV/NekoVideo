@@ -26,6 +26,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nkls.nekovideo.R
@@ -269,69 +271,74 @@ fun ActionFAB(
                 }
             }
         ) {
-            AnimatedVisibility(
-                visible = showBottomSheet,
-                enter = fadeIn(animationSpec = tween(50)) + slideInVertically(
-                    animationSpec = tween(50),
-                    initialOffsetY = { it / 4 }
-                ),
-                exit = fadeOut(animationSpec = tween(50)) + slideOutVertically(
-                    animationSpec = tween(50),
-                    targetOffsetY = { it / 4 }
-                )
+            val density = LocalDensity.current
+            var isWide by remember { mutableStateOf(false) }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onSizeChanged { size ->
+                        isWide = with(density) { size.width.toDp() } > 600.dp
+                    }
+                    .padding(bottom = if (isWide) 8.dp else 16.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp)
-                ) {
-                    // Header com contexto
-                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                // Header com contexto
+                Column(modifier = Modifier.padding(
+                    horizontal = 16.dp,
+                    vertical = if (isWide) 4.dp else 8.dp
+                )) {
+                    Text(
+                        text = when {
+                            isMoveMode -> modeMoveFiles
+                            hasSelectedItems -> itemActions
+                            else -> options
+                        },
+                        style = if (isWide) MaterialTheme.typography.titleMedium
+                               else MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    if (isMoveMode) {
                         Text(
-                            text = when {
-                                isMoveMode -> modeMoveFiles // ✅ CORRIGIDO
-                                hasSelectedItems -> itemActions // ✅ CORRIGIDO
-                                else -> options // ✅ CORRIGIDO
-                            },
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
+                            text = navigateToDestination,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
-
-                        if (isMoveMode) {
-                            Text(
-                                text = navigateToDestination, // ✅ CORRIGIDO
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
                     }
-
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Grid de ações
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(if (isMoveMode) 2 else 3),
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(actions) { action ->
-                            ActionGridItem(
-                                action = action,
-                                isMoveMode = isMoveMode,
-                                onClick = {
-                                    onActionClick(action.type)
-                                    showBottomSheet = false
-                                }
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
+
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                Spacer(modifier = Modifier.height(if (isWide) 8.dp else 16.dp))
+
+                // Grid de ações - mais colunas em landscape
+                val gridCols = when {
+                    isMoveMode -> 2
+                    isWide -> 5
+                    else -> 3
+                }
+
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(gridCols),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(if (isWide) 8.dp else 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (isWide) 8.dp else 12.dp)
+                ) {
+                    items(actions) { action ->
+                        ActionGridItem(
+                            action = action,
+                            isMoveMode = isMoveMode,
+                            isCompact = isWide,
+                            onClick = {
+                                onActionClick(action.type)
+                                showBottomSheet = false
+                            }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(if (isWide) 8.dp else 16.dp))
             }
         }
     }
@@ -341,13 +348,22 @@ fun ActionFAB(
 private fun ActionGridItem(
     action: ActionItem,
     isMoveMode: Boolean = false,
+    isCompact: Boolean = false,
     onClick: () -> Unit
 ) {
+    val itemHeight = when {
+        isCompact -> 76.dp
+        isMoveMode -> 110.dp
+        else -> 100.dp
+    }
+    val iconSurfaceSize = if (isCompact) 36.dp else 40.dp
+    val iconSize = if (isCompact) 18.dp else 20.dp
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(if (isMoveMode) 110.dp else 100.dp)
-            .clickable(enabled = action.isEnabled) { // ✅ ADICIONE ESSA LINHA
+            .height(itemHeight)
+            .clickable(enabled = action.isEnabled) {
                 if (action.isEnabled) onClick()
             },
         color = Color.Transparent,
@@ -356,16 +372,16 @@ private fun ActionGridItem(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(8.dp),
+                .padding(if (isCompact) 4.dp else 8.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth() // ✅ ADICIONE
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Surface(
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(iconSurfaceSize),
                     shape = RoundedCornerShape(10.dp),
                     color = when (action.type) {
                         ActionType.DELETE -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
@@ -399,19 +415,19 @@ private fun ActionGridItem(
                                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                                 }
                             },
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(iconSize)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(if (isCompact) 4.dp else 8.dp))
 
                 Text(
                     text = action.title,
                     style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 11.sp, // ✅ Diminuí de 12 para 11
+                        fontSize = if (isCompact) 10.sp else 11.sp,
                         fontWeight = FontWeight.Medium,
-                        lineHeight = 13.sp // ✅ Ajustei o lineHeight
+                        lineHeight = if (isCompact) 12.sp else 13.sp
                     ),
                     textAlign = TextAlign.Center,
                     maxLines = 2,

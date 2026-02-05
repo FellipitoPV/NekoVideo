@@ -23,12 +23,6 @@ class ThemeManager(private val context: Context) {
         _themeMode.value = mode
     }
 
-    fun forceStatusBarUpdate() {
-        // Força uma "mudança" para retrigger os observers
-        val current = _themeMode.value
-        _themeMode.value = current
-    }
-
     @Composable
     fun shouldUseDarkTheme(): Boolean {
         val currentMode by themeMode.collectAsState()

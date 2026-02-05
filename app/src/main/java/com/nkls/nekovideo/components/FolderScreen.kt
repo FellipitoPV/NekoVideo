@@ -56,7 +56,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nkls.nekovideo.components.settings.SettingsManager
 import com.nkls.nekovideo.services.FolderVideoScanner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -406,7 +405,7 @@ fun SortRow(
         }
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .pointerInput(isRefreshing) {
@@ -449,8 +448,11 @@ fun SortRow(
                 }
             }
     ) {
+        @Suppress("UnusedBoxWithConstraintsScope")
+        val isCompact = this.maxWidth > 600.dp
+
         Column {
-            if (!isRefreshing && pullOffset == 0f) {
+            if (!isCompact && !isRefreshing && pullOffset == 0f) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -498,7 +500,7 @@ fun SortRow(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp, 8.dp),
+                    .padding(horizontal = 16.dp, vertical = if (isCompact) 2.dp else 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -700,7 +702,6 @@ fun FolderScreen(
     val showThumbnails by remember { derivedStateOf { OptimizedThumbnailManager.isShowThumbnailsEnabled(context) }}
     val showDurations by remember { derivedStateOf { OptimizedThumbnailManager.isShowDurationsEnabled(context) }}
     val showFileSizes by remember { derivedStateOf { OptimizedThumbnailManager.isShowFileSizesEnabled(context) }}
-    val gridColumns by remember { derivedStateOf { SettingsManager.getGridColumns(context) }}
 
     var searchQuery by remember { mutableStateOf("") }
     var isSearchExpanded by remember { mutableStateOf(false) }
@@ -798,7 +799,11 @@ fun FolderScreen(
             }
         }
     } else {
-        Box(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            @Suppress("UnusedBoxWithConstraintsScope")
+            val gridColumns = (this.maxWidth.value.toInt() / 130).coerceAtLeast(2)
+            Log.d("FolderGrid", "maxWidth=${this.maxWidth}, gridColumns=$gridColumns")
+
             Column(modifier = Modifier.fillMaxSize()) {
                 SortRow(
                     currentSort = sortType,
@@ -1207,11 +1212,11 @@ private fun VideoContent(
     retryCount: Int = 0,
     onRetry: () -> Unit = {}
 ) {
-    val textSize = when (gridColumns) {
-        2 -> 12.sp
-        3 -> 10.sp
-        4 -> 8.sp
-        else -> 10.sp
+    val textSize = when {
+        gridColumns <= 2 -> 12.sp
+        gridColumns <= 3 -> 10.sp
+        gridColumns <= 5 -> 8.sp
+        else -> 7.sp
     }
 
     Box(modifier = Modifier.fillMaxSize()) {

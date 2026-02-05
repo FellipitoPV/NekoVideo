@@ -13,6 +13,7 @@ import android.util.Log
 import android.util.Rational
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
@@ -220,7 +221,10 @@ class MainActivity : AppCompatActivity() {
             LanguageManager.setLocale(this, currentLanguage)
         }
 
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.BLACK)
+        )
         FilesManager.SecureFoldersVisibility.resetOnAppStart(this)
 
         // PROCESSAR intent inicial

@@ -28,6 +28,7 @@ fun NekoVideoTheme(
     val colorScheme = if (isDarkMode) {
         darkColorScheme(
             primary = Color(0xFF1A73E8), // Azul suave para destaques
+            background = Color(0xFF121212),
             surface = Color(0xFF121212), // Fundo escuro
             surfaceVariant = Color(0xFF2C2C2C), // Fundo secundário
             onSurface = Color(0xFFE0E0E0), // Texto e ícones claros
@@ -36,6 +37,7 @@ fun NekoVideoTheme(
     } else {
         lightColorScheme(
             primary = Color(0xFF1A73E8), // Mesma cor azul mantida
+            background = Color(0xFFF5F5F5),
             surface = Color(0xFFFFFBFE), // Fundo claro
             surfaceVariant = Color(0xFFF3F3F3), // Fundo secundário claro
             onSurface = Color(0xFF1C1B1F), // Texto escuro

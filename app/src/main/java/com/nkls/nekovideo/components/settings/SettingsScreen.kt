@@ -8,6 +8,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,26 +24,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.ScreenSearchDesktop
 import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -59,6 +52,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -72,72 +66,76 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.nkls.nekovideo.BuildConfig
 import com.nkls.nekovideo.R
-import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.language.LanguageManager
 import com.nkls.nekovideo.theme.ThemeManager
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.WorkspacePremium
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
-import com.nkls.nekovideo.findActivity
+import androidx.core.content.edit
+import androidx.core.net.toUri
 
 @Composable
 fun SettingsScreen(navController: NavController) {
-    val context = LocalContext.current
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        @Suppress("UnusedBoxWithConstraintsScope")
+        val isCompact = this.maxWidth > 600.dp
 
-        item {
-            SettingsCategoryCard(
-                icon = Icons.Default.PlayArrow,
-                title = stringResource(R.string.settings_playback),
-                subtitle = stringResource(R.string.settings_playback_desc),
-                onClick = { navController.navigate("settings/playback") }
-            )
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isCompact) 8.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
+        ) {
+
+            item {
+                SettingsCategoryCard(
+                    icon = Icons.Default.PlayArrow,
+                    title = stringResource(R.string.settings_playback),
+                    subtitle = stringResource(R.string.settings_playback_desc),
+                    onClick = { navController.navigate("settings/playback") },
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsCategoryCard(
+                    icon = Icons.Default.Palette,
+                    title = stringResource(R.string.settings_interface),
+                    subtitle = stringResource(R.string.settings_interface_desc),
+                    onClick = { navController.navigate("settings/interface") },
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsCategoryCard(
+                    icon = Icons.AutoMirrored.Filled.ViewList,
+                    title = stringResource(R.string.settings_display),
+                    subtitle = stringResource(R.string.settings_display_desc),
+                    onClick = { navController.navigate("settings/display") },
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsCategoryCard(
+                    icon = Icons.Default.Folder,
+                    title = stringResource(R.string.settings_files),
+                    subtitle = stringResource(R.string.settings_files_desc),
+                    onClick = { navController.navigate("settings/files") },
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsCategoryCard(
+                    icon = Icons.Default.Info,
+                    title = stringResource(R.string.settings_about),
+                    subtitle = stringResource(R.string.settings_about_desc),
+                    onClick = { navController.navigate("settings/about") },
+                    isCompact = isCompact
+                )
+            }
+
         }
-
-        item {
-            SettingsCategoryCard(
-                icon = Icons.Default.Palette,
-                title = stringResource(R.string.settings_interface),
-                subtitle = stringResource(R.string.settings_interface_desc),
-                onClick = { navController.navigate("settings/interface") }
-            )
-        }
-
-        item {
-            SettingsCategoryCard(
-                icon = Icons.AutoMirrored.Filled.ViewList,
-                title = stringResource(R.string.settings_display),
-                subtitle = stringResource(R.string.settings_display_desc),
-                onClick = { navController.navigate("settings/display") }
-            )
-        }
-
-        item {
-            SettingsCategoryCard(
-                icon = Icons.Default.Folder,
-                title = stringResource(R.string.settings_files),
-                subtitle = stringResource(R.string.settings_files_desc),
-                onClick = { navController.navigate("settings/files") }
-            )
-        }
-
-        item {
-            SettingsCategoryCard(
-                icon = Icons.Default.Info,
-                title = stringResource(R.string.settings_about),
-                subtitle = stringResource(R.string.settings_about_desc),
-                onClick = { navController.navigate("settings/about") }
-            )
-        }
-
     }
 }
 
@@ -146,49 +144,51 @@ fun PlaybackSettingsScreen() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
 
-    var keepScreenOn by remember { mutableStateOf(prefs.getBoolean("keep_screen_on", true)) }
-    var pipEnabled by remember { mutableStateOf(prefs.getBoolean("pip_enabled", false)) }
     var autoHideControls by remember { mutableStateOf(prefs.getBoolean("auto_hide_controls", true)) }
-    var doubleTapSeek by remember { mutableStateOf(prefs.getInt("double_tap_seek", 10)) }
+    var doubleTapSeek by remember { mutableIntStateOf(prefs.getInt("double_tap_seek", 10)) }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        @Suppress("UnusedBoxWithConstraintsScope")
+        val isCompact = this.maxWidth > 600.dp
 
-        item {
-            SettingsSectionHeader(stringResource(R.string.playback_controls))
-        }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isCompact) 8.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
+        ) {
 
-        item {
-            SettingsSwitchItem(
-                icon = Icons.Default.VisibilityOff,
-                title = stringResource(R.string.playback_auto_hide_controls),
-                subtitle = stringResource(R.string.playback_auto_hide_controls_desc),
-                checked = autoHideControls,
-                onCheckedChange = {
-                    autoHideControls = it
-                    prefs.edit().putBoolean("auto_hide_controls", it).apply()
-                }
-            )
-        }
+            item {
+                SettingsSectionHeader(stringResource(R.string.playback_controls), isCompact)
+            }
 
-        item {
-            SettingsSliderItem(
-                icon = Icons.Default.SkipNext,
-                title = stringResource(R.string.playback_double_tap_seek),
-                subtitle = stringResource(R.string.playback_double_tap_seek_desc),
-                value = doubleTapSeek,
-                range = 5..30,
-                step = 5,
-                onValueChange = {
-                    doubleTapSeek = it
-                    prefs.edit().putInt("double_tap_seek", it).apply()
-                }
-            )
-        }
+            item {
+                SettingsSwitchItem(
+                    icon = Icons.Default.VisibilityOff,
+                    title = stringResource(R.string.playback_auto_hide_controls),
+                    subtitle = stringResource(R.string.playback_auto_hide_controls_desc),
+                    checked = autoHideControls,
+                    onCheckedChange = {
+                        prefs.edit { putBoolean("auto_hide_controls", it) }
+                    },
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsSliderItem(
+                    icon = Icons.Default.SkipNext,
+                    title = stringResource(R.string.playback_double_tap_seek),
+                    subtitle = stringResource(R.string.playback_double_tap_seek_desc),
+                    value = doubleTapSeek,
+                    range = 5..30,
+                    step = 5,
+                    onValueChange = {
+                        prefs.edit { putInt("double_tap_seek", it) }
+                    },
+                    isCompact = isCompact
+                )
+            }
 
 //        item {
 //            SettingsSectionHeader(stringResource(R.string.playback_features))
@@ -219,6 +219,7 @@ fun PlaybackSettingsScreen() {
 //                }
 //            )
 //        }
+        }
     }
 }
 
@@ -227,22 +228,18 @@ fun InterfaceSettingsScreen(themeManager: ThemeManager) {
     val context = LocalContext.current
     val currentTheme by themeManager.themeMode.collectAsState()
 
-    // ✅ Observar mudanças do LanguageManager
     val languageStateFlow by LanguageManager.currentLanguage.collectAsState()
 
-    // ✅ Variável local que recompõe quando StateFlow muda
     var currentLanguage by remember(languageStateFlow) {
         mutableStateOf(LanguageManager.getCurrentLanguage(context))
     }
 
-    // Strings traduzidas
     val darkModeOptions = listOf(
         "light" to stringResource(R.string.theme_light),
         "dark" to stringResource(R.string.theme_dark),
         "system" to stringResource(R.string.theme_system)
     )
 
-    // Opções de idioma
     val languageOptions = listOf(
         "system" to stringResource(R.string.language_system),
         "pt" to stringResource(R.string.language_portuguese),
@@ -254,52 +251,57 @@ fun InterfaceSettingsScreen(themeManager: ThemeManager) {
         "hi" to stringResource(R.string.language_hindi)
     )
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        @Suppress("UnusedBoxWithConstraintsScope")
+        val isCompact = this.maxWidth > 600.dp
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isCompact) 8.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
+        ) {
 
 
-        item {
-            SettingsSectionHeader(stringResource(R.string.settings_appearance))
+            item {
+                SettingsSectionHeader(stringResource(R.string.settings_appearance), isCompact)
+            }
+
+            item {
+                SettingsDropdownItem(
+                    icon = Icons.Default.Palette,
+                    title = stringResource(R.string.settings_dark_mode),
+                    subtitle = stringResource(R.string.settings_dark_mode_desc),
+                    options = darkModeOptions,
+                    selectedValue = currentTheme,
+                    onValueChange = { newTheme ->
+                        themeManager.updateTheme(newTheme)
+                    },
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsSectionHeader(stringResource(R.string.settings_language), isCompact)
+            }
+
+            item {
+                SettingsDropdownItem(
+                    icon = Icons.Default.Language,
+                    title = stringResource(R.string.settings_app_language),
+                    subtitle = stringResource(R.string.settings_app_language_desc),
+                    options = languageOptions,
+                    selectedValue = currentLanguage,
+                    onValueChange = { newLanguage ->
+                        LanguageManager.updateLanguage(context, newLanguage)
+
+                        Toast.makeText(context, "Language will be applied after app restart", Toast.LENGTH_LONG).show()
+                    },
+                    isCompact = isCompact
+                )
+            }
+
         }
-
-        item {
-            SettingsDropdownItem(
-                icon = Icons.Default.Palette,
-                title = stringResource(R.string.settings_dark_mode),
-                subtitle = stringResource(R.string.settings_dark_mode_desc),
-                options = darkModeOptions,
-                selectedValue = currentTheme,
-                onValueChange = { newTheme ->
-                    themeManager.updateTheme(newTheme)
-                }
-            )
-        }
-
-        item {
-            SettingsSectionHeader(stringResource(R.string.settings_language))
-        }
-
-        item {
-            SettingsDropdownItem(
-                icon = Icons.Default.Language,
-                title = stringResource(R.string.settings_app_language),
-                subtitle = stringResource(R.string.settings_app_language_desc),
-                options = languageOptions,
-                selectedValue = currentLanguage,
-                onValueChange = { newLanguage ->
-                    currentLanguage = newLanguage
-                    LanguageManager.updateLanguage(context, newLanguage)
-
-                    // ✅ TOAST SIMPLES EM INGLÊS
-                    Toast.makeText(context, "Language will be applied after app restart", Toast.LENGTH_LONG).show()
-                }
-            )
-        }
-
     }
 }
 
@@ -311,83 +313,66 @@ fun DisplaySettingsScreen() {
     var showThumbnails by remember { mutableStateOf(prefs.getBoolean("show_thumbnails", true)) }
     var showDurations by remember { mutableStateOf(prefs.getBoolean("show_durations", true)) }
     var showFileSizes by remember { mutableStateOf(prefs.getBoolean("show_file_sizes", false)) }
-    var thumbnailQuality by remember { mutableStateOf(prefs.getString("thumbnail_quality", "medium") ?: "medium") }
-    var gridColumns by remember { mutableStateOf(prefs.getInt("grid_columns", 3)) }
-
-    val qualityOptions = listOf(
+    listOf(
         "low" to stringResource(R.string.quality_low),
         "medium" to stringResource(R.string.quality_medium),
         "high" to stringResource(R.string.quality_high),
         "original" to stringResource(R.string.quality_original)
     )
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        @Suppress("UnusedBoxWithConstraintsScope")
+        val isCompact = this.maxWidth > 600.dp
 
-        item {
-            SettingsSectionHeader(stringResource(R.string.display_video_info))
-        }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isCompact) 8.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
+        ) {
 
-        item {
-            SettingsSwitchItem(
-                icon = Icons.Default.Image,
-                title = stringResource(R.string.display_show_thumbnails),
-                subtitle = stringResource(R.string.display_show_thumbnails_desc),
-                checked = showThumbnails,
-                onCheckedChange = {
-                    showThumbnails = it
-                    prefs.edit().putBoolean("show_thumbnails", it).apply()
-                }
-            )
-        }
+            item {
+                SettingsSectionHeader(stringResource(R.string.display_video_info), isCompact)
+            }
 
-        item {
-            SettingsSwitchItem(
-                icon = Icons.Default.Schedule,
-                title = stringResource(R.string.display_show_durations),
-                subtitle = stringResource(R.string.display_show_durations_desc),
-                checked = showDurations,
-                onCheckedChange = {
-                    showDurations = it
-                    prefs.edit().putBoolean("show_durations", it).apply()
-                }
-            )
-        }
+            item {
+                SettingsSwitchItem(
+                    icon = Icons.Default.Image,
+                    title = stringResource(R.string.display_show_thumbnails),
+                    subtitle = stringResource(R.string.display_show_thumbnails_desc),
+                    checked = showThumbnails,
+                    onCheckedChange = {
+                        prefs.edit { putBoolean("show_thumbnails", it) }
+                    },
+                    isCompact = isCompact
+                )
+            }
 
-        item {
-            SettingsSwitchItem(
-                icon = Icons.Default.Storage,
-                title = stringResource(R.string.display_show_file_sizes),
-                subtitle = stringResource(R.string.display_show_file_sizes_desc),
-                checked = showFileSizes,
-                onCheckedChange = {
-                    showFileSizes = it
-                    prefs.edit().putBoolean("show_file_sizes", it).apply()
-                }
-            )
-        }
+            item {
+                SettingsSwitchItem(
+                    icon = Icons.Default.Schedule,
+                    title = stringResource(R.string.display_show_durations),
+                    subtitle = stringResource(R.string.display_show_durations_desc),
+                    checked = showDurations,
+                    onCheckedChange = {
+                        prefs.edit { putBoolean("show_durations", it) }
+                    },
+                    isCompact = isCompact
+                )
+            }
 
-        item {
-            SettingsSectionHeader(stringResource(R.string.display_layout))
-        }
-
-        item {
-            SettingsSliderItem(
-                icon = Icons.Default.GridView,
-                title = stringResource(R.string.display_grid_columns),
-                subtitle = stringResource(R.string.display_grid_columns_desc),
-                value = gridColumns,
-                range = 2..4,
-                onValueChange = {
-                    gridColumns = it
-                    prefs.edit().putInt("grid_columns", it).apply()
-                }
-            )
-        }
+            item {
+                SettingsSwitchItem(
+                    icon = Icons.Default.Storage,
+                    title = stringResource(R.string.display_show_file_sizes),
+                    subtitle = stringResource(R.string.display_show_file_sizes_desc),
+                    checked = showFileSizes,
+                    onCheckedChange = {
+                        prefs.edit { putBoolean("show_file_sizes", it) }
+                    },
+                    isCompact = isCompact
+                )
+            }
 
 //        item {
 //            SettingsSectionHeader(stringResource(R.string.display_quality))
@@ -406,6 +391,7 @@ fun DisplaySettingsScreen() {
 //                }
 //            )
 //        }
+        }
     }
 }
 
@@ -421,41 +407,46 @@ fun FilesSettingsScreen() {
         appOnlyFolders = prefs.getBoolean("app_only_folders", false)
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        @Suppress("UnusedBoxWithConstraintsScope")
+        val isCompact = this.maxWidth > 600.dp
 
-        item {
-            SettingsSectionHeader(stringResource(R.string.files_management))
-        }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isCompact) 8.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
+        ) {
 
-        item {
-            SettingsSwitchItem(
-                icon = Icons.Default.Folder,
-                title = stringResource(R.string.files_app_only_folders),
-                subtitle = stringResource(R.string.files_app_only_folders_desc),
-                checked = appOnlyFolders,
-                onCheckedChange = {
-                    appOnlyFolders = it
-                    prefs.edit().putBoolean("app_only_folders", it).apply()
-                }
-            )
-        }
+            item {
+                SettingsSectionHeader(stringResource(R.string.files_management), isCompact)
+            }
 
-        item {
-            SettingsSwitchItem(
-                icon = Icons.Default.Delete,
-                title = stringResource(R.string.files_confirm_delete),
-                subtitle = stringResource(R.string.files_confirm_delete_desc),
-                checked = confirmDelete,
-                onCheckedChange = {
-                    confirmDelete = it
-                    prefs.edit().putBoolean("confirm_delete", it).apply()
-                }
-            )
+            item {
+                SettingsSwitchItem(
+                    icon = Icons.Default.Folder,
+                    title = stringResource(R.string.files_app_only_folders),
+                    subtitle = stringResource(R.string.files_app_only_folders_desc),
+                    checked = appOnlyFolders,
+                    onCheckedChange = {
+                        prefs.edit { putBoolean("app_only_folders", it) }
+                    },
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsSwitchItem(
+                    icon = Icons.Default.Delete,
+                    title = stringResource(R.string.files_confirm_delete),
+                    subtitle = stringResource(R.string.files_confirm_delete_desc),
+                    checked = confirmDelete,
+                    onCheckedChange = {
+                        prefs.edit { putBoolean("confirm_delete", it) }
+                    },
+                    isCompact = isCompact
+                )
+            }
         }
     }
 }
@@ -464,25 +455,30 @@ fun FilesSettingsScreen() {
 fun AboutSettingsScreen() {
     val context = LocalContext.current
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        @Suppress("UnusedBoxWithConstraintsScope")
+        val isCompact = this.maxWidth > 600.dp
 
-        item {
-            SettingsSectionHeader(stringResource(R.string.about_information))
-        }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isCompact) 8.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
+        ) {
 
-        item {
-            SettingsClickableItem(
-                icon = Icons.Default.Info,
-                title = stringResource(R.string.about_app_version),
-                subtitle = BuildConfig.VERSION_NAME,
-                onClick = { /* TODO: Show version details */ }
-            )
-        }
+            item {
+                SettingsSectionHeader(stringResource(R.string.about_information), isCompact)
+            }
+
+            item {
+                SettingsClickableItem(
+                    icon = Icons.Default.Info,
+                    title = stringResource(R.string.about_app_version),
+                    subtitle = BuildConfig.VERSION_NAME,
+                    onClick = { /* TODO: Show version details */ },
+                    isCompact = isCompact
+                )
+            }
 
 //        item {
 //            SettingsClickableItem(
@@ -496,53 +492,54 @@ fun AboutSettingsScreen() {
 //            )
 //        }
 
-        item {
-            SettingsClickableItem(
-                icon = Icons.Default.BugReport,
-                title = stringResource(R.string.about_report_bug),
-                subtitle = stringResource(R.string.about_report_bug_desc),
-                onClick = {
-                    val appVersion = BuildConfig.VERSION_NAME
-                    val deviceInfo = "${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})"
-                    val emailBody = """
+            item {
+                SettingsClickableItem(
+                    icon = Icons.Default.BugReport,
+                    title = stringResource(R.string.about_report_bug),
+                    subtitle = stringResource(R.string.about_report_bug_desc),
+                    onClick = {
+                        val appVersion = BuildConfig.VERSION_NAME
+                        val deviceInfo = "${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})"
+                        val emailBody = """
                 Describe the issue you found:
-                
-                
-                
+
+
+
                 --- System Information ---
                 App Version: $appVersion
                 Device: $deviceInfo
             """.trimIndent()
 
-                    // Método 1: Tenta com mailto direto
-                    val mailtoUri = Uri.parse("mailto:nklssuport@gmail.com?subject=${Uri.encode("Bug Report - ${context.getString(R.string.app_name)}")}&body=${Uri.encode(emailBody)}")
-                    val mailtoIntent = Intent(Intent.ACTION_VIEW, mailtoUri)
+                        val mailtoUri = "mailto:nklssuport@gmail.com?subject=${
+                            Uri.encode(
+                                "Bug Report - ${
+                                    context.getString(R.string.app_name)
+                                }"
+                            )
+                        }&body=${Uri.encode(emailBody)}".toUri()
+                        val mailtoIntent = Intent(Intent.ACTION_VIEW, mailtoUri)
 
-                    Log.d("EmailIntent", "Tentando mailto direto...")
-                    if (mailtoIntent.resolveActivity(context.packageManager) != null) {
-                        Log.d("EmailIntent", "Mailto funcionou")
-                        context.startActivity(mailtoIntent)
-                        return@SettingsClickableItem
-                    }
+                        if (mailtoIntent.resolveActivity(context.packageManager) != null) {
+                            context.startActivity(mailtoIntent)
+                            return@SettingsClickableItem
+                        }
 
-                    // Método 2: Intent específico para email
-                    val emailIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "message/rfc822"
-                        putExtra(Intent.EXTRA_EMAIL, arrayOf("nklssuport@gmail.com"))
-                        putExtra(Intent.EXTRA_SUBJECT, "Bug Report - ${context.getString(R.string.app_name)}")
-                        putExtra(Intent.EXTRA_TEXT, emailBody)
-                    }
+                        val emailIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "message/rfc822"
+                            putExtra(Intent.EXTRA_EMAIL, arrayOf("nklssuport@gmail.com"))
+                            putExtra(Intent.EXTRA_SUBJECT, "Bug Report - ${context.getString(R.string.app_name)}")
+                            putExtra(Intent.EXTRA_TEXT, emailBody)
+                        }
 
-                    Log.d("EmailIntent", "Tentando com message/rfc822...")
-                    if (emailIntent.resolveActivity(context.packageManager) != null) {
-                        Log.d("EmailIntent", "RFC822 funcionou")
-                        context.startActivity(emailIntent)
-                        return@SettingsClickableItem
-                    }
+                        if (emailIntent.resolveActivity(context.packageManager) != null) {
+                            context.startActivity(emailIntent)
+                            return@SettingsClickableItem
+                        }
 
-                    Log.e("EmailIntent", "Nenhum método funcionou")
-                }
-            )
+                    },
+                    isCompact = isCompact
+                )
+            }
         }
     }
 }
@@ -552,7 +549,8 @@ private fun SettingsCategoryCard(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isCompact: Boolean = false
 ) {
     Card(
         modifier = Modifier
@@ -560,34 +558,34 @@ private fun SettingsCategoryCard(
             .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(if (isCompact) 8.dp else 12.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(if (isCompact) 12.dp else 20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = title,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(if (isCompact) 24.dp else 32.dp)
             )
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(if (isCompact) 10.dp else 16.dp))
 
             Column(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = if (isCompact) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = if (isCompact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -596,20 +594,20 @@ private fun SettingsCategoryCard(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = "Abrir",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
             )
         }
     }
 }
 
 @Composable
-private fun SettingsSectionHeader(title: String) {
+private fun SettingsSectionHeader(title: String, isCompact: Boolean = false) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleSmall,
+        style = if (isCompact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(vertical = 8.dp)
+        modifier = Modifier.padding(vertical = if (isCompact) 2.dp else 8.dp)
     )
 }
 
@@ -619,7 +617,8 @@ private fun SettingsSwitchItem(
     title: String,
     subtitle: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    isCompact: Boolean = false
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -631,29 +630,29 @@ private fun SettingsSwitchItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onCheckedChange(!checked) }
-                .padding(16.dp),
+                .padding(if (isCompact) 10.dp else 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = title,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
             )
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(if (isCompact) 10.dp else 16.dp))
 
             Column(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = if (isCompact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -677,7 +676,8 @@ private fun SettingsDropdownItem(
     subtitle: String,
     options: List<Pair<String, String>>,
     selectedValue: String,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    isCompact: Boolean = false
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedOption = options.find { it.first == selectedValue }?.second ?: "Desconhecido"
@@ -693,34 +693,34 @@ private fun SettingsDropdownItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { expanded = true }
-                    .padding(16.dp),
+                    .padding(if (isCompact) 10.dp else 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = title,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
                 )
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(if (isCompact) 10.dp else 16.dp))
 
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = if (isCompact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = selectedOption,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -760,7 +760,8 @@ private fun SettingsSliderItem(
     value: Int,
     range: IntRange,
     step: Int = 1,
-    onValueChange: (Int) -> Unit
+    onValueChange: (Int) -> Unit,
+    isCompact: Boolean = false
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -769,7 +770,7 @@ private fun SettingsSliderItem(
         shape = RoundedCornerShape(8.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(if (isCompact) 10.dp else 16.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -778,35 +779,35 @@ private fun SettingsSliderItem(
                     imageVector = icon,
                     contentDescription = title,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
                 )
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(if (isCompact) 10.dp else 16.dp))
 
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = if (isCompact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 Text(
                     text = if (title.contains("Cache")) "${value}MB" else value.toString(),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = if (isCompact) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(if (isCompact) 4.dp else 8.dp))
 
             Slider(
                 value = value.toFloat(),
@@ -830,7 +831,8 @@ private fun SettingsClickableItem(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isCompact: Boolean = false
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -842,29 +844,29 @@ private fun SettingsClickableItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onClick() }
-                .padding(16.dp),
+                .padding(if (isCompact) 10.dp else 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = title,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
             )
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(if (isCompact) 10.dp else 16.dp))
 
             Column(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = if (isCompact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -879,70 +881,11 @@ private fun SettingsClickableItem(
     }
 }
 
-// SettingsManager permanece igual
 object SettingsManager {
-    fun getShowThumbnails(context: Context): Boolean {
-        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-            .getBoolean("show_thumbnails", true)
-    }
-
-    fun getKeepScreenOn(context: Context): Boolean {
-        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-            .getBoolean("keep_screen_on", true)
-    }
-
-    fun getPipEnabled(context: Context): Boolean {
-        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-            .getBoolean("pip_enabled", false)
-    }
-
-    fun getShowDurations(context: Context): Boolean {
-        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-            .getBoolean("show_durations", true)
-    }
-
-    fun getShowFileSizes(context: Context): Boolean {
-        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-            .getBoolean("show_file_sizes", false)
-    }
-
-    fun getThumbnailQuality(context: Context): String {
-        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-            .getString("thumbnail_quality", "medium") ?: "medium"
-    }
-
-    fun getAppOnlyFolders(context: Context): Boolean {
-        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-            .getBoolean("app_only_folders", false)
-    }
-
-    fun getConfirmDelete(context: Context): Boolean {
-        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-            .getBoolean("confirm_delete", true)
-    }
-
-    fun getAutoHideControls(context: Context): Boolean {
-        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-            .getBoolean("auto_hide_controls", true)
-    }
 
     fun getDoubleTapSeek(context: Context): Int {
         return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
             .getInt("double_tap_seek", 10)
     }
 
-    fun getCacheSize(context: Context): Int {
-        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-            .getInt("cache_size_mb", 100)
-    }
-
-    fun getDarkMode(context: Context): String {
-        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-            .getString("dark_mode", "system") ?: "system"
-    }
-
-    fun getGridColumns(context: Context): Int {
-        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-            .getInt("grid_columns", 3)
-    }
 }

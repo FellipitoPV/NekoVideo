@@ -1,7 +1,6 @@
 package com.nkls.nekovideo.components.pages.mainscreen
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
@@ -12,9 +11,13 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,9 +29,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
-import androidx.core.view.WindowCompat
+import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -48,7 +51,6 @@ import com.nkls.nekovideo.components.helpers.VideoRemuxer
 import com.nkls.nekovideo.components.SortType
 import com.nkls.nekovideo.components.FolderScreen
 import com.nkls.nekovideo.components.helpers.FilesManager
-import com.nkls.nekovideo.components.helpers.FolderNavigationState
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.rememberFolderNavigationState
 import com.nkls.nekovideo.components.layout.ActionFAB
@@ -56,7 +58,6 @@ import com.nkls.nekovideo.components.layout.ActionType
 import com.nkls.nekovideo.components.layout.BannerAd
 import com.nkls.nekovideo.components.layout.TopBar
 import com.nkls.nekovideo.components.loadFolderContent
-import com.nkls.nekovideo.components.loadFolderContentRecursive
 import com.nkls.nekovideo.components.player.MiniPlayerImproved
 import com.nkls.nekovideo.components.player.VideoPlayerOverlay
 import com.nkls.nekovideo.components.settings.AboutSettingsScreen
@@ -191,10 +192,9 @@ fun MainScreen(
     // O usuário pode usar o mini player e abrir o overlay se desejar
     // (Código removido para evitar problema de navegação com back press)
 
-    LaunchedEffect(currentTheme, configuration.uiMode, showPlayerOverlay) { // Adicione showPlayerOverlay
-        // SÓ EXECUTE SE O PLAYER NÃO ESTIVER ABERTO
+    LaunchedEffect(currentTheme, configuration.uiMode, showPlayerOverlay) {
         if (!showPlayerOverlay) {
-            val activity = context.findActivity()
+            val activity = context.findActivity() as? ComponentActivity
             if (activity != null) {
                 val isDarkTheme = when (currentTheme) {
                     "light" -> false
@@ -211,30 +211,19 @@ fun MainScreen(
                     }
                 }
 
-                // Status bar: acompanha o tema
-                val statusBarColor = if (isDarkTheme) Color(0xFF121212) else Color(0xFFF5F5F5)
-                activity.window.statusBarColor = statusBarColor.toArgb()
-
-                // Navigation bar: SEMPRE preta com ícones brancos
-                activity.window.navigationBarColor = Color(0xFF000000).toArgb()
-
-                val insetsController = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
-
-                // Status bar: ícones acompanham o tema
-                insetsController.isAppearanceLightStatusBars = !isDarkTheme
-
-                // Navigation bar: SEMPRE ícones brancos
-                insetsController.isAppearanceLightNavigationBars = false
+                activity.enableEdgeToEdge(
+                    statusBarStyle = if (isDarkTheme) {
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(
+                            android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT
+                        )
+                    },
+                    navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.BLACK)
+                )
             }
         }
-    }
-
-    LaunchedEffect(Unit) {
-        // Pequeno delay após recreate para garantir que tudo foi carregado
-        delay(200)
-
-        // Força atualização do tema
-        themeManager.forceStatusBarUpdate()
     }
 
     // BackHandlers movidos para DEPOIS do NavHost para ter prioridade (ordem LIFO)
@@ -461,9 +450,7 @@ fun MainScreen(
                     currentRoute = currentRoute,
                     selectedItems = selectedItems.toList(),
                     folderPath = folderPath,
-                    context = context,
                     navController = navController,
-                    showPrivateFolders = showPrivateFolders,
                     onPasswordDialog = {
                         if (showPrivateFolders) {
                             togglePrivateFolders()
@@ -510,6 +497,7 @@ fun MainScreen(
         },
         floatingActionButton = {
             if (currentRoute != "video_player" && currentRoute?.startsWith("settings") != true && !showPlayerOverlay) {
+                Box(modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))) {
                 ActionFAB(
                     hasSelectedItems = selectedItems.isNotEmpty(),
                     isMoveMode = isMoveMode,
@@ -736,6 +724,7 @@ fun MainScreen(
                         }
                     }
                 )
+                } // Box navigationBarsPadding
             }
         },
         bottomBar = {

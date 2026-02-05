@@ -1,32 +1,34 @@
 package com.nkls.nekovideo.components.layout
 
-import android.content.Context
-import android.net.Uri
 import android.util.Log
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SmallTopAppBar
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -35,42 +37,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import com.nkls.nekovideo.R
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import java.io.File
-import androidx.compose.ui.res.painterResource
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.collectAsState
 import com.nkls.nekovideo.billing.BillingManager
 import com.nkls.nekovideo.billing.PremiumManager
-
-// NOVA função para detectar se é pasta segura (qualquer pasta com . no início e com marcadores)
-private fun isSecureFolder(folderPath: String): Boolean {
-    val folder = File(folderPath)
-    val hasSecureMarkers = File(folder, ".nomedia").exists() || File(folder, ".nekovideo").exists()
-    return folder.name.startsWith(".") && hasSecureMarkers
-}
-
-// SIMPLIFICADA - função para detectar se está na raiz
-private fun isAtRootLevel(folderPath: String): Boolean {
-    val rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath.trimEnd('/')
-    val normalizedFolderPath = folderPath.trimEnd('/')
-    return normalizedFolderPath == rootPath
-}
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,12 +58,10 @@ fun TopBar(
     currentRoute: String?,
     selectedItems: List<String>,
     folderPath: String,
-    context: Context,
     navController: NavController,
     onPasswordDialog: () -> Unit,
     onSelectionClear: () -> Unit,
     onSelectAll: () -> Unit,
-    showPrivateFolders: Boolean,
     premiumManager: PremiumManager,
     billingManager: BillingManager,
     isAtRootLevel: Boolean = false,
@@ -92,11 +70,18 @@ fun TopBar(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val maxTapInterval = 500L
-    var tapCount by remember { mutableStateOf(0) }
+    var tapCount by remember { mutableIntStateOf(0) }
 
     val isPremium by premiumManager.isPremium.collectAsState()
 
-    SmallTopAppBar(
+    val density = LocalDensity.current
+    var isCompact by remember { mutableStateOf(false) }
+
+    TopAppBar(
+        modifier = Modifier.onSizeChanged { size ->
+            isCompact = with(density) { size.width.toDp() } > 600.dp
+        },
+        expandedHeight = if (isCompact) 48.dp else 64.dp,
         title = {
             when {
                 selectedItems.isNotEmpty() -> {
@@ -315,13 +300,11 @@ fun TopBar(
             }
         },
         actions = {
-            // BOTÃO PARA COMPRAR PREMIUM
             IconButton(onClick = {
                 if (!isPremium) {
-                    // Abre fluxo de compra
                     billingManager.launchPurchaseFlow(
                         onSuccess = {
-                            // Compra realizada
+
                         },
                         onError = { error ->
                             Log.e("TopBar", "Erro na compra: $error")
@@ -348,7 +331,7 @@ fun TopBar(
                 }
             }
         },
-        colors = TopAppBarDefaults.smallTopAppBarColors(
+        colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             navigationIconContentColor = MaterialTheme.colorScheme.onSurface,

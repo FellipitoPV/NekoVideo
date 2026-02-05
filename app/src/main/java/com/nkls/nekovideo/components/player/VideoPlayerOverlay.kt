@@ -159,12 +159,11 @@ fun VideoPlayerOverlay(
         }
     }
 
-    // ✅ Forçar PORTRAIT quando não pode controlar rotação
-    // Isso garante que ao reabrir o app, a tela não fique rotacionada
+    // ✅ Restaurar orientação padrão quando não pode controlar rotação
     LaunchedEffect(canControlRotation) {
         if (!canControlRotation) {
             val activity = context.findActivity()
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
 
@@ -220,9 +219,9 @@ fun VideoPlayerOverlay(
     fun applyRotation(videoSize: VideoSize? = null) {
         val activity = context.findActivity() ?: return
 
-        // Se não pode controlar rotação, forçar PORTRAIT e sair
+        // Se não pode controlar rotação, restaurar orientação padrão e sair
         if (!canControlRotation) {
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             return
         }
 
@@ -692,9 +691,8 @@ fun VideoPlayerOverlay(
             onDispose {
                 WindowCompat.setDecorFitsSystemWindows(window, true)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
-                // Forçar PORTRAIT ao invés de UNSPECIFIED para evitar que a tela
-                // fique rotacionada ao voltar para o FolderScreen
-                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                // Restaurar orientação padrão ao voltar para o FolderScreen
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 isFullscreen = false
 
                 // Remover flag de manter tela ligada

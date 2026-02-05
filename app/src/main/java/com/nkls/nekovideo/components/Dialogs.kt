@@ -61,13 +61,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-// ✅ NOVO: Dialog para renomear um único item
 @Composable
 fun SingleRenameDialog(
     selectedItem: String,
     onDismiss: () -> Unit,
     onComplete: () -> Unit,
-    onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
+    onRefresh: (() -> Unit)? = null
 ) {
     var newName by remember {
         val file = File(selectedItem)
@@ -97,38 +96,34 @@ fun SingleRenameDialog(
             tonalElevation = 6.dp
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Header
                 Text(
                     text = if (isRenaming) stringResource(R.string.renaming_files) else stringResource(R.string.rename_item),
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
                 if (isRenaming) {
-                    // Progress Content
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(40.dp),
+                            modifier = Modifier.size(24.dp),
                             strokeWidth = 3.dp,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
                             text = stringResource(R.string.renaming_item),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 } else {
-                    // Input Content
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
                             text = "Item: ${File(selectedItem).name}",
                             style = MaterialTheme.typography.bodySmall,
@@ -141,7 +136,8 @@ fun SingleRenameDialog(
                             label = { Text(stringResource(R.string.new_name)) },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !isRenaming,
-                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true,
+                            shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
@@ -149,10 +145,9 @@ fun SingleRenameDialog(
                         )
                     }
 
-                    // Action Buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
                     ) {
                         TextButton(
                             onClick = onDismiss,
@@ -195,13 +190,12 @@ fun SingleRenameDialog(
     }
 }
 
-// ✅ ATUALIZADO: Dialog para renomear múltiplos itens
 @Composable
 fun MultipleRenameDialog(
     selectedItems: List<String>,
     onDismiss: () -> Unit,
     onComplete: () -> Unit,
-    onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
+    onRefresh: (() -> Unit)? = null
 ) {
     var baseName by remember { mutableStateOf("") }
     var startNumber by remember { mutableStateOf("1") }
@@ -226,38 +220,34 @@ fun MultipleRenameDialog(
             tonalElevation = 6.dp
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Header
                 Text(
                     text = if (isRenaming) stringResource(R.string.renaming_files) else stringResource(R.string.rename_multiple_items),
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
                 if (isRenaming) {
-                    // Progress Content
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(40.dp),
+                            modifier = Modifier.size(24.dp),
                             strokeWidth = 3.dp,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
                             text = stringResource(R.string.renaming_progress, currentProgress, totalItems),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 } else {
-                    // Input Content
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
                             text = stringResource(R.string.selected_items_count, selectedItems.size),
                             style = MaterialTheme.typography.bodySmall,
@@ -270,7 +260,8 @@ fun MultipleRenameDialog(
                             label = { Text(stringResource(R.string.base_name)) },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !isRenaming,
-                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true,
+                            shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
@@ -282,7 +273,8 @@ fun MultipleRenameDialog(
                             label = { Text(stringResource(R.string.start_number)) },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !isRenaming,
-                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true,
+                            shape = RoundedCornerShape(10.dp),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -291,10 +283,9 @@ fun MultipleRenameDialog(
                         )
                     }
 
-                    // Action Buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
                     ) {
                         TextButton(
                             onClick = onDismiss,
@@ -315,7 +306,7 @@ fun MultipleRenameDialog(
                                             currentProgress = current
                                             totalItems = total
                                         },
-                                        onRefresh = onRefresh // ✅ NOVO: Passar callback
+                                        onRefresh = onRefresh
                                     )
                                     isRenaming = false
                                     onComplete()
@@ -334,15 +325,13 @@ fun MultipleRenameDialog(
     }
 }
 
-// ✅ MANTER: Dialog original como fallback (pode ser removido depois se não for usado)
 @Composable
 fun RenameDialog(
     selectedItems: List<String>,
     onDismiss: () -> Unit,
     onComplete: () -> Unit,
-    onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
+    onRefresh: (() -> Unit)? = null
 ) {
-    // Automaticamente escolher o dialog correto baseado na quantidade
     if (selectedItems.size == 1) {
         SingleRenameDialog(
             selectedItem = selectedItems.first(),
@@ -365,7 +354,7 @@ fun CreateFolderDialog(
     currentPath: String,
     onDismiss: () -> Unit,
     onFolderCreated: () -> Unit,
-    onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
+    onRefresh: (() -> Unit)? = null
 ) {
     var folderName by remember { mutableStateOf("") }
     var isCreating by remember { mutableStateOf(false) }
@@ -388,26 +377,24 @@ fun CreateFolderDialog(
             tonalElevation = 6.dp
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Header
                 Text(
                     text = stringResource(R.string.create_new_folder),
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
                 if (isCreating) {
-                    // Progress Content
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.5.dp,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
@@ -417,8 +404,7 @@ fun CreateFolderDialog(
                         )
                     }
                 } else {
-                    // Input Content
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         OutlinedTextField(
                             value = folderName,
                             onValueChange = {
@@ -428,7 +414,8 @@ fun CreateFolderDialog(
                             label = { Text(stringResource(R.string.folder_name)) },
                             modifier = Modifier.fillMaxWidth(),
                             isError = errorMessage != null,
-                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true,
+                            shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
@@ -446,10 +433,9 @@ fun CreateFolderDialog(
                         }
                     }
 
-                    // Action Buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
                     ) {
                         TextButton(
                             onClick = onDismiss,
@@ -470,7 +456,7 @@ fun CreateFolderDialog(
                                                     context = context,
                                                     path = currentPath,
                                                     folderName = folderName,
-                                                    onRefresh = onRefresh // ✅ NOVO: Passar callback
+                                                    onRefresh = onRefresh
                                                 )
                                             } catch (e: Exception) {
                                                 errorMessage = e.message ?: "Failed to create folder"
@@ -529,30 +515,28 @@ fun PasswordDialog(
             tonalElevation = 6.dp
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Header
                 Text(
                     text = if (isFirstTime) {
                         stringResource(R.string.set_secure_password)
                     } else {
                         stringResource(R.string.enter_password)
                     },
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
                 if (isProcessing) {
-                    // Progress Content
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.5.dp,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
@@ -562,8 +546,7 @@ fun PasswordDialog(
                         )
                     }
                 } else {
-                    // Input Content
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedTextField(
                             value = password,
                             onValueChange = {
@@ -576,7 +559,7 @@ fun PasswordDialog(
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             visualTransformation = PasswordVisualTransformation(),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
@@ -597,7 +580,7 @@ fun PasswordDialog(
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 visualTransformation = PasswordVisualTransformation(),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(10.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
@@ -616,10 +599,9 @@ fun PasswordDialog(
                         }
                     }
 
-                    // Action Buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
                     ) {
                         TextButton(
                             onClick = onDismiss,
@@ -690,18 +672,16 @@ fun DeleteConfirmationDialog(
             tonalElevation = 6.dp
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Header
                 Text(
                     text = stringResource(R.string.confirm_deletion),
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                // Content
                 Text(
                     text = stringResource(R.string.delete_confirmation_message, itemCount),
                     style = MaterialTheme.typography.bodyMedium,
@@ -709,10 +689,9 @@ fun DeleteConfirmationDialog(
                     lineHeight = 20.sp
                 )
 
-                // Action Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
                 ) {
                     TextButton(
                         onClick = onDismiss,
@@ -756,30 +735,26 @@ fun DeleteVideoDialog(
             tonalElevation = 6.dp
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Header
                 Text(
                     text = stringResource(R.string.delete_video),
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                // Content
                 Text(
                     text = stringResource(R.string.delete_video_confirmation, fileName),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
                     lineHeight = 20.sp
                 )
 
-                // Action Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
                 ) {
                     TextButton(
                         onClick = onDismiss,
@@ -822,10 +797,9 @@ fun FixVideoMetadataDialog(
             tonalElevation = 6.dp
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Header
                 Text(
                     text = stringResource(R.string.fix_video_metadata_title),
                     style = MaterialTheme.typography.titleLarge,
@@ -833,17 +807,15 @@ fun FixVideoMetadataDialog(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                // Content
                 Text(
                     text = stringResource(R.string.fix_video_metadata_description),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                // Action Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
@@ -889,22 +861,20 @@ fun ProcessingDialog(
             tonalElevation = 6.dp
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Header
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                // Progress Content
                 CircularProgressIndicator(
-                    modifier = Modifier.size(48.dp),
-                    strokeWidth = 4.dp,
+                    modifier = Modifier.size(36.dp),
+                    strokeWidth = 3.dp,
                     color = MaterialTheme.colorScheme.primary
                 )
 
