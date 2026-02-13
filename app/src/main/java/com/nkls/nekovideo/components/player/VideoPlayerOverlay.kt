@@ -227,12 +227,12 @@ fun VideoPlayerOverlay(
 
         val targetOrientation = when (rotationMode) {
             RotationMode.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-            RotationMode.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            RotationMode.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             RotationMode.AUTO -> {
                 if (videoSize != null && videoSize.width > 0 && videoSize.height > 0) {
                     // VideoSize válido - calcular orientação
                     if (videoSize.width > videoSize.height) {
-                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                     } else {
                         ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                     }
