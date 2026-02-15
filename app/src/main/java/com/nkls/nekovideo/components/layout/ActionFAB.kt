@@ -53,7 +53,8 @@ fun ActionFAB(
     isSecureMode: Boolean,
     isRootDirectory: Boolean = false,
     selectedItems: List<String> = emptyList(),
-    itemsToMoveCount: Int = 0, // NOVO: contador de itens para mover
+    itemsToMoveCount: Int = 0,
+    isInsideLockedFolder: Boolean = false,
     onActionClick: (ActionType) -> Unit
 ) {
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -62,10 +63,9 @@ fun ActionFAB(
     val pasteHereText = stringResource(R.string.action_paste_here)
     val cancelText = stringResource(R.string.action_cancel)
     val cancelOperationText = stringResource(R.string.action_cancel_operation)
-    val unlockText = stringResource(R.string.action_unlock)
     val protectText = stringResource(R.string.action_protect)
-    val unprivatizeText = stringResource(R.string.action_unprivatize)
-    val privatizeText = stringResource(R.string.action_privatize)
+    val unprivatizeText = stringResource(R.string.action_unlock_folder)
+    val privatizeText = stringResource(R.string.action_lock_folder)
     val deleteText = stringResource(R.string.action_delete)
     val renameText = stringResource(R.string.action_rename)
     val moveText = stringResource(R.string.action_move)
@@ -86,19 +86,18 @@ fun ActionFAB(
     val options = stringResource(R.string.options)
     val navigateToDestination = stringResource(R.string.navigate_to_destination)
 
-    // Verifica se algum item selecionado é pasta privada
-    val hasPrivateFolders = remember(selectedItems) {
+    // Verifica se algum item selecionado é pasta trancada
+    val hasLockedFolders = remember(selectedItems) {
         selectedItems.any { path ->
-            val file = java.io.File(path)
-            file.isDirectory && file.name.startsWith(".")
+            java.io.File(path, ".neko_locked").exists()
         }
     }
 
-    // Verifica se algum item selecionado é pasta normal
-    val hasNormalFolders = remember(selectedItems) {
+    // Verifica se algum item selecionado é pasta normal (pode ser trancada)
+    val hasLockableFolders = remember(selectedItems) {
         selectedItems.any { path ->
             val file = java.io.File(path)
-            file.isDirectory && !file.name.startsWith(".")
+            file.isDirectory && !java.io.File(path, ".neko_locked").exists()
         }
     }
 
@@ -107,7 +106,7 @@ fun ActionFAB(
                 file.isDirectory && file.name.startsWith(".")
             }
 
-    val actions = remember(hasSelectedItems, isSecureMode, hasPrivateFolders, hasNormalFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems) {
+    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder) {
         when {
             isMoveMode -> {
                 listOf(
@@ -121,7 +120,6 @@ fun ActionFAB(
                 val isSingleFolder = selectedItems.size == 1 &&
                         java.io.File(selectedItems.first()).isDirectory
 
-                // ✅ ADICIONAR O SHUFFLE_PLAY AQUI NO INÍCIO
                 actionsList.add(
                     ActionItem(
                         ActionType.SHUFFLE_PLAY,
@@ -130,34 +128,37 @@ fun ActionFAB(
                     )
                 )
 
-                if (isSecureMode) {
-                    actionsList.add(ActionItem(ActionType.UNLOCK, Icons.Default.LockOpen, unlockText))
-                } else {
-                    actionsList.add(ActionItem(ActionType.SECURE, Icons.Default.Lock, protectText))
-
-                    if (hasPrivateFolders) {
-                        actionsList.add(ActionItem(ActionType.UNPRIVATIZE, Icons.Default.VisibilityOff, unprivatizeText))
+                if (!isInsideLockedFolder) {
+                    // Normal actions - not inside a locked folder
+                    if (!isSecureMode) {
+                        actionsList.add(ActionItem(ActionType.SECURE, Icons.Default.Lock, protectText))
                     }
-                    if (hasNormalFolders) {
-                        actionsList.add(ActionItem(ActionType.PRIVATIZE, Icons.Default.Visibility, privatizeText))
+
+                    // Lock/Unlock available in both secure and normal mode
+                    if (hasLockedFolders) {
+                        actionsList.add(ActionItem(ActionType.UNPRIVATIZE, Icons.Default.LockOpen, unprivatizeText))
                     }
-                }
+                    if (hasLockableFolders) {
+                        actionsList.add(ActionItem(ActionType.PRIVATIZE, Icons.Default.Lock, privatizeText))
+                    }
 
-                actionsList.addAll(listOf(
-                    ActionItem(ActionType.DELETE, Icons.Default.Delete, deleteText),
-                    ActionItem(ActionType.RENAME, Icons.Default.Edit, renameText),
-                    ActionItem(ActionType.MOVE, Icons.AutoMirrored.Filled.DriveFileMove, moveText)
-                ))
+                    actionsList.addAll(listOf(
+                        ActionItem(ActionType.DELETE, Icons.Default.Delete, deleteText),
+                        ActionItem(ActionType.RENAME, Icons.Default.Edit, renameText),
+                        ActionItem(ActionType.MOVE, Icons.AutoMirrored.Filled.DriveFileMove, moveText)
+                    ))
 
-                if (isSingleNomediaFolder) {
-                    actionsList.add(
-                        ActionItem(
-                            ActionType.SET_AS_SECURE_FOLDER,
-                            Icons.Default.FolderSpecial,
-                            secureFolderSet
+                    if (isSingleNomediaFolder) {
+                        actionsList.add(
+                            ActionItem(
+                                ActionType.SET_AS_SECURE_FOLDER,
+                                Icons.Default.FolderSpecial,
+                                secureFolderSet
+                            )
                         )
-                    )
+                    }
                 }
+                // Inside locked folder: only shuffle play is allowed (added above)
 
                 actionsList
             }
@@ -388,8 +389,8 @@ private fun ActionGridItem(
                         ActionType.CANCEL_MOVE -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
                         ActionType.PASTE -> Color(0xFF4CAF50).copy(alpha = 0.15f)
                         ActionType.SECURE, ActionType.UNLOCK -> Color(0xFF4CAF50).copy(alpha = 0.15f)
-                        ActionType.PRIVATIZE -> Color(0xFFFF9800).copy(alpha = 0.15f)
-                        ActionType.UNPRIVATIZE -> Color(0xFF2196F3).copy(alpha = 0.15f)
+                        ActionType.PRIVATIZE -> Color(0xFFE91E63).copy(alpha = 0.15f)
+                        ActionType.UNPRIVATIZE -> Color(0xFF4CAF50).copy(alpha = 0.15f)
                         else -> if (action.isEnabled) {
                             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
                         } else {
@@ -406,9 +407,8 @@ private fun ActionGridItem(
                             contentDescription = action.title,
                             tint = when (action.type) {
                                 ActionType.DELETE, ActionType.CANCEL_MOVE -> MaterialTheme.colorScheme.error
-                                ActionType.PASTE, ActionType.SECURE, ActionType.UNLOCK -> Color(0xFF4CAF50)
-                                ActionType.PRIVATIZE -> Color(0xFFFF9800)
-                                ActionType.UNPRIVATIZE -> Color(0xFF2196F3)
+                                ActionType.PASTE, ActionType.SECURE, ActionType.UNLOCK, ActionType.UNPRIVATIZE -> Color(0xFF4CAF50)
+                                ActionType.PRIVATIZE -> Color(0xFFE91E63)
                                 else -> if (action.isEnabled) {
                                     MaterialTheme.colorScheme.primary
                                 } else {

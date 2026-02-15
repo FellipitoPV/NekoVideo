@@ -490,7 +490,7 @@ fun CreateFolderDialog(
 @Composable
 fun PasswordDialog(
     onDismiss: () -> Unit,
-    onPasswordVerified: () -> Unit
+    onPasswordVerified: (String) -> Unit
 ) {
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -633,7 +633,7 @@ fun PasswordDialog(
                                         if (isFirstTime) {
                                             FilesManager.SecureStorage.ensureSecureFolderExists(context)
                                         }
-                                        onPasswordVerified()
+                                        onPasswordVerified(password)
                                     } else {
                                         errorMessage = "Invalid password"
                                     }

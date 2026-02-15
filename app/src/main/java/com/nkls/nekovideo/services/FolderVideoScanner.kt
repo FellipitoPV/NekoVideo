@@ -10,6 +10,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.nkls.nekovideo.components.helpers.FolderLockManager
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
@@ -18,6 +19,7 @@ data class FolderInfo(
     val hasVideos: Boolean = false,
     val videoCount: Int = 0,
     val isSecure: Boolean = false,
+    val isLocked: Boolean = false,
     val lastModified: Long = 0L,
     val videos: List<VideoInfo> = emptyList()
 )
@@ -42,6 +44,7 @@ data class SerializableFolderInfo(
     val hasVideos: Boolean = false,
     val videoCount: Int = 0,
     val isSecure: Boolean = false,
+    val isLocked: Boolean = false,
     val lastModified: Long = 0L,
     val videos: List<SerializableVideoInfo> = emptyList()
 )
@@ -66,6 +69,7 @@ fun FolderInfo.toSerializable() = SerializableFolderInfo(
     hasVideos = hasVideos,
     videoCount = videoCount,
     isSecure = isSecure,
+    isLocked = isLocked,
     lastModified = lastModified,
     videos = videos.map { it.toSerializable() }
 )
@@ -75,6 +79,7 @@ fun SerializableFolderInfo.toFolderInfo() = FolderInfo(
     hasVideos = hasVideos,
     videoCount = videoCount,
     isSecure = isSecure,
+    isLocked = isLocked,
     lastModified = lastModified,
     videos = videos.map { it.toVideoInfo() }
 )
@@ -149,8 +154,8 @@ object FolderVideoScanner {
                 // Scan normal folders via MediaStore
                 scanNormalFolders(context, folderMap)
 
-                // Scan secure folders (com .nomedia/.nekovideo)
-                scanSecureFolders(folderMap)
+                // Scan secure folders (com .nomedia/.nekovideo) and locked folders
+                scanSecureFolders(context, folderMap)
 
                 // Scan direto das pastas principais para pegar arquivos não indexados
                 scanDirectFolders(folderMap)
@@ -265,7 +270,7 @@ object FolderVideoScanner {
         }
     }
 
-    private suspend fun scanSecureFolders(folderMap: ConcurrentHashMap<String, FolderInfo>) {
+    private suspend fun scanSecureFolders(context: Context, folderMap: ConcurrentHashMap<String, FolderInfo>) {
         val rootDirs = listOf(
             "/storage/emulated/0/",
             "/storage/emulated/0/Download/",
@@ -275,11 +280,12 @@ object FolderVideoScanner {
         )
 
         rootDirs.forEach { rootPath ->
-            scanSecureFoldersRecursive(File(rootPath), folderMap)
+            scanSecureFoldersRecursive(context, File(rootPath), folderMap)
         }
     }
 
     private suspend fun scanSecureFoldersRecursive(
+        context: Context,
         directory: File,
         folderMap: ConcurrentHashMap<String, FolderInfo>
     ) {
@@ -288,8 +294,23 @@ object FolderVideoScanner {
         if (!directory.exists() || !directory.isDirectory) return
 
         val isSecure = File(directory, ".nekovideo").exists()
+        val isLocked = FolderLockManager.isLocked(directory.absolutePath)
 
-        if (isSecure) {
+        if (isLocked) {
+            // Locked folder: get file count from registry, do NOT scan by extension
+            val registryEntry = FolderLockManager.getRegistryEntry(context, directory.absolutePath)
+            val fileCount = registryEntry?.fileCount ?: 0
+
+            folderMap[directory.absolutePath] = FolderInfo(
+                path = directory.absolutePath,
+                hasVideos = fileCount > 0,
+                videoCount = fileCount,
+                isSecure = true,
+                isLocked = true,
+                lastModified = directory.lastModified(),
+                videos = emptyList() // Locked videos are not scannable
+            )
+        } else if (isSecure) {
             val videoFiles = directory.listFiles()?.filter { file ->
                 file.isFile && file.extension.lowercase() in videoExtensions
             } ?: emptyList()
@@ -317,8 +338,9 @@ object FolderVideoScanner {
 
         directory.listFiles()?.forEach { subDir ->
             if (subDir.isDirectory) {
-                if (!subDir.name.startsWith(".") || isSecure || File(subDir, ".nekovideo").exists()) {
-                    scanSecureFoldersRecursive(subDir, folderMap)
+                if (!subDir.name.startsWith(".") || isSecure || isLocked ||
+                    File(subDir, ".nekovideo").exists() || FolderLockManager.isLocked(subDir.absolutePath)) {
+                    scanSecureFoldersRecursive(context, subDir, folderMap)
                 }
             }
         }

@@ -182,49 +182,85 @@ fun TopBar(
                     val relativePath = folderPath.removePrefix(rootPath).trim('/')
                     val pathSegments = relativePath.split('/').filter { it.isNotEmpty() }
 
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    Row(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        itemsIndexed(pathSegments) { index, segment ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                val displayName = if (segment.startsWith(".")) {
-                                    segment.drop(1)
-                                } else {
-                                    segment
-                                }
-
-                                val isCurrentFolder = index == pathSegments.size - 1
-
-                                Text(
-                                    text = displayName,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = if (isCurrentFolder) FontWeight.SemiBold else FontWeight.Medium,
-                                    color = when {
-                                        segment.startsWith(".") -> Color(0xFFFF6B35)
-                                        isCurrentFolder -> MaterialTheme.colorScheme.onSurface
-                                        else -> MaterialTheme.colorScheme.primary
-                                    },
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                        .clickable(enabled = !isCurrentFolder) {
-                                            // Construir o caminho até o segmento clicado
-                                            val targetPath = rootPath + "/" + pathSegments
-                                                .take(index + 1)
-                                                .joinToString("/")
-                                            onNavigateToPath(targetPath)
+                        // App icon with triple-tap for private folders toggle
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_app_icon),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .pointerInput(Unit) {
+                                    detectTapGestures { _ ->
+                                        tapCount++
+                                        if (tapCount == 1) {
+                                            coroutineScope.launch {
+                                                delay(maxTapInterval)
+                                                if (tapCount < 3) {
+                                                    tapCount = 0
+                                                }
+                                            }
                                         }
-                                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                                )
+                                        if (tapCount >= 3) {
+                                            tapCount = 0
+                                            onPasswordDialog()
+                                        }
+                                    }
+                                }
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = ">",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 2.dp)
+                        )
 
-                                if (index < pathSegments.size - 1) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            itemsIndexed(pathSegments) { index, segment ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    val displayName = if (segment.startsWith(".")) {
+                                        segment.drop(1)
+                                    } else {
+                                        segment
+                                    }
+
+                                    val isCurrentFolder = index == pathSegments.size - 1
+
                                     Text(
-                                        text = ">",
+                                        text = displayName,
                                         style = MaterialTheme.typography.titleMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(horizontal = 4.dp)
+                                        fontWeight = if (isCurrentFolder) FontWeight.SemiBold else FontWeight.Medium,
+                                        color = when {
+                                            segment.startsWith(".") -> Color(0xFFFF6B35)
+                                            isCurrentFolder -> MaterialTheme.colorScheme.onSurface
+                                            else -> MaterialTheme.colorScheme.primary
+                                        },
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                            .clickable(enabled = !isCurrentFolder) {
+                                                // Construir o caminho até o segmento clicado
+                                                val targetPath = rootPath + "/" + pathSegments
+                                                    .take(index + 1)
+                                                    .joinToString("/")
+                                                onNavigateToPath(targetPath)
+                                            }
+                                            .padding(horizontal = 4.dp, vertical = 2.dp)
                                     )
+
+                                    if (index < pathSegments.size - 1) {
+                                        Text(
+                                            text = ">",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 4.dp)
+                                        )
+                                    }
                                 }
                             }
                         }

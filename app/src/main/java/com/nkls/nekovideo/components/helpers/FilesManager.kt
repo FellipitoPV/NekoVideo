@@ -469,12 +469,17 @@ object FilesManager {
         return folder.isDirectory && !folder.name.startsWith(".")
     }
 
+    fun isFolderLocked(folderPath: String): Boolean {
+        return File(folderPath, ".neko_locked").exists()
+    }
+
     suspend fun getVideosRecursive(
         context: Context,
         folderPath: String,
         isSecureMode: Boolean,
         showPrivateFolders: Boolean,
-        selectedItems: List<String> = emptyList()
+        selectedItems: List<String> = emptyList(),
+        sessionPassword: String? = null
     ): List<String> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
 
         fun isSecureFolder(folderPath: String): Boolean {
@@ -486,11 +491,24 @@ object FilesManager {
                     File(folderPath, ".nomedia").exists()
         }
 
+        fun getLockedVideos(path: String, password: String): List<String> {
+            val manifest = FolderLockManager.readManifest(path, password) ?: return emptyList()
+            return manifest.files.map { entry ->
+                "locked://${File(path, entry.obfuscatedName).absolutePath}"
+            }
+        }
+
         fun scanFolder(path: String, isSecure: Boolean): List<String> {
             val videos = mutableListOf<String>()
             val folder = File(path)
 
             if (!folder.exists() || !folder.isDirectory) return videos
+
+            // If this folder is locked, get videos from manifest instead of scanning files
+            if (FolderLockManager.isLocked(path) && sessionPassword != null) {
+                videos.addAll(getLockedVideos(path, sessionPassword))
+                return videos
+            }
 
             try {
                 folder.listFiles()?.forEach { file ->
@@ -500,7 +518,7 @@ object FilesManager {
                         ) -> {
                             videos.add("file://${file.absolutePath}")
                         }
-                        file.isDirectory -> {
+                        file.isDirectory && file.name !in listOf(".neko_thumbs") -> {
                             val shouldEnter = if (file.name.startsWith(".")) {
                                 showPrivateFolders || isSecure
                             } else {

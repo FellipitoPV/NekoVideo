@@ -56,6 +56,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nkls.nekovideo.components.helpers.FolderLockManager
+import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.services.FolderVideoScanner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -236,9 +238,30 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
     val folder = File(folderPath)
     if (!folder.exists() || !folder.isDirectory) return emptyList()
 
+    // Check if this is a locked folder with an active session
+    if (FolderLockManager.isLocked(folderPath) && LockedPlaybackSession.isActive &&
+        LockedPlaybackSession.currentFolderPath == folderPath) {
+        // Load content from manifest, showing original names
+        val manifest = LockedPlaybackSession.currentManifest ?: return emptyList()
+        val items = manifest.files.map { entry ->
+            val obfuscatedFile = File(folder, entry.obfuscatedName)
+            MediaItem(
+                path = obfuscatedFile.absolutePath,
+                uri = null,
+                isFolder = false,
+                name = entry.originalName,
+                displayName = entry.originalName,
+                lastModified = obfuscatedFile.lastModified(),
+                sizeInBytes = entry.originalSize
+            )
+        }
+        return applySorting(items, sortType)
+    }
+
     val items = folder.listFiles()?.mapNotNull { file ->
         when {
-            file.name in listOf(".nekovideo") -> null
+            file.name in listOf(".nekovideo", ".neko_locked", ".neko_manifest.enc",
+                ".neko_lock_in_progress", ".nomedia", "recovery_hint.txt", ".neko_thumbs") -> null
             file.isDirectory -> MediaItem(file.absolutePath, null, true, lastModified = file.lastModified(), sizeInBytes = getFolderSize(file))
             file.isFile && file.extension.lowercase() in videoExtensions -> MediaItem(file.absolutePath, null, false, lastModified = file.lastModified(), sizeInBytes = file.length())
             else -> null
@@ -278,6 +301,7 @@ private fun loadNormalContentFromCache(
         val folderInfo = folderCache[subfolder.absolutePath]
         val isSecure = folderInfo?.isSecure ?: (File(subfolder, ".nomedia").exists())
         val isNekoFolder = File(subfolder, ".nekovideo").exists() // Pasta criada pelo app
+        val isFolderLocked = folderInfo?.isLocked ?: FolderLockManager.isLocked(subfolder.absolutePath)
         val hasVideos = folderInfo?.hasVideos ?: false
         val hasSecureSubfolders = hasSecureSubfolderInCache(subfolder.absolutePath, folderCache)
 
@@ -288,12 +312,15 @@ private fun loadNormalContentFromCache(
             // ✅ NOVO: Sempre mostra pastas padrão no root
             isDefaultFolder -> true
 
+            // Locked folders: show only when private folders are visible
+            isFolderLocked -> showPrivateFolders
+
             // ✅ Pastas criadas pelo app (com .nekovideo): respeita showPrivateFolders se for pasta privada
             isNekoFolder -> {
                 if (subfolder.name.startsWith(".")) {
-                    showPrivateFolders // Pasta privada com .nekovideo só aparece se showPrivateFolders = true
+                    showPrivateFolders
                 } else {
-                    true // Pasta normal com .nekovideo sempre aparece
+                    true
                 }
             }
 
@@ -1069,6 +1096,19 @@ private fun MediaCard(
             job = coroutineScope.launch(Dispatchers.IO) {
                 try {
                     delay(100)
+
+                    // Check for saved thumbnail from locked folder
+                    if (showThumbnails) {
+                        val lockedThumb = FolderLockManager.getLockedThumbnail(item.path)
+                        if (lockedThumb != null) {
+                            withContext(Dispatchers.Main) {
+                                thumbnail = lockedThumb
+                                isLoading = false
+                            }
+                            return@launch
+                        }
+                    }
+
                     val videoUri = if (isSecureMode) Uri.fromFile(File(item.path)) else item.uri
 
                     videoUri?.let { uri ->
@@ -1171,6 +1211,7 @@ private fun MediaCard(
 @Composable
 private fun FolderContent(item: MediaItem) {
     val isSecure = item.name.startsWith(".")
+    val isLocked = FolderLockManager.isLocked(item.path)
 
     Column(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f)),
@@ -1178,9 +1219,17 @@ private fun FolderContent(item: MediaItem) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
-            imageVector = if (isSecure) Icons.Default.FolderSpecial else Icons.Default.Folder,
+            imageVector = when {
+                isLocked -> Icons.Default.Lock
+                isSecure -> Icons.Default.FolderSpecial
+                else -> Icons.Default.Folder
+            },
             contentDescription = null,
-            tint = if (isSecure) Color(0xFFFF6B35) else MaterialTheme.colorScheme.primary,
+            tint = when {
+                isLocked -> Color(0xFFE91E63) // Red lock icon
+                isSecure -> Color(0xFFFF6B35)
+                else -> MaterialTheme.colorScheme.primary
+            },
             modifier = Modifier.size(40.dp).weight(1f)
         )
 

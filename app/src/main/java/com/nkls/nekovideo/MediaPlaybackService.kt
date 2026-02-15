@@ -24,8 +24,11 @@ import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import kotlinx.coroutines.*
 import android.net.Uri
 import androidx.media3.session.SessionResult
+import com.nkls.nekovideo.components.helpers.HybridDataSourceFactory
+import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.PlaylistNavigator
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 
 @OptIn(UnstableApi::class)
 class MediaPlaybackService : MediaSessionService() {
@@ -55,7 +58,13 @@ class MediaPlaybackService : MediaSessionService() {
             .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
             .build()
 
-        player = ExoPlayer.Builder(this).build().apply {
+        // Use HybridDataSourceFactory so ExoPlayer can handle both normal and locked URIs
+        val dataSourceFactory = HybridDataSourceFactory(this)
+        val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+
+        player = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .build().apply {
             setAudioAttributes(audioAttributes, true)
             addListener(playerListener)
         }
@@ -224,12 +233,25 @@ class MediaPlaybackService : MediaSessionService() {
         return mediaSession
     }
 
+    /**
+     * Check if any URI in a playlist uses the locked:// scheme
+     */
+    private fun hasLockedUris(playlist: List<String>): Boolean {
+        return playlist.any { it.startsWith("locked://") }
+    }
+
     // ✅ SIMPLIFICADO: Apenas usa thumbnail do cache, não gera
     // MediaPlaybackService.kt
     private fun createMediaItemWithMetadata(uri: String): MediaItem {
-        val file = File(uri.removePrefix("file://"))
-        val title = file.nameWithoutExtension
-        val videoPath = uri.removePrefix("file://")
+        val isLocked = uri.startsWith("locked://")
+        val filePath = if (isLocked) uri.removePrefix("locked://") else uri.removePrefix("file://")
+        val file = File(filePath)
+        // For locked files, try to get original name from session
+        val title = if (isLocked) {
+            LockedPlaybackSession.getOriginalName(file.name)?.substringBeforeLast(".") ?: file.nameWithoutExtension
+        } else {
+            file.nameWithoutExtension
+        }
 
         val metadataBuilder = MediaMetadata.Builder()
             .setTitle(title)
@@ -237,12 +259,13 @@ class MediaPlaybackService : MediaSessionService() {
             .setArtist("NekoVideo")
 
         // ✅ CORRIGIDO: Usa função que busca do disco
-        val cachedThumbnail = loadThumbnailWithContext(videoPath)
+        val cachedThumbnail = loadThumbnailWithContext(filePath)
         if (cachedThumbnail != null) {
             val artworkData = bitmapToByteArray(cachedThumbnail)
             metadataBuilder.setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
         }
 
+        // Keep locked:// URI so HybridDataSource can detect and handle it
         return MediaItem.Builder()
             .setUri(uri)
             .setMediaMetadata(metadataBuilder.build())
@@ -313,6 +336,8 @@ class MediaPlaybackService : MediaSessionService() {
     private fun updatePlaylist(playlist: List<String>, initialIndex: Int) {
         isUpdatingMetadata = true // ✅ Evita processamento de onMediaItemTransition
 
+        val isLocked = hasLockedUris(playlist)
+
         player?.run {
             clearMediaItems()
             setMediaItems(
@@ -328,8 +353,11 @@ class MediaPlaybackService : MediaSessionService() {
 
         updateNotificationIntent()
 
-        // ✅ Gera thumbnails em background
-        preloadThumbnailsForWindow(playlist)
+        // ✅ Gera thumbnails em background (only for normal files)
+        val normalFiles = playlist.filter { !it.startsWith("locked://") }
+        if (normalFiles.isNotEmpty()) {
+            preloadThumbnailsForWindow(normalFiles)
+        }
     }
 
     private fun updatePlaylistAfterDeletion(playlist: List<String>, nextIndex: Int) {
