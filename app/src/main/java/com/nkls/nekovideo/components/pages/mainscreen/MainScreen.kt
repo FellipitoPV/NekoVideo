@@ -585,7 +585,7 @@ fun MainScreen(
                     isRootDirectory = isAtRootLevel,
                     selectedItems = selectedItems.toList(),
                     itemsToMoveCount = itemsToMove.size,
-                    isInsideLockedFolder = LockedPlaybackSession.isActive && LockedPlaybackSession.currentFolderPath == folderPath,
+                    isInsideLockedFolder = FolderLockManager.isLocked(folderPath) && LockedPlaybackSession.isActive && LockedPlaybackSession.currentFolderPath == folderPath,
                     onActionClick = { action ->
                         when (action) {
                             ActionType.SETTINGS -> {

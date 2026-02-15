@@ -117,9 +117,6 @@ fun ActionFAB(
             hasSelectedItems -> {
                 val actionsList = mutableListOf<ActionItem>()
 
-                val isSingleFolder = selectedItems.size == 1 &&
-                        java.io.File(selectedItems.first()).isDirectory
-
                 actionsList.add(
                     ActionItem(
                         ActionType.SHUFFLE_PLAY,
@@ -129,7 +126,7 @@ fun ActionFAB(
                 )
 
                 if (!isInsideLockedFolder) {
-                    // Normal actions - not inside a locked folder
+                    // All actions available in non-locked folders (even inside secure_videos)
                     if (!isSecureMode) {
                         actionsList.add(ActionItem(ActionType.SECURE, Icons.Default.Lock, protectText))
                     }
@@ -163,15 +160,28 @@ fun ActionFAB(
                 actionsList
             }
             else -> {
-                buildList {
-                    add(ActionItem(
-                        ActionType.SHUFFLE_PLAY,
-                        Icons.Default.Shuffle,
-                        shufflePlayText,
-                        isEnabled = !isRootDirectory
-                    ))
-                    add(ActionItem(ActionType.CREATE_FOLDER, Icons.Default.CreateNewFolder, createFolderText))
-                    add(ActionItem(ActionType.SETTINGS, Icons.Default.Settings, settingsText))
+                if (isInsideLockedFolder) {
+                    // Inside locked/encrypted folder: shuffle + settings
+                    buildList {
+                        add(ActionItem(
+                            ActionType.SHUFFLE_PLAY,
+                            Icons.Default.Shuffle,
+                            shufflePlayText
+                        ))
+                        add(ActionItem(ActionType.SETTINGS, Icons.Default.Settings, settingsText))
+                    }
+                } else {
+                    // Normal folder (including non-locked folders inside secure_videos)
+                    buildList {
+                        add(ActionItem(
+                            ActionType.SHUFFLE_PLAY,
+                            Icons.Default.Shuffle,
+                            shufflePlayText,
+                            isEnabled = !isRootDirectory
+                        ))
+                        add(ActionItem(ActionType.CREATE_FOLDER, Icons.Default.CreateNewFolder, createFolderText))
+                        add(ActionItem(ActionType.SETTINGS, Icons.Default.Settings, settingsText))
+                    }
                 }
             }
         }
