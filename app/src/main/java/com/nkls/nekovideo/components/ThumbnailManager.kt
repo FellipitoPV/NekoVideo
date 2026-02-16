@@ -52,11 +52,11 @@ object OptimizedThumbnailManager {
     val thumbnailCache: LruCache<String, Bitmap>
         get() = _thumbnailCache ?: createDefaultCache().also { _thumbnailCache = it }
 
-    // Retorna .neko_thumbs/{videoFileName} na pasta do vídeo
+    // Retorna .neko_thumbs/{videoFileNameSemExtensao} na pasta do vídeo
     private fun getThumbnailFile(videoPath: String): File {
         val videoFile = File(videoPath)
         val thumbsDir = File(videoFile.parentFile, THUMBS_DIR)
-        return File(thumbsDir, videoFile.name)
+        return File(thumbsDir, videoFile.nameWithoutExtension)
     }
 
     // Salva thumbnail XOR-encriptada na pasta do vídeo
@@ -245,13 +245,13 @@ object OptimizedThumbnailManager {
 
                 // 1. Remove thumbnails órfãs
                 if (thumbsDir.exists()) {
-                    val videoNames = folder.listFiles()
+                    val videoNamesWithoutExt = folder.listFiles()
                         ?.filter { it.isFile && isVideoFile(it.name) }
-                        ?.map { it.name }
+                        ?.map { it.nameWithoutExtension }
                         ?.toSet() ?: emptySet()
 
                     thumbsDir.listFiles()?.forEach { thumbFile ->
-                        if (thumbFile.name != ".nomedia" && thumbFile.name !in videoNames) {
+                        if (thumbFile.name != ".nomedia" && thumbFile.name !in videoNamesWithoutExt) {
                             thumbFile.delete()
                         }
                     }
@@ -263,7 +263,7 @@ object OptimizedThumbnailManager {
                     ?: return@launch
 
                 for (videoFile in videoFiles) {
-                    val thumbFile = File(thumbsDir, videoFile.name)
+                    val thumbFile = File(thumbsDir, videoFile.nameWithoutExtension)
                     if (!thumbFile.exists()) {
                         // Gera thumbnail (inclui salvar no disco)
                         generateThumbnailSync(context, videoFile.absolutePath)
