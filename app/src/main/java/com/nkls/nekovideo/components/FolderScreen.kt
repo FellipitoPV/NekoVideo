@@ -776,6 +776,11 @@ fun FolderScreen(
         return
     }
 
+    // Sincroniza thumbnails ao entrar na pasta (background, não bloqueia UI)
+    LaunchedEffect(folderPath) {
+        OptimizedThumbnailManager.syncThumbnails(context, folderPath)
+    }
+
     // Carrega items para a pasta atual e mantém cache das anteriores
     LaunchedEffect(folderPath, sortType, renameTrigger, isSecureMode, showPrivateFolders, scannerCache, searchQuery) {
         // Marca esta pasta como carregando

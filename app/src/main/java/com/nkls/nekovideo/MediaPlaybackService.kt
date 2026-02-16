@@ -24,6 +24,7 @@ import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import kotlinx.coroutines.*
 import android.net.Uri
 import androidx.media3.session.SessionResult
+import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.HybridDataSourceFactory
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
@@ -180,13 +181,17 @@ class MediaPlaybackService : MediaSessionService() {
 
                 // Gera thumbnail do vídeo atual se não existir
                 mediaItem?.localConfiguration?.uri?.let { uri ->
-                    preloadScope.launch {
-                        val videoPath = uri.path ?: return@launch
-                        OptimizedThumbnailManager.getOrGenerateThumbnailSync(
-                            this@MediaPlaybackService,
-                            videoPath
-                        )
+                    val uriStr = uri.toString()
+                    if (!uriStr.startsWith("locked://")) {
+                        preloadScope.launch {
+                            val videoPath = uri.path ?: return@launch
+                            OptimizedThumbnailManager.getOrGenerateThumbnailSync(
+                                this@MediaPlaybackService,
+                                videoPath
+                            )
+                        }
                     }
+                    // Locked thumbnails are already pre-generated in .neko_thumbs, no need to generate
                 }
             }
         }
@@ -258,8 +263,12 @@ class MediaPlaybackService : MediaSessionService() {
             .setDisplayTitle(title)
             .setArtist("NekoVideo")
 
-        // ✅ CORRIGIDO: Usa função que busca do disco
-        val cachedThumbnail = loadThumbnailWithContext(filePath)
+        // ✅ CORRIGIDO: Para locked, busca thumbnail da .neko_thumbs; para normal, busca do cache
+        val cachedThumbnail = if (isLocked) {
+            FolderLockManager.getLockedThumbnail(filePath)
+        } else {
+            loadThumbnailWithContext(filePath)
+        }
         if (cachedThumbnail != null) {
             val artworkData = bitmapToByteArray(cachedThumbnail)
             metadataBuilder.setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
@@ -283,7 +292,7 @@ class MediaPlaybackService : MediaSessionService() {
         }
 
         // 2. Busca do disco
-        val diskBitmap = OptimizedThumbnailManager.loadThumbnailFromDiskSync(this, videoPath)
+        val diskBitmap = OptimizedThumbnailManager.loadThumbnailFromDiskSync(videoPath)
         if (diskBitmap != null) {
             OptimizedThumbnailManager.thumbnailCache.put(key, diskBitmap)
             return diskBitmap
@@ -353,10 +362,9 @@ class MediaPlaybackService : MediaSessionService() {
 
         updateNotificationIntent()
 
-        // ✅ Gera thumbnails em background (only for normal files)
-        val normalFiles = playlist.filter { !it.startsWith("locked://") }
-        if (normalFiles.isNotEmpty()) {
-            preloadThumbnailsForWindow(normalFiles)
+        // ✅ Gera/carrega thumbnails em background (normal + locked)
+        if (playlist.isNotEmpty()) {
+            preloadThumbnailsForWindow(playlist)
         }
     }
 
@@ -392,13 +400,19 @@ class MediaPlaybackService : MediaSessionService() {
             var generatedCount = 0
 
             videoPaths.forEach { videoPath ->
-                val cleanPath = videoPath.removePrefix("file://")
+                val isLocked = videoPath.startsWith("locked://")
+                val cleanPath = if (isLocked) videoPath.removePrefix("locked://") else videoPath.removePrefix("file://")
 
-                // Usa a função síncrona que verifica cache e gera se necessário
-                val thumbnail = OptimizedThumbnailManager.getOrGenerateThumbnailSync(
-                    this@MediaPlaybackService,
-                    cleanPath
-                )
+                val thumbnail = if (isLocked) {
+                    // Locked thumbnails are already stored in .neko_thumbs, just load them
+                    FolderLockManager.getLockedThumbnail(cleanPath)
+                } else {
+                    // Usa a função síncrona que verifica cache e gera se necessário
+                    OptimizedThumbnailManager.getOrGenerateThumbnailSync(
+                        this@MediaPlaybackService,
+                        cleanPath
+                    )
+                }
 
                 if (thumbnail != null) {
                     generatedCount++
@@ -436,14 +450,23 @@ class MediaPlaybackService : MediaSessionService() {
                 val currentItem = currentPlayer.currentMediaItem ?: return
 
                 val uri = currentItem.localConfiguration?.uri?.toString() ?: return
-                val videoPath = uri.removePrefix("file://")
+                val isLocked = uri.startsWith("locked://")
+                val videoPath = if (isLocked) uri.removePrefix("locked://") else uri.removePrefix("file://")
 
-                // Busca thumbnail atualizada
-                val thumbnail = loadThumbnailWithContext(videoPath)
+                // Busca thumbnail atualizada - locked usa .neko_thumbs, normal usa cache padrão
+                val thumbnail = if (isLocked) {
+                    FolderLockManager.getLockedThumbnail(videoPath)
+                } else {
+                    loadThumbnailWithContext(videoPath)
+                }
 
                 if (thumbnail != null) {
                     val file = File(videoPath)
-                    val title = file.nameWithoutExtension
+                    val title = if (isLocked) {
+                        LockedPlaybackSession.getOriginalName(file.name)?.substringBeforeLast(".") ?: file.nameWithoutExtension
+                    } else {
+                        file.nameWithoutExtension
+                    }
 
                     val newMetadata = MediaMetadata.Builder()
                         .setTitle(title)

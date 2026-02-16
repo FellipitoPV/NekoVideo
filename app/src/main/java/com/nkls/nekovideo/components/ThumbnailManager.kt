@@ -13,12 +13,12 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
+import com.nkls.nekovideo.components.helpers.FolderLockManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileOutputStream
-import java.security.MessageDigest
 import java.text.DecimalFormat
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -42,45 +42,45 @@ object OptimizedThumbnailManager {
     private val thumbnailStates = ConcurrentHashMap<String, ThumbnailState>()
     private val activeTargets = ConcurrentHashMap<String, CustomTarget<Bitmap>>()
 
-    // ✅ Cache em memória (RAM)
+    private val THUMB_XOR_KEY = byteArrayOf(0x4E, 0x45, 0x4B, 0x4F) // "NEKO"
+    private const val THUMBS_DIR = ".neko_thumbs"
+
+    // Cache em memória (RAM)
     private var _thumbnailCache: LruCache<String, Bitmap>? = null
     private var lastCacheSize = -1
 
     val thumbnailCache: LruCache<String, Bitmap>
         get() = _thumbnailCache ?: createDefaultCache().also { _thumbnailCache = it }
 
-    // ✅ NOVO: Diretório para cache persistente
-    private fun getThumbnailCacheDir(context: Context): File {
-        val cacheDir = File(context.cacheDir, "video_thumbnails")
-        if (!cacheDir.exists()) {
-            cacheDir.mkdirs()
-        }
-        return cacheDir
+    // Retorna .neko_thumbs/{videoFileName} na pasta do vídeo
+    private fun getThumbnailFile(videoPath: String): File {
+        val videoFile = File(videoPath)
+        val thumbsDir = File(videoFile.parentFile, THUMBS_DIR)
+        return File(thumbsDir, videoFile.name)
     }
 
-    // ✅ NOVO: Gera hash MD5 do path do vídeo para nome único
-    private fun getVideoPathHash(videoPath: String): String {
-        val digest = MessageDigest.getInstance("MD5")
-        val hashBytes = digest.digest(videoPath.toByteArray())
-        return hashBytes.joinToString("") { "%02x".format(it) }
-    }
-
-    // ✅ NOVO: Arquivo da thumbnail em disco
-    private fun getThumbnailFile(context: Context, videoPath: String): File {
-        val hash = getVideoPathHash(videoPath)
-        return File(getThumbnailCacheDir(context), "$hash.jpg")
-    }
-
-    // ✅ NOVO: Salva thumbnail no disco
-    private fun saveThumbnailToDisk(context: Context, videoPath: String, bitmap: Bitmap): Boolean {
+    // Salva thumbnail XOR-encriptada na pasta do vídeo
+    private fun saveThumbnailToDisk(videoPath: String, bitmap: Bitmap): Boolean {
         return try {
-            val file = getThumbnailFile(context, videoPath)
-            FileOutputStream(file).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
+            val thumbFile = getThumbnailFile(videoPath)
+            val thumbsDir = thumbFile.parentFile!!
+
+            if (!thumbsDir.exists()) {
+                thumbsDir.mkdirs()
+                // Cria .nomedia para o Android não indexar
+                File(thumbsDir, ".nomedia").createNewFile()
             }
 
-            // Atualiza índice de cache
-            updateCacheIndex(context, videoPath, file.length())
+            val baos = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 85, baos)
+            val thumbBytes = baos.toByteArray()
+
+            // XOR encrypt
+            for (i in thumbBytes.indices) {
+                thumbBytes[i] = (thumbBytes[i].toInt() xor THUMB_XOR_KEY[i % THUMB_XOR_KEY.size].toInt()).toByte()
+            }
+
+            thumbFile.writeBytes(thumbBytes)
             true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -88,145 +88,34 @@ object OptimizedThumbnailManager {
         }
     }
 
-    // ✅ NOVO: Carrega thumbnail do disco
-    private fun loadThumbnailFromDisk(context: Context, videoPath: String): Bitmap? {
+    // Carrega thumbnail XOR-decriptada do disco
+    private fun loadThumbnailFromDisk(videoPath: String): Bitmap? {
         return try {
-            val file = getThumbnailFile(context, videoPath)
-            if (file.exists()) {
-                // Verifica se o arquivo de vídeo ainda existe
-                if (!File(videoPath).exists()) {
-                    // Vídeo foi deletado, remove thumbnail
-                    file.delete()
-                    removeCacheIndexEntry(context, videoPath)
-                    return null
-                }
+            val thumbFile = getThumbnailFile(videoPath)
+            if (!thumbFile.exists()) return null
 
-                BitmapFactory.decodeFile(file.absolutePath)
-            } else {
-                null
+            // Verifica se o vídeo ainda existe
+            if (!File(videoPath).exists()) {
+                thumbFile.delete()
+                return null
             }
+
+            val thumbBytes = thumbFile.readBytes()
+            // XOR decrypt (mesma operação)
+            for (i in thumbBytes.indices) {
+                thumbBytes[i] = (thumbBytes[i].toInt() xor THUMB_XOR_KEY[i % THUMB_XOR_KEY.size].toInt()).toByte()
+            }
+
+            BitmapFactory.decodeByteArray(thumbBytes, 0, thumbBytes.size)
         } catch (e: Exception) {
             e.printStackTrace()
             null
         }
     }
 
-    // ✅ NOVO: Índice de cache (para gerenciar tamanho)
-    private data class CacheEntry(
-        val videoPath: String,
-        val fileSize: Long,
-        val lastAccess: Long
-    )
-
-    private fun getCacheIndexFile(context: Context): File {
-        return File(context.cacheDir, "thumbnail_cache_index.txt")
-    }
-
-    private fun readCacheIndex(context: Context): MutableMap<String, CacheEntry> {
-        val entries = mutableMapOf<String, CacheEntry>()
-        val indexFile = getCacheIndexFile(context)
-
-        if (!indexFile.exists()) return entries
-
-        try {
-            indexFile.readLines().forEach { line ->
-                val parts = line.split("|")
-                if (parts.size == 3) {
-                    val videoPath = parts[0]
-                    val fileSize = parts[1].toLongOrNull() ?: 0L
-                    val lastAccess = parts[2].toLongOrNull() ?: System.currentTimeMillis()
-                    entries[videoPath] = CacheEntry(videoPath, fileSize, lastAccess)
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        return entries
-    }
-
-    private fun writeCacheIndex(context: Context, entries: Map<String, CacheEntry>) {
-        val indexFile = getCacheIndexFile(context)
-        try {
-            indexFile.writeText(
-                entries.values.joinToString("\n") { entry ->
-                    "${entry.videoPath}|${entry.fileSize}|${entry.lastAccess}"
-                }
-            )
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun updateCacheIndex(context: Context, videoPath: String, fileSize: Long) {
-        val entries = readCacheIndex(context)
-        entries[videoPath] = CacheEntry(videoPath, fileSize, System.currentTimeMillis())
-        writeCacheIndex(context, entries)
-
-        // Verifica se precisa limpar cache
-        cleanupDiskCacheIfNeeded(context)
-    }
-
-    private fun removeCacheIndexEntry(context: Context, videoPath: String) {
-        val entries = readCacheIndex(context)
-        entries.remove(videoPath)
-        writeCacheIndex(context, entries)
-    }
-
-    // ✅ NOVO: Limpeza automática do cache em disco
-    private fun cleanupDiskCacheIfNeeded(context: Context) {
-        val maxCacheSizeMB = getCacheSizeFromSettings(context)
-        val maxCacheSizeBytes = maxCacheSizeMB * 1024 * 1024L
-
-        val entries = readCacheIndex(context)
-        var totalSize = entries.values.sumOf { it.fileSize }
-
-        // Se excedeu o limite, remove os mais antigos
-        if (totalSize > maxCacheSizeBytes) {
-            val sortedEntries = entries.values.sortedBy { it.lastAccess }
-
-            for (entry in sortedEntries) {
-                if (totalSize <= maxCacheSizeBytes * 0.8) break // Limpa até 80% do limite
-
-                val file = getThumbnailFile(context, entry.videoPath)
-                if (file.exists()) {
-                    file.delete()
-                    totalSize -= entry.fileSize
-                    entries.remove(entry.videoPath)
-                }
-            }
-
-            writeCacheIndex(context, entries)
-        }
-    }
-
-    // ✅ NOVA função pública síncrona para buscar do disco
-    fun loadThumbnailFromDiskSync(context: Context, videoPath: String): Bitmap? {
-        return try {
-            val file = getThumbnailFile(context, videoPath)
-            if (file.exists()) {
-                // Verifica se vídeo ainda existe
-                if (!File(videoPath).exists()) {
-                    file.delete()
-                    removeCacheIndexEntry(context, videoPath)
-                    return null
-                }
-
-                val bitmap = BitmapFactory.decodeFile(file.absolutePath)
-
-                // Atualiza tempo de acesso
-                if (bitmap != null) {
-                    updateCacheIndex(context, videoPath, file.length())
-                }
-
-                bitmap
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
+    // Função pública síncrona para buscar do disco
+    fun loadThumbnailFromDiskSync(videoPath: String): Bitmap? {
+        return loadThumbnailFromDisk(videoPath)
     }
 
     /**
@@ -276,7 +165,7 @@ object OptimizedThumbnailManager {
         }
 
         // 2. Verifica disco
-        val diskBitmap = loadThumbnailFromDiskSync(context, videoPath)
+        val diskBitmap = loadThumbnailFromDisk(videoPath)
         if (diskBitmap != null) {
             thumbnailCache.put(key, diskBitmap)
             return diskBitmap
@@ -301,8 +190,8 @@ object OptimizedThumbnailManager {
                 val thumbnailSize = getThumbnailSizeFromSettings(context)
                 val scaledBitmap = createCenterCroppedThumbnail(bitmap, thumbnailSize)
 
-                // Salva no disco
-                saveThumbnailToDisk(context, cleanPath, scaledBitmap)
+                // Salva no disco (per-folder .neko_thumbs)
+                saveThumbnailToDisk(cleanPath, scaledBitmap)
 
                 // Adiciona ao cache RAM
                 thumbnailCache.put(key, scaledBitmap)
@@ -337,29 +226,80 @@ object OptimizedThumbnailManager {
         return generateThumbnailSync(context, cleanPath)
     }
 
-    // ✅ NOVO: Limpa thumbnails de vídeos deletados
-    fun cleanupDeletedVideos(context: Context) {
+    /**
+     * Sincroniza thumbnails ao entrar numa pasta:
+     * - Remove thumbnails órfãs (vídeo deletado mas thumb ficou)
+     * - Pré-gera thumbnails faltantes em background
+     * Não sincroniza pastas locked (elas gerenciam suas próprias thumbs)
+     */
+    fun syncThumbnails(context: Context, folderPath: String) {
+        // Não sincroniza pastas locked
+        if (FolderLockManager.isLocked(folderPath)) return
+
         CoroutineScope(Dispatchers.IO).launch {
-            val entries = readCacheIndex(context)
-            val entriesToRemove = mutableListOf<String>()
+            try {
+                val folder = File(folderPath)
+                if (!folder.exists() || !folder.isDirectory) return@launch
 
-            entries.forEach { (videoPath, _) ->
-                if (!File(videoPath).exists()) {
-                    entriesToRemove.add(videoPath)
-                    getThumbnailFile(context, videoPath).delete()
+                val thumbsDir = File(folder, THUMBS_DIR)
+
+                // 1. Remove thumbnails órfãs
+                if (thumbsDir.exists()) {
+                    val videoNames = folder.listFiles()
+                        ?.filter { it.isFile && isVideoFile(it.name) }
+                        ?.map { it.name }
+                        ?.toSet() ?: emptySet()
+
+                    thumbsDir.listFiles()?.forEach { thumbFile ->
+                        if (thumbFile.name != ".nomedia" && thumbFile.name !in videoNames) {
+                            thumbFile.delete()
+                        }
+                    }
                 }
-            }
 
-            if (entriesToRemove.isNotEmpty()) {
-                entriesToRemove.forEach { entries.remove(it) }
-                writeCacheIndex(context, entries)
+                // 2. Pré-gera thumbnails faltantes
+                val videoFiles = folder.listFiles()
+                    ?.filter { it.isFile && isVideoFile(it.name) }
+                    ?: return@launch
+
+                for (videoFile in videoFiles) {
+                    val thumbFile = File(thumbsDir, videoFile.name)
+                    if (!thumbFile.exists()) {
+                        // Gera thumbnail (inclui salvar no disco)
+                        generateThumbnailSync(context, videoFile.absolutePath)
+                        delay(50) // Pequeno delay entre gerações
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
 
-    private fun getCacheSizeFromSettings(context: Context): Int {
-        val prefs = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-        return prefs.getInt("cache_size_mb", 100)
+    private fun isVideoFile(name: String): Boolean {
+        val ext = name.substringAfterLast('.', "").lowercase()
+        return ext in setOf("mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v", "3gp", "ts", "mpg", "mpeg")
+    }
+
+    /**
+     * Limpa o cache centralizado antigo (one-time migration).
+     * Chamado do MainActivity.onCreate().
+     */
+    fun clearOldCentralizedCache(context: Context) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val oldCacheDir = File(context.cacheDir, "video_thumbnails")
+                if (oldCacheDir.exists()) {
+                    oldCacheDir.deleteRecursively()
+                }
+                val oldIndexFile = File(context.cacheDir, "thumbnail_cache_index.txt")
+                if (oldIndexFile.exists()) {
+                    oldIndexFile.delete()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     private fun createDefaultCache(): LruCache<String, Bitmap> {
@@ -376,7 +316,8 @@ object OptimizedThumbnailManager {
     }
 
     fun reconfigureCache(context: Context) {
-        val newCacheSizeMB = getCacheSizeFromSettings(context)
+        val prefs = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+        val newCacheSizeMB = prefs.getInt("cache_size_mb", 100)
 
         if (newCacheSizeMB != lastCacheSize) {
             val newCacheSizeBytes = (newCacheSizeMB * 0.5 * 1024 * 1024).toInt() // 50% para RAM
@@ -474,24 +415,19 @@ object OptimizedThumbnailManager {
         return thumbnailStates[key] ?: ThumbnailState.IDLE
     }
 
-    // ✅ ATUALIZADO: Busca em RAM e depois em disco
+    // Busca em RAM apenas (disco é feito no loadVideoMetadataWithDelay)
     fun getCachedThumbnail(videoPath: String): Bitmap? {
         val key = videoPath.hashCode().toString()
 
-        // 1. Tenta RAM primeiro
         val ramBitmap = thumbnailCache.get(key)
         if (ramBitmap != null && !ramBitmap.isRecycled) {
             return ramBitmap
         }
 
-        // 2. Se não tem em RAM, busca do disco (isso deve ser chamado em contexto apropriado)
-        // Nota: Esta função precisa de context, então retorna null aqui
-        // O carregamento do disco será feito no loadVideoMetadataWithDelay
-
         return null
     }
 
-    // ✅ ATUALIZADO: Carregamento com cache persistente
+    // Carregamento com cache persistente per-folder
     suspend fun loadVideoMetadataWithDelay(
         context: Context,
         videoUri: Uri,
@@ -518,18 +454,15 @@ object OptimizedThumbnailManager {
         val showFileSizes = shouldShowFileSizes(context)
         val thumbnailSize = getThumbnailSizeFromSettings(context)
 
-        // ✅ 1. Verifica cache em RAM
+        // 1. Verifica cache em RAM, depois disco
         var cachedThumbnail = if (showThumbnails) {
             val ramBitmap = thumbnailCache.get(key)
             if (ramBitmap != null && !ramBitmap.isRecycled) {
                 ramBitmap
             } else {
-                // ✅ 2. Se não tem em RAM, busca do disco
-                loadThumbnailFromDisk(context, videoPath)?.also { diskBitmap ->
-                    // Coloca de volta na RAM
+                // Busca do disco (per-folder .neko_thumbs)
+                loadThumbnailFromDisk(videoPath)?.also { diskBitmap ->
                     thumbnailCache.put(key, diskBitmap)
-                    // Atualiza tempo de acesso
-                    updateCacheIndex(context, videoPath, getThumbnailFile(context, videoPath).length())
                 }
             }
         } else null
@@ -579,12 +512,12 @@ object OptimizedThumbnailManager {
                         async(Dispatchers.IO) { getFileSize(videoPath) }
                     } else null
 
-                    // ✅ Gera thumbnail se necessário
+                    // Gera thumbnail se necessário
                     val thumbnail = if (showThumbnails && cachedThumbnail == null) {
                         loadThumbnailWithGlide(context, videoUri, key, thumbnailSize)?.also { newBitmap ->
-                            // ✅ Salva no disco
+                            // Salva no disco (per-folder .neko_thumbs)
                             withContext(Dispatchers.IO) {
-                                saveThumbnailToDisk(context, videoPath, newBitmap)
+                                saveThumbnailToDisk(videoPath, newBitmap)
                             }
                         }
                     } else {
@@ -728,7 +661,7 @@ object OptimizedThumbnailManager {
         lastCacheSize = -1
     }
 
-    // ✅ ATUALIZADO: Limpa tanto RAM quanto disco
+    // Limpa thumbnail de um vídeo específico (RAM + disco)
     fun clearCacheForPath(videoPath: String) {
         val key = videoPath.hashCode().toString()
 
@@ -743,14 +676,15 @@ object OptimizedThumbnailManager {
         activeJobs[key]?.cancel()
         activeJobs.remove(key)
         activeTargets.remove(key)
-    }
 
-    // ✅ NOVO: Limpa cache em disco completamente
-    fun clearDiskCache(context: Context) {
-        CoroutineScope(Dispatchers.IO).launch {
-            val cacheDir = getThumbnailCacheDir(context)
-            cacheDir.listFiles()?.forEach { it.delete() }
-            getCacheIndexFile(context).delete()
+        // Remove do disco (.neko_thumbs)
+        try {
+            val thumbFile = getThumbnailFile(videoPath)
+            if (thumbFile.exists()) {
+                thumbFile.delete()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -818,30 +752,16 @@ object OptimizedThumbnailManager {
     fun isShowFileSizesEnabled(context: Context) = shouldShowFileSizes(context)
     fun getCurrentThumbnailSize(context: Context) = getThumbnailSizeFromSettings(context)
 
-    // ✅ ATUALIZADO: Estatísticas incluem disco
-    fun getCacheStats(context: Context? = null): String {
-        val currentCacheSizeMB = context?.let { getCacheSizeFromSettings(it) } ?: lastCacheSize
-        val thumbnailSize = _thumbnailCache?.size() ?: 0
+    // Estatísticas (RAM only)
+    fun getCacheStats(): String {
         val thumbnailMemoryBytes = _thumbnailCache?.size() ?: 0
         val thumbnailMemoryMB = thumbnailMemoryBytes / (1024 * 1024)
-
-        val diskCacheSizeMB = context?.let {
-            val cacheDir = getThumbnailCacheDir(it)
-            val totalBytes = cacheDir.listFiles()?.sumOf { file -> file.length() } ?: 0L
-            totalBytes / (1024 * 1024)
-        } ?: 0
-
-        val diskFileCount = context?.let {
-            getThumbnailCacheDir(it).listFiles()?.size ?: 0
-        } ?: 0
 
         val activeJobsCount = activeJobs.size
         val activeTargetsCount = activeTargets.size
 
         return """
-            Cache Config: ${currentCacheSizeMB}MB
-            RAM: $thumbnailSize (${thumbnailMemoryMB}MB)
-            Disk: $diskFileCount files (${diskCacheSizeMB}MB)
+            RAM: ${thumbnailMemoryMB}MB
             Jobs: $activeJobsCount | Targets: $activeTargetsCount
         """.trimIndent()
     }

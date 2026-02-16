@@ -269,6 +269,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         OptimizedThumbnailManager.startPeriodicCleanup()
+
+        // One-time migration: limpa cache centralizado antigo
+        OptimizedThumbnailManager.clearOldCentralizedCache(this)
     }
 
     fun keepScreenOn(keep: Boolean) {

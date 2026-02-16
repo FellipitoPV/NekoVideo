@@ -17,7 +17,7 @@ android {
         applicationId = "com.nkls.nekovideo"
         minSdk = 30
         targetSdk = 35
-        versionCode = 17
+        versionCode = 18
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -31,6 +31,7 @@ android {
 
             ndk {
                 debugSymbolLevel = "full"
+
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

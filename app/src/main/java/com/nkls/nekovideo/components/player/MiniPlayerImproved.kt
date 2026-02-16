@@ -33,6 +33,7 @@ import com.google.android.gms.cast.framework.Session
 import com.google.android.gms.cast.framework.SessionManagerListener
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.nkls.nekovideo.MediaPlaybackService
+import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.PlaylistNavigator
 import kotlinx.coroutines.Dispatchers
@@ -485,12 +486,17 @@ private fun formatTime(timeMs: Long): String {
 
 private suspend fun generateThumbnail(videoUri: String): Bitmap? = withContext(Dispatchers.IO) {
     try {
-        val retriever = MediaMetadataRetriever()
-        val path = videoUri.removePrefix("file://")
-        retriever.setDataSource(path)
-        val bitmap = retriever.getFrameAtTime(1000000L)
-        retriever.release()
-        bitmap
+        if (videoUri.startsWith("locked://")) {
+            val path = videoUri.removePrefix("locked://")
+            FolderLockManager.getLockedThumbnail(path)
+        } else {
+            val retriever = MediaMetadataRetriever()
+            val path = videoUri.removePrefix("file://")
+            retriever.setDataSource(path)
+            val bitmap = retriever.getFrameAtTime(1000000L)
+            retriever.release()
+            bitmap
+        }
     } catch (e: Exception) {
         null
     }
