@@ -40,6 +40,7 @@
     <string name="move_operation_cancelled">Operación de mover cancelada</string>
     <string name="items_moved">¡Elementos movidos!</string>
     <string name="files_secured">¡Archivos asegurados!</string>
+    <string name="items_deleted_locked">¡Elementos eliminados!</string>
     <string name="folder_created">Carpeta creada</string>
     <string name="action_set_secure_folder">Establecer Como Carpeta Segura</string>
     <string name="secure_folder_set">¡Esta carpeta ahora es la carpeta segura!</string>

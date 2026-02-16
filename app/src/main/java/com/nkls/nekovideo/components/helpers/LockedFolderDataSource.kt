@@ -128,11 +128,12 @@ class HybridDataSource(
         val isLocked = uriString.startsWith("locked://")
 
         if (isLocked) {
-            val xorKey = LockedPlaybackSession.currentXorKey
+            val filePath = uriString.removePrefix("locked://")
+            // Look up the correct XOR key for this file's folder (supports multi-folder playlists)
+            val xorKey = LockedPlaybackSession.getXorKeyForFile(filePath)
             if (xorKey != null) {
                 val lockedDs = LockedFolderDataSource(xorKey)
                 // Convert locked:// to file:// for actual file access
-                val filePath = uriString.removePrefix("locked://")
                 val fileSpec = dataSpec.buildUpon()
                     .setUri(Uri.parse("file://$filePath"))
                     .build()

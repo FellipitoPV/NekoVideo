@@ -209,8 +209,12 @@ object FolderLockManager {
                 try {
                     val retriever = MediaMetadataRetriever()
                     retriever.setDataSource(videoFile.absolutePath)
+                    val durationMs = retriever.extractMetadata(
+                        MediaMetadataRetriever.METADATA_KEY_DURATION
+                    )?.toLongOrNull() ?: 2000L
+                    val middleUs = (durationMs / 2) * 1000L
                     val bitmap = retriever.getFrameAtTime(
-                        1_000_000,
+                        middleUs,
                         MediaMetadataRetriever.OPTION_CLOSEST_SYNC
                     )
                     if (bitmap != null) {
@@ -499,8 +503,12 @@ object FolderLockManager {
                 try {
                     val retriever = MediaMetadataRetriever()
                     retriever.setDataSource(videoFile.absolutePath)
+                    val durationMs = retriever.extractMetadata(
+                        MediaMetadataRetriever.METADATA_KEY_DURATION
+                    )?.toLongOrNull() ?: 2000L
+                    val middleUs = (durationMs / 2) * 1000L
                     val bitmap = retriever.getFrameAtTime(
-                        1_000_000,
+                        middleUs,
                         MediaMetadataRetriever.OPTION_CLOSEST_SYNC
                     )
                     if (bitmap != null) {
@@ -550,6 +558,211 @@ object FolderLockManager {
         } catch (e: Exception) {
             Log.e(TAG, "Error adding files to locked folder: ${e.message}", e)
             onError("Error: ${e.message}")
+        }
+    }
+
+    /**
+     * Rename a file's original name in the manifest (the obfuscated name on disk stays the same).
+     * Returns the updated manifest or null on failure.
+     */
+    fun renameFileInManifest(
+        folderPath: String,
+        obfuscatedName: String,
+        newOriginalName: String,
+        password: String
+    ): LockedFolderManifest? {
+        val manifest = readManifest(folderPath, password) ?: return null
+        val salt = getSalt(folderPath) ?: return null
+
+        val updatedFiles = manifest.files.map { entry ->
+            if (entry.obfuscatedName == obfuscatedName) {
+                entry.copy(originalName = newOriginalName)
+            } else {
+                entry
+            }
+        }
+
+        val updatedManifest = manifest.copy(files = updatedFiles)
+        val encryptedManifest = encryptManifest(updatedManifest, password, salt)
+        File(folderPath, MANIFEST_FILE).writeBytes(encryptedManifest)
+
+        return updatedManifest
+    }
+
+    /**
+     * Remove multiple file entries from a locked folder's manifest and persist the change.
+     * Also removes thumbnails. Returns the updated manifest or null on failure.
+     */
+    fun removeFilesFromManifest(
+        context: Context,
+        folderPath: String,
+        obfuscatedNames: List<String>,
+        password: String
+    ): LockedFolderManifest? {
+        val manifest = readManifest(folderPath, password) ?: return null
+        val salt = getSalt(folderPath) ?: return null
+
+        val namesToRemove = obfuscatedNames.toSet()
+        val updatedFiles = manifest.files.filter { it.obfuscatedName !in namesToRemove }
+        if (updatedFiles.size == manifest.files.size) return manifest
+
+        val updatedManifest = manifest.copy(files = updatedFiles)
+        val encryptedManifest = encryptManifest(updatedManifest, password, salt)
+        File(folderPath, MANIFEST_FILE).writeBytes(encryptedManifest)
+
+        // Delete thumbnails
+        obfuscatedNames.forEach { name ->
+            File(folderPath, "$THUMBS_DIR/$name").also { if (it.exists()) it.delete() }
+            File(folderPath, "$THUMBS_DIR/$name.jpg").also { if (it.exists()) it.delete() }
+        }
+
+        // Update registry
+        addToRegistry(context, folderPath, updatedManifest.originalFolderName, updatedFiles.size)
+
+        return updatedManifest
+    }
+
+    /**
+     * Extract files from a locked folder: revert XOR, restore original names, remove from manifest.
+     * Returns a list of restored File objects (with original names) and the updated manifest.
+     */
+    fun extractFilesFromLockedFolder(
+        context: Context,
+        folderPath: String,
+        obfuscatedNames: List<String>,
+        password: String
+    ): Pair<List<File>, LockedFolderManifest?> {
+        val manifest = readManifest(folderPath, password) ?: return Pair(emptyList(), null)
+        val salt = getSalt(folderPath) ?: return Pair(emptyList(), null)
+        val xorKey = deriveXorKey(password, salt)
+        val folder = File(folderPath)
+
+        val restoredFiles = mutableListOf<File>()
+        val namesToRemove = obfuscatedNames.toSet()
+
+        manifest.files.filter { it.obfuscatedName in namesToRemove }.forEach { entry ->
+            val obfuscatedFile = File(folder, entry.obfuscatedName)
+            if (!obfuscatedFile.exists()) return@forEach
+
+            // Revert XOR
+            xorFileHeader(obfuscatedFile, xorKey)
+
+            // Restore original name
+            val restoredFile = File(folder, entry.originalName)
+            if (obfuscatedFile.renameTo(restoredFile)) {
+                restoredFiles.add(restoredFile)
+            } else {
+                // Revert XOR back if rename fails
+                xorFileHeader(obfuscatedFile, xorKey)
+            }
+
+            // Delete thumbnail
+            File(folderPath, "$THUMBS_DIR/${entry.obfuscatedName}").also { if (it.exists()) it.delete() }
+            File(folderPath, "$THUMBS_DIR/${entry.obfuscatedName}.jpg").also { if (it.exists()) it.delete() }
+        }
+
+        // Update manifest
+        val updatedFiles = manifest.files.filter { it.obfuscatedName !in namesToRemove }
+        val updatedManifest = manifest.copy(files = updatedFiles)
+        val encryptedManifest = encryptManifest(updatedManifest, password, salt)
+        File(folderPath, MANIFEST_FILE).writeBytes(encryptedManifest)
+
+        addToRegistry(context, folderPath, updatedManifest.originalFolderName, updatedFiles.size)
+
+        return Pair(restoredFiles, updatedManifest)
+    }
+
+    /**
+     * Remove a file entry from a locked folder's manifest and persist the change.
+     * Also deletes the thumbnail. Returns the updated manifest or null on failure.
+     */
+    fun removeFileFromManifest(
+        context: Context,
+        folderPath: String,
+        obfuscatedName: String,
+        password: String
+    ): LockedFolderManifest? {
+        val manifest = readManifest(folderPath, password) ?: return null
+        val salt = getSalt(folderPath) ?: return null
+
+        val updatedFiles = manifest.files.filter { it.obfuscatedName != obfuscatedName }
+        if (updatedFiles.size == manifest.files.size) return manifest // not found, no change
+
+        val updatedManifest = manifest.copy(files = updatedFiles)
+
+        // Re-encrypt and save manifest
+        val encryptedManifest = encryptManifest(updatedManifest, password, salt)
+        File(folderPath, MANIFEST_FILE).writeBytes(encryptedManifest)
+
+        // Delete thumbnail
+        val thumbFile = File(folderPath, "$THUMBS_DIR/$obfuscatedName")
+        if (thumbFile.exists()) thumbFile.delete()
+        // Legacy thumb
+        val legacyThumb = File(folderPath, "$THUMBS_DIR/$obfuscatedName.jpg")
+        if (legacyThumb.exists()) legacyThumb.delete()
+
+        // Update registry file count
+        addToRegistry(context, folderPath, updatedManifest.originalFolderName, updatedFiles.size)
+
+        return updatedManifest
+    }
+
+    /**
+     * Create an empty locked folder (e.g. a subfolder inside a locked parent).
+     * Creates directory, generates salt, creates empty manifest, writes marker files.
+     * Also starts a session for the new folder in LockedPlaybackSession.
+     */
+    fun createEmptyLockedFolder(
+        context: Context,
+        folderPath: String,
+        password: String
+    ): Boolean {
+        return try {
+            val folder = File(folderPath)
+            if (!folder.exists()) folder.mkdirs()
+
+            // Generate salt
+            val salt = ByteArray(SALT_SIZE).also { SecureRandom().nextBytes(it) }
+            val saltBase64 = Base64.encodeToString(salt, Base64.NO_WRAP)
+
+            // Create empty manifest
+            val manifest = LockedFolderManifest(
+                folderPath = folderPath,
+                originalFolderName = folder.name,
+                files = emptyList(),
+                salt = saltBase64,
+                lockedAt = System.currentTimeMillis()
+            )
+
+            // Encrypt and save manifest
+            val encryptedManifest = encryptManifest(manifest, password, salt)
+            File(folder, MANIFEST_FILE).writeBytes(encryptedManifest)
+
+            // Write locked marker
+            File(folder, LOCKED_MARKER).writeText(saltBase64)
+
+            // Add .nomedia
+            File(folder, ".nomedia").createNewFile()
+
+            // Create thumbs directory
+            File(folder, THUMBS_DIR).mkdirs()
+
+            // Register in SharedPreferences
+            addToRegistry(context, folderPath, folder.name, 0)
+
+            // Start session for the new folder
+            val xorKey = deriveXorKey(password, salt)
+            LockedPlaybackSession.start(xorKey, manifest, folderPath, password)
+            // Restore current folder to parent (don't navigate into the new folder)
+            val parentPath = folder.parent
+            if (parentPath != null) {
+                LockedPlaybackSession.setCurrentFolder(parentPath)
+            }
+
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating empty locked folder: ${e.message}", e)
+            false
         }
     }
 

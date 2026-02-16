@@ -126,14 +126,36 @@ class CastManager(private val context: Context) {
 
             // Limpar vídeos anteriores e adicionar novos
             videoServer?.clearVideos()
+
+            // Track display names for URL generation (locked videos use original names)
+            val displayNames = mutableListOf<String>()
+
             videosPaths.forEach { path ->
-                videoServer?.addVideo(path) // ✅ Usar addVideo ao invés de setVideoPath
+                if (path.startsWith("locked://")) {
+                    val filePath = path.removePrefix("locked://")
+                    val xorKey = LockedPlaybackSession.getXorKeyForFile(filePath)
+                    val obfuscatedName = File(filePath).name
+                    val originalName = LockedPlaybackSession.getOriginalName(obfuscatedName)
+                        ?: obfuscatedName
+
+                    if (xorKey != null) {
+                        videoServer?.addLockedVideo(filePath, xorKey, originalName)
+                    } else {
+                        videoServer?.addVideo(filePath)
+                    }
+                    displayNames.add(originalName)
+                } else {
+                    val cleanPath = path.removePrefix("file://")
+                    videoServer?.addVideo(cleanPath)
+                    displayNames.add(File(cleanPath).name)
+                }
             }
 
             // Criar queue de vídeos
-            val queueItems = videosPaths.mapIndexed { index, videoPath ->
-                val videoUrl = getVideoUrl(videoPath)
-                val title = videosTitles.getOrNull(index) ?: File(videoPath).nameWithoutExtension
+            val queueItems = displayNames.mapIndexed { index, displayName ->
+                val videoUrl = getVideoUrlByName(displayName)
+                val title = videosTitles.getOrNull(index)
+                    ?: displayName.substringBeforeLast(".")
 
                 val metadata = MediaMetadata(MediaMetadata.MEDIA_TYPE_MOVIE).apply {
                     putString(MediaMetadata.KEY_TITLE, title)
@@ -160,7 +182,7 @@ class CastManager(private val context: Context) {
                 null
             )
 
-            Log.d("CastManager", "Playlist carregada: ${videosPaths.size} vídeos")
+            Log.d("CastManager", "Playlist carregada: ${videosPaths.size} vídeos (${displayNames.count { LockedPlaybackSession.getOriginalName(File(it).nameWithoutExtension) != null }} locked)")
 
         } catch (e: Exception) {
             Log.e("CastManager", "Erro ao fazer cast da playlist", e)
@@ -169,8 +191,13 @@ class CastManager(private val context: Context) {
 
     private fun getVideoUrl(videoPath: String): String {
         val videoName = File(videoPath).name
+        return getVideoUrlByName(videoName)
+    }
+
+    private fun getVideoUrlByName(videoName: String): String {
         val ip = videoServer?.getLocalIpAddress() ?: "127.0.0.1"
-        return "http://$ip:8080/video/$videoName"
+        val encoded = java.net.URLEncoder.encode(videoName, "UTF-8").replace("+", "%20")
+        return "http://$ip:8080/video/$encoded"
     }
 
     private fun stopServer() {

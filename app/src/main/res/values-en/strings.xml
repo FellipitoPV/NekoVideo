@@ -39,6 +39,7 @@
     <string name="move_mode_activated">Move mode activated. Navigate to destination and paste.</string>
     <string name="move_operation_cancelled">Move operation cancelled</string>
     <string name="items_moved">Items moved!</string>
+    <string name="items_deleted_locked">Items deleted!</string>
     <string name="files_secured">Files secured!</string>
     <string name="folder_created">Folder created</string>
     <string name="action_set_secure_folder">Set as Secure Folder</string>

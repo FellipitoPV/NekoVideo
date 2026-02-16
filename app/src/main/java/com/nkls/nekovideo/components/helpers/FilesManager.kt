@@ -504,9 +504,15 @@ object FilesManager {
 
             if (!folder.exists() || !folder.isDirectory) return videos
 
-            // If this folder is locked, get videos from manifest instead of scanning files
+            // If this folder is locked, get videos from manifest and continue scanning subfolders
             if (FolderLockManager.isLocked(path) && sessionPassword != null) {
                 videos.addAll(getLockedVideos(path, sessionPassword))
+                // Continue into subdirectories for recursive locked subfolder support
+                File(path).listFiles()?.forEach { file ->
+                    if (file.isDirectory && file.name !in listOf(".neko_thumbs")) {
+                        videos.addAll(scanFolder(file.absolutePath, true))
+                    }
+                }
                 return videos
             }
 

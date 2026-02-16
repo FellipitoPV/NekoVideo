@@ -125,7 +125,14 @@ fun ActionFAB(
                     )
                 )
 
-                if (!isInsideLockedFolder) {
+                if (isInsideLockedFolder) {
+                    // Inside locked folder: delete, rename, move
+                    actionsList.addAll(listOf(
+                        ActionItem(ActionType.DELETE, Icons.Default.Delete, deleteText),
+                        ActionItem(ActionType.RENAME, Icons.Default.Edit, renameText),
+                        ActionItem(ActionType.MOVE, Icons.AutoMirrored.Filled.DriveFileMove, moveText)
+                    ))
+                } else {
                     // All actions available in non-locked folders (even inside secure_videos)
                     if (!isSecureMode) {
                         actionsList.add(ActionItem(ActionType.SECURE, Icons.Default.Lock, protectText))
@@ -155,19 +162,19 @@ fun ActionFAB(
                         )
                     }
                 }
-                // Inside locked folder: only shuffle play is allowed (added above)
 
                 actionsList
             }
             else -> {
                 if (isInsideLockedFolder) {
-                    // Inside locked/encrypted folder: shuffle + settings
+                    // Inside locked/encrypted folder: shuffle + create folder + settings
                     buildList {
                         add(ActionItem(
                             ActionType.SHUFFLE_PLAY,
                             Icons.Default.Shuffle,
                             shufflePlayText
                         ))
+                        add(ActionItem(ActionType.CREATE_FOLDER, Icons.Default.CreateNewFolder, createFolderText))
                         add(ActionItem(ActionType.SETTINGS, Icons.Default.Settings, settingsText))
                     }
                 } else {

@@ -65,6 +65,7 @@ import com.nkls.nekovideo.MainActivity
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.billing.PremiumManager
 import com.nkls.nekovideo.components.helpers.CastManager
+import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.PlaylistNavigator
 import com.nkls.nekovideo.components.layout.InterstitialAdManager
@@ -308,8 +309,16 @@ fun VideoPlayerOverlay(
         playerView.player = controller
 
         controller.currentMediaItem?.localConfiguration?.uri?.let { uri ->
-            currentVideoPath = uri.path?.removePrefix("file://") ?: ""
-            currentVideoTitle = File(currentVideoPath).nameWithoutExtension
+            val uriStr = uri.toString()
+            if (uriStr.startsWith("locked://")) {
+                currentVideoPath = uriStr.removePrefix("locked://")
+                val obfuscatedName = File(currentVideoPath).name
+                currentVideoTitle = LockedPlaybackSession.getOriginalName(obfuscatedName)
+                    ?.substringBeforeLast(".") ?: obfuscatedName
+            } else {
+                currentVideoPath = uri.path?.removePrefix("file://") ?: ""
+                currentVideoTitle = File(currentVideoPath).nameWithoutExtension
+            }
         }
 
         checkAvailableTracks(controller)
@@ -619,8 +628,16 @@ fun VideoPlayerOverlay(
                     val wasPlayerPaused = !mediaController!!.isPlaying
 
                     mediaItem?.localConfiguration?.uri?.let { uri ->
-                        currentVideoPath = uri.path?.removePrefix("file://") ?: ""
-                        currentVideoTitle = File(currentVideoPath).nameWithoutExtension
+                        val uriStr = uri.toString()
+                        if (uriStr.startsWith("locked://")) {
+                            currentVideoPath = uriStr.removePrefix("locked://")
+                            val obfuscatedName = File(currentVideoPath).name
+                            currentVideoTitle = LockedPlaybackSession.getOriginalName(obfuscatedName)
+                                ?.substringBeforeLast(".") ?: obfuscatedName
+                        } else {
+                            currentVideoPath = uri.path?.removePrefix("file://") ?: ""
+                            currentVideoTitle = File(currentVideoPath).nameWithoutExtension
+                        }
                     }
 
                     applyRotation(mediaController!!.videoSize)
@@ -747,7 +764,13 @@ fun VideoPlayerOverlay(
                     // ✅ NOVO: Pegar playlist completa do PlaylistManager
                     val playlist = PlaylistManager.getFullPlaylist()
                     val titles = playlist.map { path ->
-                        File(path.removePrefix("file://")).nameWithoutExtension
+                        if (path.startsWith("locked://")) {
+                            val obfuscatedName = File(path.removePrefix("locked://")).name
+                            LockedPlaybackSession.getOriginalName(obfuscatedName)
+                                ?.substringBeforeLast(".") ?: obfuscatedName
+                        } else {
+                            File(path.removePrefix("file://")).nameWithoutExtension
+                        }
                     }
                     val currentIndex = PlaylistManager.getCurrentIndex()
 

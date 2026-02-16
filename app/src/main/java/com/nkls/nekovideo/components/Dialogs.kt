@@ -191,6 +191,87 @@ fun SingleRenameDialog(
 }
 
 @Composable
+fun LockedRenameDialog(
+    currentName: String,
+    onDismiss: () -> Unit,
+    onRename: (String) -> Unit
+) {
+    val nameWithoutExtension = currentName.substringBeforeLast(".")
+    val extension = if (currentName.contains(".")) ".${currentName.substringAfterLast(".")}" else ""
+    var newName by remember { mutableStateOf(nameWithoutExtension) }
+    val context = LanguageManager.getLocalizedContext(LocalContext.current)
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp)),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.rename_item),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Item: $currentName",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedTextField(
+                        value = newName,
+                        onValueChange = { newName = it },
+                        label = { Text(stringResource(R.string.new_name)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                        )
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                    Button(
+                        onClick = {
+                            if (newName.trim().isNotEmpty()) {
+                                onRename("${newName.trim()}$extension")
+                            }
+                        },
+                        enabled = newName.trim().isNotEmpty(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(stringResource(R.string.rename))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun MultipleRenameDialog(
     selectedItems: List<String>,
     onDismiss: () -> Unit,
@@ -352,8 +433,9 @@ fun RenameDialog(
 @Composable
 fun CreateFolderDialog(
     currentPath: String,
+    isInsideLockedFolder: Boolean = false,
     onDismiss: () -> Unit,
-    onFolderCreated: () -> Unit,
+    onFolderCreated: (String) -> Unit,
     onRefresh: (() -> Unit)? = null
 ) {
     var folderName by remember { mutableStateOf("") }
@@ -446,29 +528,35 @@ fun CreateFolderDialog(
                         Button(
                             onClick = {
                                 if (folderName.isNotBlank()) {
-                                    isCreating = true
-                                    errorMessage = null
+                                    if (isInsideLockedFolder) {
+                                        // Delegate to caller - it will handle creating the locked subfolder
+                                        onFolderCreated(folderName.trim())
+                                        onDismiss()
+                                    } else {
+                                        isCreating = true
+                                        errorMessage = null
 
-                                    coroutineScope.launch {
-                                        val success = withContext(Dispatchers.IO) {
-                                            try {
-                                                FilesManager.createFolderWithMarker(
-                                                    context = context,
-                                                    path = currentPath,
-                                                    folderName = folderName,
-                                                    onRefresh = onRefresh
-                                                )
-                                            } catch (e: Exception) {
-                                                errorMessage = e.message ?: "Failed to create folder"
-                                                false
+                                        coroutineScope.launch {
+                                            val success = withContext(Dispatchers.IO) {
+                                                try {
+                                                    FilesManager.createFolderWithMarker(
+                                                        context = context,
+                                                        path = currentPath,
+                                                        folderName = folderName,
+                                                        onRefresh = onRefresh
+                                                    )
+                                                } catch (e: Exception) {
+                                                    errorMessage = e.message ?: "Failed to create folder"
+                                                    false
+                                                }
                                             }
-                                        }
 
-                                        isCreating = false
+                                            isCreating = false
 
-                                        if (success) {
-                                            onFolderCreated()
-                                            onDismiss()
+                                            if (success) {
+                                                onFolderCreated(folderName.trim())
+                                                onDismiss()
+                                            }
                                         }
                                     }
                                 } else {

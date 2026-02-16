@@ -46,6 +46,7 @@ import com.nkls.nekovideo.components.DeleteConfirmationDialog
 import com.nkls.nekovideo.components.FixVideoMetadataDialog
 import com.nkls.nekovideo.components.PasswordDialog
 import com.nkls.nekovideo.components.ProcessingDialog
+import com.nkls.nekovideo.components.LockedRenameDialog
 import com.nkls.nekovideo.components.RenameDialog
 import com.nkls.nekovideo.components.helpers.VideoRemuxer
 import com.nkls.nekovideo.components.SortType
@@ -121,6 +122,7 @@ fun MainScreen(
 
     var isMoveMode by remember { mutableStateOf(false) }
     var itemsToMove by remember { mutableStateOf<List<String>>(emptyList()) }
+    var moveSourceLockedFolder by remember { mutableStateOf<String?>(null) }
     var showFolderActions by remember { mutableStateOf(false) }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var isLocking by remember { mutableStateOf(false) }
@@ -266,16 +268,51 @@ fun MainScreen(
     }
 
     if (showRenameDialog) {
-        RenameDialog(
-            selectedItems = selectedItems.toList(),
-            onDismiss = { showRenameDialog = false },
-            onComplete = {
-                selectedItems.clear()
-                renameTrigger++
-                quickRefresh()
-            },
-            onRefresh = ::performRefresh  // ✅ ADICIONAR
-        )
+        val isInsideLockedForRename = FolderLockManager.isLocked(folderPath) &&
+                LockedPlaybackSession.isActive &&
+                LockedPlaybackSession.hasSessionForFolder(folderPath)
+
+        if (isInsideLockedForRename && selectedItems.size == 1) {
+            // Rename inside locked folder: only update the original name in manifest
+            val obfuscatedPath = selectedItems.first()
+            val obfuscatedName = File(obfuscatedPath).name
+            val currentOriginalName = LockedPlaybackSession.getOriginalName(obfuscatedName) ?: obfuscatedName
+
+            LockedRenameDialog(
+                currentName = currentOriginalName,
+                onDismiss = { showRenameDialog = false },
+                onRename = { newName ->
+                    coroutineScope.launch {
+                        val pwd = sessionPassword ?: LockedPlaybackSession.sessionPassword
+                        if (pwd != null) {
+                            withContext(Dispatchers.IO) {
+                                val updatedManifest = FolderLockManager.renameFileInManifest(
+                                    folderPath, obfuscatedName, newName, pwd
+                                )
+                                if (updatedManifest != null) {
+                                    LockedPlaybackSession.updateManifest(folderPath, updatedManifest)
+                                }
+                            }
+                        }
+                        showRenameDialog = false
+                        selectedItems.clear()
+                        renameTrigger++
+                        quickRefresh()
+                    }
+                }
+            )
+        } else {
+            RenameDialog(
+                selectedItems = selectedItems.toList(),
+                onDismiss = { showRenameDialog = false },
+                onComplete = {
+                    selectedItems.clear()
+                    renameTrigger++
+                    quickRefresh()
+                },
+                onRefresh = ::performRefresh
+            )
+        }
     }
 
     if (showPasswordDialog) {
@@ -397,13 +434,36 @@ fun MainScreen(
     }
 
     if (showCreateFolderDialog) {
+        val isInsideLockedForCreate = FolderLockManager.isLocked(folderPath) &&
+                LockedPlaybackSession.isActive &&
+                LockedPlaybackSession.hasSessionForFolder(folderPath)
+
         CreateFolderDialog(
             currentPath = folderPath,
+            isInsideLockedFolder = isInsideLockedForCreate,
             onDismiss = { showCreateFolderDialog = false },
-            onFolderCreated = {
-                renameTrigger++
-                Toast.makeText(context, context.getString(R.string.folder_created), Toast.LENGTH_SHORT).show()
-                quickRefresh()
+            onFolderCreated = { folderName ->
+                if (isInsideLockedForCreate) {
+                    // Create locked subfolder using session password
+                    val pwd = sessionPassword ?: LockedPlaybackSession.sessionPassword
+                    if (pwd != null) {
+                        coroutineScope.launch {
+                            val subfolderPath = File(folderPath, folderName).absolutePath
+                            val success = withContext(Dispatchers.IO) {
+                                FolderLockManager.createEmptyLockedFolder(context, subfolderPath, pwd)
+                            }
+                            if (success) {
+                                Toast.makeText(context, context.getString(R.string.folder_created), Toast.LENGTH_SHORT).show()
+                            }
+                            renameTrigger++
+                            quickRefresh()
+                        }
+                    }
+                } else {
+                    renameTrigger++
+                    Toast.makeText(context, context.getString(R.string.folder_created), Toast.LENGTH_SHORT).show()
+                    quickRefresh()
+                }
             },
             onRefresh = ::performRefresh
         )
@@ -417,7 +477,44 @@ fun MainScreen(
             onConfirm = {
                 showDeleteConfirmDialog = false
                 coroutineScope.launch {
-                    if (currentRoute == "secure_folder") {
+                    val isInsideLocked = FolderLockManager.isLocked(folderPath) &&
+                            LockedPlaybackSession.isActive &&
+                            LockedPlaybackSession.hasSessionForFolder(folderPath)
+
+                    if (isInsideLocked) {
+                        // Delete files/subfolders from locked folder
+                        val pwd = sessionPassword ?: LockedPlaybackSession.sessionPassword
+                        if (pwd != null) {
+                            withContext(Dispatchers.IO) {
+                                selectedItems.toList().forEach { itemPath ->
+                                    val file = File(itemPath)
+                                    if (file.isDirectory) {
+                                        // Deleting a locked subfolder: clean up session, registry, then delete recursively
+                                        if (FolderLockManager.isLocked(itemPath)) {
+                                            LockedPlaybackSession.removeSession(itemPath)
+                                        }
+                                        file.deleteRecursively()
+                                    } else {
+                                        val obfuscatedName = file.name
+                                        file.delete()
+                                        val updatedManifest = FolderLockManager.removeFileFromManifest(
+                                            context, folderPath, obfuscatedName, pwd
+                                        )
+                                        if (updatedManifest != null) {
+                                            LockedPlaybackSession.updateManifest(folderPath, updatedManifest)
+                                        }
+                                    }
+                                }
+                            }
+                            launch(Dispatchers.Main) {
+                                Toast.makeText(context, context.getString(R.string.items_deleted_locked), Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        selectedItems.clear()
+                        showFabMenu = false
+                        renameTrigger++
+                        quickRefresh()
+                    } else if (currentRoute == "secure_folder") {
                         FilesManager.deleteSecureSelectedItems(
                             context = context,
                             selectedItems = selectedItems.toList(),
@@ -585,7 +682,7 @@ fun MainScreen(
                     isRootDirectory = isAtRootLevel,
                     selectedItems = selectedItems.toList(),
                     itemsToMoveCount = itemsToMove.size,
-                    isInsideLockedFolder = FolderLockManager.isLocked(folderPath) && LockedPlaybackSession.isActive && LockedPlaybackSession.currentFolderPath == folderPath,
+                    isInsideLockedFolder = FolderLockManager.isLocked(folderPath) && LockedPlaybackSession.isActive && LockedPlaybackSession.hasSessionForFolder(folderPath),
                     onActionClick = { action ->
                         when (action) {
                             ActionType.SETTINGS -> {
@@ -748,6 +845,10 @@ fun MainScreen(
                             ActionType.DELETE -> showDeleteConfirmDialog = true
                             ActionType.RENAME -> showRenameDialog = true
                             ActionType.MOVE -> {
+                                val isFromLocked = FolderLockManager.isLocked(folderPath) &&
+                                        LockedPlaybackSession.isActive &&
+                                        LockedPlaybackSession.hasSessionForFolder(folderPath)
+                                moveSourceLockedFolder = if (isFromLocked) folderPath else null
                                 itemsToMove = selectedItems.toList()
                                 selectedItems.clear()
                                 isMoveMode = true
@@ -756,6 +857,7 @@ fun MainScreen(
                             ActionType.CANCEL_MOVE -> {
                                 isMoveMode = false
                                 itemsToMove = emptyList()
+                                moveSourceLockedFolder = null
                                 Toast.makeText(context, context.getString(R.string.move_operation_cancelled), Toast.LENGTH_SHORT).show()
                             }
                             ActionType.SHUFFLE_PLAY -> {
@@ -770,25 +872,24 @@ fun MainScreen(
                                     )
 
                                     if (videos.isNotEmpty()) {
-                                        // If playlist contains locked videos, ensure LockedPlaybackSession is active
-                                        if (videos.any { it.startsWith("locked://") } && !LockedPlaybackSession.isActive) {
+                                        // Register ALL locked folders for playback (supports multi-folder playlists)
+                                        val lockedVideos = videos.filter { it.startsWith("locked://") }
+                                        if (lockedVideos.isNotEmpty()) {
                                             val pwd = sessionPassword
                                             if (pwd != null) {
-                                                // Start session for the current locked folder
-                                                val lockedPath = if (FolderLockManager.isLocked(folderPath)) {
-                                                    folderPath
-                                                } else {
-                                                    // Find the first locked subfolder from the video URIs
-                                                    videos.firstOrNull { it.startsWith("locked://") }
-                                                        ?.removePrefix("locked://")
-                                                        ?.let { File(it).parent }
-                                                }
-                                                if (lockedPath != null) {
-                                                    val salt = FolderLockManager.getSalt(lockedPath)
-                                                    val manifest = FolderLockManager.readManifest(lockedPath, pwd)
-                                                    if (salt != null && manifest != null) {
-                                                        val xorKey = FolderLockManager.deriveXorKey(pwd, salt)
-                                                        LockedPlaybackSession.start(xorKey, manifest, lockedPath)
+                                                val lockedFolderPaths = lockedVideos
+                                                    .map { it.removePrefix("locked://") }
+                                                    .mapNotNull { File(it).parent }
+                                                    .distinct()
+
+                                                for (lockedPath in lockedFolderPaths) {
+                                                    if (!LockedPlaybackSession.hasSessionForFolder(lockedPath)) {
+                                                        val salt = FolderLockManager.getSalt(lockedPath)
+                                                        val manifest = FolderLockManager.readManifest(lockedPath, pwd)
+                                                        if (salt != null && manifest != null) {
+                                                            val xorKey = FolderLockManager.deriveXorKey(pwd, salt)
+                                                            LockedPlaybackSession.start(xorKey, manifest, lockedPath, pwd)
+                                                        }
                                                     }
                                                 }
                                             }
@@ -814,10 +915,40 @@ fun MainScreen(
                                 coroutineScope.launch {
                                     val movedItems = itemsToMove.toList()
                                     val destIsLocked = FolderLockManager.isLocked(folderPath)
+                                    val sourceLockedFolder = moveSourceLockedFolder
+                                    val pwd = sessionPassword ?: LockedPlaybackSession.sessionPassword
+
+                                    // If items come from a locked folder, extract them first
+                                    val actualItemsToMove = if (sourceLockedFolder != null && pwd != null) {
+                                        withContext(Dispatchers.IO) {
+                                            val obfuscatedNames = movedItems.map { File(it).name }
+                                            val (restoredFiles, updatedManifest) = FolderLockManager.extractFilesFromLockedFolder(
+                                                context, sourceLockedFolder, obfuscatedNames, pwd
+                                            )
+                                            if (updatedManifest != null) {
+                                                LockedPlaybackSession.updateManifest(sourceLockedFolder, updatedManifest)
+                                            }
+                                            restoredFiles.map { it.absolutePath }
+                                        }
+                                    } else {
+                                        movedItems
+                                    }
+
+                                    if (actualItemsToMove.isEmpty()) {
+                                        launch(Dispatchers.Main) {
+                                            Toast.makeText(context, "Error extracting files", Toast.LENGTH_SHORT).show()
+                                        }
+                                        itemsToMove = emptyList()
+                                        isMoveMode = false
+                                        moveSourceLockedFolder = null
+                                        renameTrigger++
+                                        quickRefresh()
+                                        return@launch
+                                    }
 
                                     FilesManager.moveSelectedItems(
                                         context = context,
-                                        selectedItems = movedItems,
+                                        selectedItems = actualItemsToMove,
                                         destinationPath = folderPath,
                                         onError = { message ->
                                             launch(Dispatchers.Main) {
@@ -830,9 +961,8 @@ fun MainScreen(
                                             }
 
                                             // Auto-lock new files if pasted into a locked folder
-                                            val pwd = sessionPassword
                                             if (destIsLocked && pwd != null) {
-                                                val newFiles = movedItems.map { File(folderPath, File(it).name) }
+                                                val newFiles = actualItemsToMove.map { File(folderPath, File(it).name) }
                                                 isLocking = true
                                                 FolderLockManager.addFilesToLockedFolder(
                                                     context = context,
@@ -857,18 +987,19 @@ fun MainScreen(
                                                 lockProgress = ""
 
                                                 // Update LockedPlaybackSession if active
-                                                if (LockedPlaybackSession.isActive && LockedPlaybackSession.currentFolderPath == folderPath) {
+                                                if (LockedPlaybackSession.isActive && LockedPlaybackSession.hasSessionForFolder(folderPath)) {
                                                     val updatedManifest = FolderLockManager.readManifest(folderPath, pwd)
                                                     val salt = FolderLockManager.getSalt(folderPath)
                                                     if (updatedManifest != null && salt != null) {
                                                         val xorKey = FolderLockManager.deriveXorKey(pwd, salt)
-                                                        LockedPlaybackSession.start(xorKey, updatedManifest, folderPath)
+                                                        LockedPlaybackSession.start(xorKey, updatedManifest, folderPath, pwd)
                                                     }
                                                 }
                                             }
 
                                             itemsToMove = emptyList()
                                             isMoveMode = false
+                                            moveSourceLockedFolder = null
                                             renameTrigger++
                                             quickRefresh()
                                         },
@@ -971,7 +1102,7 @@ fun MainScreen(
                             if (item?.isFolder == true) {
                                 // Check if folder is locked - use sessionPassword
                                 if (FolderLockManager.isLocked(itemPath)) {
-                                    val pwd = sessionPassword
+                                    val pwd = sessionPassword ?: LockedPlaybackSession.sessionPassword
                                     if (pwd != null) {
                                         coroutineScope.launch {
                                             val manifest = withContext(Dispatchers.IO) {
@@ -985,7 +1116,7 @@ fun MainScreen(
                                                     val xorKey = withContext(Dispatchers.IO) {
                                                         FolderLockManager.deriveXorKey(pwd, salt)
                                                     }
-                                                    LockedPlaybackSession.start(xorKey, manifest, itemPath)
+                                                    LockedPlaybackSession.start(xorKey, manifest, itemPath, pwd)
                                                     folderNavState.navigateTo(itemPath)
                                                 }
                                             } else {
@@ -1000,7 +1131,7 @@ fun MainScreen(
                                 // Função para reproduzir o vídeo
                                 val playVideo = {
                                     // Check if we're in a locked folder session
-                                    if (LockedPlaybackSession.isActive && LockedPlaybackSession.currentFolderPath == folderPath) {
+                                    if (LockedPlaybackSession.isActive && LockedPlaybackSession.hasSessionForFolder(folderPath)) {
                                         // Playing from locked folder - use locked:// URI scheme
                                         val videos = items.filter { !it.isFolder }.map { "locked://${it.path}" }
                                         val clickedVideoIndex = videos.indexOf("locked://$itemPath")
@@ -1078,6 +1209,14 @@ fun MainScreen(
             // Limpa seleção ao voltar
             if (selectedItems.isNotEmpty()) {
                 selectedItems.clear()
+            }
+            // When navigating back from a locked subfolder, update currentFolderPath to parent
+            val parentFolder = File(folderPath).parent
+            if (parentFolder != null && FolderLockManager.isLocked(folderPath) &&
+                LockedPlaybackSession.hasSessionForFolder(folderPath)) {
+                if (LockedPlaybackSession.hasSessionForFolder(parentFolder)) {
+                    LockedPlaybackSession.setCurrentFolder(parentFolder)
+                }
             }
             folderNavState.navigateBack()
         }

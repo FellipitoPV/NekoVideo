@@ -40,6 +40,7 @@
     <string name="move_operation_cancelled">Opération de déplacement annulée</string>
     <string name="items_moved">Éléments déplacés!</string>
     <string name="files_secured">Fichiers sécurisés!</string>
+    <string name="items_deleted_locked">Éléments supprimés !</string>
     <string name="folder_created">Dossier créé</string>
     <string name="action_set_secure_folder">Définir Comme Dossier Sécurisé</string>
     <string name="secure_folder_set">Ce dossier est maintenant le dossier sécurisé !</string>

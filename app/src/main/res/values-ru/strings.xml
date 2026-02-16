@@ -40,6 +40,7 @@
     <string name="move_operation_cancelled">Операция перемещения отменена</string>
     <string name="items_moved">Элементы перемещены!</string>
     <string name="files_secured">Файлы защищены!</string>
+    <string name="items_deleted_locked">Элементы удалены!</string>
     <string name="folder_created">Папка создана</string>
     <string name="action_set_secure_folder">Установить Защищённой Папкой</string>
     <string name="secure_folder_set">Эта папка теперь защищённая папка!</string>

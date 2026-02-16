@@ -40,6 +40,7 @@
     <string name="move_operation_cancelled">मूव ऑपरेशन रद्द किया गया</string>
     <string name="items_moved">आइटम मूव किए गए!</string>
     <string name="files_secured">फ़ाइलें सुरक्षित!</string>
+    <string name="items_deleted_locked">आइटम हटाए गए!</string>
     <string name="folder_created">फ़ोल्डर बनाया गया</string>
     <string name="action_set_secure_folder">सुरक्षित फ़ोल्डर के रूप में सेट करें</string>
     <string name="secure_folder_set">यह फ़ोल्डर अब सुरक्षित फ़ोल्डर है!</string>

@@ -40,6 +40,7 @@
     <string name="move_mode_activated">Modo mover ativado. Navegue até o destino e cole.</string>
     <string name="move_operation_cancelled">Operação de mover cancelada</string>
     <string name="items_moved">Itens movidos!</string>
+    <string name="items_deleted_locked">Itens excluídos!</string>
     <string name="files_secured">Arquivos protegidos!</string>
     <string name="folder_created">Pasta criada</string>
     <string name="action_set_secure_folder">Definir Como Pasta Segura</string>

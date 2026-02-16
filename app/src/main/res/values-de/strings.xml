@@ -40,6 +40,7 @@
     <string name="move_operation_cancelled">Verschiebeoperation abgebrochen</string>
     <string name="items_moved">Elemente verschoben!</string>
     <string name="files_secured">Dateien gesichert!</string>
+    <string name="items_deleted_locked">Elemente gelöscht!</string>
     <string name="folder_created">Ordner erstellt</string>
     <string name="action_set_secure_folder">Als Sicheren Ordner Festlegen</string>
     <string name="secure_folder_set">Dieser Ordner ist jetzt der sichere Ordner!</string>

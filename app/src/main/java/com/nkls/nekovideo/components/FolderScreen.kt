@@ -240,10 +240,12 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
 
     // Check if this is a locked folder with an active session
     if (FolderLockManager.isLocked(folderPath) && LockedPlaybackSession.isActive &&
-        LockedPlaybackSession.currentFolderPath == folderPath) {
-        // Load content from manifest, showing original names
-        val manifest = LockedPlaybackSession.currentManifest ?: return emptyList()
-        val items = manifest.files.map { entry ->
+        LockedPlaybackSession.hasSessionForFolder(folderPath)) {
+        val manifest = LockedPlaybackSession.getManifestForFolder(folderPath) ?: return emptyList()
+        val items = mutableListOf<MediaItem>()
+
+        // Add videos from manifest
+        items.addAll(manifest.files.map { entry ->
             val obfuscatedFile = File(folder, entry.obfuscatedName)
             MediaItem(
                 path = obfuscatedFile.absolutePath,
@@ -254,7 +256,21 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
                 lastModified = obfuscatedFile.lastModified(),
                 sizeInBytes = entry.originalSize
             )
+        })
+
+        // Add subdirectories (locked subfolders show as folders)
+        folder.listFiles()?.forEach { file ->
+            if (file.isDirectory && file.name !in listOf(".neko_thumbs")) {
+                items.add(MediaItem(
+                    path = file.absolutePath,
+                    uri = null,
+                    isFolder = true,
+                    lastModified = file.lastModified(),
+                    sizeInBytes = getFolderSize(file)
+                ))
+            }
         }
+
         return applySorting(items, sortType)
     }
 
@@ -1218,20 +1234,42 @@ private fun FolderContent(item: MediaItem) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = when {
-                isLocked -> Icons.Default.Lock
-                isSecure -> Icons.Default.FolderSpecial
-                else -> Icons.Default.Folder
-            },
-            contentDescription = null,
-            tint = when {
-                isLocked -> Color(0xFFE91E63) // Red lock icon
-                isSecure -> Color(0xFFFF6B35)
-                else -> MaterialTheme.colorScheme.primary
-            },
-            modifier = Modifier.size(40.dp).weight(1f)
-        )
+        if (isLocked) {
+            // Locked folder: folder icon with lock badge
+            Box(
+                modifier = Modifier.size(40.dp).weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Folder,
+                    contentDescription = null,
+                    tint = Color(0xFFE91E63),
+                    modifier = Modifier.size(40.dp)
+                )
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .align(Alignment.Center)
+                        .offset(y = 3.dp)
+                )
+            }
+        } else {
+            Icon(
+                imageVector = when {
+                    isSecure -> Icons.Default.FolderSpecial
+                    else -> Icons.Default.Folder
+                },
+                contentDescription = null,
+                tint = when {
+                    isSecure -> Color(0xFFFF6B35)
+                    else -> MaterialTheme.colorScheme.primary
+                },
+                modifier = Modifier.size(40.dp).weight(1f)
+            )
+        }
 
         Text(
             text = item.displayName,
@@ -1493,6 +1531,30 @@ fun loadFolderContentRecursive(
 private fun loadSecureContentRecursive(folderPath: String, allItems: MutableList<MediaItem>) {
     val folder = File(folderPath)
     if (!folder.exists() || !folder.isDirectory) return
+
+    // If this folder is locked and has a session, read videos from manifest
+    if (FolderLockManager.isLocked(folderPath) && LockedPlaybackSession.hasSessionForFolder(folderPath)) {
+        val manifest = LockedPlaybackSession.getManifestForFolder(folderPath)
+        if (manifest != null) {
+            manifest.files.forEach { entry ->
+                val obfuscatedFile = File(folder, entry.obfuscatedName)
+                allItems.add(MediaItem(
+                    path = obfuscatedFile.absolutePath,
+                    uri = null,
+                    isFolder = false,
+                    name = entry.originalName,
+                    displayName = entry.originalName
+                ))
+            }
+        }
+        // Continue recursion into subdirectories
+        folder.listFiles()?.forEach { file ->
+            if (file.isDirectory && file.name !in listOf(".neko_thumbs")) {
+                loadSecureContentRecursive(file.absolutePath, allItems)
+            }
+        }
+        return
+    }
 
     folder.listFiles()?.forEach { file ->
         when {

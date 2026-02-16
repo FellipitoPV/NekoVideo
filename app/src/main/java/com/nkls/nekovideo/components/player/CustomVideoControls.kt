@@ -52,6 +52,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.session.MediaController
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.components.helpers.FilesManager
+import com.nkls.nekovideo.components.helpers.FolderLockManager
+import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.PlaylistNavigator
 import kotlinx.coroutines.withContext
@@ -509,13 +511,16 @@ suspend fun deleteCurrentVideo(
     try {
         val controller = mediaController ?: return
 
+        val file = File(videoPath)
+        val parentPath = file.parent
+        val isLockedVideo = parentPath != null && FolderLockManager.isLocked(parentPath)
         val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
         val isSecureVideo = videoPath.startsWith(secureFolderPath)
 
-        val success = if (isSecureVideo) {
-            deleteSecureFile(context, videoPath)
-        } else {
-            deleteRegularFile(context, videoPath)
+        val success = when {
+            isLockedVideo -> deleteLockedFile(context, videoPath)
+            isSecureVideo -> deleteSecureFile(context, videoPath)
+            else -> deleteRegularFile(context, videoPath)
         }
 
         if (success) {
@@ -588,6 +593,34 @@ suspend fun deleteRegularFile(context: Context, videoPath: String): Boolean =
             file.delete()
         } catch (e: Exception) {
             Log.e("VideoPlayer", "Erro ao deletar arquivo regular", e)
+            false
+        }
+    }
+
+suspend fun deleteLockedFile(context: Context, videoPath: String): Boolean =
+    withContext(kotlinx.coroutines.Dispatchers.IO) {
+        try {
+            val file = File(videoPath)
+            val folderPath = file.parent ?: return@withContext false
+            val obfuscatedName = file.name
+
+            // Delete the obfuscated video file
+            if (!file.delete()) return@withContext false
+
+            // Update manifest and delete thumbnail
+            val password = LockedPlaybackSession.sessionPassword
+            if (password != null) {
+                val updatedManifest = FolderLockManager.removeFileFromManifest(
+                    context, folderPath, obfuscatedName, password
+                )
+                if (updatedManifest != null) {
+                    LockedPlaybackSession.updateManifest(folderPath, updatedManifest)
+                }
+            }
+
+            true
+        } catch (e: Exception) {
+            Log.e("VideoPlayer", "Erro ao deletar arquivo de pasta trancada", e)
             false
         }
     }
