@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Cast
@@ -38,6 +40,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -80,6 +84,9 @@ fun SingleRenameDialog(
     var isRenaming by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val context = LanguageManager.getLocalizedContext(LocalContext.current)
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     Dialog(
         onDismissRequest = { if (!isRenaming) onDismiss() },
@@ -123,6 +130,29 @@ fun SingleRenameDialog(
                         )
                     }
                 } else {
+                    fun performRename() {
+                        if (newName.trim().isNotEmpty()) {
+                            isRenaming = true
+                            coroutineScope.launch {
+                                val file = File(selectedItem)
+                                val extension = if (file.isFile) ".${file.extension}" else ""
+                                val isPrivateFolder = file.isDirectory && file.name.startsWith(".")
+                                val finalName = if (isPrivateFolder) ".$newName" else newName
+
+                                val newFile = File(file.parent, "$finalName$extension")
+                                val success = file.renameTo(newFile)
+
+                                if (success) {
+                                    onRefresh?.invoke()
+                                }
+
+                                isRenaming = false
+                                onComplete()
+                                onDismiss()
+                            }
+                        }
+                    }
+
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
                             text = "Item: ${File(selectedItem).name}",
@@ -134,9 +164,11 @@ fun SingleRenameDialog(
                             value = newName,
                             onValueChange = { newName = it },
                             label = { Text(stringResource(R.string.new_name)) },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                             enabled = !isRenaming,
                             singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { performRename() }),
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -156,28 +188,7 @@ fun SingleRenameDialog(
                             Text(stringResource(R.string.cancel))
                         }
                         Button(
-                            onClick = {
-                                if (newName.trim().isNotEmpty()) {
-                                    isRenaming = true
-                                    coroutineScope.launch {
-                                        val file = File(selectedItem)
-                                        val extension = if (file.isFile) ".${file.extension}" else ""
-                                        val isPrivateFolder = file.isDirectory && file.name.startsWith(".")
-                                        val finalName = if (isPrivateFolder) ".$newName" else newName
-
-                                        val newFile = File(file.parent, "$finalName$extension")
-                                        val success = file.renameTo(newFile)
-
-                                        if (success) {
-                                            onRefresh?.invoke()
-                                        }
-
-                                        isRenaming = false
-                                        onComplete()
-                                        onDismiss()
-                                    }
-                                }
-                            },
+                            onClick = { performRename() },
                             enabled = newName.trim().isNotEmpty(),
                             shape = RoundedCornerShape(8.dp)
                         ) {
@@ -200,6 +211,9 @@ fun LockedRenameDialog(
     val extension = if (currentName.contains(".")) ".${currentName.substringAfterLast(".")}" else ""
     var newName by remember { mutableStateOf(nameWithoutExtension) }
     val context = LanguageManager.getLocalizedContext(LocalContext.current)
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -223,6 +237,12 @@ fun LockedRenameDialog(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
+                fun performLockedRename() {
+                    if (newName.trim().isNotEmpty()) {
+                        onRename("${newName.trim()}$extension")
+                    }
+                }
+
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         text = "Item: $currentName",
@@ -234,8 +254,10 @@ fun LockedRenameDialog(
                         value = newName,
                         onValueChange = { newName = it },
                         label = { Text(stringResource(R.string.new_name)) },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { performLockedRename() }),
                         shape = RoundedCornerShape(10.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -255,11 +277,7 @@ fun LockedRenameDialog(
                         Text(stringResource(R.string.cancel))
                     }
                     Button(
-                        onClick = {
-                            if (newName.trim().isNotEmpty()) {
-                                onRename("${newName.trim()}$extension")
-                            }
-                        },
+                        onClick = { performLockedRename() },
                         enabled = newName.trim().isNotEmpty(),
                         shape = RoundedCornerShape(8.dp)
                     ) {
@@ -285,6 +303,9 @@ fun MultipleRenameDialog(
     var totalItems by remember { mutableStateOf(selectedItems.size) }
     val coroutineScope = rememberCoroutineScope()
     val context = LanguageManager.getLocalizedContext(LocalContext.current)
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     Dialog(
         onDismissRequest = { if (!isRenaming) onDismiss() },
@@ -328,6 +349,28 @@ fun MultipleRenameDialog(
                         )
                     }
                 } else {
+                    fun performMultiRename() {
+                        if (baseName.trim().isNotEmpty() && startNumber.toIntOrNull() != null) {
+                            isRenaming = true
+                            coroutineScope.launch {
+                                FilesManager.renameSelectedItems(
+                                    context,
+                                    selectedItems,
+                                    baseName.trim(),
+                                    startNumber.toIntOrNull() ?: 1,
+                                    onProgress = { current, total ->
+                                        currentProgress = current
+                                        totalItems = total
+                                    },
+                                    onRefresh = onRefresh
+                                )
+                                isRenaming = false
+                                onComplete()
+                                onDismiss()
+                            }
+                        }
+                    }
+
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
                             text = stringResource(R.string.selected_items_count, selectedItems.size),
@@ -339,9 +382,10 @@ fun MultipleRenameDialog(
                             value = baseName,
                             onValueChange = { baseName = it },
                             label = { Text(stringResource(R.string.base_name)) },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                             enabled = !isRenaming,
                             singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -356,7 +400,8 @@ fun MultipleRenameDialog(
                             enabled = !isRenaming,
                             singleLine = true,
                             shape = RoundedCornerShape(10.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { performMultiRename() }),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
@@ -375,25 +420,7 @@ fun MultipleRenameDialog(
                             Text(stringResource(R.string.cancel))
                         }
                         Button(
-                            onClick = {
-                                isRenaming = true
-                                coroutineScope.launch {
-                                    FilesManager.renameSelectedItems(
-                                        context,
-                                        selectedItems,
-                                        baseName.trim(),
-                                        startNumber.toIntOrNull() ?: 1,
-                                        onProgress = { current, total ->
-                                            currentProgress = current
-                                            totalItems = total
-                                        },
-                                        onRefresh = onRefresh
-                                    )
-                                    isRenaming = false
-                                    onComplete()
-                                    onDismiss()
-                                }
-                            },
+                            onClick = { performMultiRename() },
                             enabled = baseName.trim().isNotEmpty() && startNumber.toIntOrNull() != null,
                             shape = RoundedCornerShape(8.dp)
                         ) {
@@ -443,6 +470,9 @@ fun CreateFolderDialog(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val context = LanguageManager.getLocalizedContext(LocalContext.current)
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     Dialog(
         onDismissRequest = { if (!isCreating) onDismiss() },
@@ -486,6 +516,43 @@ fun CreateFolderDialog(
                         )
                     }
                 } else {
+                    fun performCreateFolder() {
+                        if (folderName.isNotBlank()) {
+                            if (isInsideLockedFolder) {
+                                onFolderCreated(folderName.trim())
+                                onDismiss()
+                            } else {
+                                isCreating = true
+                                errorMessage = null
+
+                                coroutineScope.launch {
+                                    val success = withContext(Dispatchers.IO) {
+                                        try {
+                                            FilesManager.createFolderWithMarker(
+                                                context = context,
+                                                path = currentPath,
+                                                folderName = folderName,
+                                                onRefresh = onRefresh
+                                            )
+                                        } catch (e: Exception) {
+                                            errorMessage = e.message ?: "Failed to create folder"
+                                            false
+                                        }
+                                    }
+
+                                    isCreating = false
+
+                                    if (success) {
+                                        onFolderCreated(folderName.trim())
+                                        onDismiss()
+                                    }
+                                }
+                            }
+                        } else {
+                            errorMessage = "Folder name cannot be empty"
+                        }
+                    }
+
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         OutlinedTextField(
                             value = folderName,
@@ -494,9 +561,11 @@ fun CreateFolderDialog(
                                 errorMessage = null
                             },
                             label = { Text(stringResource(R.string.folder_name)) },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                             isError = errorMessage != null,
                             singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { performCreateFolder() }),
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -526,43 +595,7 @@ fun CreateFolderDialog(
                             Text(stringResource(R.string.cancel))
                         }
                         Button(
-                            onClick = {
-                                if (folderName.isNotBlank()) {
-                                    if (isInsideLockedFolder) {
-                                        // Delegate to caller - it will handle creating the locked subfolder
-                                        onFolderCreated(folderName.trim())
-                                        onDismiss()
-                                    } else {
-                                        isCreating = true
-                                        errorMessage = null
-
-                                        coroutineScope.launch {
-                                            val success = withContext(Dispatchers.IO) {
-                                                try {
-                                                    FilesManager.createFolderWithMarker(
-                                                        context = context,
-                                                        path = currentPath,
-                                                        folderName = folderName,
-                                                        onRefresh = onRefresh
-                                                    )
-                                                } catch (e: Exception) {
-                                                    errorMessage = e.message ?: "Failed to create folder"
-                                                    false
-                                                }
-                                            }
-
-                                            isCreating = false
-
-                                            if (success) {
-                                                onFolderCreated(folderName.trim())
-                                                onDismiss()
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    errorMessage = "Folder name cannot be empty"
-                                }
-                            },
+                            onClick = { performCreateFolder() },
                             enabled = folderName.isNotBlank() && !isCreating,
                             shape = RoundedCornerShape(8.dp)
                         ) {
@@ -587,6 +620,9 @@ fun PasswordDialog(
     val coroutineScope = rememberCoroutineScope()
     val context = LanguageManager.getLocalizedContext(LocalContext.current)
     val isFirstTime = !FilesManager.SecureStorage.hasPassword(context)
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     Dialog(
         onDismissRequest = { if (!isProcessing) onDismiss() },
@@ -634,6 +670,36 @@ fun PasswordDialog(
                         )
                     }
                 } else {
+                    fun performPasswordSubmit() {
+                        if (password.isBlank()) {
+                            errorMessage = "Password cannot be empty"
+                            return
+                        }
+                        if (isFirstTime && password != confirmPassword) {
+                            errorMessage = "Passwords do not match"
+                            return
+                        }
+                        isProcessing = true
+                        coroutineScope.launch {
+                            val success = withContext(Dispatchers.IO) {
+                                if (isFirstTime) {
+                                    FilesManager.SecureStorage.savePassword(context, password)
+                                } else {
+                                    FilesManager.SecureStorage.verifyPassword(context, password)
+                                }
+                            }
+                            isProcessing = false
+                            if (success) {
+                                if (isFirstTime) {
+                                    FilesManager.SecureStorage.ensureSecureFolderExists(context)
+                                }
+                                onPasswordVerified(password)
+                            } else {
+                                errorMessage = "Invalid password"
+                            }
+                        }
+                    }
+
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedTextField(
                             value = password,
@@ -642,10 +708,14 @@ fun PasswordDialog(
                                 errorMessage = null
                             },
                             label = { Text(stringResource(R.string.password)) },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                             isError = errorMessage != null,
                             singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = if (isFirstTime) ImeAction.Next else ImeAction.Done
+                            ),
+                            keyboardActions = if (!isFirstTime) KeyboardActions(onDone = { performPasswordSubmit() }) else KeyboardActions.Default,
                             visualTransformation = PasswordVisualTransformation(),
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -666,7 +736,11 @@ fun PasswordDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 isError = errorMessage != null,
                                 singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(onDone = { performPasswordSubmit() }),
                                 visualTransformation = PasswordVisualTransformation(),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
@@ -698,35 +772,7 @@ fun PasswordDialog(
                             Text(stringResource(R.string.cancel))
                         }
                         Button(
-                            onClick = {
-                                if (password.isBlank()) {
-                                    errorMessage = "Password cannot be empty"
-                                    return@Button
-                                }
-                                if (isFirstTime && password != confirmPassword) {
-                                    errorMessage = "Passwords do not match"
-                                    return@Button
-                                }
-                                isProcessing = true
-                                coroutineScope.launch {
-                                    val success = withContext(Dispatchers.IO) {
-                                        if (isFirstTime) {
-                                            FilesManager.SecureStorage.savePassword(context, password)
-                                        } else {
-                                            FilesManager.SecureStorage.verifyPassword(context, password)
-                                        }
-                                    }
-                                    isProcessing = false
-                                    if (success) {
-                                        if (isFirstTime) {
-                                            FilesManager.SecureStorage.ensureSecureFolderExists(context)
-                                        }
-                                        onPasswordVerified(password)
-                                    } else {
-                                        errorMessage = "Invalid password"
-                                    }
-                                }
-                            },
+                            onClick = { performPasswordSubmit() },
                             enabled = password.isNotBlank() && (!isFirstTime || confirmPassword.isNotBlank()),
                             shape = RoundedCornerShape(8.dp)
                         ) {

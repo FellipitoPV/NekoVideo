@@ -177,11 +177,6 @@ object FolderLockManager {
             file.isFile && file.extension.lowercase() in videoExtensions
         } ?: emptyList()
 
-        if (videoFiles.isEmpty()) {
-            onError("No video files found in folder")
-            return
-        }
-
         // Create in-progress marker for crash safety
         val inProgressMarker = File(folder, LOCK_IN_PROGRESS_MARKER)
         inProgressMarker.createNewFile()

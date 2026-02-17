@@ -14,6 +14,8 @@
     <string name="locking_progress">लॉक हो रहा है... %1$d/%2$d फ़ाइलें</string>
     <string name="unlocking_folder">फ़ोल्डर अनलॉक हो रहा है...</string>
     <string name="unlocking_progress">अनलॉक हो रहा है... %1$d/%2$d फ़ाइलें</string>
+    <string name="moving_files">फ़ाइलें मूव हो रही हैं...</string>
+    <string name="moving_progress">मूव हो रहा है... %1$d/%2$d फ़ाइलें</string>
     <string name="folder_locked_success">फ़ोल्डर सफलतापूर्वक लॉक हो गया</string>
     <string name="folder_unlocked_success">फ़ोल्डर सफलतापूर्वक अनलॉक हो गया</string>
     <string name="enter_password_to_lock">फ़ोल्डर लॉक करने के लिए पासवर्ड डालें</string>

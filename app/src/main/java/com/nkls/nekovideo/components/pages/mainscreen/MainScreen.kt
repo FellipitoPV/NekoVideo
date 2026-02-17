@@ -127,6 +127,8 @@ fun MainScreen(
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var isLocking by remember { mutableStateOf(false) }
     var isUnlocking by remember { mutableStateOf(false) }
+    var isMoving by remember { mutableStateOf(false) }
+    var moveProgress by remember { mutableStateOf("") }
     var lockProgress by remember { mutableStateOf("") }
     // Senha da sessao atual (armazenada apos triple-tap)
     var sessionPassword by remember { mutableStateOf<String?>(null) }
@@ -430,6 +432,14 @@ fun MainScreen(
         ProcessingDialog(
             title = context.getString(R.string.unlocking_folder),
             message = context.getString(R.string.unlocking_progress, lockProgress.substringBefore("/").toIntOrNull() ?: 0, lockProgress.substringAfter("/").toIntOrNull() ?: 0)
+        )
+    }
+
+    // Move progress dialog
+    if (isMoving) {
+        ProcessingDialog(
+            title = context.getString(R.string.moving_files),
+            message = context.getString(R.string.moving_progress, moveProgress.substringBefore("/").toIntOrNull() ?: 0, moveProgress.substringAfter("/").toIntOrNull() ?: 0)
         )
     }
 
@@ -914,13 +924,17 @@ fun MainScreen(
                             ActionType.PASTE -> {
                                 coroutineScope.launch {
                                     val movedItems = itemsToMove.toList()
+                                    val totalItems = movedItems.size
                                     val destIsLocked = FolderLockManager.isLocked(folderPath)
                                     val sourceLockedFolder = moveSourceLockedFolder
                                     val pwd = sessionPassword ?: LockedPlaybackSession.sessionPassword
 
-                                    // If items come from a locked folder, extract them first
-                                    val actualItemsToMove = if (sourceLockedFolder != null && pwd != null) {
-                                        withContext(Dispatchers.IO) {
+                                    isMoving = true
+                                    moveProgress = "0/$totalItems"
+
+                                    withContext(Dispatchers.IO) {
+                                        // If items come from a locked folder, extract them first
+                                        val actualItemsToMove = if (sourceLockedFolder != null && pwd != null) {
                                             val obfuscatedNames = movedItems.map { File(it).name }
                                             val (restoredFiles, updatedManifest) = FolderLockManager.extractFilesFromLockedFolder(
                                                 context, sourceLockedFolder, obfuscatedNames, pwd
@@ -929,82 +943,97 @@ fun MainScreen(
                                                 LockedPlaybackSession.updateManifest(sourceLockedFolder, updatedManifest)
                                             }
                                             restoredFiles.map { it.absolutePath }
+                                        } else {
+                                            movedItems
                                         }
-                                    } else {
-                                        movedItems
-                                    }
 
-                                    if (actualItemsToMove.isEmpty()) {
-                                        launch(Dispatchers.Main) {
-                                            Toast.makeText(context, "Error extracting files", Toast.LENGTH_SHORT).show()
+                                        if (actualItemsToMove.isEmpty()) {
+                                            withContext(Dispatchers.Main) {
+                                                isMoving = false
+                                                moveProgress = ""
+                                                Toast.makeText(context, "Error extracting files", Toast.LENGTH_SHORT).show()
+                                                itemsToMove = emptyList()
+                                                isMoveMode = false
+                                                moveSourceLockedFolder = null
+                                                renameTrigger++
+                                            }
+                                            quickRefresh()
+                                            return@withContext
                                         }
-                                        itemsToMove = emptyList()
-                                        isMoveMode = false
-                                        moveSourceLockedFolder = null
-                                        renameTrigger++
-                                        quickRefresh()
-                                        return@launch
-                                    }
 
-                                    FilesManager.moveSelectedItems(
-                                        context = context,
-                                        selectedItems = actualItemsToMove,
-                                        destinationPath = folderPath,
-                                        onError = { message ->
-                                            launch(Dispatchers.Main) {
-                                                Toast.makeText(context, "Error: $message", Toast.LENGTH_SHORT).show()
-                                            }
-                                        },
-                                        onSuccess = { _ ->
-                                            launch(Dispatchers.Main) {
-                                                Toast.makeText(context, context.getString(R.string.items_moved), Toast.LENGTH_SHORT).show()
-                                            }
+                                        FilesManager.moveSelectedItems(
+                                            context = context,
+                                            selectedItems = actualItemsToMove,
+                                            destinationPath = folderPath,
+                                            onProgress = { current, total ->
+                                                moveProgress = "$current/$total"
+                                            },
+                                            onError = { message ->
+                                                launch(Dispatchers.Main) {
+                                                    Toast.makeText(context, "Error: $message", Toast.LENGTH_SHORT).show()
+                                                }
+                                            },
+                                            onSuccess = { _ ->
+                                                // Move done, now handle auto-lock if needed
+                                            },
+                                            onRefresh = ::performRefresh
+                                        )
 
-                                            // Auto-lock new files if pasted into a locked folder
-                                            if (destIsLocked && pwd != null) {
-                                                val newFiles = actualItemsToMove.map { File(folderPath, File(it).name) }
+                                        withContext(Dispatchers.Main) {
+                                            isMoving = false
+                                            moveProgress = ""
+                                            Toast.makeText(context, context.getString(R.string.items_moved), Toast.LENGTH_SHORT).show()
+                                        }
+
+                                        // Auto-lock new files if pasted into a locked folder
+                                        if (destIsLocked && pwd != null) {
+                                            val newFiles = actualItemsToMove.map { File(folderPath, File(it).name) }
+                                            withContext(Dispatchers.Main) {
                                                 isLocking = true
-                                                FolderLockManager.addFilesToLockedFolder(
-                                                    context = context,
-                                                    folderPath = folderPath,
-                                                    password = pwd,
-                                                    newFiles = newFiles,
-                                                    onProgress = { current, total, _ ->
-                                                        lockProgress = "$current/$total"
-                                                    },
-                                                    onError = { msg ->
-                                                        launch(Dispatchers.Main) {
-                                                            Toast.makeText(context, "Erro ao trancar: $msg", Toast.LENGTH_SHORT).show()
-                                                        }
-                                                    },
-                                                    onSuccess = {
-                                                        launch(Dispatchers.Main) {
-                                                            Toast.makeText(context, context.getString(R.string.folder_locked_success), Toast.LENGTH_SHORT).show()
-                                                        }
+                                            }
+                                            FolderLockManager.addFilesToLockedFolder(
+                                                context = context,
+                                                folderPath = folderPath,
+                                                password = pwd,
+                                                newFiles = newFiles,
+                                                onProgress = { current, total, _ ->
+                                                    lockProgress = "$current/$total"
+                                                },
+                                                onError = { msg ->
+                                                    launch(Dispatchers.Main) {
+                                                        Toast.makeText(context, "Erro ao trancar: $msg", Toast.LENGTH_SHORT).show()
                                                     }
-                                                )
-                                                isLocking = false
-                                                lockProgress = ""
-
-                                                // Update LockedPlaybackSession if active
-                                                if (LockedPlaybackSession.isActive && LockedPlaybackSession.hasSessionForFolder(folderPath)) {
-                                                    val updatedManifest = FolderLockManager.readManifest(folderPath, pwd)
-                                                    val salt = FolderLockManager.getSalt(folderPath)
-                                                    if (updatedManifest != null && salt != null) {
-                                                        val xorKey = FolderLockManager.deriveXorKey(pwd, salt)
-                                                        LockedPlaybackSession.start(xorKey, updatedManifest, folderPath, pwd)
+                                                },
+                                                onSuccess = {
+                                                    launch(Dispatchers.Main) {
+                                                        Toast.makeText(context, context.getString(R.string.folder_locked_success), Toast.LENGTH_SHORT).show()
                                                     }
                                                 }
+                                            )
+                                            withContext(Dispatchers.Main) {
+                                                isLocking = false
+                                                lockProgress = ""
                                             }
 
+                                            // Update LockedPlaybackSession if active
+                                            if (LockedPlaybackSession.isActive && LockedPlaybackSession.hasSessionForFolder(folderPath)) {
+                                                val updatedManifest = FolderLockManager.readManifest(folderPath, pwd)
+                                                val salt = FolderLockManager.getSalt(folderPath)
+                                                if (updatedManifest != null && salt != null) {
+                                                    val xorKey = FolderLockManager.deriveXorKey(pwd, salt)
+                                                    LockedPlaybackSession.start(xorKey, updatedManifest, folderPath, pwd)
+                                                }
+                                            }
+                                        }
+
+                                        withContext(Dispatchers.Main) {
                                             itemsToMove = emptyList()
                                             isMoveMode = false
                                             moveSourceLockedFolder = null
                                             renameTrigger++
-                                            quickRefresh()
-                                        },
-                                        onRefresh = ::performRefresh
-                                    )
+                                        }
+                                        quickRefresh()
+                                    }
                                 }
                             }
                             ActionType.SET_AS_SECURE_FOLDER -> {

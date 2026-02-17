@@ -312,7 +312,7 @@ private fun loadNormalContentFromCache(
 
     // Carregar pastas usando o cache
     folder.listFiles()?.filter { it.isDirectory }?.forEach { subfolder ->
-        if (subfolder.name in listOf(".nekovideo")) return@forEach
+        if (subfolder.name in listOf(".nekovideo", ".neko_thumbs")) return@forEach
 
         val folderInfo = folderCache[subfolder.absolutePath]
         val isSecure = folderInfo?.isSecure ?: (File(subfolder, ".nomedia").exists())

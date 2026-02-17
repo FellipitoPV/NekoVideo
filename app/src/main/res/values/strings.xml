@@ -15,6 +15,8 @@
     <string name="locking_progress">Trancando... %1$d/%2$d arquivos</string>
     <string name="unlocking_folder">Destrancando pasta...</string>
     <string name="unlocking_progress">Destrancando... %1$d/%2$d arquivos</string>
+    <string name="moving_files">Movendo arquivos...</string>
+    <string name="moving_progress">Movendo... %1$d/%2$d arquivos</string>
     <string name="folder_locked_success">Pasta trancada com sucesso</string>
     <string name="folder_unlocked_success">Pasta destrancada com sucesso</string>
     <string name="enter_password_to_lock">Digite uma senha para trancar a pasta</string>
