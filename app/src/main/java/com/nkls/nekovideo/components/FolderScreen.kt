@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.sp
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.services.FolderVideoScanner
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -1120,8 +1121,21 @@ private fun MediaCard(
 
                     // Check for saved thumbnail from locked folder
                     if (showThumbnails) {
+                        // 1. Verifica RAM antes de ir ao disco
+                        val cachedThumb = OptimizedThumbnailManager.getCachedThumbnail(item.path)
+                        if (cachedThumb != null) {
+                            withContext(Dispatchers.Main) {
+                                thumbnail = cachedThumb
+                                isLoading = false
+                            }
+                            return@launch
+                        }
+                        // 2. Lê do disco (pasta segura)
                         val lockedThumb = FolderLockManager.getLockedThumbnail(item.path)
                         if (lockedThumb != null) {
+                            // Guarda em RAM para evitar releitura de disco a cada recomposição
+                            val cacheKey = item.path.hashCode().toString()
+                            OptimizedThumbnailManager.thumbnailCache.put(cacheKey, lockedThumb)
                             withContext(Dispatchers.Main) {
                                 thumbnail = lockedThumb
                                 isLoading = false
@@ -1162,6 +1176,10 @@ private fun MediaCard(
                             onStateChanged = { }
                         )
                     }
+                } catch (e: CancellationException) {
+                    // Cancelamento normal de coroutine (ex: scroll rápido) — não tratar como erro
+                    isLoading = false
+                    throw e
                 } catch (e: Exception) {
                     // ✅ EM CASO DE ERRO → TENTAR REGENERAR
                     if (retryCount < 2) {
