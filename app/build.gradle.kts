@@ -1,5 +1,3 @@
-import com.android.build.api.dsl.Packaging
-
 
 
 plugins {
@@ -11,12 +9,12 @@ plugins {
 
 android {
     namespace = "com.nkls.nekovideo"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.nkls.nekovideo"
         minSdk = 30
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 18
         versionName = "1.0.0"
 
@@ -58,10 +56,6 @@ android {
         buildConfig = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
-    }
-
     // Performance otimizations
     packaging {
         resources {
@@ -81,10 +75,10 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose.android)
     implementation(libs.androidx.foundation.android)
-    implementation("com.google.code.gson:gson:2.13.2")
+    implementation(libs.gson)
 
-    implementation("com.google.android.gms:play-services-ads:24.8.0")
-    implementation("com.android.billingclient:billing-ktx:8.2.1")
+    implementation(libs.play.services.ads)
+    implementation(libs.billing.ktx)
 
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.coil.video)
