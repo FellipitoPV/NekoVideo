@@ -4,7 +4,10 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
+import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -167,6 +170,12 @@ fun MainScreen(
         coroutineScope.launch {
             FolderVideoScanner.startScan(context, coroutineScope, forceRefresh = true)
         }
+    }
+
+    val cutVideoLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) quickRefresh()
     }
 
     fun performRefresh() {
@@ -1034,6 +1043,17 @@ fun MainScreen(
                                         }
                                         quickRefresh()
                                     }
+                                }
+                            }
+                            ActionType.CUT_VIDEO -> {
+                                if (selectedItems.size == 1) {
+                                    cutVideoLauncher.launch(
+                                        com.nkls.nekovideo.components.cutter.VideoCutterActivity.createIntent(
+                                            context,
+                                            selectedItems.first()
+                                        )
+                                    )
+                                    selectedItems.clear()
                                 }
                             }
                             ActionType.SET_AS_SECURE_FOLDER -> {

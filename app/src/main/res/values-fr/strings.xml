@@ -256,6 +256,20 @@
     <string name="fix_video_success">Vidéo corrigée !</string>
     <string name="fix_video_error">Erreur de correction</string>
 
+    <!-- Video Cutter -->
+    <string name="action_cut_video">Couper la vidéo</string>
+    <string name="cut_add_point">Ajouter un point de coupe ici</string>
+    <string name="cut_segments">Segments</string>
+    <string name="cut_save">Enregistrer les coupes</string>
+    <string name="cut_processing">Traitement... %1$d/%2$d</string>
+    <string name="cut_success">Coupe enregistrée avec succès !</string>
+    <string name="cut_segment_label">Segment %d</string>
+    <string name="cut_merge_title">Plusieurs segments</string>
+    <string name="cut_merge_message">%d segments ont été enregistrés. Fusionner en un seul fichier sans perte ?</string>
+    <string name="cut_merge_yes">Fusionner</string>
+    <string name="cut_save_separate">Enregistrer séparément</string>
+    <string name="cut_timeline_hint">Glisser &#x2022; Pincer pour zoomer</string>
+
     <!-- ADICIONAR plurals corretos -->
     <plurals name="items_selected">
         <item quantity="one">%d élément sélectionné</item>

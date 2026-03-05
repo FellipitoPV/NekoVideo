@@ -89,6 +89,12 @@
 
         </activity>
 
+        <activity
+            android:name=".components.cutter.VideoCutterActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|uiMode|keyboardHidden"
+            android:theme="@style/Theme.NekoVideo" />
+
         <!-- AdMob App ID -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"

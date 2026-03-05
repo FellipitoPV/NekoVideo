@@ -256,6 +256,20 @@
     <string name="fix_video_success">Video fixed!</string>
     <string name="fix_video_error">Error fixing video</string>
 
+    <!-- Video Cutter -->
+    <string name="action_cut_video">Cut Video</string>
+    <string name="cut_add_point">Add cut point here</string>
+    <string name="cut_segments">Segments</string>
+    <string name="cut_save">Save Cuts</string>
+    <string name="cut_processing">Processing... %1$d/%2$d</string>
+    <string name="cut_success">Cut saved successfully!</string>
+    <string name="cut_segment_label">Segment %d</string>
+    <string name="cut_merge_title">Multiple Segments</string>
+    <string name="cut_merge_message">%d segments were saved. Merge into a single lossless file?</string>
+    <string name="cut_merge_yes">Merge</string>
+    <string name="cut_save_separate">Save Separately</string>
+    <string name="cut_timeline_hint">Drag • Pinch to zoom</string>
+
     <!-- ADICIONAR plurals corretos -->
     <plurals name="items_selected">
         <item quantity="one">%d item selected</item>
