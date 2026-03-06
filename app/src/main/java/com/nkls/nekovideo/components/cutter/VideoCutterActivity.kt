@@ -240,7 +240,7 @@ private fun VideoCutterScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(0.55f)
-                    .clickable { if (exoPlayer.isPlaying) exoPlayer.pause() },
+                    .clickable { if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play() },
                 contentAlignment = Alignment.Center
             ) {
                 AndroidView(
@@ -348,10 +348,11 @@ private fun VideoCutterScreen(
                         CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
                             strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            progress = { state.percent / 100f }
                         )
                         Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.cut_processing, state.current, state.total), style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.cut_processing, state.percent), style = MaterialTheme.typography.labelMedium)
                     } else {
                         Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))

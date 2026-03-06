@@ -261,7 +261,7 @@
     <string name="cut_add_point">Schnittpunkt hier hinzufügen</string>
     <string name="cut_segments">Segmente</string>
     <string name="cut_save">Schnitte speichern</string>
-    <string name="cut_processing">Verarbeitung... %1$d/%2$d</string>
+    <string name="cut_processing">Verarbeitung... %1$d%%</string>
     <string name="cut_success">Schnitt erfolgreich gespeichert!</string>
     <string name="cut_segment_label">Segment %d</string>
     <string name="cut_merge_title">Mehrere Segmente</string>

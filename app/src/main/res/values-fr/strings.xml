@@ -261,7 +261,7 @@
     <string name="cut_add_point">Ajouter un point de coupe ici</string>
     <string name="cut_segments">Segments</string>
     <string name="cut_save">Enregistrer les coupes</string>
-    <string name="cut_processing">Traitement... %1$d/%2$d</string>
+    <string name="cut_processing">Traitement... %1$d%%</string>
     <string name="cut_success">Coupe enregistrée avec succès !</string>
     <string name="cut_segment_label">Segment %d</string>
     <string name="cut_merge_title">Plusieurs segments</string>

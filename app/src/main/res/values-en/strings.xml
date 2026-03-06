@@ -261,7 +261,7 @@
     <string name="cut_add_point">Add cut point here</string>
     <string name="cut_segments">Segments</string>
     <string name="cut_save">Save Cuts</string>
-    <string name="cut_processing">Processing... %1$d/%2$d</string>
+    <string name="cut_processing">Processing... %1$d%%</string>
     <string name="cut_success">Cut saved successfully!</string>
     <string name="cut_segment_label">Segment %d</string>
     <string name="cut_merge_title">Multiple Segments</string>

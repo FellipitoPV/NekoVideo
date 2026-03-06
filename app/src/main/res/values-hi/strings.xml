@@ -261,7 +261,7 @@
     <string name="cut_add_point">यहाँ कट पॉइंट जोड़ें</string>
     <string name="cut_segments">खंड</string>
     <string name="cut_save">कट सहेजें</string>
-    <string name="cut_processing">प्रसंस्करण... %1$d/%2$d</string>
+    <string name="cut_processing">प्रसंस्करण... %1$d%%</string>
     <string name="cut_success">कट सफलतापूर्वक सहेजा गया!</string>
     <string name="cut_segment_label">खंड %d</string>
     <string name="cut_merge_title">कई खंड</string>

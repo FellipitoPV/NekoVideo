@@ -26,7 +26,7 @@ data class CutSegment(
 
 sealed class CuttingState {
     object Idle : CuttingState()
-    data class Processing(val current: Int, val total: Int) : CuttingState()
+    data class Processing(val percent: Int) : CuttingState()
     data class Success(val outputFiles: List<String>) : CuttingState()
     data class Error(val message: String) : CuttingState()
 }
@@ -104,7 +104,7 @@ class VideoCutterViewModel : ViewModel() {
         }
 
         viewModelScope.launch(Dispatchers.IO) {
-            _cuttingState.value = CuttingState.Processing(0, keptSegments.size)
+            _cuttingState.value = CuttingState.Processing(0)
 
             val inputFile = File(inputPath)
             val outputDir = getOutputDir().also { it.mkdirs() }
@@ -112,8 +112,11 @@ class VideoCutterViewModel : ViewModel() {
             val ext = inputFile.extension
             val outputFiles = mutableListOf<String>()
 
+            val totalDurationMs = keptSegments.sumOf { it.endMs - it.startMs }.coerceAtLeast(1L)
+            var processedMs = 0L
+
             for ((index, seg) in keptSegments.withIndex()) {
-                _cuttingState.value = CuttingState.Processing(index + 1, keptSegments.size)
+                val segDurationMs = seg.endMs - seg.startMs
                 val output = File(outputDir, "${baseName}_cut${index + 1}.$ext")
 
                 val success = cutSegment(
@@ -121,10 +124,14 @@ class VideoCutterViewModel : ViewModel() {
                     outputPath = output.absolutePath,
                     startUs = seg.startMs * 1000L,
                     endUs = seg.endMs * 1000L
-                )
+                ) { segProgress ->
+                    val overall = (processedMs + segProgress * segDurationMs) / totalDurationMs.toFloat()
+                    _cuttingState.value = CuttingState.Processing((overall * 100).toInt().coerceIn(0, 99))
+                }
 
                 if (success) {
                     outputFiles.add(output.absolutePath)
+                    processedMs += segDurationMs
                 } else {
                     _cuttingState.value = CuttingState.Error("Falha ao cortar segmento ${index + 1}")
                     return@launch
@@ -137,7 +144,7 @@ class VideoCutterViewModel : ViewModel() {
 
     fun mergeFiles(files: List<String>, inputPath: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            _cuttingState.value = CuttingState.Processing(0, 1)
+            _cuttingState.value = CuttingState.Processing(99)
 
             val inputFile = File(inputPath)
             val outputDir = getOutputDir().also { it.mkdirs() }
@@ -174,7 +181,8 @@ class VideoCutterViewModel : ViewModel() {
         inputPath: String,
         outputPath: String,
         startUs: Long,
-        endUs: Long
+        endUs: Long,
+        onProgress: (Float) -> Unit = {}
     ): Boolean {
         val extractor = MediaExtractor()
         var muxer: MediaMuxer? = null
@@ -196,8 +204,10 @@ class VideoCutterViewModel : ViewModel() {
             muxer.start()
             extractor.seekTo(startUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
 
-            val buffer = ByteBuffer.allocate(1 * 1024 * 1024)
+            val buffer = ByteBuffer.allocate(4 * 1024 * 1024) // 4 MB
             val bufferInfo = MediaCodec.BufferInfo()
+            val rangeDurationUs = (endUs - startUs).coerceAtLeast(1L)
+            var lastReportedPercent = -1
 
             while (true) {
                 val trackIndex = extractor.sampleTrackIndex
@@ -219,6 +229,13 @@ class VideoCutterViewModel : ViewModel() {
                     }
                 }
                 extractor.advance()
+
+                // Emite progresso apenas quando muda 1% (evita overhead de StateFlow por frame)
+                val percent = ((sampleTime - startUs) * 100L / rangeDurationUs).toInt().coerceIn(0, 99)
+                if (percent != lastReportedPercent) {
+                    lastReportedPercent = percent
+                    onProgress(percent / 100f)
+                }
             }
 
             muxer.stop()
