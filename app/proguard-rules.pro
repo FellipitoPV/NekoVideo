@@ -30,6 +30,10 @@
 -keep class com.nkls.nekovideo.components.helpers.LockedFolderRegistryEntry { *; }
 -keep class com.nkls.nekovideo.components.helpers.LockedFoldersRegistry { *; }
 
+# ffmpeg-kit - lossless video cutting
+-keep class com.arthenica.ffmpegkit.** { *; }
+-dontwarn com.arthenica.ffmpegkit.**
+
 # Folder scanner cache
 -keep class com.nkls.nekovideo.services.SerializableFolderInfo { *; }
 -keep class com.nkls.nekovideo.services.SerializableVideoInfo { *; }

@@ -1,21 +1,19 @@
 package com.nkls.nekovideo.components.cutter
 
-import android.media.MediaCodec
-import android.media.MediaExtractor
-import android.media.MediaFormat
-import android.media.MediaMuxer
 import android.os.Environment
 import android.util.Log
-import android.util.SparseIntArray
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.FFprobeKit
+import com.arthenica.ffmpegkit.ReturnCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
-import java.nio.ByteBuffer
+import kotlin.coroutines.resume
 import kotlin.math.abs
 
 data class CutSegment(
@@ -152,7 +150,7 @@ class VideoCutterViewModel : ViewModel() {
             val ext = inputFile.extension
             val mergedOutput = File(outputDir, "${baseName}_merged.$ext")
 
-            val success = concatenateFiles(files, mergedOutput.absolutePath)
+            val success = mergeWithFFmpeg(files, mergedOutput.absolutePath)
 
             if (success) {
                 files.forEach { File(it).delete() }
@@ -163,171 +161,147 @@ class VideoCutterViewModel : ViewModel() {
         }
     }
 
-    private fun mapSampleFlags(sampleFlags: Int): Int {
-        var flags = 0
-        if (sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0)
-            flags = flags or MediaCodec.BUFFER_FLAG_KEY_FRAME
-        if (sampleFlags and MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME != 0)
-            flags = flags or MediaCodec.BUFFER_FLAG_PARTIAL_FRAME
-        return flags
-    }
-
     private fun getOutputDir(): File {
         val dcim = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
         return File(dcim, "Cuts")
     }
 
-    private fun cutSegment(
+    // Corte lossless: ffprobe localiza o keyframe exato → fast seek preciso → sem freeze
+    private suspend fun cutSegment(
         inputPath: String,
         outputPath: String,
         startUs: Long,
         endUs: Long,
         onProgress: (Float) -> Unit = {}
     ): Boolean {
-        val extractor = MediaExtractor()
-        var muxer: MediaMuxer? = null
-        return try {
-            extractor.setDataSource(inputPath)
+        val rawStartSec = startUs / 1_000_000.0
+        val endSec      = endUs   / 1_000_000.0
 
-            val trackMap = SparseIntArray()
-            muxer = MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+        // Para segmentos que não começam no 0, busca o keyframe exato antes do corte
+        val startSec = if (startUs > 0L) findKeyframeBefore(inputPath, rawStartSec) else 0.0
+        val durationSec = (endSec - startSec).coerceAtLeast(0.001)
+        val durationMs  = durationSec * 1000.0
 
-            for (i in 0 until extractor.trackCount) {
-                val format = extractor.getTrackFormat(i)
-                val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
-                if (mime.startsWith("video/") || mime.startsWith("audio/")) {
-                    trackMap.put(i, muxer.addTrack(format))
-                    extractor.selectTrack(i)
-                }
-            }
+        Log.d("VideoCutter", "cutSegment: target=${rawStartSec}s → keyframe=${startSec}s, dur=${durationSec}s")
 
-            muxer.start()
-            extractor.seekTo(startUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+        return suspendCancellableCoroutine { cont ->
+            val args = arrayOf(
+                "-y",
+                "-ss", startSec.toString(), // fast seek no keyframe exato: sem freeze, sem conteúdo extra
+                "-i", inputPath,
+                "-t", durationSec.toString(),
+                "-c", "copy",
+                "-avoid_negative_ts", "make_zero",
+                "-movflags", "+faststart",
+                outputPath
+            )
 
-            val buffer = ByteBuffer.allocate(4 * 1024 * 1024) // 4 MB
-            val bufferInfo = MediaCodec.BufferInfo()
-            val rangeDurationUs = (endUs - startUs).coerceAtLeast(1L)
-            var lastReportedPercent = -1
-
-            while (true) {
-                val trackIndex = extractor.sampleTrackIndex
-                if (trackIndex < 0) break
-                val sampleTime = extractor.sampleTime
-                if (sampleTime > endUs) break
-
-                val muxerTrack = trackMap[trackIndex, -1]
-                if (muxerTrack >= 0) {
-                    val size = extractor.readSampleData(buffer, 0)
-                    if (size >= 0) {
-                        bufferInfo.offset = 0
-                        bufferInfo.size = size
-                        bufferInfo.presentationTimeUs = sampleTime - startUs
-                        bufferInfo.flags = mapSampleFlags(extractor.sampleFlags)
-                        if (bufferInfo.presentationTimeUs >= 0) {
-                            muxer.writeSampleData(muxerTrack, buffer, bufferInfo)
+            val session = FFmpegKit.executeWithArgumentsAsync(
+                args,
+                { session ->
+                    if (cont.isActive) {
+                        if (!ReturnCode.isSuccess(session.returnCode)) {
+                            Log.e("VideoCutter", "cutSegment falhou: ${session.logsAsString}")
                         }
+                        onProgress(1f)
+                        cont.resume(ReturnCode.isSuccess(session.returnCode))
                     }
+                },
+                null,
+                { statistics ->
+                    val progress = (statistics.time / durationMs).toFloat().coerceIn(0f, 0.99f)
+                    onProgress(progress)
                 }
-                extractor.advance()
+            )
 
-                // Emite progresso apenas quando muda 1% (evita overhead de StateFlow por frame)
-                val percent = ((sampleTime - startUs) * 100L / rangeDurationUs).toInt().coerceIn(0, 99)
-                if (percent != lastReportedPercent) {
-                    lastReportedPercent = percent
-                    onProgress(percent / 100f)
-                }
-            }
-
-            muxer.stop()
-            true
-        } catch (e: Exception) {
-            Log.e("VideoCutter", "Erro ao cortar segmento", e)
-            File(outputPath).delete()
-            false
-        } finally {
-            runCatching { muxer?.release() }
-            extractor.release()
+            cont.invokeOnCancellation { session.cancel() }
         }
     }
 
-    private fun concatenateFiles(inputPaths: List<String>, outputPath: String): Boolean {
-        if (inputPaths.isEmpty()) return false
-        if (inputPaths.size == 1) {
-            File(inputPaths[0]).copyTo(File(outputPath), overwrite = true)
-            return true
+    // Usa ffprobe para encontrar o timestamp do keyframe imediatamente ANTES de targetSec.
+    // Fast seek nesse keyframe garante: sem freeze (começa num I-frame) e sem conteúdo
+    // extra antes do ponto de corte (o keyframe é o mais próximo possível, sem ultrapassar).
+    // Fallback: retorna targetSec se ffprobe falhar ou não encontrar keyframes.
+    private suspend fun findKeyframeBefore(
+        inputPath: String,
+        targetSec: Double
+    ): Double = suspendCancellableCoroutine { cont ->
+        // Escaneia pacotes num janela de 60s até targetSec para garantir achar pelo menos 1 keyframe
+        val scanStart = (targetSec - 60.0).coerceAtLeast(0.0)
+        val args = arrayOf(
+            "-v", "quiet",
+            "-select_streams", "v:0",
+            "-show_packets",
+            "-show_entries", "packet=pts_time,flags",
+            "-of", "csv",
+            "-read_intervals", "${scanStart}%+65",
+            inputPath
+        )
+
+        FFprobeKit.executeWithArgumentsAsync(args) { session ->
+            val output = session.output ?: ""
+            // Linhas CSV: "packet,<pts_time>,<flags>" — flags contém "K" para keyframes
+            val keyframeTimes = output.lines()
+                .filter { line ->
+                    val parts = line.split(",")
+                    parts.size >= 3 && parts.last().contains("K")
+                }
+                .mapNotNull { line -> line.split(",").getOrNull(1)?.toDoubleOrNull() }
+                .filter { it <= targetSec + 0.001 } // apenas keyframes em/antes do ponto de corte
+                .sorted()
+
+            val result = keyframeTimes.lastOrNull() ?: targetSec
+            Log.d("VideoCutter", "findKeyframeBefore: target=${targetSec}s → keyframe=${result}s")
+            if (cont.isActive) cont.resume(result)
+        }
+    }
+
+    // Concatenação lossless via FFmpeg concat demuxer
+    private suspend fun mergeWithFFmpeg(
+        files: List<String>,
+        outputPath: String
+    ): Boolean = suspendCancellableCoroutine { cont ->
+        if (files.size == 1) {
+            cont.resume(File(files[0]).renameTo(File(outputPath)))
+            return@suspendCancellableCoroutine
         }
 
-        var muxer: MediaMuxer? = null
-        return try {
-            // Setup muxer from first file's tracks
-            val firstExtractor = MediaExtractor()
-            firstExtractor.setDataSource(inputPaths[0])
-
-            muxer = MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-            val trackMap = SparseIntArray()
-
-            for (i in 0 until firstExtractor.trackCount) {
-                val format = firstExtractor.getTrackFormat(i)
-                val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
-                if (mime.startsWith("video/") || mime.startsWith("audio/")) {
-                    trackMap.put(i, muxer.addTrack(format))
-                }
-            }
-            firstExtractor.release()
-
-            muxer.start()
-
-            val buffer = ByteBuffer.allocate(1 * 1024 * 1024)
-            val bufferInfo = MediaCodec.BufferInfo()
-            var timeOffsetUs = 0L
-            var lastEndTimeUs = 0L
-
-            for (path in inputPaths) {
-                val extractor = MediaExtractor()
-                extractor.setDataSource(path)
-
-                for (i in 0 until extractor.trackCount) {
-                    val mime = extractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME) ?: continue
-                    if (mime.startsWith("video/") || mime.startsWith("audio/")) {
-                        extractor.selectTrack(i)
-                    }
-                }
-
-                extractor.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
-                var segLastTime = 0L
-
-                while (true) {
-                    val trackIndex = extractor.sampleTrackIndex
-                    if (trackIndex < 0) break
-                    val sampleTime = extractor.sampleTime
-                    val muxerTrack = trackMap[trackIndex, -1]
-
-                    if (muxerTrack >= 0) {
-                        val size = extractor.readSampleData(buffer, 0)
-                        if (size >= 0) {
-                            bufferInfo.offset = 0
-                            bufferInfo.size = size
-                            bufferInfo.presentationTimeUs = sampleTime + timeOffsetUs
-                            bufferInfo.flags = mapSampleFlags(extractor.sampleFlags)
-                            muxer.writeSampleData(muxerTrack, buffer, bufferInfo)
-                            if (sampleTime > segLastTime) segLastTime = sampleTime
-                        }
-                    }
-                    extractor.advance()
-                }
-
-                timeOffsetUs += segLastTime + 33_333L // approx 1 frame gap
-                extractor.release()
-            }
-
-            muxer.stop()
-            true
+        val listFile = File(File(outputPath).parent!!, "ffmpeg_concat_list.txt")
+        try {
+            // Escape single quotes in paths so the concat list is valid
+            listFile.writeText(files.joinToString("\n") { "file '${it.replace("'", "\\'")}'" })
         } catch (e: Exception) {
-            Log.e("VideoCutter", "Erro ao concatenar arquivos", e)
-            File(outputPath).delete()
-            false
-        } finally {
-            runCatching { muxer?.release() }
+            Log.e("VideoCutter", "Erro ao escrever lista de concat", e)
+            cont.resume(false)
+            return@suspendCancellableCoroutine
+        }
+
+        // Array form avoids shell-parsing issues with paths containing spaces
+        val args = arrayOf(
+            "-y", "-f", "concat", "-safe", "0",
+            "-i", listFile.absolutePath,
+            "-c", "copy",
+            outputPath
+        )
+
+        val session = FFmpegKit.executeWithArgumentsAsync(
+            args,
+            { session ->
+                listFile.delete()
+                if (cont.isActive) {
+                    if (!ReturnCode.isSuccess(session.returnCode)) {
+                        Log.e("VideoCutter", "mergeWithFFmpeg falhou: ${session.logsAsString}")
+                    }
+                    cont.resume(ReturnCode.isSuccess(session.returnCode))
+                }
+            },
+            null,
+            null
+        )
+
+        cont.invokeOnCancellation {
+            session.cancel()
+            listFile.delete()
         }
     }
 }

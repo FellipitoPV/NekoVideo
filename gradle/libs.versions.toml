@@ -18,6 +18,7 @@ lifecycleRuntimeKtx = "2.9.0"
 activityCompose = "1.10.1"
 composeBom = "2025.01.01"
 material = "1.13.0"
+ffmpegKit = "6.1.1"
 materialIconsExtended = "1.7.8"
 mediarouter = "1.8.1"
 nanohttpd = "2.3.1"
@@ -70,6 +71,7 @@ androidx-media3-session = { group = "androidx.media3", name = "media3-session", 
 material = { module = "com.google.android.material:material", version.ref = "material" }
 material-icons-extended-v168 = { module = "androidx.compose.material:material-icons-extended", version.ref = "androidxMaterialIconsExtended" }
 androidx-datastore-preferences-core-android = { group = "androidx.datastore", name = "datastore-preferences-core-android", version.ref = "datastorePreferencesCoreAndroid" }
+ffmpeg-kit-min = { module = "com.moizhassan.ffmpeg:ffmpeg-kit-16kb", version.ref = "ffmpegKit" }
 nanohttpd = { module = "org.nanohttpd:nanohttpd", version.ref = "nanohttpd" }
 play-services-cast-framework = { module = "com.google.android.gms:play-services-cast-framework", version.ref = "playServicesCastFramework" }
 play-services-ads = { module = "com.google.android.gms:play-services-ads", version.ref = "playServicesAds" }

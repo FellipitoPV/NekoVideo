@@ -159,6 +159,17 @@ private fun VideoCutterScreen(
     var msPerPxInitialized by remember { mutableStateOf(false) }
     var isScrubbing by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(false) }
+    var selectedSegmentIndex by remember { mutableStateOf(0) }
+
+    val keepColor = Color(0xFF4CAF50)
+    val deleteColor = Color(0xFFF44336)
+
+    // Garante que o índice selecionado continue válido quando segmentos mudam
+    LaunchedEffect(segments.size) {
+        if (selectedSegmentIndex >= segments.size && segments.isNotEmpty()) {
+            selectedSegmentIndex = segments.size - 1
+        }
+    }
 
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().also { player ->
@@ -296,6 +307,8 @@ private fun VideoCutterScreen(
                     segments = segments,
                     cutPoints = cutPoints,
                     msPerPx = msPerPx,
+                    selectedSegmentIndex = selectedSegmentIndex,
+                    onSegmentSelected = { idx -> selectedSegmentIndex = idx },
                     onSeekCenter = { timeMs ->
                         centerPositionMs = timeMs
                         exoPlayer.seekTo(timeMs)
@@ -307,7 +320,13 @@ private fun VideoCutterScreen(
                     },
                     onRemoveCutPoint = { pt -> vm.removeCutPoint(pt) },
                     onScrubStart = { isScrubbing = true; exoPlayer.pause() },
-                    onScrubEnd = { isScrubbing = false }
+                    onScrubEnd = {
+                        isScrubbing = false
+                        // Snap para o segundo mais próximo ao soltar
+                        val snapped = ((centerPositionMs + 500L) / 1000L) * 1000L
+                        centerPositionMs = snapped.coerceIn(0L, durationMs)
+                        exoPlayer.seekTo(centerPositionMs)
+                    }
                 )
             }
 
@@ -361,21 +380,37 @@ private fun VideoCutterScreen(
                 }
             }
 
-            // Segments chips
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                itemsIndexed(segments) { index, segment ->
-                    SegmentChip(
-                        index = index,
-                        segment = segment,
-                        onToggle = { vm.toggleSegment(index) },
-                        onSeek = {
-                            centerPositionMs = segment.startMs
-                            exoPlayer.seekTo(segment.startMs)
-                        }
+            // Controle do segmento selecionado
+            segments.getOrNull(selectedSegmentIndex)?.let { seg ->
+                val segColor = if (seg.keep) keepColor else deleteColor
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            stringResource(R.string.cut_segment_label, selectedSegmentIndex + 1),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = segColor
+                        )
+                        Text(
+                            "${formatTime(seg.startMs)} › ${formatTime(seg.endMs)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                    Switch(
+                        checked = seg.keep,
+                        onCheckedChange = { vm.toggleSegment(selectedSegmentIndex) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = keepColor,
+                            checkedTrackColor = keepColor.copy(alpha = 0.5f),
+                            uncheckedThumbColor = deleteColor,
+                            uncheckedTrackColor = deleteColor.copy(alpha = 0.5f)
+                        )
                     )
                 }
             }
@@ -393,6 +428,8 @@ private fun VideoTimeline(
     segments: List<CutSegment>,
     cutPoints: List<Long>,
     msPerPx: Float,
+    selectedSegmentIndex: Int,
+    onSegmentSelected: (Int) -> Unit,
     onSeekCenter: (Long) -> Unit,
     onScroll: (deltaMs: Long) -> Unit,
     onRemoveCutPoint: (Long) -> Unit,
@@ -404,6 +441,7 @@ private fun VideoTimeline(
     val msPerPxRef = rememberUpdatedState(msPerPx)
     val centerRef = rememberUpdatedState(centerPositionMs)
     val cutPointsRef = rememberUpdatedState(cutPoints)
+    val segmentsRef = rememberUpdatedState(segments)
 
     val keepColor = Color(0xFF4CAF50)
     val deleteColor = Color(0xFFF44336)
@@ -419,6 +457,16 @@ private fun VideoTimeline(
             textSize = 26f
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
+        }
+    }
+
+    val segmentNumberPaint = remember {
+        Paint().apply {
+            color = android.graphics.Color.WHITE
+            textSize = 34f
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+            isFakeBoldText = true
         }
     }
 
@@ -483,8 +531,15 @@ private fun VideoTimeline(
                             .minByOrNull { abs(it - tapTimeMs) }
                             ?.takeIf { abs(it - tapTimeMs) < tapThresholdMs }
 
-                        if (nearCut != null) onRemoveCutPoint(nearCut)
-                        else onSeekCenter(tapTimeMs)
+                        if (nearCut != null) {
+                            onRemoveCutPoint(nearCut)
+                        } else {
+                            // Seleciona o segmento que contém a posição tocada
+                            val segIdx = segmentsRef.value
+                                .indexOfFirst { tapTimeMs >= it.startMs && tapTimeMs < it.endMs }
+                            if (segIdx >= 0) onSegmentSelected(segIdx)
+                            onSeekCenter(tapTimeMs)
+                        }
                     }
                 }
             }
@@ -506,17 +561,33 @@ private fun VideoTimeline(
 
         // ── Segments ──────────────────────────────────────────────────────────
 
-        segments.forEach { seg ->
+        segments.forEachIndexed { index, seg ->
             val sx = centerX + (seg.startMs - curCenter) / curMsPerPx
             val ex = centerX + (seg.endMs - curCenter) / curMsPerPx
             val csx = sx.coerceIn(0f, w)
             val cex = ex.coerceIn(0f, w)
             if (cex > csx) {
+                val isSelected = index == selectedSegmentIndex
+                // Selecionado: destaque total; outros: mais transparentes
+                val alpha = if (isSelected) 0.88f else 0.38f
                 drawRect(
-                    color = if (seg.keep) keepColor.copy(alpha = 0.75f) else deleteColor.copy(alpha = 0.75f),
+                    color = if (seg.keep) keepColor.copy(alpha = alpha) else deleteColor.copy(alpha = alpha),
                     topLeft = Offset(csx, segTop),
                     size = Size(cex - csx, segH)
                 )
+                // Número do segmento centralizado na porção visível
+                val visibleWidth = cex - csx
+                if (visibleWidth > 44f) {
+                    val textX = csx + visibleWidth / 2f
+                    val textY = segTop + segH * 0.68f
+                    segmentNumberPaint.alpha = if (isSelected) 220 else 120
+                    drawContext.canvas.nativeCanvas.drawText(
+                        (index + 1).toString(),
+                        textX,
+                        textY,
+                        segmentNumberPaint
+                    )
+                }
             }
         }
 
@@ -699,56 +770,6 @@ private fun formatTickTime(ms: Long): String {
     return if (h > 0) "%d:%02d:%02d".format(h, m, sec) else "%d:%02d".format(m, sec)
 }
 
-// ── Segment chip ──────────────────────────────────────────────────────────────
-
-@Composable
-private fun SegmentChip(
-    index: Int,
-    segment: CutSegment,
-    onToggle: () -> Unit,
-    onSeek: () -> Unit
-) {
-    val keepColor = Color(0xFF4CAF50)
-    val deleteColor = Color(0xFFF44336)
-    val color = if (segment.keep) keepColor else deleteColor
-
-    Surface(
-        modifier = Modifier.clickable { onSeek() },
-        shape = RoundedCornerShape(12.dp),
-        color = color.copy(alpha = 0.12f),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.5f))
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Column {
-                Text(
-                    stringResource(R.string.cut_segment_label, index + 1),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = color
-                )
-                Text(
-                    "${formatTime(segment.startMs)} › ${formatTime(segment.endMs)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-            }
-            Switch(
-                checked = segment.keep,
-                onCheckedChange = { onToggle() },
-                modifier = Modifier.height(24.dp),
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = keepColor,
-                    checkedTrackColor = keepColor.copy(alpha = 0.5f),
-                    uncheckedThumbColor = deleteColor,
-                    uncheckedTrackColor = deleteColor.copy(alpha = 0.5f)
-                )
-            )
-        }
-    }
-}
 
 private fun formatTime(ms: Long): String {
     val s = ms / 1000
