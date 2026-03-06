@@ -263,6 +263,7 @@
     <string name="cut_save">Сохранить вырезки</string>
     <string name="cut_processing">Обработка... %1$d%%</string>
     <string name="cut_success">Вырезка успешно сохранена!</string>
+    <string name="cut_processing_background">Обработка в фоне…</string>
     <string name="cut_segment_label">Сегмент %d</string>
     <string name="cut_merge_title">Несколько сегментов</string>
     <string name="cut_merge_message">Сохранено %d сегментов. Объединить в один lossless файл?</string>

@@ -263,6 +263,7 @@
     <string name="cut_save">कट सहेजें</string>
     <string name="cut_processing">प्रसंस्करण... %1$d%%</string>
     <string name="cut_success">कट सफलतापूर्वक सहेजा गया!</string>
+    <string name="cut_processing_background">बैकग्राउंड में प्रोसेस हो रहा है…</string>
     <string name="cut_segment_label">खंड %d</string>
     <string name="cut_merge_title">कई खंड</string>
     <string name="cut_merge_message">%d खंड सहेजे गए। एक lossless फ़ाइल में मर्ज करें?</string>

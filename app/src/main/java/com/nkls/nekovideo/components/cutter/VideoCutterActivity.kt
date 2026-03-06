@@ -1,14 +1,20 @@
 package com.nkls.nekovideo.components.cutter
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Paint
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,7 +45,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -151,6 +156,21 @@ private fun VideoCutterScreen(
     val cutPoints by vm.cutPoints.collectAsState()
     val cuttingState by vm.cuttingState.collectAsState()
 
+    val notifPermLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ -> vm.processVideo(context, videoPath) }
+
+    fun startProcessing() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+        ) {
+            notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            vm.processVideo(context, videoPath)
+        }
+    }
+
     var centerPositionMs by remember { mutableLongStateOf(0L) }
     var durationMs by remember { mutableLongStateOf(0L) }
     // msPerPx: how many video-milliseconds fit in one screen pixel
@@ -212,14 +232,9 @@ private fun VideoCutterScreen(
 
     LaunchedEffect(cuttingState) {
         when (val state = cuttingState) {
-            is CuttingState.Success -> {
-                if (state.outputFiles.size > 1) {
-                    // Auto-merge without asking
-                    vm.mergeFiles(state.outputFiles, videoPath)
-                } else {
-                    Toast.makeText(context, context.getString(R.string.cut_success), Toast.LENGTH_LONG).show()
-                    onSuccess()
-                }
+            is CuttingState.Dispatched -> {
+                Toast.makeText(context, context.getString(R.string.cut_processing_background), Toast.LENGTH_SHORT).show()
+                onSuccess()
             }
             is CuttingState.Error -> {
                 Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
@@ -339,7 +354,6 @@ private fun VideoCutterScreen(
             )
 
             // Add cut + Save row
-            val isProcessing = cuttingState is CuttingState.Processing
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -357,26 +371,14 @@ private fun VideoCutterScreen(
                     Text(stringResource(R.string.cut_add_point), style = MaterialTheme.typography.labelMedium)
                 }
                 Button(
-                    onClick = { vm.processVideo(videoPath) },
+                    onClick = { startProcessing() },
                     modifier = Modifier.weight(1f),
-                    enabled = !isProcessing && segments.any { it.keep },
+                    enabled = segments.any { it.keep },
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    if (isProcessing) {
-                        val state = cuttingState as CuttingState.Processing
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            progress = { state.percent / 100f }
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.cut_processing, state.percent), style = MaterialTheme.typography.labelMedium)
-                    } else {
-                        Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.cut_save), style = MaterialTheme.typography.labelMedium)
-                    }
+                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.cut_save), style = MaterialTheme.typography.labelMedium)
                 }
             }
 

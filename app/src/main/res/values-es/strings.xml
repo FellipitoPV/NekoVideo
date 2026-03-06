@@ -263,6 +263,7 @@
     <string name="cut_save">Guardar Cortes</string>
     <string name="cut_processing">Procesando... %1$d%%</string>
     <string name="cut_success">¡Corte guardado con éxito!</string>
+    <string name="cut_processing_background">Procesando en segundo plano…</string>
     <string name="cut_segment_label">Segmento %d</string>
     <string name="cut_merge_title">Múltiples Segmentos</string>
     <string name="cut_merge_message">Se guardaron %d segmentos. ¿Combinar en un solo archivo sin pérdidas?</string>

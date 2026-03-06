@@ -97,7 +97,6 @@ dependencies {
 
     implementation(libs.play.services.cast.framework)
     implementation(libs.androidx.mediarouter)
-    implementation(libs.ffmpeg.kit.min)
     implementation(libs.nanohttpd)
     implementation(libs.material)
 

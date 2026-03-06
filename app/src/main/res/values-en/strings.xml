@@ -263,6 +263,7 @@
     <string name="cut_save">Save Cuts</string>
     <string name="cut_processing">Processing... %1$d%%</string>
     <string name="cut_success">Cut saved successfully!</string>
+    <string name="cut_processing_background">Processing in background…</string>
     <string name="cut_segment_label">Segment %d</string>
     <string name="cut_merge_title">Multiple Segments</string>
     <string name="cut_merge_message">%d segments were saved. Merge into a single lossless file?</string>

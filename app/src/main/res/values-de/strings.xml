@@ -263,6 +263,7 @@
     <string name="cut_save">Schnitte speichern</string>
     <string name="cut_processing">Verarbeitung... %1$d%%</string>
     <string name="cut_success">Schnitt erfolgreich gespeichert!</string>
+    <string name="cut_processing_background">Im Hintergrund verarbeiten…</string>
     <string name="cut_segment_label">Segment %d</string>
     <string name="cut_merge_title">Mehrere Segmente</string>
     <string name="cut_merge_message">%d Segmente wurden gespeichert. In eine einzelne verlustfreie Datei zusammenführen?</string>

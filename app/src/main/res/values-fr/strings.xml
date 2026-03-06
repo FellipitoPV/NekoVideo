@@ -263,6 +263,7 @@
     <string name="cut_save">Enregistrer les coupes</string>
     <string name="cut_processing">Traitement... %1$d%%</string>
     <string name="cut_success">Coupe enregistrée avec succès !</string>
+    <string name="cut_processing_background">Traitement en arrière-plan…</string>
     <string name="cut_segment_label">Segment %d</string>
     <string name="cut_merge_title">Plusieurs segments</string>
     <string name="cut_merge_message">%d segments ont été enregistrés. Fusionner en un seul fichier sans perte ?</string>
