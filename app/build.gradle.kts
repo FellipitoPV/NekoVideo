@@ -22,6 +22,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            resValue("string", "app_name", "NekoVideo Debug")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true

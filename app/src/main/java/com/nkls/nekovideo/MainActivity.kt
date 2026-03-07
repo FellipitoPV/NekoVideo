@@ -61,6 +61,7 @@ class MainActivity : AppCompatActivity() {
     private var _notificationReceived = mutableStateOf(false)
     private var _lastIntentAction = mutableStateOf<String?>(null)
     private var _lastIntentTime = mutableStateOf(0L)
+    private var _openFolderPath = mutableStateOf<String?>(null)
 
 
     private lateinit var billingManager: BillingManager
@@ -163,7 +164,8 @@ class MainActivity : AppCompatActivity() {
                                     billingManager = billingManager,
                                     notificationReceived = notificationState,
                                     lastAction = actionState,
-                                    lastTime = timeState
+                                    lastTime = timeState,
+                                    openFolderPath = _openFolderPath.value
                                 )
                             }
                         }
@@ -191,6 +193,10 @@ class MainActivity : AppCompatActivity() {
                 if (videoUri != null) {
                     handleExternalVideo(videoUri)
                 }
+            }
+            "com.nkls.nekovideo.ACTION_OPEN_CUTS_FOLDER" -> {
+                val path = intent.getStringExtra("cuts_folder_path")
+                if (path != null) _openFolderPath.value = path
             }
             null -> {
                 Log.d("MainActivity", "   ⚠️ Action NULL")
@@ -245,6 +251,7 @@ class MainActivity : AppCompatActivity() {
             val notificationState = _notificationReceived.value
             val actionState = _lastIntentAction.value
             val timeState = _lastIntentTime.value
+            val folderPathState = _openFolderPath.value
 
             val localizedContext = remember(currentLanguage) {
                 LanguageManager.getLocalizedContext(this@MainActivity, currentLanguage)
@@ -262,7 +269,8 @@ class MainActivity : AppCompatActivity() {
                         billingManager = billingManager,
                         notificationReceived = notificationState,
                         lastAction = actionState,
-                        lastTime = timeState
+                        lastTime = timeState,
+                        openFolderPath = folderPathState
                     )
                 }
             }

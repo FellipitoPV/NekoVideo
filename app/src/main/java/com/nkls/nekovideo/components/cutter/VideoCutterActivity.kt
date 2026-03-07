@@ -310,6 +310,14 @@ private fun VideoCutterScreen(
                 Text(formatTime(durationMs), style = MaterialTheme.typography.bodyMedium)
             }
 
+            // Zoom strip — acima da timeline para evitar conflito de gesto
+            ZoomStrip(
+                msPerPx = msPerPx,
+                minMsPerPx = minMsPerPx,
+                maxMsPerPx = maxMsPerPx,
+                onZoom = { newMsPerPx -> msPerPx = newMsPerPx }
+            )
+
             // Main timeline (scrollable by drag)
             Box(
                 modifier = Modifier
@@ -337,21 +345,9 @@ private fun VideoCutterScreen(
                     onScrubStart = { isScrubbing = true; exoPlayer.pause() },
                     onScrubEnd = {
                         isScrubbing = false
-                        // Snap para o segundo mais próximo ao soltar
-                        val snapped = ((centerPositionMs + 500L) / 1000L) * 1000L
-                        centerPositionMs = snapped.coerceIn(0L, durationMs)
-                        exoPlayer.seekTo(centerPositionMs)
                     }
                 )
             }
-
-            // Zoom strip — drag left = zoom in, drag right = zoom out
-            ZoomStrip(
-                msPerPx = msPerPx,
-                minMsPerPx = minMsPerPx,
-                maxMsPerPx = maxMsPerPx,
-                onZoom = { newMsPerPx -> msPerPx = newMsPerPx }
-            )
 
             // Add cut + Save row
             Row(
@@ -599,6 +595,7 @@ private fun VideoTimeline(
         val leftMs = curCenter - (centerX * curMsPerPx).toLong()
         val rightMs = curCenter + ((w - centerX) * curMsPerPx).toLong()
         var tickMs = (leftMs / minorMs - 1) * minorMs
+        var lastLabelX = -999f
 
         while (tickMs <= rightMs + minorMs) {
             if (tickMs < 0L) { tickMs += minorMs; continue }
@@ -615,13 +612,14 @@ private fun VideoTimeline(
                 strokeWidth = if (isMajor) 1.5f else 0.8f
             )
 
-            if (isMajor) {
+            if (isMajor && x - lastLabelX >= 62f) {
                 drawContext.canvas.nativeCanvas.drawText(
                     formatTickTime(tickMs),
                     x,
                     rulerH - 2f,
                     tickLabelPaint
                 )
+                lastLabelX = x
             }
 
             tickMs += minorMs

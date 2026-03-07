@@ -92,7 +92,8 @@ fun MainScreen(
     lastAction: String? = null,
     lastTime: Long = 0,
     externalVideoReceived: Boolean = false,
-    autoOpenOverlay: Boolean = false
+    autoOpenOverlay: Boolean = false,
+    openFolderPath: String? = null
 
 ) {
     val navController = rememberNavController()
@@ -102,6 +103,13 @@ fun MainScreen(
     // Estado de navegação de pastas (gerencia pilha internamente)
     val folderNavState = rememberFolderNavigationState()
     val folderPath = folderNavState.currentPath
+
+    // Abre a pasta dos cortes ao clicar na notificação de conclusão
+    LaunchedEffect(openFolderPath) {
+        if (openFolderPath != null) {
+            folderNavState.navigateToPath(openFolderPath)
+        }
+    }
     val isAtRootLevel = folderNavState.isAtRoot
     val selectedItems = remember { mutableStateListOf<String>() }
     var showFabMenu by remember { mutableStateOf(false) }
@@ -165,33 +173,16 @@ fun MainScreen(
     }
 
 
-    // ✅ Função de refresh simplificada
     fun quickRefresh() {
-        coroutineScope.launch {
-            FolderVideoScanner.startScan(context, coroutineScope, forceRefresh = true)
-        }
+        FolderVideoScanner.startScan(context, forceRefresh = true)
     }
 
     val cutVideoLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) quickRefresh()
-    }
+    ) { /* refresh é feito pelo VideoCutService ao terminar o corte */ }
 
     fun performRefresh() {
-        coroutineScope.launch {
-            try {
-                FolderVideoScanner.startScan(context, coroutineScope)
-
-                while (FolderVideoScanner.isScanning.value) {
-                    delay(100)
-                }
-
-                delay(300)
-            } catch (e: Exception) {
-                Log.e("MainScreen", "Erro no refresh", e)
-            }
-        }
+        FolderVideoScanner.startScan(context, forceRefresh = true)
     }
 
     val currentTheme by themeManager.themeMode.collectAsState()

@@ -750,11 +750,9 @@ fun FolderScreen(
     var searchQuery by remember { mutableStateOf("") }
     var isSearchExpanded by remember { mutableStateOf(false) }
 
-    // ✅ Função de refresh simplificada
+    // Função de refresh — usa GlobalScope interno do scanner para não ser cancelada por navegação
     fun performRefresh() {
-        coroutineScope.launch {
-            FolderVideoScanner.startScan(context, coroutineScope, forceRefresh = true)
-        }
+        FolderVideoScanner.startScan(context, forceRefresh = true)
     }
 
     // ✅ Auto-refresh quando volta para a tela (opcional)
@@ -764,7 +762,7 @@ fun FolderScreen(
                 // Refresh suave em background quando volta para o app
                 coroutineScope.launch {
                     delay(500)
-                    FolderVideoScanner.startScan(context, coroutineScope, forceRefresh = false)
+                    FolderVideoScanner.startScan(context, forceRefresh = false)
                 }
             }
         }

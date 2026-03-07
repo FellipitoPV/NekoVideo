@@ -2,9 +2,11 @@ package com.nkls.nekovideo.services
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import com.nkls.nekovideo.MainActivity
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
@@ -36,6 +38,11 @@ class VideoCutService : Service() {
         const val EXTRA_EXT = "ext"
         const val EXTRA_SEGMENTS_START = "segments_start"
         const val EXTRA_SEGMENTS_END = "segments_end"
+
+        const val ACTION_CANCEL_CURRENT = "com.nkls.nekovideo.ACTION_CANCEL_CURRENT"
+        const val ACTION_CANCEL_ALL    = "com.nkls.nekovideo.ACTION_CANCEL_ALL"
+        const val ACTION_OPEN_CUTS_FOLDER = "com.nkls.nekovideo.ACTION_OPEN_CUTS_FOLDER"
+        const val EXTRA_CUTS_FOLDER_PATH  = "cuts_folder_path"
 
         fun buildIntent(
             context: Context,
@@ -71,6 +78,7 @@ class VideoCutService : Service() {
     @Volatile private var jobsCompleted = 0
     @Volatile private var jobsSuccess = 0
     @Volatile private var jobsFailed = 0
+    @Volatile private var cancelCurrentJob = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -80,7 +88,12 @@ class VideoCutService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action != ACTION_CUT) return START_NOT_STICKY
+        when (intent?.action) {
+            ACTION_CANCEL_CURRENT -> { cancelCurrentJob = true; return START_NOT_STICKY }
+            ACTION_CANCEL_ALL     -> { cancelCurrentJob = true; jobQueue.clear(); return START_NOT_STICKY }
+            ACTION_CUT            -> { /* continua abaixo */ }
+            else                  -> return START_NOT_STICKY
+        }
 
         val inputPath = intent.getStringExtra(EXTRA_INPUT_PATH) ?: return START_NOT_STICKY
         val baseName = intent.getStringExtra(EXTRA_BASE_NAME) ?: return START_NOT_STICKY
@@ -104,6 +117,8 @@ class VideoCutService : Service() {
     private fun processNext() {
         val job = jobQueue.removeFirstOrNull() ?: run {
             isProcessing = false
+            // Atualiza o index de vídeos para o novo arquivo aparecer
+            FolderVideoScanner.startScan(applicationContext, forceRefresh = true)
             showSummaryNotification()
             jobsQueued = 0; jobsCompleted = 0; jobsSuccess = 0; jobsFailed = 0
             stopSelf()
@@ -138,6 +153,7 @@ class VideoCutService : Service() {
                 }
 
                 if (!ok) {
+                    cancelCurrentJob = false
                     jobsCompleted++; jobsFailed++
                     processNext()
                     return@launch
@@ -206,7 +222,9 @@ class VideoCutService : Service() {
             val buffer = ByteBuffer.allocate(1024 * 1024)
             val bufferInfo = MediaCodec.BufferInfo()
 
+            var cancelledByUser = false
             while (true) {
+                if (cancelCurrentJob) { cancelledByUser = true; break }
                 val sampleSize = extractor.readSampleData(buffer, 0)
                 if (sampleSize < 0) break
 
@@ -226,12 +244,17 @@ class VideoCutService : Service() {
                 extractor.advance()
             }
 
-            muxer.stop()
-            muxer.release()
-            muxer = null
-            extractor.release()
-            extractor = null
-            true
+            if (cancelledByUser) {
+                File(outputPath).delete()
+                false
+            } else {
+                muxer.stop()
+                muxer.release()
+                muxer = null
+                extractor.release()
+                extractor = null
+                true
+            }
         } catch (e: Exception) {
             Log.e(TAG, "cutSegment falhou: ${e.message}", e)
             File(outputPath).delete()
@@ -345,15 +368,32 @@ class VideoCutService : Service() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    private fun buildProgressNotification(title: String, text: String, progress: Int) =
-        NotificationCompat.Builder(this, CHANNEL_ID)
+    private fun buildProgressNotification(title: String, text: String, progress: Int): android.app.Notification {
+        val cancelCurrentPi = PendingIntent.getService(
+            this, 10,
+            Intent(this, VideoCutService::class.java).apply { action = ACTION_CANCEL_CURRENT },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(text)
             .setSmallIcon(R.drawable.ic_stat_cut)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setProgress(100, progress, progress == 0)
-            .build()
+            .addAction(0, "Cancelar", cancelCurrentPi)
+
+        if (jobQueue.isNotEmpty()) {
+            val cancelAllPi = PendingIntent.getService(
+                this, 11,
+                Intent(this, VideoCutService::class.java).apply { action = ACTION_CANCEL_ALL },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            builder.addAction(0, "Cancelar tudo", cancelAllPi)
+        }
+
+        return builder.build()
+    }
 
     private fun updateProgressNotification(title: String, text: String, progress: Int) {
         getSystemService(NotificationManager::class.java)
@@ -368,13 +408,35 @@ class VideoCutService : Service() {
             jobsSuccess == 0 -> if (total == 1) "Falha ao cortar o vídeo" else "Falha ao cortar $total vídeo(s)"
             else -> "$jobsSuccess de $total vídeo(s) cortados com sucesso"
         }
-        val notif = NotificationCompat.Builder(this, CHANNEL_ID)
+
+        val cutsDir = getOutputDir()
+        val openIntent = Intent(this, MainActivity::class.java).apply {
+            action = ACTION_OPEN_CUTS_FOLDER
+            putExtra(EXTRA_CUTS_FOLDER_PATH, cutsDir.absolutePath)
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val openPi = PendingIntent.getActivity(
+            this, 20, openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Corte finalizado")
-            .setContentText(text)
             .setSmallIcon(R.drawable.ic_stat_cut)
             .setAutoCancel(true)
-            .build()
-        getSystemService(NotificationManager::class.java).notify(resultNotifId++, notif)
+            .setContentIntent(openPi)
+
+        if (jobsSuccess > 0) {
+            builder.setStyle(
+                NotificationCompat.BigTextStyle().bigText("$text\nSalvo em DCIM/Cuts")
+            )
+            builder.setContentText(text)
+            builder.setSubText("Salvo em DCIM/Cuts")
+        } else {
+            builder.setContentText(text)
+        }
+
+        getSystemService(NotificationManager::class.java).notify(resultNotifId++, builder.build())
     }
 
     private fun getOutputDir(): File {
