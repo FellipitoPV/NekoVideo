@@ -93,6 +93,13 @@
                 <data android:scheme="content" />
             </intent-filter>
 
+            <!-- Intent filter para múltiplos vídeos (playlist via "Abrir com") -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+
         </activity>
 
         <activity

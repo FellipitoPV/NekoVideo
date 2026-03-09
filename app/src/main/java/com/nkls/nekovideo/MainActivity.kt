@@ -48,9 +48,12 @@ class MainActivity : AppCompatActivity() {
     var externalVideoReceived = false
         private set
 
+    private var _externalVideoReceived = mutableStateOf(false)
+
     // Função para resetar (chamada do MainScreen)
     fun resetExternalVideoFlag() {
         externalVideoReceived = false
+        _externalVideoReceived.value = false
     }
 
     // NOVO: Variável para controlar intent da notificação
@@ -125,57 +128,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleExternalVideo(videoUri: Uri) {
+        // Verifica se há múltiplos vídeos via ClipData (alguns file managers enviam assim)
+        val clipData = intent?.clipData
+        val uris = if (clipData != null && clipData.itemCount > 1) {
+            (0 until clipData.itemCount).mapNotNull { clipData.getItemAt(it).uri }
+        } else {
+            listOf(videoUri)
+        }
+        handleExternalVideos(uris)
+    }
+
+    private fun handleExternalVideos(uris: List<Uri>) {
         lifecycleScope.launch {
             try {
+                val paths = uris.map { it.toString() }.filter { it.isNotEmpty() }
+                if (paths.isEmpty()) return@launch
 
-                val videoPath = when (videoUri.scheme) {
-                    "file" -> videoUri.toString()
-                    "content" -> videoUri.toString()
-                    else -> videoUri.toString()
-                }
+                PlaylistManager.setPlaylist(paths, startIndex = 0, shuffle = false)
+                MediaPlaybackService.startWithPlaylist(this@MainActivity, paths, 0)
 
-                if (videoPath.isNotEmpty()) {
-                    // ✅ Configurar PlaylistManager ANTES de iniciar o player
-                    PlaylistManager.setPlaylist(listOf(videoPath), startIndex = 0, shuffle = false)
-
-                    // Iniciar o serviço
-                    MediaPlaybackService.startWithPlaylist(
-                        this@MainActivity,
-                        listOf(videoPath),
-                        0
-                    )
-
-                    // Aguardar serviço inicializar
-                    delay(800)
-
-                    // FORÇAR abertura do overlay via recomposição
-                    setContent {
-                        val notificationState = _notificationReceived.value
-                        val actionState = _lastIntentAction.value
-                        val timeState = _lastIntentTime.value
-
-                        NekoVideoTheme(themeManager = themeManager) {
-                            Surface(
-                                modifier = Modifier.fillMaxSize(),
-                                color = MaterialTheme.colorScheme.background
-                            ) {
-                                MainScreen(
-                                    intent = intent,
-                                    themeManager = themeManager,
-                                    premiumManager = premiumManager, // ADICIONAR ESTA LINHA
-                                    billingManager = billingManager,
-                                    notificationReceived = notificationState,
-                                    lastAction = actionState,
-                                    lastTime = timeState,
-                                    openFolderPath = _openFolderPath.value
-                                )
-                            }
-                        }
-                    }
-
-                }
+                // Sinaliza para a composição abrir o overlay
+                _externalVideoReceived.value = true
             } catch (e: Exception) {
-                Log.e("MainActivity", "Erro ao processar vídeo externo", e)
+                Log.e("MainActivity", "Erro ao processar vídeos externos", e)
             }
         }
     }
@@ -194,6 +169,17 @@ class MainActivity : AppCompatActivity() {
                 val videoUri = intent.data
                 if (videoUri != null) {
                     handleExternalVideo(videoUri)
+                }
+            }
+            "android.intent.action.SEND_MULTIPLE" -> {
+                val uris = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+                }
+                if (!uris.isNullOrEmpty()) {
+                    handleExternalVideos(uris)
                 }
             }
             "com.nkls.nekovideo.ACTION_OPEN_CUTS_FOLDER" -> {
@@ -254,6 +240,7 @@ class MainActivity : AppCompatActivity() {
             val actionState = _lastIntentAction.value
             val timeState = _lastIntentTime.value
             val folderPathState = _openFolderPath.value
+            val externalVideoState = _externalVideoReceived.value
 
             val localizedContext = remember(currentLanguage) {
                 LanguageManager.getLocalizedContext(this@MainActivity, currentLanguage)
@@ -267,12 +254,13 @@ class MainActivity : AppCompatActivity() {
                     MainScreen(
                         intent = intent,
                         themeManager = themeManager,
-                        premiumManager = premiumManager, // ADICIONAR ESTA LINHA
+                        premiumManager = premiumManager,
                         billingManager = billingManager,
                         notificationReceived = notificationState,
                         lastAction = actionState,
                         lastTime = timeState,
-                        openFolderPath = folderPathState
+                        openFolderPath = folderPathState,
+                        externalVideoReceived = externalVideoState
                     )
                 }
             }

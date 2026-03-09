@@ -250,14 +250,11 @@ fun MainScreen(
 
     LaunchedEffect(externalVideoReceived) {
         if (externalVideoReceived) {
+            // Aguardar serviço de mídia inicializar
+            delay(800)
 
-            // Aguardar um pouco para garantir que tudo carregou
-            delay(500)
-
-            // Abrir overlay diretamente
             showPlayerOverlay = true
 
-            // Reset da flag
             val activity = context.findActivity() as? MainActivity
             activity?.resetExternalVideoFlag()
         }
