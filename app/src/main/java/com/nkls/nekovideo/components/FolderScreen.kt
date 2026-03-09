@@ -7,6 +7,7 @@ import androidx.compose.animation.ExperimentalAnimationApi
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
@@ -342,10 +343,11 @@ private fun loadNormalContentFromCache(
             }
 
             subfolder.name.startsWith(".") -> {
+                // Só mostra pastas ocultas não criadas pelo app se tiverem conteúdo real
                 if (isRootLevel) {
-                    showPrivateFolders && (isSecure || hasVideos || hasSecureSubfolders)
+                    showPrivateFolders && (hasVideos || hasSecureSubfolders)
                 } else {
-                    isSecure || hasVideos || hasSecureSubfolders
+                    hasVideos || hasSecureSubfolders
                 }
             }
             hasVideos -> true
@@ -743,9 +745,20 @@ fun FolderScreen(
     val scannerCache by FolderVideoScanner.cache.collectAsState()
     val isScanning by FolderVideoScanner.isScanning.collectAsState()
 
-    val showThumbnails by remember { derivedStateOf { OptimizedThumbnailManager.isShowThumbnailsEnabled(context) }}
-    val showDurations by remember { derivedStateOf { OptimizedThumbnailManager.isShowDurationsEnabled(context) }}
-    val showFileSizes by remember { derivedStateOf { OptimizedThumbnailManager.isShowFileSizesEnabled(context) }}
+    val displayPrefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
+    var showDurations by remember { mutableStateOf(displayPrefs.getBoolean("show_durations", true)) }
+    var showFileSizes by remember { mutableStateOf(displayPrefs.getBoolean("show_file_sizes", false)) }
+
+    DisposableEffect(displayPrefs) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            when (key) {
+                "show_durations" -> showDurations = displayPrefs.getBoolean(key, true)
+                "show_file_sizes" -> showFileSizes = displayPrefs.getBoolean(key, false)
+            }
+        }
+        displayPrefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { displayPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
 
     var searchQuery by remember { mutableStateOf("") }
     var isSearchExpanded by remember { mutableStateOf(false) }
@@ -917,33 +930,42 @@ fun FolderScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(120.dp)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                                    .padding(16.dp),
+                                    .weight(1f),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
+                                    verticalArrangement = Arrangement.Center,
+                                    modifier = Modifier.padding(32.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.VideoLibrary,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(32.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .size(96.dp)
+                                            .background(
+                                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                                shape = CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.VideoLibrary,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(48.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(24.dp))
                                     Text(
                                         text = stringResource(R.string.no_videos_found),
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        style = MaterialTheme.typography.headlineSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         textAlign = TextAlign.Center
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(12.dp))
                                     Text(
                                         text = stringResource(R.string.pull_down_to_scan),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                         textAlign = TextAlign.Center
                                     )
                                 }
@@ -959,7 +981,7 @@ fun FolderScreen(
                                     items = rowItems,
                                     gridColumns = gridColumns,
                                     selectedItems = selectedItems,
-                                    showThumbnails = showThumbnails,
+                                    showThumbnails = true,
                                     showDurations = showDurations,
                                     showFileSizes = showFileSizes,
                                     isSecureMode = isSecureMode,
@@ -970,9 +992,6 @@ fun FolderScreen(
                                 )
                             }
 
-                            if (pathEmptyState) {
-                                item { Spacer(modifier = Modifier.height(200.dp)) }
-                            }
                         }
                     }
                 }
@@ -1122,23 +1141,24 @@ private fun MediaCard(
                         // 1. Verifica RAM antes de ir ao disco
                         val cachedThumb = OptimizedThumbnailManager.getCachedThumbnail(item.path)
                         if (cachedThumb != null) {
-                            withContext(Dispatchers.Main) {
-                                thumbnail = cachedThumb
-                                isLoading = false
+                            withContext(Dispatchers.Main) { thumbnail = cachedThumb }
+                            // Só retorna cedo se não precisar de duração/tamanho
+                            if (!showDurations && !showFileSizes) {
+                                withContext(Dispatchers.Main) { isLoading = false }
+                                return@launch
                             }
-                            return@launch
-                        }
-                        // 2. Lê do disco (pasta segura)
-                        val lockedThumb = FolderLockManager.getLockedThumbnail(item.path)
-                        if (lockedThumb != null) {
-                            // Guarda em RAM para evitar releitura de disco a cada recomposição
-                            val cacheKey = item.path.hashCode().toString()
-                            OptimizedThumbnailManager.thumbnailCache.put(cacheKey, lockedThumb)
-                            withContext(Dispatchers.Main) {
-                                thumbnail = lockedThumb
-                                isLoading = false
+                        } else {
+                            // 2. Lê do disco (pasta segura)
+                            val lockedThumb = FolderLockManager.getLockedThumbnail(item.path)
+                            if (lockedThumb != null) {
+                                val cacheKey = item.path.hashCode().toString()
+                                OptimizedThumbnailManager.thumbnailCache.put(cacheKey, lockedThumb)
+                                withContext(Dispatchers.Main) { thumbnail = lockedThumb }
+                                if (!showDurations && !showFileSizes) {
+                                    withContext(Dispatchers.Main) { isLoading = false }
+                                    return@launch
+                                }
                             }
-                            return@launch
                         }
                     }
 

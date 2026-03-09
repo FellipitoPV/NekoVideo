@@ -6,8 +6,13 @@ import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,7 +29,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
@@ -49,7 +53,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -117,16 +120,6 @@ fun SettingsScreen(navController: NavController) {
 
             item {
                 SettingsCategoryCard(
-                    icon = Icons.Default.Folder,
-                    title = stringResource(R.string.settings_files),
-                    subtitle = stringResource(R.string.settings_files_desc),
-                    onClick = { navController.navigate("settings/files") },
-                    isCompact = isCompact
-                )
-            }
-
-            item {
-                SettingsCategoryCard(
                     icon = Icons.Default.Info,
                     title = stringResource(R.string.settings_about),
                     subtitle = stringResource(R.string.settings_about_desc),
@@ -145,6 +138,7 @@ fun PlaybackSettingsScreen() {
     val prefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
 
     var autoHideControls by remember { mutableStateOf(prefs.getBoolean("auto_hide_controls", true)) }
+    var autoPip by remember { mutableStateOf(prefs.getBoolean("auto_pip", true)) }
     var doubleTapSeek by remember { mutableIntStateOf(prefs.getInt("double_tap_seek", 10)) }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -169,7 +163,22 @@ fun PlaybackSettingsScreen() {
                     subtitle = stringResource(R.string.playback_auto_hide_controls_desc),
                     checked = autoHideControls,
                     onCheckedChange = {
+                        autoHideControls = it
                         prefs.edit { putBoolean("auto_hide_controls", it) }
+                    },
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsSwitchItem(
+                    icon = Icons.Default.PlayArrow,
+                    title = stringResource(R.string.playback_pip),
+                    subtitle = stringResource(R.string.playback_pip_desc),
+                    checked = autoPip,
+                    onCheckedChange = {
+                        autoPip = it
+                        prefs.edit { putBoolean("auto_pip", it) }
                     },
                     isCompact = isCompact
                 )
@@ -190,35 +199,6 @@ fun PlaybackSettingsScreen() {
                 )
             }
 
-//        item {
-//            SettingsSectionHeader(stringResource(R.string.playback_features))
-//        }
-//
-//        item {
-//            SettingsSwitchItem(
-//                icon = Icons.Default.ScreenSearchDesktop,
-//                title = stringResource(R.string.playback_keep_screen_on),
-//                subtitle = stringResource(R.string.playback_keep_screen_on_desc),
-//                checked = keepScreenOn,
-//                onCheckedChange = {
-//                    keepScreenOn = it
-//                    prefs.edit().putBoolean("keep_screen_on", it).apply()
-//                }
-//            )
-//        }
-
-//        item {
-//            SettingsSwitchItem(
-//                icon = Icons.Default.PictureInPictureAlt,
-//                title = stringResource(R.string.playback_pip),
-//                subtitle = stringResource(R.string.playback_pip_desc),
-//                checked = pipEnabled,
-//                onCheckedChange = {
-//                    pipEnabled = it
-//                    prefs.edit().putBoolean("pip_enabled", it).apply()
-//                }
-//            )
-//        }
         }
     }
 }
@@ -310,7 +290,6 @@ fun DisplaySettingsScreen() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
 
-    var showThumbnails by remember { mutableStateOf(prefs.getBoolean("show_thumbnails", true)) }
     var showDurations by remember { mutableStateOf(prefs.getBoolean("show_durations", true)) }
     var showFileSizes by remember { mutableStateOf(prefs.getBoolean("show_file_sizes", false)) }
     listOf(
@@ -337,24 +316,12 @@ fun DisplaySettingsScreen() {
 
             item {
                 SettingsSwitchItem(
-                    icon = Icons.Default.Image,
-                    title = stringResource(R.string.display_show_thumbnails),
-                    subtitle = stringResource(R.string.display_show_thumbnails_desc),
-                    checked = showThumbnails,
-                    onCheckedChange = {
-                        prefs.edit { putBoolean("show_thumbnails", it) }
-                    },
-                    isCompact = isCompact
-                )
-            }
-
-            item {
-                SettingsSwitchItem(
                     icon = Icons.Default.Schedule,
                     title = stringResource(R.string.display_show_durations),
                     subtitle = stringResource(R.string.display_show_durations_desc),
                     checked = showDurations,
                     onCheckedChange = {
+                        showDurations = it
                         prefs.edit { putBoolean("show_durations", it) }
                     },
                     isCompact = isCompact
@@ -368,6 +335,7 @@ fun DisplaySettingsScreen() {
                     subtitle = stringResource(R.string.display_show_file_sizes_desc),
                     checked = showFileSizes,
                     onCheckedChange = {
+                        showFileSizes = it
                         prefs.edit { putBoolean("show_file_sizes", it) }
                     },
                     isCompact = isCompact
@@ -395,149 +363,160 @@ fun DisplaySettingsScreen() {
     }
 }
 
-@Composable
-fun FilesSettingsScreen() {
-    val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
-
-    var appOnlyFolders by remember { mutableStateOf(prefs.getBoolean("app_only_folders", false)) }
-    var confirmDelete by remember { mutableStateOf(prefs.getBoolean("confirm_delete", true)) }
-
-    LaunchedEffect(Unit) {
-        appOnlyFolders = prefs.getBoolean("app_only_folders", false)
-    }
-
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        @Suppress("UnusedBoxWithConstraintsScope")
-        val isCompact = this.maxWidth > 600.dp
-
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(if (isCompact) 8.dp else 16.dp),
-            verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
-        ) {
-
-            item {
-                SettingsSectionHeader(stringResource(R.string.files_management), isCompact)
-            }
-
-            item {
-                SettingsSwitchItem(
-                    icon = Icons.Default.Folder,
-                    title = stringResource(R.string.files_app_only_folders),
-                    subtitle = stringResource(R.string.files_app_only_folders_desc),
-                    checked = appOnlyFolders,
-                    onCheckedChange = {
-                        prefs.edit { putBoolean("app_only_folders", it) }
-                    },
-                    isCompact = isCompact
-                )
-            }
-
-            item {
-                SettingsSwitchItem(
-                    icon = Icons.Default.Delete,
-                    title = stringResource(R.string.files_confirm_delete),
-                    subtitle = stringResource(R.string.files_confirm_delete_desc),
-                    checked = confirmDelete,
-                    onCheckedChange = {
-                        prefs.edit { putBoolean("confirm_delete", it) }
-                    },
-                    isCompact = isCompact
-                )
-            }
-        }
-    }
-}
 
 @Composable
 fun AboutSettingsScreen() {
     val context = LocalContext.current
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        @Suppress("UnusedBoxWithConstraintsScope")
-        val isCompact = this.maxWidth > 600.dp
+    fun openBugReport() {
+        val appVersion = BuildConfig.VERSION_NAME
+        val deviceInfo = "${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})"
+        val emailBody = """
+Describe the issue you found:
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(if (isCompact) 8.dp else 16.dp),
-            verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
+
+
+--- System Information ---
+App Version: $appVersion
+Device: $deviceInfo
+        """.trimIndent()
+
+        val mailtoUri = "mailto:nklssuport@gmail.com?subject=${
+            Uri.encode("Bug Report - ${context.getString(R.string.app_name)}")
+        }&body=${Uri.encode(emailBody)}".toUri()
+        val mailtoIntent = Intent(Intent.ACTION_VIEW, mailtoUri)
+
+        if (mailtoIntent.resolveActivity(context.packageManager) != null) {
+            context.startActivity(mailtoIntent)
+            return
+        }
+
+        val emailIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "message/rfc822"
+            putExtra(Intent.EXTRA_EMAIL, arrayOf("nklssuport@gmail.com"))
+            putExtra(Intent.EXTRA_SUBJECT, "Bug Report - ${context.getString(R.string.app_name)}")
+            putExtra(Intent.EXTRA_TEXT, emailBody)
+        }
+
+        if (emailIntent.resolveActivity(context.packageManager) != null) {
+            context.startActivity(emailIntent)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Hero card — ícone + nome + versão
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            shape = RoundedCornerShape(24.dp)
         ) {
-
-            item {
-                SettingsSectionHeader(stringResource(R.string.about_information), isCompact)
-            }
-
-            item {
-                SettingsClickableItem(
-                    icon = Icons.Default.Info,
-                    title = stringResource(R.string.about_app_version),
-                    subtitle = BuildConfig.VERSION_NAME,
-                    onClick = { /* TODO: Show version details */ },
-                    isCompact = isCompact
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(36.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                val appIconBitmap = remember {
+                    val drawable = context.packageManager.getApplicationIcon(context.packageName)
+                    val size = 192
+                    val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+                    val canvas = android.graphics.Canvas(bmp)
+                    drawable.setBounds(0, 0, size, size)
+                    drawable.draw(canvas)
+                    bmp
+                }
+                Image(
+                    bitmap = appIconBitmap.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier.size(88.dp)
                 )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .background(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(50)
+                        )
+                        .padding(horizontal = 14.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "v${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
+        }
 
-//        item {
-//            SettingsClickableItem(
-//                icon = Icons.Default.Code,
-//                title = stringResource(R.string.about_source_code),
-//                subtitle = stringResource(R.string.about_source_code_desc),
-//                onClick = {
-//                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/FellipitoPV/NekoVideo"))
-//                    context.startActivity(intent)
-//                }
-//            )
-//        }
+        Spacer(modifier = Modifier.height(20.dp))
 
-            item {
-                SettingsClickableItem(
-                    icon = Icons.Default.BugReport,
-                    title = stringResource(R.string.about_report_bug),
-                    subtitle = stringResource(R.string.about_report_bug_desc),
-                    onClick = {
-                        val appVersion = BuildConfig.VERSION_NAME
-                        val deviceInfo = "${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})"
-                        val emailBody = """
-                Describe the issue you found:
-
-
-
-                --- System Information ---
-                App Version: $appVersion
-                Device: $deviceInfo
-            """.trimIndent()
-
-                        val mailtoUri = "mailto:nklssuport@gmail.com?subject=${
-                            Uri.encode(
-                                "Bug Report - ${
-                                    context.getString(R.string.app_name)
-                                }"
-                            )
-                        }&body=${Uri.encode(emailBody)}".toUri()
-                        val mailtoIntent = Intent(Intent.ACTION_VIEW, mailtoUri)
-
-                        if (mailtoIntent.resolveActivity(context.packageManager) != null) {
-                            context.startActivity(mailtoIntent)
-                            return@SettingsClickableItem
-                        }
-
-                        val emailIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "message/rfc822"
-                            putExtra(Intent.EXTRA_EMAIL, arrayOf("nklssuport@gmail.com"))
-                            putExtra(Intent.EXTRA_SUBJECT, "Bug Report - ${context.getString(R.string.app_name)}")
-                            putExtra(Intent.EXTRA_TEXT, emailBody)
-                        }
-
-                        if (emailIntent.resolveActivity(context.packageManager) != null) {
-                            context.startActivity(emailIntent)
-                            return@SettingsClickableItem
-                        }
-
-                    },
-                    isCompact = isCompact
+        // Card de reportar bug — destaque com cor de erro
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { openBugReport() },
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.BugReport,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.about_report_bug),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.about_report_bug_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
                 )
             }
         }

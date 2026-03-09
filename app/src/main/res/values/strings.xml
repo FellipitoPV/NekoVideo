@@ -30,7 +30,7 @@
     <string name="action_shuffle_play">Aleatório</string>
     <string name="action_create_folder">Nova Pasta</string>
     <string name="action_settings">Configurações</string>
-    <string name="no_videos_found">Nenhum vídeo encontrado</string>
+    <string name="no_videos_found">Pasta sem vídeos</string>
     <string name="secure_folders_hidden">Pastas seguras ocultadas</string>
     <string name="secure_folders_shown">Pastas seguras exibidas</string>
     <string name="select_private_folders_to_unprivatize">Selecione pastas privadas para desprivar</string>
@@ -58,7 +58,7 @@
     <string name="loading">Carregando...</string>
     <string name="updating_index">Atualizando índice...</string>
     <string name="indexing_videos">Indexando vídeos...</string>
-    <string name="pull_down_to_scan">Arraste para baixo para buscar vídeos</string>
+    <string name="pull_down_to_scan">Nenhum vídeo compatível foi encontrado nesta pasta</string>
 
     <string name="searching_cast_devices">Procurando dispositivos de transmissão...</string>
     <string name="no_cast_devices_found">Nenhum dispositivo de transmissão encontrado</string>
@@ -83,9 +83,9 @@
     <!-- Configurações de Interface --><string name="settings_appearance">Aparência</string>
     <string name="settings_language">Idioma</string>
     <string name="settings_dark_mode">Modo Escuro</string>
-    <string name="settings_dark_mode_desc">Aparência da interface</string>
+    <string name="settings_dark_mode_desc">Claro, escuro ou seguir o sistema</string>
     <string name="settings_app_language">Idioma do App</string>
-    <string name="settings_app_language_desc">Linguagem da interface</string>
+    <string name="settings_app_language_desc">Idioma exibido no aplicativo</string>
 
     <!-- Rename dialogs -->
     <string name="rename_item">Renomear item</string>
@@ -126,8 +126,8 @@
     <!-- Settings Screen -->
     <string name="settings_playback">Reprodução</string>
     <string name="settings_playback_desc">Controles de playback e comportamento do player</string>
-    <string name="settings_interface">Interface</string>
-    <string name="settings_interface_desc">Aparência e tema do aplicativo</string>
+    <string name="settings_interface">Aparência</string>
+    <string name="settings_interface_desc">Tema e idioma do aplicativo</string>
     <string name="settings_display">Visualização</string>
     <string name="settings_display_desc">Thumbnails, grid e exibição de informações</string>
     <string name="settings_files">Arquivos</string>
@@ -156,8 +156,8 @@
     <string name="playback_double_tap_seek_desc">Segundos para avançar/voltar</string>
     <string name="playback_keep_screen_on">Manter Tela Ligada</string>
     <string name="playback_keep_screen_on_desc">Não desligar tela durante reprodução</string>
-    <string name="playback_pip">Picture in Picture</string>
-    <string name="playback_pip_desc">Continuar reprodução em janela flutuante</string>
+    <string name="playback_pip">PIP automático</string>
+    <string name="playback_pip_desc">Entrar em picture-in-picture ao sair do app durante a reprodução</string>
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Informações dos Vídeos</string>

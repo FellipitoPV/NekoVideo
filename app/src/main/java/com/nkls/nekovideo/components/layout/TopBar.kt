@@ -119,13 +119,6 @@ fun TopBar(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
-                currentRoute == "settings/files" -> {
-                    Text(
-                        text = stringResource(R.string.settings_files),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
                 currentRoute == "settings/performance" -> {
                     Text(
                         text = stringResource(R.string.settings_performance),

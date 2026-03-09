@@ -68,7 +68,6 @@ import com.nkls.nekovideo.components.player.MiniPlayerImproved
 import com.nkls.nekovideo.components.player.VideoPlayerOverlay
 import com.nkls.nekovideo.components.settings.AboutSettingsScreen
 import com.nkls.nekovideo.components.settings.DisplaySettingsScreen
-import com.nkls.nekovideo.components.settings.FilesSettingsScreen
 import com.nkls.nekovideo.components.settings.InterfaceSettingsScreen
 import com.nkls.nekovideo.components.settings.PlaybackSettingsScreen
 import com.nkls.nekovideo.components.settings.SettingsScreen
@@ -1230,9 +1229,6 @@ fun MainScreen(
                 }
                 composable("settings/display") {
                     DisplaySettingsScreen()
-                }
-                composable("settings/files") {
-                    FilesSettingsScreen()
                 }
             }
         }

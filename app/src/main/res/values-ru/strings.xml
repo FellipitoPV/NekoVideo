@@ -29,7 +29,7 @@
     <string name="action_shuffle_play">Случайно</string>
     <string name="action_create_folder">Новая папка</string>
     <string name="action_settings">Настройки</string>
-    <string name="no_videos_found">Видео не найдены</string>
+    <string name="no_videos_found">Нет видео в этой папке</string>
     <string name="secure_folders_hidden">Защищённые папки скрыты</string>
     <string name="secure_folders_shown">Защищённые папки отображены</string>
     <string name="select_private_folders_to_unprivatize">Выберите приватные папки для отмены приватности</string>
@@ -57,7 +57,7 @@
     <string name="loading">Загрузка...</string>
     <string name="updating_index">Обновление индекса...</string>
     <string name="indexing_videos">Индексация видео...</string>
-    <string name="pull_down_to_scan">Проведите вниз для поиска видео</string>
+    <string name="pull_down_to_scan">В этой папке не найдено совместимых видео</string>
 
     <string name="searching_cast_devices">Поиск устройств трансляции...</string>
     <string name="no_cast_devices_found">Устройства трансляции не найдены</string>

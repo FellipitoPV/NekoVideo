@@ -29,7 +29,7 @@
     <string name="action_shuffle_play">शफल</string>
     <string name="action_create_folder">नया फोल्डर</string>
     <string name="action_settings">सेटिंग्स</string>
-    <string name="no_videos_found">कोई वीडियो नहीं मिला</string>
+    <string name="no_videos_found">इस फोल्डर में कोई वीडियो नहीं</string>
     <string name="secure_folders_hidden">सुरक्षित फ़ोल्डर छुपाए गए</string>
     <string name="secure_folders_shown">सुरक्षित फ़ोल्डर प्रदर्शित</string>
     <string name="select_private_folders_to_unprivatize">अनप्राइवेटाइज़ करने के लिए प्राइवेट फ़ोल्डर चुनें</string>
@@ -57,7 +57,7 @@
     <string name="loading">लोड हो रहा है...</string>
     <string name="updating_index">इंडेक्स अपडेट हो रहा है...</string>
     <string name="indexing_videos">वीडियो इंडेक्स हो रहे हैं...</string>
-    <string name="pull_down_to_scan">वीडियो खोजने के लिए नीचे स्वाइप करें</string>
+    <string name="pull_down_to_scan">इस फोल्डर में कोई संगत वीडियो नहीं मिला</string>
 
     <string name="searching_cast_devices">कास्ट डिवाइस खोजा जा रहा है...</string>
     <string name="no_cast_devices_found">कोई कास्ट डिवाइस नहीं मिला</string>

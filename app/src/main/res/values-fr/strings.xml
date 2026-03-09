@@ -29,7 +29,7 @@
     <string name="action_shuffle_play">Aléatoire</string>
     <string name="action_create_folder">Nouveau Dossier</string>
     <string name="action_settings">Paramètres</string>
-    <string name="no_videos_found">Aucune vidéo trouvée</string>
+    <string name="no_videos_found">Aucune vidéo dans ce dossier</string>
     <string name="secure_folders_hidden">Dossiers sécurisés masqués</string>
     <string name="secure_folders_shown">Dossiers sécurisés affichés</string>
     <string name="select_private_folders_to_unprivatize">Sélectionner des dossiers privés à déprivatiser</string>
@@ -57,7 +57,7 @@
     <string name="loading">Chargement...</string>
     <string name="updating_index">Mise à jour de lindex...</string>
     <string name="indexing_videos">Indexation des vidéos...</string>
-    <string name="pull_down_to_scan">Glissez vers le bas pour rechercher des vidéos</string>
+    <string name="pull_down_to_scan">Aucune vidéo compatible trouvée dans ce dossier</string>
 
     <string name="searching_cast_devices">Recherche dappareils de diffusion...</string>
     <string name="no_cast_devices_found">Aucun appareil de diffusion trouvé</string>

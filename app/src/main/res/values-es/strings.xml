@@ -29,7 +29,7 @@
     <string name="action_shuffle_play">Aleatorio</string>
     <string name="action_create_folder">Nueva Carpeta</string>
     <string name="action_settings">Configuración</string>
-    <string name="no_videos_found">No se encontraron videos</string>
+    <string name="no_videos_found">Sin videos en esta carpeta</string>
     <string name="secure_folders_hidden">Carpetas seguras ocultas</string>
     <string name="secure_folders_shown">Carpetas seguras mostradas</string>
     <string name="select_private_folders_to_unprivatize">Selecciona carpetas privadas para desprivatizar</string>
@@ -57,7 +57,7 @@
     <string name="loading">Cargando...</string>
     <string name="updating_index">Actualizando índice...</string>
     <string name="indexing_videos">Indexando videos...</string>
-    <string name="pull_down_to_scan">Desliza hacia abajo para buscar videos</string>
+    <string name="pull_down_to_scan">No se encontraron videos compatibles en esta carpeta</string>
 
     <string name="searching_cast_devices">Buscando dispositivos de transmisión...</string>
     <string name="no_cast_devices_found">No se encontraron dispositivos de transmisión</string>

@@ -116,8 +116,10 @@ class MainActivity : AppCompatActivity() {
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
 
-        // Só entra em PiP se o player estiver visível E tocando
-        if (playerIsVisible && playerIsPlaying) {
+        val autoPipEnabled = getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            .getBoolean("auto_pip", true)
+
+        if (autoPipEnabled && playerIsVisible && playerIsPlaying) {
             enterPiPMode()
         }
     }
