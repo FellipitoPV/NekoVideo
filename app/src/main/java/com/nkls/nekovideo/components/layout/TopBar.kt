@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
@@ -35,7 +35,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -95,42 +94,42 @@ fun TopBar(
                     Text(
                         text = stringResource(R.string.settings_title),
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Medium
                     )
                 }
                 currentRoute == "settings/playback" -> {
                     Text(
                         text = stringResource(R.string.playback_title),
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Medium
                     )
                 }
                 currentRoute == "settings/interface" -> {
                     Text(
                         text = stringResource(R.string.interface_title),
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Medium
                     )
                 }
                 currentRoute == "settings/display" -> {
                     Text(
                         text = stringResource(R.string.settings_display),
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Medium
                     )
                 }
                 currentRoute == "settings/performance" -> {
                     Text(
                         text = stringResource(R.string.settings_performance),
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Medium
                     )
                 }
                 currentRoute == "settings/about" -> {
                     Text(
                         text = stringResource(R.string.about_title),
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Medium
                     )
                 }
                 currentRoute == "folder" && isAtRootLevel -> {
@@ -202,34 +201,30 @@ fun TopBar(
                                     }
                                 }
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = ">",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = "/",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             modifier = Modifier.padding(horizontal = 2.dp)
                         )
 
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             itemsIndexed(pathSegments) { index, segment ->
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    val displayName = if (segment.startsWith(".")) {
-                                        segment.drop(1)
-                                    } else {
-                                        segment
-                                    }
-
+                                    val isHidden = segment.startsWith(".")
+                                    val displayName = if (isHidden) segment.drop(1) else segment
                                     val isCurrentFolder = index == pathSegments.size - 1
 
                                     Text(
                                         text = displayName,
                                         style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = if (isCurrentFolder) FontWeight.SemiBold else FontWeight.Medium,
+                                        fontWeight = if (isCurrentFolder) FontWeight.Medium else FontWeight.Normal,
                                         color = when {
-                                            segment.startsWith(".") -> Color(0xFFFF6B35)
+                                            isHidden -> MaterialTheme.colorScheme.tertiary
                                             isCurrentFolder -> MaterialTheme.colorScheme.onSurface
                                             else -> MaterialTheme.colorScheme.primary
                                         },
@@ -237,7 +232,6 @@ fun TopBar(
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier
                                             .clickable(enabled = !isCurrentFolder) {
-                                                // Construir o caminho até o segmento clicado
                                                 val targetPath = rootPath + "/" + pathSegments
                                                     .take(index + 1)
                                                     .joinToString("/")
@@ -248,10 +242,10 @@ fun TopBar(
 
                                     if (index < pathSegments.size - 1) {
                                         Text(
-                                            text = ">",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(horizontal = 4.dp)
+                                            text = "/",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                            modifier = Modifier.padding(horizontal = 2.dp)
                                         )
                                     }
                                 }
@@ -302,7 +296,7 @@ fun TopBar(
                 selectedItems.isNotEmpty() -> {
                     IconButton(onClick = onSelectionClear) {
                         Icon(
-                            imageVector = Icons.Default.Cancel,
+                            imageVector = Icons.Default.Close,
                             contentDescription = stringResource(R.string.cancel_selection),
                             tint = MaterialTheme.colorScheme.onSurface
                         )
@@ -311,7 +305,7 @@ fun TopBar(
                 currentRoute?.startsWith("settings") == true -> {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back),
                             tint = MaterialTheme.colorScheme.onSurface
                         )
@@ -320,7 +314,7 @@ fun TopBar(
                 currentRoute == "folder" && !isAtRootLevel -> {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back),
                             tint = MaterialTheme.colorScheme.onSurface
                         )
@@ -345,7 +339,7 @@ fun TopBar(
                 Icon(
                     imageVector = if (isPremium) Icons.Default.Star else Icons.Default.StarBorder,
                     contentDescription = if (isPremium) "Premium Ativo" else "Comprar Premium",
-                    tint = if (isPremium) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurface
+                    tint = if (isPremium) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 

@@ -258,7 +258,7 @@
 
     <!-- Video Cutter -->
     <string name="action_cut_video">Вырезать видео</string>
-    <string name="cut_add_point">Добавить точку разреза здесь</string>
+    <string name="cut_add_point">Разрезать здесь</string>
     <string name="cut_segments">Сегменты</string>
     <string name="cut_save">Сохранить вырезки</string>
     <string name="cut_processing">Обработка... %1$d%%</string>

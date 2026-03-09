@@ -181,8 +181,8 @@ private fun VideoCutterScreen(
     var isPlaying by remember { mutableStateOf(false) }
     var selectedSegmentIndex by remember { mutableStateOf(0) }
 
-    val keepColor = Color(0xFF4CAF50)
-    val deleteColor = Color(0xFFF44336)
+    val keepColor = MaterialTheme.colorScheme.primary
+    val deleteColor = MaterialTheme.colorScheme.error
 
     // Garante que o índice selecionado continue válido quando segmentos mudam
     LaunchedEffect(segments.size) {
@@ -441,10 +441,10 @@ private fun VideoTimeline(
     val cutPointsRef = rememberUpdatedState(cutPoints)
     val segmentsRef = rememberUpdatedState(segments)
 
-    val keepColor = Color(0xFF4CAF50)
-    val deleteColor = Color(0xFFF44336)
-    val cursorColor = Color(0xFFFFD740)
-    val markerColor = Color.White
+    val keepColor = MaterialTheme.colorScheme.primary
+    val deleteColor = MaterialTheme.colorScheme.error
+    val cursorColor = Color.White
+    val markerColor = Color.White.copy(alpha = 0.85f)
     val tickColor = Color.White.copy(alpha = 0.45f)
     val rulerBgColor = Color(0xFF1A1A1A)
     val segmentBgColor = Color(0xFF242424)
@@ -679,7 +679,7 @@ private fun ZoomStrip(
     // normalised = 0 → max zoom in (left), 1 → max zoom out (right)
 
     val trackColor = Color.White.copy(alpha = 0.15f)
-    val filledColor = Color(0xFF4CAF50).copy(alpha = 0.6f)
+    val filledColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
     val handleColor = Color.White.copy(alpha = 0.9f)
     val labelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
 

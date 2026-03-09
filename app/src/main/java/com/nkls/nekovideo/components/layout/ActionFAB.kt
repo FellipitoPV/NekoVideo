@@ -118,7 +118,7 @@ fun ActionFAB(
             isMoveMode -> {
                 listOf(
                     ActionItem(ActionType.PASTE, Icons.Default.ContentPaste, pasteHereText, moveItemsText),
-                    ActionItem(ActionType.CANCEL_MOVE, Icons.Default.Cancel, cancelText, cancelOperationText)
+                    ActionItem(ActionType.CANCEL_MOVE, Icons.Default.Close, cancelText, cancelOperationText)
                 )
             }
             hasSelectedItems -> {
@@ -330,7 +330,7 @@ fun ActionFAB(
                         },
                         style = if (isWide) MaterialTheme.typography.titleMedium
                                else MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Medium
                     )
 
                     if (isMoveMode) {
@@ -415,22 +415,22 @@ private fun ActionGridItem(
                 verticalArrangement = Arrangement.Center,
                 modifier = Modifier.fillMaxWidth()
             ) {
+                val isDestructive = action.type == ActionType.DELETE || action.type == ActionType.CANCEL_MOVE
+                val iconBg = when {
+                    !action.isEnabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                    isDestructive -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.18f)
+                    else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)
+                }
+                val iconTint = when {
+                    !action.isEnabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
+                    isDestructive -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+                }
+
                 Surface(
                     modifier = Modifier.size(iconSurfaceSize),
                     shape = RoundedCornerShape(10.dp),
-                    color = when (action.type) {
-                        ActionType.DELETE -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
-                        ActionType.CANCEL_MOVE -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
-                        ActionType.PASTE -> Color(0xFF4CAF50).copy(alpha = 0.15f)
-                        ActionType.SECURE, ActionType.UNLOCK -> Color(0xFF4CAF50).copy(alpha = 0.15f)
-                        ActionType.PRIVATIZE -> Color(0xFFE91E63).copy(alpha = 0.15f)
-                        ActionType.UNPRIVATIZE -> Color(0xFF4CAF50).copy(alpha = 0.15f)
-                        else -> if (action.isEnabled) {
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-                        } else {
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
-                        }
-                    }
+                    color = iconBg
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -439,16 +439,7 @@ private fun ActionGridItem(
                         Icon(
                             imageVector = action.icon,
                             contentDescription = action.title,
-                            tint = when (action.type) {
-                                ActionType.DELETE, ActionType.CANCEL_MOVE -> MaterialTheme.colorScheme.error
-                                ActionType.PASTE, ActionType.SECURE, ActionType.UNLOCK, ActionType.UNPRIVATIZE -> Color(0xFF4CAF50)
-                                ActionType.PRIVATIZE -> Color(0xFFE91E63)
-                                else -> if (action.isEnabled) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                                }
-                            },
+                            tint = iconTint,
                             modifier = Modifier.size(iconSize)
                         )
                     }

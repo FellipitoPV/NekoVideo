@@ -258,7 +258,7 @@
 
     <!-- Video Cutter -->
     <string name="action_cut_video">Cortar Video</string>
-    <string name="cut_add_point">Agregar punto de corte aquí</string>
+    <string name="cut_add_point">Cortar aquí</string>
     <string name="cut_segments">Segmentos</string>
     <string name="cut_save">Guardar Cortes</string>
     <string name="cut_processing">Procesando... %1$d%%</string>

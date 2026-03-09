@@ -1,5 +1,6 @@
 package com.nkls.nekovideo.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -100,7 +101,7 @@ fun SingleRenameDialog(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp)),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            tonalElevation = 2.dp
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -109,7 +110,7 @@ fun SingleRenameDialog(
                 Text(
                     text = if (isRenaming) stringResource(R.string.renaming_files) else stringResource(R.string.rename_item),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
@@ -121,7 +122,7 @@ fun SingleRenameDialog(
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
                             strokeWidth = 3.dp,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                         Text(
                             text = stringResource(R.string.renaming_item),
@@ -171,7 +172,7 @@ fun SingleRenameDialog(
                             keyboardActions = KeyboardActions(onDone = { performRename() }),
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                             )
                         )
@@ -190,7 +191,11 @@ fun SingleRenameDialog(
                         Button(
                             onClick = { performRename() },
                             enabled = newName.trim().isNotEmpty(),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
                         ) {
                             Text(stringResource(R.string.rename))
                         }
@@ -224,7 +229,7 @@ fun LockedRenameDialog(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp)),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            tonalElevation = 2.dp
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -233,7 +238,7 @@ fun LockedRenameDialog(
                 Text(
                     text = stringResource(R.string.rename_item),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
@@ -260,7 +265,7 @@ fun LockedRenameDialog(
                         keyboardActions = KeyboardActions(onDone = { performLockedRename() }),
                         shape = RoundedCornerShape(10.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                         )
                     )
@@ -272,14 +277,21 @@ fun LockedRenameDialog(
                 ) {
                     TextButton(
                         onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     ) {
                         Text(stringResource(R.string.cancel))
                     }
                     Button(
                         onClick = { performLockedRename() },
                         enabled = newName.trim().isNotEmpty(),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
                     ) {
                         Text(stringResource(R.string.rename))
                     }
@@ -319,7 +331,7 @@ fun MultipleRenameDialog(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp)),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            tonalElevation = 2.dp
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -328,7 +340,7 @@ fun MultipleRenameDialog(
                 Text(
                     text = if (isRenaming) stringResource(R.string.renaming_files) else stringResource(R.string.rename_multiple_items),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
@@ -340,7 +352,7 @@ fun MultipleRenameDialog(
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
                             strokeWidth = 3.dp,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                         Text(
                             text = stringResource(R.string.renaming_progress, currentProgress, totalItems),
@@ -388,7 +400,7 @@ fun MultipleRenameDialog(
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                             )
                         )
@@ -403,7 +415,7 @@ fun MultipleRenameDialog(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(onDone = { performMultiRename() }),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                             )
                         )
@@ -422,7 +434,11 @@ fun MultipleRenameDialog(
                         Button(
                             onClick = { performMultiRename() },
                             enabled = baseName.trim().isNotEmpty() && startNumber.toIntOrNull() != null,
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
                         ) {
                             Text(stringResource(R.string.rename))
                         }
@@ -486,7 +502,7 @@ fun CreateFolderDialog(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp)),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            tonalElevation = 2.dp
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -495,7 +511,7 @@ fun CreateFolderDialog(
                 Text(
                     text = stringResource(R.string.create_new_folder),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
@@ -507,7 +523,7 @@ fun CreateFolderDialog(
                         CircularProgressIndicator(
                             modifier = Modifier.size(22.dp),
                             strokeWidth = 2.5.dp,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                         Text(
                             text = stringResource(R.string.creating_folder),
@@ -568,7 +584,7 @@ fun CreateFolderDialog(
                             keyboardActions = KeyboardActions(onDone = { performCreateFolder() }),
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                                 errorBorderColor = MaterialTheme.colorScheme.error
                             )
@@ -597,7 +613,11 @@ fun CreateFolderDialog(
                         Button(
                             onClick = { performCreateFolder() },
                             enabled = folderName.isNotBlank() && !isCreating,
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
                         ) {
                             Text(stringResource(R.string.create))
                         }
@@ -636,7 +656,7 @@ fun PasswordDialog(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp)),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            tonalElevation = 2.dp
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -649,7 +669,7 @@ fun PasswordDialog(
                         stringResource(R.string.enter_password)
                     },
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
@@ -661,7 +681,7 @@ fun PasswordDialog(
                         CircularProgressIndicator(
                             modifier = Modifier.size(22.dp),
                             strokeWidth = 2.5.dp,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                         Text(
                             text = stringResource(R.string.processing),
@@ -719,7 +739,7 @@ fun PasswordDialog(
                             visualTransformation = PasswordVisualTransformation(),
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                                 errorBorderColor = MaterialTheme.colorScheme.error
                             )
@@ -744,7 +764,7 @@ fun PasswordDialog(
                                 visualTransformation = PasswordVisualTransformation(),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                                     errorBorderColor = MaterialTheme.colorScheme.error
                                 )
@@ -774,7 +794,11 @@ fun PasswordDialog(
                         Button(
                             onClick = { performPasswordSubmit() },
                             enabled = password.isNotBlank() && (!isFirstTime || confirmPassword.isNotBlank()),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
                         ) {
                             Text(
                                 if (isFirstTime) {
@@ -803,7 +827,7 @@ fun DeleteConfirmationDialog(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp)),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            tonalElevation = 2.dp
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -812,7 +836,7 @@ fun DeleteConfirmationDialog(
                 Text(
                     text = stringResource(R.string.confirm_deletion),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
@@ -829,7 +853,10 @@ fun DeleteConfirmationDialog(
                 ) {
                     TextButton(
                         onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     ) {
                         Text(stringResource(R.string.cancel))
                     }
@@ -866,7 +893,7 @@ fun DeleteVideoDialog(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp)),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            tonalElevation = 2.dp
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -875,7 +902,7 @@ fun DeleteVideoDialog(
                 Text(
                     text = stringResource(R.string.delete_video),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
@@ -892,7 +919,10 @@ fun DeleteVideoDialog(
                 ) {
                     TextButton(
                         onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     ) {
                         Text(stringResource(R.string.cancel))
                     }
@@ -928,7 +958,7 @@ fun FixVideoMetadataDialog(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp)),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            tonalElevation = 2.dp
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -937,7 +967,7 @@ fun FixVideoMetadataDialog(
                 Text(
                     text = stringResource(R.string.fix_video_metadata_title),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
@@ -954,7 +984,11 @@ fun FixVideoMetadataDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
                     ) {
                         Text(stringResource(R.string.cancel))
                     }
@@ -962,7 +996,11 @@ fun FixVideoMetadataDialog(
                     Button(
                         onClick = onConfirm,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
                     ) {
                         Text(stringResource(R.string.fix_video_button))
                     }
@@ -992,7 +1030,7 @@ fun ProcessingDialog(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp)),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            tonalElevation = 2.dp
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -1002,14 +1040,14 @@ fun ProcessingDialog(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
                 CircularProgressIndicator(
                     modifier = Modifier.size(36.dp),
                     strokeWidth = 3.dp,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
 
                 Text(

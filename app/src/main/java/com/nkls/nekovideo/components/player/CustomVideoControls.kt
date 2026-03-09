@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.nkls.nekovideo.R
 import androidx.media3.session.MediaController
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.components.helpers.FilesManager
@@ -58,6 +60,12 @@ import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.PlaylistNavigator
 import kotlinx.coroutines.withContext
 import java.io.File
+
+// Design tokens — sistema de cores unificado para os controles
+private val CtrlBtnBg = Color.White.copy(alpha = 0.1f)
+private val CtrlBtnBgActive = Color.White.copy(alpha = 0.18f)
+private val CtrlIconOn = Color.White
+private val CtrlIconOff = Color.White.copy(alpha = 0.38f)
 
 @Composable
 fun CustomVideoControls(
@@ -100,12 +108,12 @@ fun CustomVideoControls(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.8f),
+                            Color.Black.copy(alpha = 0.75f),
                             Color.Transparent
                         )
                     )
                 )
-                .padding(16.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -115,30 +123,30 @@ fun CustomVideoControls(
                 IconButton(
                     onClick = onBackClick,
                     modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                        .size(48.dp)
+                        .background(CtrlBtnBg, CircleShape)
+                        .size(44.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        tint = CtrlIconOn,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
                 Text(
                     text = videoTitle,
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 16.dp)
+                        .padding(horizontal = 12.dp)
                 )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     // Botão de aviso para vídeos com metadados corrompidos
                     if (needsMetadataFix) {
                         IconButton(
@@ -147,14 +155,14 @@ fun CustomVideoControls(
                                 resetUITimer()
                             },
                             modifier = Modifier
-                                .background(Color(0xFFFF5722).copy(alpha = 0.9f), CircleShape)
-                                .size(48.dp)
+                                .background(Color(0xFFFF5722).copy(alpha = 0.85f), CircleShape)
+                                .size(44.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Warning,
                                 contentDescription = "Fix video metadata",
                                 tint = Color.White,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -162,16 +170,16 @@ fun CustomVideoControls(
                     // Botão PIP
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         IconButton(
-                            onClick = onPiPClick, // ✅ SIMPLIFICAR
+                            onClick = onPiPClick,
                             modifier = Modifier
-                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                                .size(48.dp)
+                                .background(CtrlBtnBg, CircleShape)
+                                .size(44.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.PictureInPicture,
                                 contentDescription = "Picture in Picture",
-                                tint = Color(0xFF00BCD4),
-                                modifier = Modifier.size(24.dp)
+                                tint = CtrlIconOn,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -181,7 +189,7 @@ fun CustomVideoControls(
                         factory = { context ->
                             val themedContext = android.view.ContextThemeWrapper(
                                 context,
-                                com.google.android.material.R.style.Theme_Material3_Dark
+                                R.style.Theme_NekoVideo_MediaRouter
                             )
 
                             androidx.mediarouter.app.MediaRouteButton(themedContext).apply {
@@ -191,7 +199,7 @@ fun CustomVideoControls(
 
                                 background = android.graphics.drawable.GradientDrawable().apply {
                                     shape = android.graphics.drawable.GradientDrawable.OVAL
-                                    setColor(android.graphics.Color.parseColor("#80000000"))
+                                    setColor(android.graphics.Color.argb(26, 255, 255, 255))
                                 }
 
                                 setPadding(12, 12, 12, 12)
@@ -215,20 +223,20 @@ fun CustomVideoControls(
                                 }
                             }
                         },
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(44.dp)
                     )
 
                     IconButton(
                         onClick = onDeleteClick,
                         modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                            .size(48.dp)
+                            .background(CtrlBtnBg, CircleShape)
+                            .size(44.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "Delete",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            tint = CtrlIconOn.copy(alpha = 0.75f),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -238,7 +246,7 @@ fun CustomVideoControls(
         // Controles centrais
         Row(
             modifier = Modifier.align(Alignment.Center),
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            horizontalArrangement = Arrangement.spacedBy(28.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // ✅ BOTÃO PREVIOUS - Usa PlaylistNavigator centralizado
@@ -248,18 +256,18 @@ fun CustomVideoControls(
                     PlaylistNavigator.previous(context)
                 },
                 modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                    .size(56.dp)
+                    .background(CtrlBtnBg, CircleShape)
+                    .size(54.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipPrevious,
                     contentDescription = "Previous",
-                    tint = Color.White,
-                    modifier = Modifier.size(64.dp)
+                    tint = CtrlIconOn,
+                    modifier = Modifier.size(30.dp)
                 )
             }
 
-            // Botão Play/Pause
+            // Botão Play/Pause — destaque principal
             IconButton(
                 onClick = {
                     if (isPlaying) {
@@ -269,14 +277,15 @@ fun CustomVideoControls(
                     }
                 },
                 modifier = Modifier
-                    .background(Color.White.copy(alpha = 0.9f), CircleShape)
-                    .size(72.dp)
+                    .background(Color.White, CircleShape)
+                    .border(2.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+                    .size(70.dp)
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
                     tint = Color.Black,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(36.dp)
                 )
             }
 
@@ -287,14 +296,14 @@ fun CustomVideoControls(
                     PlaylistNavigator.next(context)
                 },
                 modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                    .size(56.dp)
+                    .background(CtrlBtnBg, CircleShape)
+                    .size(54.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipNext,
                     contentDescription = "Next",
-                    tint = Color.White,
-                    modifier = Modifier.size(64.dp)
+                    tint = CtrlIconOn,
+                    modifier = Modifier.size(30.dp)
                 )
             }
         }
@@ -308,11 +317,11 @@ fun CustomVideoControls(
                     Brush.verticalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            Color.Black.copy(alpha = 0.8f)
+                            Color.Black.copy(alpha = 0.85f)
                         )
                     )
                 )
-                .padding(16.dp)
+                .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
         ) {
             // Seek bar
             if (duration > 0) {
@@ -337,17 +346,17 @@ fun CustomVideoControls(
                     thumb = {
                         Box(
                             modifier = Modifier
-                                .size(14.dp)
+                                .size(if (isDragging) 16.dp else 12.dp)
                                 .background(Color.White, CircleShape)
                         )
                     },
                     track = { sliderState ->
                         SliderDefaults.Track(
                             sliderState = sliderState,
-                            modifier = Modifier.height(4.dp),
+                            modifier = Modifier.height(3.dp),
                             colors = SliderDefaults.colors(
                                 activeTrackColor = Color.White,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                                inactiveTrackColor = Color.White.copy(alpha = 0.22f)
                             ),
                             thumbTrackGapSize = 0.dp,
                             trackInsideCornerSize = 0.dp,
@@ -362,59 +371,69 @@ fun CustomVideoControls(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Tempo atual
                     Text(
                         text = formatTime(if (isDragging) tempPosition else currentPosition),
-                        color = Color.White,
-                        fontSize = 14.sp
+                        color = Color.White.copy(alpha = 0.75f),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Light
                     )
 
                     // ✅ CENTRALIZADO: Indicador calculado diretamente do player + PlaylistManager
                     if (totalPlaylistSize > 1) {
                         Text(
-                            text = "${currentGlobalIndex + 1}/${totalPlaylistSize}",
-                            color = Color.White.copy(alpha = 0.6f),
+                            text = "${currentGlobalIndex + 1} / $totalPlaylistSize",
+                            color = Color.White.copy(alpha = 0.5f),
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontWeight = FontWeight.Normal,
                             modifier = Modifier
                                 .background(
-                                    Color.Black.copy(alpha = 0.3f),
-                                    androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                                    Color.White.copy(alpha = 0.08f),
+                                    androidx.compose.foundation.shape.RoundedCornerShape(6.dp)
                                 )
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
+                        // Duração total
                         Text(
                             text = formatTime(duration),
-                            color = Color.White,
-                            fontSize = 16.sp
+                            color = Color.White.copy(alpha = 0.75f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Light
                         )
 
                         // Legendas
                         if (hasSubtitles) {
+                            val subtitleBg = if (subtitlesEnabled) CtrlBtnBgActive else CtrlBtnBg
                             IconButton(
                                 onClick = {
                                     onSubtitlesClick()
                                     resetUITimer()
                                 },
                                 modifier = Modifier
-                                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                                    .size(40.dp)
+                                    .background(subtitleBg, CircleShape)
+                                    .size(38.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Subtitles,
                                     contentDescription = "Legendas",
-                                    tint = if (subtitlesEnabled) Color.Yellow else Color.White,
-                                    modifier = Modifier.size(24.dp)
+                                    tint = if (subtitlesEnabled) CtrlIconOn else CtrlIconOff,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
 
                         // Rotação
+                        val (rotIcon, rotDesc, rotActive) = when (rotationMode) {
+                            RotationMode.AUTO -> Triple(Icons.Default.ScreenRotation, "Auto Rotation", false)
+                            RotationMode.PORTRAIT -> Triple(Icons.Default.StayCurrentPortrait, "Portrait Lock", true)
+                            RotationMode.LANDSCAPE -> Triple(Icons.Default.StayCurrentLandscape, "Landscape Lock", true)
+                        }
                         IconButton(
                             onClick = {
                                 val nextMode = when (rotationMode) {
@@ -426,36 +445,23 @@ fun CustomVideoControls(
                                 resetUITimer()
                             },
                             modifier = Modifier
-                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                                .size(40.dp)
+                                .background(if (rotActive) CtrlBtnBgActive else CtrlBtnBg, CircleShape)
+                                .size(38.dp)
                         ) {
-                            val (icon, contentDescription, iconColor) = when (rotationMode) {
-                                RotationMode.AUTO -> Triple(
-                                    Icons.Default.ScreenRotation,
-                                    "Auto Rotation",
-                                    Color(0xFFFF9800)
-                                )
-                                RotationMode.PORTRAIT -> Triple(
-                                    Icons.Default.StayCurrentPortrait,
-                                    "Portrait Lock",
-                                    Color(0xFF2196F3)
-                                )
-                                RotationMode.LANDSCAPE -> Triple(
-                                    Icons.Default.StayCurrentLandscape,
-                                    "Landscape Lock",
-                                    Color(0xFF4CAF50)
-                                )
-                            }
-
                             Icon(
-                                imageVector = icon,
-                                contentDescription = contentDescription,
-                                tint = iconColor,
-                                modifier = Modifier.size(24.dp)
+                                imageVector = rotIcon,
+                                contentDescription = rotDesc,
+                                tint = if (rotActive) CtrlIconOn else CtrlIconOff,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
 
                         // Repeat mode
+                        val (repIcon, repDesc, repActive) = when (repeatMode) {
+                            RepeatMode.NONE -> Triple(Icons.Default.PlaylistPlay, "Normal Play", false)
+                            RepeatMode.REPEAT_ALL -> Triple(Icons.Default.Repeat, "Repeat Playlist", true)
+                            RepeatMode.REPEAT_ONE -> Triple(Icons.Default.RepeatOne, "Repeat One", true)
+                        }
                         IconButton(
                             onClick = {
                                 val nextMode = when (repeatMode) {
@@ -467,32 +473,14 @@ fun CustomVideoControls(
                                 resetUITimer()
                             },
                             modifier = Modifier
-                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                                .size(40.dp)
+                                .background(if (repActive) CtrlBtnBgActive else CtrlBtnBg, CircleShape)
+                                .size(38.dp)
                         ) {
-                            val (icon, contentDescription, iconColor) = when (repeatMode) {
-                                RepeatMode.NONE -> Triple(
-                                    Icons.Default.PlaylistPlay,
-                                    "Normal Play",
-                                    Color.White.copy(alpha = 0.7f)
-                                )
-                                RepeatMode.REPEAT_ALL -> Triple(
-                                    Icons.Default.Repeat,
-                                    "Repeat Playlist",
-                                    Color(0xFF4CAF50)
-                                )
-                                RepeatMode.REPEAT_ONE -> Triple(
-                                    Icons.Default.RepeatOne,
-                                    "Repeat One",
-                                    Color(0xFF2196F3)
-                                )
-                            }
-
                             Icon(
-                                imageVector = icon,
-                                contentDescription = contentDescription,
-                                tint = iconColor,
-                                modifier = Modifier.size(24.dp)
+                                imageVector = repIcon,
+                                contentDescription = repDesc,
+                                tint = if (repActive) CtrlIconOn else CtrlIconOff,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }

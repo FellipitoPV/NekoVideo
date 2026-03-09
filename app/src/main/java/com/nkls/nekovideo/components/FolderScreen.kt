@@ -186,8 +186,8 @@ val videoExtensions = setOf("mp4", "mkv", "webm", "avi", "mov", "wmv", "m4v", "3
 private fun getRandomColor(path: String): Color {
     return colorCache.get(path) ?: run {
         val colors = listOf(
-            Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFFEC4899),
-            Color(0xFFEF4444), Color(0xFFF97316), Color(0xFF10B981)
+            Color(0xFF1B1D2E), Color(0xFF1E1B2E), Color(0xFF2E1B1E),
+            Color(0xFF2E1B1B), Color(0xFF1B2E1B), Color(0xFF1B252E)
         )
         val color = colors[Random(path.hashCode()).nextInt(colors.size)]
         colorCache.put(path, color)
@@ -1232,7 +1232,7 @@ private fun MediaCard(
                 },
                 color = when {
                     isSelected -> MaterialTheme.colorScheme.primary
-                    isBeingMoved -> Color(0xFFFF9800)
+                    isBeingMoved -> MaterialTheme.colorScheme.tertiary
                     else -> Color.Transparent
                 },
                 shape = RoundedCornerShape(12.dp)
@@ -1284,13 +1284,13 @@ private fun FolderContent(item: MediaItem) {
                 Icon(
                     imageVector = Icons.Default.Folder,
                     contentDescription = null,
-                    tint = Color(0xFFE91E63),
+                    tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(40.dp)
                 )
                 Icon(
                     imageVector = Icons.Default.Lock,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onError,
                     modifier = Modifier
                         .size(16.dp)
                         .align(Alignment.Center)
@@ -1305,7 +1305,7 @@ private fun FolderContent(item: MediaItem) {
                 },
                 contentDescription = null,
                 tint = when {
-                    isSecure -> Color(0xFFFF6B35)
+                    isSecure -> MaterialTheme.colorScheme.secondary
                     else -> MaterialTheme.colorScheme.primary
                 },
                 modifier = Modifier.size(40.dp).weight(1f)
@@ -1435,7 +1435,7 @@ private fun VideoContent(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFFFF9800).copy(alpha = 0.3f))
+                    .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f))
             )
         }
 
@@ -1498,12 +1498,12 @@ private fun VideoContent(
             Icon(
                 imageVector = Icons.Default.DriveFileMove,
                 contentDescription = "Sendo movido",
-                tint = Color(0xFFFF9800),
+                tint = MaterialTheme.colorScheme.tertiary,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(6.dp)
                     .size(18.dp)
-                    .background(Color.White.copy(alpha = 0.9f), CircleShape)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), CircleShape)
                     .padding(2.dp)
             )
         }

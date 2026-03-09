@@ -334,6 +334,32 @@ object FolderVideoScanner {
                     videos = videos
                 )
             }
+        } else if (!folderMap.containsKey(directory.absolutePath)) {
+            // Pasta normal não coberta pelo MediaStore ainda (ex: recém destravada).
+            // Só age se o MediaStore não a indexou — evita duplicatas.
+            val videoFiles = directory.listFiles()?.filter { file ->
+                file.isFile && file.extension.lowercase() in videoExtensions
+            } ?: emptyList()
+
+            if (videoFiles.isNotEmpty()) {
+                val videos = videoFiles.map { file ->
+                    VideoInfo(
+                        path = file.absolutePath,
+                        uri = Uri.fromFile(file),
+                        lastModified = file.lastModified(),
+                        sizeInBytes = file.length()
+                    )
+                }
+                folderMap[directory.absolutePath] = FolderInfo(
+                    path = directory.absolutePath,
+                    hasVideos = true,
+                    videoCount = videos.size,
+                    isSecure = false,
+                    isLocked = false,
+                    lastModified = directory.lastModified(),
+                    videos = videos
+                )
+            }
         }
 
         directory.listFiles()?.forEach { subDir ->
