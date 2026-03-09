@@ -9,6 +9,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
@@ -1094,27 +1096,27 @@ fun MainScreen(
                 startDestination = "folder",
                 enterTransition = {
                     slideInHorizontally(
-                        initialOffsetX = { fullWidth -> fullWidth },
-                        animationSpec = tween(durationMillis = 50)
-                    )
+                        initialOffsetX = { it / 3 },
+                        animationSpec = tween(250)
+                    ) + fadeIn(animationSpec = tween(200))
                 },
                 exitTransition = {
                     slideOutHorizontally(
-                        targetOffsetX = { fullWidth -> -fullWidth },
-                        animationSpec = tween(durationMillis = 50)
-                    )
+                        targetOffsetX = { -it / 3 },
+                        animationSpec = tween(250)
+                    ) + fadeOut(animationSpec = tween(150))
                 },
                 popEnterTransition = {
                     slideInHorizontally(
-                        initialOffsetX = { fullWidth -> -fullWidth },
-                        animationSpec = tween(durationMillis = 50)
-                    )
+                        initialOffsetX = { -it / 3 },
+                        animationSpec = tween(250)
+                    ) + fadeIn(animationSpec = tween(200))
                 },
                 popExitTransition = {
                     slideOutHorizontally(
-                        targetOffsetX = { fullWidth -> fullWidth },
-                        animationSpec = tween(durationMillis = 50)
-                    )
+                        targetOffsetX = { it / 3 },
+                        animationSpec = tween(250)
+                    ) + fadeOut(animationSpec = tween(150))
                 }
             ) {
                 // Rota única para pastas - navegação gerenciada por FolderNavigationState
