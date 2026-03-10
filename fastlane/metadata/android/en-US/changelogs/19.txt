@@ -1,0 +1,6 @@
+Removed proprietary dependencies (AdMob, Google Play Billing, Google Cast SDK).
+Added open-source DLNA/UPnP casting support.
+Added private folder hint for first-time users.
+Renamed "Lock" to "Privatize" for clarity.
+Fixed video cutter segment state bugs.
+Visual improvements and bug fixes.

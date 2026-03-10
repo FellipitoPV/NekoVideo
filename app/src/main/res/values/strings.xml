@@ -9,8 +9,8 @@
     <string name="action_protect">Mover para pasta segura</string>
     <string name="action_unprivatize">Desprivar</string>
     <string name="action_privatize">Privar</string>
-    <string name="action_lock_folder">Trancar</string>
-    <string name="action_unlock_folder">Destrancar</string>
+    <string name="action_lock_folder">Privar</string>
+    <string name="action_unlock_folder">Desprivar</string>
     <string name="locking_folder">Trancando pasta...</string>
     <string name="locking_progress">Trancando... %1$d/%2$d arquivos</string>
     <string name="unlocking_folder">Destrancando pasta...</string>
@@ -179,6 +179,9 @@
     <string name="quality_medium">Média (720p)</string>
     <string name="quality_high">Alta (1080p)</string>
     <string name="quality_original">Original</string>
+
+    <!-- Private folders hint -->
+    <string name="private_folders_hint">Toque 3× no ícone do app no topo para mostrar/ocultar pastas privadas</string>
 
     <!-- Files Settings Screen -->
     <string name="files_management">Gerenciamento</string>

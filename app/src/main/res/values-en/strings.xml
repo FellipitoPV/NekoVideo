@@ -8,8 +8,8 @@
     <string name="action_protect">Move to secure folder</string>
     <string name="action_unprivatize">Unprivatize</string>
     <string name="action_privatize">Privatize</string>
-    <string name="action_lock_folder">Lock</string>
-    <string name="action_unlock_folder">Unlock Folder</string>
+    <string name="action_lock_folder">Privatize</string>
+    <string name="action_unlock_folder">Unprivatize</string>
     <string name="locking_folder">Locking folder...</string>
     <string name="locking_progress">Locking... %1$d/%2$d files</string>
     <string name="unlocking_folder">Unlocking folder...</string>
@@ -179,6 +179,9 @@
     <string name="quality_medium">Medium (720p)</string>
     <string name="quality_high">High (1080p)</string>
     <string name="quality_original">Original</string>
+
+    <!-- Private folders hint -->
+    <string name="private_folders_hint">Tap the app icon at the top 3× to show/hide private folders</string>
 
     <!-- Files Settings Screen -->
     <string name="files_management">Management</string>

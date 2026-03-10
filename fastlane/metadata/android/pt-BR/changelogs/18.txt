@@ -1,0 +1,10 @@
+Versão inicial.
+
+* Navegador de vídeos por pastas
+* Controles por gestos (volume, brilho, avanço)
+* Corte de vídeo sem perda de qualidade
+* Pastas privadas com senha
+* Reprodução em segundo plano
+* Suporte a Picture-in-Picture
+* Transmissão DLNA/UPnP
+* Suporte a "Abrir com"

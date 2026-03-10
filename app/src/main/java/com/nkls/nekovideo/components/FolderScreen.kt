@@ -972,10 +972,74 @@ fun FolderScreen(
                             }
                         }
 
+                        val hintPrefs = remember { context.getSharedPreferences("neko_prefs", android.content.Context.MODE_PRIVATE) }
+                        var showPrivateFolderHint by remember {
+                            mutableStateOf(
+                                isRootLevel &&
+                                !hintPrefs.getBoolean("private_folder_hint_shown", false) &&
+                                FolderLockManager.getAllLockedFolders(context).isEmpty()
+                            )
+                        }
+                        var hintAlpha by remember { mutableStateOf(0f) }
+
+                        LaunchedEffect(showPrivateFolderHint) {
+                            if (showPrivateFolderHint) {
+                                delay(600)
+                                for (i in 0..10) { hintAlpha = i / 10f; delay(30) }
+                            }
+                        }
+
                         LazyColumn(
                             contentPadding = PaddingValues(8.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
+                            if (showPrivateFolderHint && hintAlpha > 0f) {
+                                item(key = "private_folder_hint") {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .alpha(hintAlpha)
+                                            .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f), RoundedCornerShape(12.dp))
+                                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.Lock,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Text(
+                                                text = stringResource(R.string.private_folders_hint),
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            IconButton(
+                                                onClick = {
+                                                    coroutineScope.launch {
+                                                        for (i in 10 downTo 0) { hintAlpha = i / 10f; delay(20) }
+                                                        showPrivateFolderHint = false
+                                                        hintPrefs.edit().putBoolean("private_folder_hint_shown", true).apply()
+                                                    }
+                                                },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             items(pathItems.chunked(gridColumns), key = { chunk -> "${targetPath}_${chunk.joinToString { it.path }}" }) { rowItems ->
                                 MediaRow(
                                     items = rowItems,

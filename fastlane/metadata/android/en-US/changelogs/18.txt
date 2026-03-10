@@ -1,0 +1,10 @@
+Initial release.
+
+* Folder-based video browser
+* Gesture controls (volume, brightness, seek)
+* Lossless video cutting
+* Password-protected private folders
+* Background playback
+* Picture-in-picture support
+* DLNA/UPnP casting
+* Open With support

@@ -137,9 +137,7 @@ fun TopBar(
                                     if (tapCount == 1) {
                                         coroutineScope.launch {
                                             delay(maxTapInterval)
-                                            if (tapCount < 3) {
-                                                tapCount = 0
-                                            }
+                                            if (tapCount < 3) tapCount = 0
                                         }
                                     }
                                     if (tapCount >= 3) {

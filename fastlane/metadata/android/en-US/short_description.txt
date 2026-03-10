@@ -1,0 +1,1 @@
+Modern video player with folder management, gesture controls and video cutting

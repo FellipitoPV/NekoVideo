@@ -1,0 +1,6 @@
+Removidas dependências proprietárias (AdMob, Google Play Billing, Google Cast SDK).
+Adicionado suporte a casting DLNA/UPnP open-source.
+Adicionada dica de pastas privadas para novos usuários.
+"Trancar" renomeado para "Privar" para maior clareza.
+Correção de bugs no cortador de vídeo.
+Melhorias visuais e correções gerais.
