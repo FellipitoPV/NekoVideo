@@ -28,8 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import com.nkls.nekovideo.billing.BillingManager
-import com.nkls.nekovideo.billing.PremiumManager
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.PlaylistManager
@@ -66,9 +64,6 @@ class MainActivity : AppCompatActivity() {
     private var _lastIntentTime = mutableStateOf(0L)
     private var _openFolderPath = mutableStateOf<String?>(null)
 
-
-    private lateinit var billingManager: BillingManager
-    private lateinit var premiumManager: PremiumManager
 
     private var _isInPiPMode = mutableStateOf(false)
     val isInPiPMode: Boolean get() = _isInPiPMode.value
@@ -205,11 +200,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        premiumManager = PremiumManager(this)
-        billingManager = BillingManager(this, premiumManager)
-
-        billingManager.restorePurchases()
-
         val currentLanguage = LanguageManager.getCurrentLanguage(this)
         if (currentLanguage != "system") {
             LanguageManager.setLocale(this, currentLanguage)
@@ -254,8 +244,6 @@ class MainActivity : AppCompatActivity() {
                     MainScreen(
                         intent = intent,
                         themeManager = themeManager,
-                        premiumManager = premiumManager,
-                        billingManager = billingManager,
                         notificationReceived = notificationState,
                         lastAction = actionState,
                         lastTime = timeState,
@@ -302,7 +290,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        billingManager.destroy()
         MediaControllerManager.disconnect()
         OptimizedThumbnailManager.stopPeriodicCleanup()
         OptimizedThumbnailManager.clearCache()
@@ -336,7 +323,6 @@ class MainActivity : AppCompatActivity() {
             IntentFilter("PLAYBACK_STATE_CHANGED"),
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
-        billingManager.restorePurchases()
     }
 
 }

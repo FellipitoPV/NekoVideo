@@ -1,0 +1,44 @@
+Categories:
+  - Multimedia
+
+License: GPL-3.0-only
+# ^ SUBSTITUIR pela licença real escolhida (deve bater com o arquivo LICENSE na raiz).
+
+AuthorName: NKL's
+SourceCode: https://github.com/FellipitoPV/NekoVideo
+IssueTracker: https://github.com/FellipitoPV/NekoVideo/issues
+
+AutoName: NekoVideo
+
+Description: |-
+  A modern video player for Android with folder management, gesture controls,
+  video cutting, and playlist support.
+
+  Features:
+
+  * Browse videos organized by folders and subfolders
+  * Supported formats: MP4, MKV, AVI, MOV, WMV, M4V, 3GP, FLV
+  * Password-protected private folders (local AES encryption)
+  * Background playback with media session controls
+  * Gesture controls for volume, brightness and seek
+  * Video cutting and trimming (lossless, no re-encoding)
+  * Shuffle playlists from any folder
+  * Picture-in-picture support
+  * Open With support for external video files
+  * Cast to DLNA/UPnP devices on the local network
+
+RepoType: git
+Repo: https://github.com/FellipitoPV/NekoVideo
+
+Builds:
+  - versionName: 1.0.0
+    versionCode: 18
+    commit: v1.0.0
+    subdir: app
+    gradle:
+      - release
+
+AutoUpdateMode: Version v%v
+UpdateCheckMode: Tags
+CurrentVersion: 1.0.0
+CurrentVersionCode: 18

@@ -26,12 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
-import com.google.android.gms.cast.MediaMetadata
-import com.google.android.gms.cast.framework.CastContext
-import com.google.android.gms.cast.framework.CastSession
-import com.google.android.gms.cast.framework.Session
-import com.google.android.gms.cast.framework.SessionManagerListener
-import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.PlaylistManager
@@ -53,9 +47,6 @@ fun MiniPlayerImproved(
 
     // Estados locais
     val mediaController by MediaControllerManager.mediaController.collectAsStateWithLifecycle()
-
-    var isCasting by remember { mutableStateOf(false) }
-    var remoteMediaClient by remember { mutableStateOf<RemoteMediaClient?>(null) }
 
     var isPlaying by remember { mutableStateOf(false) }
     var currentTitle by remember { mutableStateOf("") }
@@ -82,107 +73,20 @@ fun MiniPlayerImproved(
         label = "thumbnailScale"
     )
 
-    // Detectar sessão Cast
-    LaunchedEffect(Unit) {
-        val castContext = CastContext.getSharedInstance(context)
-        val sessionManager = castContext.sessionManager
-
-        val listener = object : SessionManagerListener<Session> {
-            override fun onSessionStarted(session: Session, sessionId: String) {
-                isCasting = true
-                remoteMediaClient = (session as? CastSession)?.remoteMediaClient
-            }
-
-            override fun onSessionEnded(session: Session, error: Int) {
-                isCasting = false
-                remoteMediaClient = null
-            }
-
-            override fun onSessionResumed(session: Session, wasSuspended: Boolean) {
-                isCasting = true
-                remoteMediaClient = (session as? CastSession)?.remoteMediaClient
-            }
-
-            override fun onSessionSuspended(session: Session, reason: Int) {}
-            override fun onSessionStarting(session: Session) {}
-            override fun onSessionEnding(session: Session) {}
-            override fun onSessionResuming(session: Session, sessionId: String) {}
-            override fun onSessionResumeFailed(session: Session, error: Int) {}
-            override fun onSessionStartFailed(session: Session, error: Int) {}
-        }
-
-        sessionManager.addSessionManagerListener(listener)
-
-        sessionManager.currentCastSession?.let { session ->
-            isCasting = true
-            remoteMediaClient = session.remoteMediaClient
-        }
-    }
-
     // Atualizar posição
-    LaunchedEffect(isCasting, remoteMediaClient, mediaController, isPlaying) {
+    LaunchedEffect(mediaController, isPlaying) {
         while (isPlaying) {
-            if (isCasting && remoteMediaClient != null) {
-                currentPosition = remoteMediaClient!!.approximateStreamPosition
-                duration = remoteMediaClient!!.streamDuration.takeIf { it > 0 } ?: 0L
-            } else if (!isCasting && mediaController != null) {
-                currentPosition = mediaController!!.currentPosition
-                duration = mediaController!!.duration.takeIf { it > 0 } ?: 0L
+            mediaController?.let {
+                currentPosition = it.currentPosition
+                duration = it.duration.takeIf { d -> d > 0 } ?: 0L
             }
             delay(500)
         }
     }
 
-    // Listener do Cast
-    DisposableEffect(remoteMediaClient) {
-        val listener = remoteMediaClient?.let { client ->
-            object : RemoteMediaClient.Callback() {
-                override fun onStatusUpdated() {
-                    isPlaying = client.isPlaying
-                    currentPosition = client.approximateStreamPosition
-                    duration = client.streamDuration.takeIf { it > 0 } ?: 0L
-
-                    client.mediaStatus?.let { status ->
-                        val metadata = status.mediaInfo?.metadata
-                        currentTitle = metadata?.getString(MediaMetadata.KEY_TITLE) ?: "Casting..."
-
-                        val queueItems = status.queueItems
-                        val currentItemId = status.currentItemId
-                        val currentIndex = queueItems?.indexOfFirst { it.itemId == currentItemId } ?: -1
-
-                        hasNext = currentIndex >= 0 && currentIndex < (queueItems?.size ?: 0) - 1
-                        hasPrevious = currentIndex > 0
-                    }
-                }
-
-                override fun onQueueStatusUpdated() {
-                    client.mediaStatus?.let { status ->
-                        val queueItems = status.queueItems
-                        val currentItemId = status.currentItemId
-                        val currentIndex = queueItems?.indexOfFirst { it.itemId == currentItemId } ?: -1
-
-                        hasNext = currentIndex >= 0 && currentIndex < (queueItems?.size ?: 0) - 1
-                        hasPrevious = currentIndex > 0
-                    }
-                }
-
-                override fun onMetadataUpdated() {}
-                override fun onPreloadStatusUpdated() {}
-                override fun onSendingRemoteMediaRequest() {}
-            }
-        }
-
-        listener?.let { remoteMediaClient?.registerCallback(it) }
-
-        onDispose {
-            listener?.let { remoteMediaClient?.unregisterCallback(it) }
-        }
-    }
-
     // Listener do player local
     LaunchedEffect(mediaController) {
-        if (!isCasting) {
-            mediaController?.let { controller ->
+        mediaController?.let { controller ->
                 val listener = object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         isPlaying = controller.isPlaying
@@ -237,7 +141,6 @@ fun MiniPlayerImproved(
                         }
                     }
                 }
-            }
         }
     }
 
@@ -247,17 +150,8 @@ fun MiniPlayerImproved(
     }
 
     fun closePlayer() {
-        // ✅ Limpar PlaylistManager ANTES de parar o serviço
-        // para evitar que STATE_ENDED dispare o próximo vídeo
         PlaylistManager.clear()
-
-        if (isCasting) {
-            CastContext.getSharedInstance(context)
-                .sessionManager
-                .endCurrentSession(true)
-        } else {
-            MediaPlaybackService.stopService(context)
-        }
+        MediaPlaybackService.stopService(context)
         currentTitle = ""
         currentUri = ""
         thumbnail = null
@@ -269,7 +163,7 @@ fun MiniPlayerImproved(
     }
 
     // ✅ UI MINIMALISTA E CLEAN
-    if ((isCasting && remoteMediaClient != null) || (mediaController != null && currentTitle.isNotEmpty())) {
+    if (mediaController != null && currentTitle.isNotEmpty()) {
         Card(
             modifier = modifier
                 .fillMaxWidth()
@@ -309,24 +203,13 @@ fun MiniPlayerImproved(
                             .clip(RoundedCornerShape(8.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                     ) {
-                        if (isCasting) {
-                            Icon(
-                                imageVector = Icons.Default.Cast,
-                                contentDescription = "Casting",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .align(Alignment.Center)
+                        thumbnail?.let { thumb ->
+                            Image(
+                                bitmap = thumb.asImageBitmap(),
+                                contentDescription = "Thumbnail",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
                             )
-                        } else {
-                            thumbnail?.let { thumb ->
-                                Image(
-                                    bitmap = thumb.asImageBitmap(),
-                                    contentDescription = "Thumbnail",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                            }
                         }
 
                         // ✅ Overlay de pause discreto
@@ -380,16 +263,9 @@ fun MiniPlayerImproved(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Previous - SEMPRE ATIVO
+                        // Previous
                         IconButton(
-                            onClick = {
-                                if (isCasting) {
-                                    remoteMediaClient?.queuePrev(null)
-                                } else {
-                                    // ✅ CENTRALIZADO: Usa PlaylistNavigator
-                                    PlaylistNavigator.previous(context)
-                                }
-                            },
+                            onClick = { PlaylistNavigator.previous(context) },
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
@@ -403,12 +279,8 @@ fun MiniPlayerImproved(
                         // ✅ Play/Pause com animação
                         Surface(
                             onClick = {
-                                if (isCasting) {
-                                    if (isPlaying) remoteMediaClient?.pause() else remoteMediaClient?.play()
-                                } else {
-                                    mediaController?.let {
-                                        if (it.isPlaying) it.pause() else it.play()
-                                    }
+                                mediaController?.let {
+                                    if (it.isPlaying) it.pause() else it.play()
                                 }
                             },
                             modifier = Modifier
@@ -437,16 +309,9 @@ fun MiniPlayerImproved(
                             }
                         }
 
-                        // Next - SEMPRE ATIVO
+                        // Next
                         IconButton(
-                            onClick = {
-                                if (isCasting) {
-                                    remoteMediaClient?.queueNext(null)
-                                } else {
-                                    // ✅ CENTRALIZADO: Usa PlaylistNavigator
-                                    PlaylistNavigator.next(context)
-                                }
-                            },
+                            onClick = { PlaylistNavigator.next(context) },
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(

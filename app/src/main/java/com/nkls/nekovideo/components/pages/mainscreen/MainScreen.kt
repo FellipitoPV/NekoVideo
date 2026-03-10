@@ -44,8 +44,6 @@ import androidx.navigation.compose.rememberNavController
 import com.nkls.nekovideo.MainActivity
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.R
-import com.nkls.nekovideo.billing.BillingManager
-import com.nkls.nekovideo.billing.PremiumManager
 import com.nkls.nekovideo.components.CreateFolderDialog
 import com.nkls.nekovideo.components.DeleteConfirmationDialog
 import com.nkls.nekovideo.components.FixVideoMetadataDialog
@@ -63,7 +61,6 @@ import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.rememberFolderNavigationState
 import com.nkls.nekovideo.components.layout.ActionFAB
 import com.nkls.nekovideo.components.layout.ActionType
-import com.nkls.nekovideo.components.layout.BannerAd
 import com.nkls.nekovideo.components.layout.TopBar
 import com.nkls.nekovideo.components.loadFolderContent
 import com.nkls.nekovideo.components.player.MiniPlayerImproved
@@ -87,15 +84,12 @@ import java.io.File
 fun MainScreen(
     intent: Intent?,
     themeManager: ThemeManager,
-    premiumManager: PremiumManager,
-    billingManager: BillingManager,
     notificationReceived: Boolean = false,
     lastAction: String? = null,
     lastTime: Long = 0,
     externalVideoReceived: Boolean = false,
     autoOpenOverlay: Boolean = false,
     openFolderPath: String? = null
-
 ) {
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
@@ -153,8 +147,6 @@ fun MainScreen(
     var videoToFix by remember { mutableStateOf<String?>(null) }
     var isFixingVideo by remember { mutableStateOf(false) }
     var pendingVideoPlayback: (() -> Unit)? by remember { mutableStateOf(null) }
-
-    val isPremium by premiumManager.isPremium.collectAsState()
 
     fun isSecureFolder(folderPath: String): Boolean {
         val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
@@ -666,8 +658,6 @@ fun MainScreen(
                             selectedItems.addAll(allItems.map { it.path })
                         }
                     },
-                    premiumManager = premiumManager,
-                    billingManager = billingManager,
                     isAtRootLevel = isAtRootLevel,
                     onNavigateToPath = { path ->
                         selectedItems.clear()
@@ -1071,15 +1061,10 @@ fun MainScreen(
         },
         bottomBar = {
             if (currentRoute != "video_player" && currentRoute?.startsWith("settings") != true && !showPlayerOverlay) {
-                Column(
+                MiniPlayerImproved(
+                    onOpenPlayer = { showPlayerOverlay = true },
                     modifier = Modifier.navigationBarsPadding()
-                ) {
-                    MiniPlayerImproved(
-                        onOpenPlayer = { showPlayerOverlay = true }
-                    )
-
-                    BannerAd(isPremium = isPremium)
-                }
+                )
             }
         },
     ) { paddingValues ->
@@ -1282,7 +1267,6 @@ fun MainScreen(
                     deletedVideoPath = null
                 }
             },
-            premiumManager = premiumManager
         )
 
     }

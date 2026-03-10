@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.CastConnected
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PictureInPicture
@@ -49,7 +51,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import com.nkls.nekovideo.R
 import androidx.media3.session.MediaController
 import com.nkls.nekovideo.MediaPlaybackService
@@ -184,47 +185,20 @@ fun CustomVideoControls(
                         }
                     }
 
-                    // Casting
-                    AndroidView(
-                        factory = { context ->
-                            val themedContext = android.view.ContextThemeWrapper(
-                                context,
-                                R.style.Theme_NekoVideo_MediaRouter
-                            )
-
-                            androidx.mediarouter.app.MediaRouteButton(themedContext).apply {
-                                com.google.android.gms.cast.framework.CastButtonFactory.setUpMediaRouteButton(
-                                    themedContext, this
-                                )
-
-                                background = android.graphics.drawable.GradientDrawable().apply {
-                                    shape = android.graphics.drawable.GradientDrawable.OVAL
-                                    setColor(android.graphics.Color.argb(26, 255, 255, 255))
-                                }
-
-                                setPadding(12, 12, 12, 12)
-
-                                setOnTouchListener { _, event ->
-                                    if (event.action == android.view.MotionEvent.ACTION_DOWN) {
-                                        mediaController?.pause()
-                                    }
-                                    false
-                                }
-
-                                post {
-                                    if (this is android.widget.ImageView) {
-                                        drawable?.let {
-                                            androidx.core.graphics.drawable.DrawableCompat.setTint(
-                                                it,
-                                                android.graphics.Color.WHITE
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        modifier = Modifier.size(44.dp)
-                    )
+                    // Casting (DLNA device picker)
+                    IconButton(
+                        onClick = onCastClick,
+                        modifier = Modifier
+                            .background(CtrlBtnBg, CircleShape)
+                            .size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isCasting) Icons.Default.CastConnected else Icons.Default.Cast,
+                            contentDescription = if (isCasting) "Casting" else "Cast",
+                            tint = if (isCasting) Color(0xFF4CAF50) else Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
 
                     IconButton(
                         onClick = onDeleteClick,

@@ -54,9 +54,27 @@ class VideoCutterViewModel : ViewModel() {
     }
 
     fun removeCutPoint(positionMs: Long) {
+        // Captura os dois segmentos separados por esse ponto antes de removê-lo
+        val current = _segments.value
+        val leftSeg = current.firstOrNull { abs(it.endMs - positionMs) < 200 }
+        val rightSeg = current.firstOrNull { abs(it.startMs - positionMs) < 200 }
+        // Ativo se qualquer um dos dois for ativo
+        val mergedKeep = (leftSeg?.keep ?: true) || (rightSeg?.keep ?: true)
+
         val newPoints = _cutPoints.value.filter { abs(it - positionMs) > 100 }
         _cutPoints.value = newPoints
         updateSegments(newPoints)
+
+        // Aplica o estado correto ao segmento unido
+        val mergedStart = leftSeg?.startMs ?: rightSeg?.startMs
+        if (mergedStart != null) {
+            val segs = _segments.value.toMutableList()
+            val idx = segs.indexOfFirst { it.startMs == mergedStart }
+            if (idx >= 0) {
+                segs[idx] = segs[idx].copy(keep = mergedKeep)
+                _segments.value = segs
+            }
+        }
     }
 
     fun toggleSegment(index: Int) {
@@ -76,10 +94,16 @@ class VideoCutterViewModel : ViewModel() {
         val boundaries = listOf(0L) + points + listOf(videoDurationMs)
         val previous = _segments.value
         _segments.value = (0 until boundaries.size - 1).map { i ->
+            val segStart = boundaries[i]
+            // Herda o estado do segmento anterior que continha esse ponto de início,
+            // evitando trocas de estado ao inserir novos cortes no meio de um segmento.
+            val parentKeep = previous.firstOrNull { prev ->
+                segStart >= prev.startMs && segStart < prev.endMs
+            }?.keep ?: previous.getOrNull(i)?.keep ?: true
             CutSegment(
-                startMs = boundaries[i],
+                startMs = segStart,
                 endMs = boundaries[i + 1],
-                keep = previous.getOrNull(i)?.keep ?: true
+                keep = parentKeep
             )
         }
     }

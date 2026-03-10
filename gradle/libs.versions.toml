@@ -29,9 +29,6 @@ media3Exoplayer = "1.7.1"
 media3Ui = "1.7.1"
 media3Session = "1.7.1"
 datastorePreferencesCoreAndroid = "1.1.7"
-playServicesCastFramework = "22.1.0"
-playServicesAds = "25.0.0"
-billingKtx = "8.3.0"
 runtime = "1.10.1"
 
 [libraries]
@@ -71,9 +68,6 @@ material = { module = "com.google.android.material:material", version.ref = "mat
 material-icons-extended-v168 = { module = "androidx.compose.material:material-icons-extended", version.ref = "androidxMaterialIconsExtended" }
 androidx-datastore-preferences-core-android = { group = "androidx.datastore", name = "datastore-preferences-core-android", version.ref = "datastorePreferencesCoreAndroid" }
 nanohttpd = { module = "org.nanohttpd:nanohttpd", version.ref = "nanohttpd" }
-play-services-cast-framework = { module = "com.google.android.gms:play-services-cast-framework", version.ref = "playServicesCastFramework" }
-play-services-ads = { module = "com.google.android.gms:play-services-ads", version.ref = "playServicesAds" }
-billing-ktx = { module = "com.android.billingclient:billing-ktx", version.ref = "billingKtx" }
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
 
 [plugins]

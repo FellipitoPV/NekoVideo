@@ -57,18 +57,14 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.SubtitleView
-import com.google.android.gms.cast.framework.CastContext
-import com.google.android.gms.cast.framework.Session
-import com.google.android.gms.cast.framework.SessionManagerListener
 import com.google.common.util.concurrent.MoreExecutors
 import com.nkls.nekovideo.MainActivity
 import com.nkls.nekovideo.MediaPlaybackService
-import com.nkls.nekovideo.billing.PremiumManager
 import com.nkls.nekovideo.components.helpers.CastManager
+import com.nkls.nekovideo.components.helpers.DLNACastManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.PlaylistNavigator
-import com.nkls.nekovideo.components.layout.InterstitialAdManager
 import com.nkls.nekovideo.components.player.PlayerUtils.findActivity
 import com.nkls.nekovideo.components.settings.SettingsManager
 import com.nkls.nekovideo.components.FixVideoMetadataDialog
@@ -80,17 +76,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 
-private var interstitialAdManager: InterstitialAdManager? = null
-
 @androidx.annotation.OptIn(UnstableApi::class)
 @SuppressLint("OpaqueUnitKey")
 @Composable
 fun VideoPlayerOverlay(
     isVisible: Boolean,
-    canControlRotation: Boolean, // Novo parâmetro: só pode rotacionar quando true
+    canControlRotation: Boolean,
     onDismiss: () -> Unit,
-    onVideoDeleted: (String) -> Unit = {},
-    premiumManager: PremiumManager
+    onVideoDeleted: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -103,18 +96,13 @@ fun VideoPlayerOverlay(
     var isCasting by remember { mutableStateOf(false) }
     var connectedDeviceName by remember { mutableStateOf("") }
     val castManager = remember { CastManager(context) }
+    var showCastDevicePicker by remember { mutableStateOf(false) }
+    var discoveredDevices by remember { mutableStateOf<List<DLNACastManager.DLNADevice>>(emptyList()) }
+    var isDiscovering by remember { mutableStateOf(false) }
 
     // ✅ Observar estado de PIP da MainActivity (usando State para reatividade)
     val mainActivity = context.findActivity() as? MainActivity
     val isInPiPMode by mainActivity?.isInPiPModeState ?: remember { mutableStateOf(false) }
-
-    val interstitialManager = remember {
-        if (interstitialAdManager == null) {
-            interstitialAdManager = InterstitialAdManager(context, premiumManager)
-            interstitialAdManager?.loadAd()
-        }
-        interstitialAdManager!!
-    }
 
     // Estados para controles customizados
     var controlsVisible by remember { mutableStateOf(false) }
@@ -755,51 +743,33 @@ fun VideoPlayerOverlay(
 
     // Back press é gerenciado pelo MainScreen para evitar conflitos
 
-    LaunchedEffect(Unit) {
-        val sessionManager = CastContext.getSharedInstance(context).sessionManager
+    // Dialog de seleção de dispositivos DLNA
+    if (showCastDevicePicker) {
+        DLNADevicePickerDialog(
+            devices = discoveredDevices,
+            isDiscovering = isDiscovering,
+            onDeviceSelected = { device ->
+                showCastDevicePicker = false
+                connectedDeviceName = device.name
+                castManager.connectToDevice(device)
 
-        val listener = object : SessionManagerListener<Session> {
-            override fun onSessionStarted(session: Session, sessionId: String) {
-                interstitialManager.showAdOnCast {
-                    // ✅ NOVO: Pegar playlist completa do PlaylistManager
-                    val playlist = PlaylistManager.getFullPlaylist()
-                    val titles = playlist.map { path ->
-                        if (path.startsWith("locked://")) {
-                            val obfuscatedName = File(path.removePrefix("locked://")).name
-                            LockedPlaybackSession.getOriginalName(obfuscatedName)
-                                ?.substringBeforeLast(".") ?: obfuscatedName
-                        } else {
-                            File(path.removePrefix("file://")).nameWithoutExtension
-                        }
+                val playlist = PlaylistManager.getFullPlaylist()
+                val titles = playlist.map { path ->
+                    if (path.startsWith("locked://")) {
+                        val obfuscatedName = File(path.removePrefix("locked://")).name
+                        LockedPlaybackSession.getOriginalName(obfuscatedName)
+                            ?.substringBeforeLast(".") ?: obfuscatedName
+                    } else {
+                        File(path.removePrefix("file://")).nameWithoutExtension
                     }
-                    val currentIndex = PlaylistManager.getCurrentIndex()
-
-                    // Parar MediaPlaybackService
-                    MediaPlaybackService.stopService(context)
-
-                    // Iniciar Cast com playlist completa
-                    castManager.castPlaylist(playlist, titles, currentIndex)
-
-                    // Fechar overlay
-                    onDismiss()
                 }
-            }
-
-            override fun onSessionEnded(session: Session, error: Int) {
-                // Reseta flag para poder mostrar ad novamente na próxima sessão
-                interstitialManager.resetCastAdFlag()
-            }
-
-            override fun onSessionResumed(session: Session, wasSuspended: Boolean) {}
-            override fun onSessionSuspended(session: Session, reason: Int) {}
-            override fun onSessionStarting(session: Session) {}
-            override fun onSessionEnding(session: Session) {}
-            override fun onSessionResuming(session: Session, sessionId: String) {}
-            override fun onSessionResumeFailed(session: Session, error: Int) {}
-            override fun onSessionStartFailed(session: Session, error: Int) {}
-        }
-
-        sessionManager.addSessionManagerListener(listener)
+                val currentIndex = PlaylistManager.getCurrentIndex()
+                MediaPlaybackService.stopService(context)
+                castManager.castPlaylist(playlist, titles, currentIndex)
+                onDismiss()
+            },
+            onDismiss = { showCastDevicePicker = false }
+        )
     }
 
     // Overlay animado com gestos SIMPLIFICADOS (só double tap para seek)
@@ -816,25 +786,17 @@ fun VideoPlayerOverlay(
                 videoTitle = currentVideoTitle,
                 onDisconnect = {
                     castManager.stopCasting()
-
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        // Parar completamente
                         MediaPlaybackService.stopService(context)
-
-                        // Recriar após 300ms
                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                             MediaPlaybackService.refreshPlayer(context)
                         }, 300)
-
                         isCasting = false
                         onDismiss()
                     }, 100)
                 },
                 onBack = onDismiss,
-                onCurrentIndexChanged = { index ->
-                    var castCurrentIndex = index // Atualizar índice rastreado
-                },
-                premiumManager = premiumManager
+                onCurrentIndexChanged = { /* index tracked by DLNACastManager */ }
             )
         } else {
             Box(
@@ -970,7 +932,14 @@ fun VideoPlayerOverlay(
                         },
                         isCasting = isCasting,
                         onCastClick = {
-
+                            discoveredDevices = emptyList()
+                            isDiscovering = true
+                            showCastDevicePicker = true
+                            castManager.onDevicesFound = { devices ->
+                                discoveredDevices = devices
+                                isDiscovering = false
+                            }
+                            castManager.discoverDevices()
                             resetUITimer()
                         },
                         rotationMode = rotationMode,

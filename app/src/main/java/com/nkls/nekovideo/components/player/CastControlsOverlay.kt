@@ -1,7 +1,6 @@
 package com.nkls.nekovideo.components.player
 
 import android.content.pm.ActivityInfo
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -18,123 +17,53 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.android.gms.cast.framework.CastContext
-import com.google.android.gms.cast.framework.media.RemoteMediaClient
-import com.nkls.nekovideo.components.helpers.CastManager
-import com.nkls.nekovideo.components.layout.BannerAd
-import com.nkls.nekovideo.billing.PremiumManager
+import com.nkls.nekovideo.components.helpers.DLNACastManager
 import com.nkls.nekovideo.components.player.PlayerUtils.findActivity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
 fun CastControlsOverlay(
-    castManager: CastManager,
+    castManager: DLNACastManager,
     deviceName: String,
     videoTitle: String,
     onDisconnect: () -> Unit,
     onBack: () -> Unit,
-    onCurrentIndexChanged: (Int) -> Unit,
-    premiumManager: PremiumManager
+    onCurrentIndexChanged: (Int) -> Unit
 ) {
-    val remoteMediaClient = remember {
-        CastContext.getSharedInstance()
-            ?.sessionManager
-            ?.currentCastSession
-            ?.remoteMediaClient
-    }
     val context = androidx.compose.ui.platform.LocalContext.current
-    var currentQueueIndex by remember { mutableStateOf(0) }
+    val coroutineScope = rememberCoroutineScope()
 
-    var isPlaying by remember { mutableStateOf(false) }
-    var currentPosition by remember { mutableStateOf(0L) }
-    var duration by remember { mutableStateOf(0L) }
+    var isPlaying by remember { mutableStateOf(castManager.isPlaying) }
+    var currentPosition by remember { mutableStateOf(castManager.currentPositionMs) }
+    var duration by remember { mutableStateOf(castManager.durationMs) }
     var isSeeking by remember { mutableStateOf(false) }
-    var currentTitle by remember { mutableStateOf(videoTitle) } // Para título dinâmico
+    var currentTitle by remember { mutableStateOf(videoTitle) }
 
-    val isPremium by premiumManager.isPremium.collectAsState()
-
-    // Atualizar estado do cast
-    DisposableEffect(remoteMediaClient) {
-        var firstItemId = -1L
-        var lastReportedIndex = -1
-        var lastUpdateTime = 0L
-
-        val listener = object : RemoteMediaClient.Callback() {
-            override fun onStatusUpdated() {
-                remoteMediaClient?.let { client ->
-                    isPlaying = client.isPlaying
-                    if (!isSeeking) {
-                        currentPosition = client.approximateStreamPosition
-                    }
-                    duration = client.streamDuration.takeIf { it > 0 } ?: 0L
-
-                    val status = client.mediaStatus
-                    if (status != null) {
-                        val currentItemId = status.currentItemId
-
-                        // Atualizar título atual
-                        status.mediaInfo?.metadata?.let { metadata ->
-                            val title = metadata.getString(com.google.android.gms.cast.MediaMetadata.KEY_TITLE)
-                            if (!title.isNullOrEmpty()) {
-                                currentTitle = title
-                            }
-                        }
-
-                        if (firstItemId == -1L && currentItemId > 0) {
-                            firstItemId = currentItemId.toLong()
-                        }
-
-                        val indexOffset = if (firstItemId > 0) {
-                            (currentItemId - firstItemId).toInt()
-                        } else {
-                            0
-                        }
-
-                        val currentTime = System.currentTimeMillis()
-
-                        if (indexOffset != lastReportedIndex && indexOffset >= 0 && (currentTime - lastUpdateTime) > 1000) {
-                            lastReportedIndex = indexOffset
-                            lastUpdateTime = currentTime
-                            currentQueueIndex = indexOffset
-                            onCurrentIndexChanged(indexOffset)
-                        }
-                    }
-                }
-            }
-
-            override fun onQueueStatusUpdated() {}
-            override fun onMetadataUpdated() {}
-            override fun onPreloadStatusUpdated() {}
-            override fun onSendingRemoteMediaRequest() {}
+    // Poll state from the DLNA manager
+    LaunchedEffect(Unit) {
+        castManager.onStateChanged = {
+            isPlaying = castManager.isPlaying
+            if (!isSeeking) currentPosition = castManager.currentPositionMs
+            duration = castManager.durationMs
+            if (castManager.currentTitle.isNotEmpty()) currentTitle = castManager.currentTitle
         }
+    }
 
-        remoteMediaClient?.registerCallback(listener)
-
-        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
-            while (true) {
-                remoteMediaClient?.let { client ->
-                    isPlaying = client.isPlaying
-                    if (!isSeeking) {
-                        currentPosition = client.approximateStreamPosition
-                    }
-                    duration = client.streamDuration.takeIf { it > 0 } ?: 0L
-                }
-                delay(500)
-            }
-        }
-
-        onDispose {
-            remoteMediaClient?.unregisterCallback(listener)
+    // Progress ticker while playing
+    LaunchedEffect(isPlaying) {
+        while (isPlaying) {
+            if (!isSeeking) currentPosition = castManager.currentPositionMs
+            delay(500)
         }
     }
 
     DisposableEffect(Unit) {
         val activity = context.findActivity()
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-
         onDispose {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            castManager.onStateChanged = null
         }
     }
 
@@ -143,16 +72,13 @@ fun CastControlsOverlay(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // Header - só com botões de navegação
+        // Header
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.8f),
-                            Color.Transparent
-                        )
+                        colors = listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
                     )
                 )
                 .padding(16.dp)
@@ -190,7 +116,7 @@ fun CastControlsOverlay(
             }
         }
 
-        // Área central - indicador de Cast, títulos e controles principais
+        // Centre — cast icon + info + controls
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -199,7 +125,6 @@ fun CastControlsOverlay(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Ícone Cast
             Icon(
                 imageVector = Icons.Default.Cast,
                 contentDescription = "Casting",
@@ -207,7 +132,6 @@ fun CastControlsOverlay(
                 modifier = Modifier.size(80.dp)
             )
 
-            // Informações de Cast e título
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -217,15 +141,12 @@ fun CastControlsOverlay(
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = 14.sp
                 )
-
                 Text(
                     text = deviceName,
                     color = Color.White,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
-
-                // Título do vídeo atual
                 if (currentTitle.isNotEmpty()) {
                     Text(
                         text = currentTitle,
@@ -237,8 +158,6 @@ fun CastControlsOverlay(
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
-
-                // Tempo atual / total
                 if (duration > 0) {
                     Text(
                         text = "${formatTime(currentPosition)} / ${formatTime(duration)}",
@@ -248,16 +167,14 @@ fun CastControlsOverlay(
                 }
             }
 
-            // Controles principais centralizados
+            // Playback controls
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 IconButton(
-                    onClick = {
-                        remoteMediaClient?.queuePrev(null)
-                    },
+                    onClick = { castManager.previous() },
                     modifier = Modifier.size(56.dp)
                 ) {
                     Icon(
@@ -270,15 +187,8 @@ fun CastControlsOverlay(
 
                 Spacer(modifier = Modifier.width(32.dp))
 
-                // Botão play/pause maior e destacado
                 IconButton(
-                    onClick = {
-                        if (isPlaying) {
-                            remoteMediaClient?.pause()
-                        } else {
-                            remoteMediaClient?.play()
-                        }
-                    },
+                    onClick = { if (isPlaying) castManager.pause() else castManager.play() },
                     modifier = Modifier
                         .background(Color.White.copy(alpha = 0.9f), CircleShape)
                         .size(80.dp)
@@ -294,9 +204,7 @@ fun CastControlsOverlay(
                 Spacer(modifier = Modifier.width(32.dp))
 
                 IconButton(
-                    onClick = {
-                        remoteMediaClient?.queueNext(null)
-                    },
+                    onClick = { castManager.next() },
                     modifier = Modifier.size(56.dp)
                 ) {
                     Icon(
@@ -309,7 +217,7 @@ fun CastControlsOverlay(
             }
         }
 
-        // Seek bar na parte inferior
+        // Seek bar at bottom
         if (duration > 0) {
             var tempPosition by remember { mutableStateOf(currentPosition) }
 
@@ -319,10 +227,7 @@ fun CastControlsOverlay(
                     .fillMaxWidth()
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.6f)
-                            )
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
                         )
                     )
                     .padding(24.dp)
@@ -331,12 +236,10 @@ fun CastControlsOverlay(
                     value = if (isSeeking) tempPosition.toFloat() else currentPosition.toFloat(),
                     onValueChange = { newValue ->
                         tempPosition = newValue.toLong()
-                        if (!isSeeking) {
-                            isSeeking = true
-                        }
+                        isSeeking = true
                     },
                     onValueChangeFinished = {
-                        remoteMediaClient?.seek(tempPosition)
+                        castManager.seekTo(tempPosition)
                         isSeeking = false
                     },
                     valueRange = 0f..duration.toFloat(),
@@ -347,11 +250,6 @@ fun CastControlsOverlay(
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                BannerAd(isPremium = isPremium)
-
             }
         }
     }

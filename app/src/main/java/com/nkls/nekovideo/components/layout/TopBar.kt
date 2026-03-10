@@ -46,8 +46,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.nkls.nekovideo.R
-import com.nkls.nekovideo.billing.BillingManager
-import com.nkls.nekovideo.billing.PremiumManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -61,8 +59,6 @@ fun TopBar(
     onPasswordDialog: () -> Unit,
     onSelectionClear: () -> Unit,
     onSelectAll: () -> Unit,
-    premiumManager: PremiumManager,
-    billingManager: BillingManager,
     isAtRootLevel: Boolean = false,
     onNavigateToPath: (String) -> Unit = {},
     onNavigateBack: () -> Unit = {}
@@ -70,8 +66,6 @@ fun TopBar(
     val coroutineScope = rememberCoroutineScope()
     val maxTapInterval = 500L
     var tapCount by remember { mutableIntStateOf(0) }
-
-    val isPremium by premiumManager.isPremium.collectAsState()
 
     val density = LocalDensity.current
     var isCompact by remember { mutableStateOf(false) }
@@ -323,26 +317,6 @@ fun TopBar(
             }
         },
         actions = {
-            IconButton(onClick = {
-                if (!isPremium) {
-                    billingManager.launchPurchaseFlow(
-                        onSuccess = {
-
-                        },
-                        onError = { error ->
-                            Log.e("TopBar", "Erro na compra: $error")
-                        }
-                    )
-                }
-                // Se já é premium, não faz nada
-            }) {
-                Icon(
-                    imageVector = if (isPremium) Icons.Default.Star else Icons.Default.StarBorder,
-                    contentDescription = if (isPremium) "Premium Ativo" else "Comprar Premium",
-                    tint = if (isPremium) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
             // Botão SelectAll
             if (selectedItems.isNotEmpty() && currentRoute == "folder") {
                 IconButton(onClick = onSelectAll) {

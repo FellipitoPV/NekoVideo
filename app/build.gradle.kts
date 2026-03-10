@@ -82,9 +82,6 @@ dependencies {
     implementation(libs.androidx.foundation.android)
     implementation(libs.gson)
 
-    implementation(libs.play.services.ads)
-    implementation(libs.billing.ktx)
-
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.coil.video)
     implementation(libs.coil.compose)
@@ -100,7 +97,6 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.animation)
 
-    implementation(libs.play.services.cast.framework)
     implementation(libs.androidx.mediarouter)
     implementation(libs.nanohttpd)
     implementation(libs.material)
