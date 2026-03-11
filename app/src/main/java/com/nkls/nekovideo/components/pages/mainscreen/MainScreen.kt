@@ -86,6 +86,7 @@ import com.nkls.nekovideo.components.loadFolderContent
 import com.nkls.nekovideo.components.player.MiniPlayerImproved
 import com.nkls.nekovideo.components.player.VideoPlayerOverlay
 import com.nkls.nekovideo.components.settings.AboutSettingsScreen
+import com.nkls.nekovideo.components.settings.StorageSettingsScreen
 import com.nkls.nekovideo.components.settings.DisplaySettingsScreen
 import com.nkls.nekovideo.components.settings.InterfaceSettingsScreen
 import com.nkls.nekovideo.components.settings.PlaybackSettingsScreen
@@ -1227,6 +1228,9 @@ fun MainScreen(
                 composable("settings/interface") {
                     // MODIFICADO: Passar themeManager para InterfaceSettingsScreen
                     InterfaceSettingsScreen(themeManager)
+                }
+                composable("settings/storage") {
+                    StorageSettingsScreen()
                 }
                 composable("settings/about") {
                     AboutSettingsScreen()

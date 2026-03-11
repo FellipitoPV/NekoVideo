@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.nkls.nekovideo.components.helpers.FolderLockManager
@@ -179,9 +180,9 @@ object OptimizedThumbnailManager {
 
             retriever.setDataSource(cleanPath)
 
-            // Pega frame do início (1 segundo)
+            // Pega primeiro frame do vídeo
             val bitmap = retriever.getFrameAtTime(
-                1_000_000, // 1 segundo em microsegundos
+                0,
                 MediaMetadataRetriever.OPTION_CLOSEST_SYNC
             )
 
@@ -600,6 +601,7 @@ object OptimizedThumbnailManager {
             Glide.with(context)
                 .asBitmap()
                 .load(videoUri)
+                .apply(RequestOptions.frameOf(0L))
                 .override(thumbnailSize, thumbnailSize)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .centerCrop()
@@ -659,6 +661,16 @@ object OptimizedThumbnailManager {
 
         _thumbnailCache = null
         lastCacheSize = -1
+    }
+
+    // Limpa todas as pastas .neko_thumbs de uma lista de caminhos de pastas
+    fun clearAllDiskThumbnails(folderPaths: Collection<String>) {
+        folderPaths.forEach { folderPath ->
+            val thumbsDir = File(folderPath, THUMBS_DIR)
+            if (thumbsDir.exists()) {
+                thumbsDir.deleteRecursively()
+            }
+        }
     }
 
     // Limpa thumbnail de um vídeo específico (RAM + disco)

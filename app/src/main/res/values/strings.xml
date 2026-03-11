@@ -134,8 +134,14 @@
     <string name="settings_files_desc">Gerenciamento de pastas e arquivos</string>
     <string name="settings_performance">Performance</string>
     <string name="settings_performance_desc">Cache e otimizações de desempenho</string>
+    <string name="settings_storage">Armazenamento e Cache</string>
+    <string name="settings_storage_desc">Gerencie o cache de thumbnails</string>
     <string name="settings_about">Sobre</string>
     <string name="settings_about_desc">Informações do app e suporte</string>
+    <string name="storage_thumbnails_section">Cache de Thumbnails</string>
+    <string name="storage_clear_thumbnails">Limpar cache de thumbnails</string>
+    <string name="storage_clear_thumbnails_desc">Remove todas as thumbnails salvas em disco. Serão regeradas ao navegar nas pastas</string>
+    <string name="storage_clear_thumbnails_success">Cache de thumbnails limpo com sucesso</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Configurações</string>

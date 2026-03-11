@@ -134,8 +134,14 @@
     <string name="settings_files_desc">Folder and file management</string>
     <string name="settings_performance">Performance</string>
     <string name="settings_performance_desc">Cache and performance optimizations</string>
+    <string name="settings_storage">Storage &amp; Cache</string>
+    <string name="settings_storage_desc">Manage thumbnail cache</string>
     <string name="settings_about">About</string>
     <string name="settings_about_desc">App information and support</string>
+    <string name="storage_thumbnails_section">Thumbnail Cache</string>
+    <string name="storage_clear_thumbnails">Clear thumbnail cache</string>
+    <string name="storage_clear_thumbnails_desc">Removes all thumbnails saved on disk. They will be regenerated when browsing folders</string>
+    <string name="storage_clear_thumbnails_success">Thumbnail cache cleared successfully</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Settings</string>

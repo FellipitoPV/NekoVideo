@@ -134,8 +134,14 @@
     <string name="settings_files_desc">Ordner- und Dateiverwaltung</string>
     <string name="settings_performance">Leistung</string>
     <string name="settings_performance_desc">Cache und Leistungsoptimierungen</string>
+    <string name="settings_storage">Speicher &amp; Cache</string>
+    <string name="settings_storage_desc">Thumbnail-Cache verwalten</string>
     <string name="settings_about">Über</string>
     <string name="settings_about_desc">App-Informationen und Support</string>
+    <string name="storage_thumbnails_section">Thumbnail-Cache</string>
+    <string name="storage_clear_thumbnails">Thumbnail-Cache leeren</string>
+    <string name="storage_clear_thumbnails_desc">Entfernt alle gespeicherten Thumbnails. Sie werden beim Durchsuchen der Ordner neu erstellt</string>
+    <string name="storage_clear_thumbnails_success">Thumbnail-Cache erfolgreich geleert</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Einstellungen</string>
@@ -287,5 +293,7 @@
         <item quantity="one">%d Element wird verschoben</item>
         <item quantity="other">%d Elemente werden verschoben</item>
     </plurals>
+
+    <string name="private_folders_hint">Tippe 3× auf das App-Symbol oben, um private Ordner anzuzeigen/auszublenden</string>
 
 </resources>

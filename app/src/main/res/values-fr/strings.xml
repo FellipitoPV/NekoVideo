@@ -134,8 +134,14 @@
     <string name="settings_files_desc">Gestion des dossiers et fichiers</string>
     <string name="settings_performance">Performance</string>
     <string name="settings_performance_desc">Cache et optimisations de performance</string>
+    <string name="settings_storage">Stockage &amp; Cache</string>
+    <string name="settings_storage_desc">Gérer le cache des miniatures</string>
     <string name="settings_about">À Propos</string>
     <string name="settings_about_desc">Informations de lapplication et support</string>
+    <string name="storage_thumbnails_section">Cache des Miniatures</string>
+    <string name="storage_clear_thumbnails">Vider le cache des miniatures</string>
+    <string name="storage_clear_thumbnails_desc">Supprime toutes les miniatures enregistrées. Elles seront régénérées lors de la navigation dans les dossiers</string>
+    <string name="storage_clear_thumbnails_success">Cache des miniatures vidé avec succès</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Paramètres</string>
@@ -287,5 +293,7 @@
         <item quantity="one">Déplacement de %d élément</item>
         <item quantity="other">Déplacement de %d éléments</item>
     </plurals>
+
+    <string name="private_folders_hint">Appuyez 3× sur l\'icône de l\'app en haut pour afficher/masquer les dossiers privés</string>
 
 </resources>

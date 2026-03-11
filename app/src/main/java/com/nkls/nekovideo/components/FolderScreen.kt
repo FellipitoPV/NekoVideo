@@ -1214,6 +1214,7 @@ private fun MediaCard(
                         } else {
                             // 2. Lê do disco (pasta segura)
                             val lockedThumb = FolderLockManager.getLockedThumbnail(item.path)
+                                ?: if (isSecureMode) FolderLockManager.generateAndSaveLockedThumbnail(item.path) else null
                             if (lockedThumb != null) {
                                 val cacheKey = item.path.hashCode().toString()
                                 OptimizedThumbnailManager.thumbnailCache.put(cacheKey, lockedThumb)

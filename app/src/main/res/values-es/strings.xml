@@ -134,8 +134,14 @@
     <string name="settings_files_desc">Gestión de carpetas y archivos</string>
     <string name="settings_performance">Rendimiento</string>
     <string name="settings_performance_desc">Caché y optimizaciones de rendimiento</string>
+    <string name="settings_storage">Almacenamiento y Caché</string>
+    <string name="settings_storage_desc">Administrar caché de miniaturas</string>
     <string name="settings_about">Acerca de</string>
     <string name="settings_about_desc">Información de la app y soporte</string>
+    <string name="storage_thumbnails_section">Caché de Miniaturas</string>
+    <string name="storage_clear_thumbnails">Limpiar caché de miniaturas</string>
+    <string name="storage_clear_thumbnails_desc">Elimina todas las miniaturas guardadas en disco. Se regenerarán al navegar por las carpetas</string>
+    <string name="storage_clear_thumbnails_success">Caché de miniaturas limpiado correctamente</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Configuración</string>
@@ -287,5 +293,7 @@
         <item quantity="one">Moviendo %d elemento</item>
         <item quantity="other">Moviendo %d elementos</item>
     </plurals>
+
+    <string name="private_folders_hint">Toca 3× el ícono de la app en la parte superior para mostrar/ocultar carpetas privadas</string>
 
 </resources>

@@ -73,6 +73,11 @@ import com.nkls.nekovideo.language.LanguageManager
 import com.nkls.nekovideo.theme.ThemeManager
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import com.nkls.nekovideo.components.OptimizedThumbnailManager
+import com.nkls.nekovideo.services.FolderVideoScanner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(navController: NavController) {
@@ -114,6 +119,16 @@ fun SettingsScreen(navController: NavController) {
                     title = stringResource(R.string.settings_display),
                     subtitle = stringResource(R.string.settings_display_desc),
                     onClick = { navController.navigate("settings/display") },
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsCategoryCard(
+                    icon = Icons.Default.Storage,
+                    title = stringResource(R.string.settings_storage),
+                    subtitle = stringResource(R.string.settings_storage_desc),
+                    onClick = { navController.navigate("settings/storage") },
                     isCompact = isCompact
                 )
             }
@@ -363,6 +378,48 @@ fun DisplaySettingsScreen() {
     }
 }
 
+
+@Composable
+fun StorageSettingsScreen() {
+    val context = LocalContext.current
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        @Suppress("UnusedBoxWithConstraintsScope")
+        val isCompact = this.maxWidth > 600.dp
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isCompact) 8.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
+        ) {
+            item {
+                SettingsSectionHeader(stringResource(R.string.storage_thumbnails_section), isCompact)
+            }
+
+            item {
+                SettingsClickableItem(
+                    icon = Icons.Default.Image,
+                    title = stringResource(R.string.storage_clear_thumbnails),
+                    subtitle = stringResource(R.string.storage_clear_thumbnails_desc),
+                    onClick = {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val folderPaths = FolderVideoScanner.cache.value.keys
+                            OptimizedThumbnailManager.clearCache()
+                            OptimizedThumbnailManager.clearAllDiskThumbnails(folderPaths)
+                        }
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.storage_clear_thumbnails_success),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    isCompact = isCompact
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun AboutSettingsScreen() {

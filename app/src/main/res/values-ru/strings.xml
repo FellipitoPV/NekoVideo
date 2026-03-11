@@ -134,8 +134,14 @@
     <string name="settings_files_desc">Управление папками и файлами</string>
     <string name="settings_performance">Производительность</string>
     <string name="settings_performance_desc">Кэш и оптимизация производительности</string>
+    <string name="settings_storage">Хранилище и кэш</string>
+    <string name="settings_storage_desc">Управление кэшем миниатюр</string>
     <string name="settings_about">О программе</string>
     <string name="settings_about_desc">Информация о приложении и поддержка</string>
+    <string name="storage_thumbnails_section">Кэш миниатюр</string>
+    <string name="storage_clear_thumbnails">Очистить кэш миниатюр</string>
+    <string name="storage_clear_thumbnails_desc">Удаляет все сохранённые миниатюры. Они будут созданы заново при просмотре папок</string>
+    <string name="storage_clear_thumbnails_success">Кэш миниатюр успешно очищен</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Настройки</string>
@@ -293,5 +299,7 @@
         <item quantity="many">Перемещение %d элементов</item>
         <item quantity="other">Перемещение %d элементов</item>
     </plurals>
+
+    <string name="private_folders_hint">Нажмите 3× на значок приложения вверху, чтобы показать/скрыть приватные папки</string>
 
 </resources>

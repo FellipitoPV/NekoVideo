@@ -204,12 +204,8 @@ object FolderLockManager {
                 try {
                     val retriever = MediaMetadataRetriever()
                     retriever.setDataSource(videoFile.absolutePath)
-                    val durationMs = retriever.extractMetadata(
-                        MediaMetadataRetriever.METADATA_KEY_DURATION
-                    )?.toLongOrNull() ?: 2000L
-                    val middleUs = (durationMs / 2) * 1000L
                     val bitmap = retriever.getFrameAtTime(
-                        middleUs,
+                        0,
                         MediaMetadataRetriever.OPTION_CLOSEST_SYNC
                     )
                     if (bitmap != null) {
@@ -498,12 +494,8 @@ object FolderLockManager {
                 try {
                     val retriever = MediaMetadataRetriever()
                     retriever.setDataSource(videoFile.absolutePath)
-                    val durationMs = retriever.extractMetadata(
-                        MediaMetadataRetriever.METADATA_KEY_DURATION
-                    )?.toLongOrNull() ?: 2000L
-                    val middleUs = (durationMs / 2) * 1000L
                     val bitmap = retriever.getFrameAtTime(
-                        middleUs,
+                        0,
                         MediaMetadataRetriever.OPTION_CLOSEST_SYNC
                     )
                     if (bitmap != null) {
@@ -762,6 +754,41 @@ object FolderLockManager {
     }
 
     /**
+     * Generates and saves a thumbnail for a locked video using the active XOR session.
+     * Uses a custom MediaDataSource to reverse XOR on-the-fly without touching the file.
+     */
+    fun generateAndSaveLockedThumbnail(videoPath: String): Bitmap? {
+        val file = File(videoPath)
+        val folder = file.parentFile ?: return null
+        val xorKey = LockedPlaybackSession.getXorKeyForFile(videoPath) ?: return null
+
+        val thumbsDir = File(folder, THUMBS_DIR)
+        if (!thumbsDir.exists()) thumbsDir.mkdirs()
+
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(XorMediaDataSource(file, xorKey))
+            val bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            if (bitmap != null) {
+                val thumbFile = File(thumbsDir, file.name)
+                val baos = java.io.ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, baos)
+                val thumbBytes = baos.toByteArray()
+                for (i in thumbBytes.indices) {
+                    thumbBytes[i] = (thumbBytes[i].toInt() xor THUMB_XOR_KEY[i % THUMB_XOR_KEY.size].toInt()).toByte()
+                }
+                thumbFile.writeBytes(thumbBytes)
+            }
+            bitmap
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to generate locked thumbnail for: ${file.name}", e)
+            null
+        } finally {
+            try { retriever.release() } catch (e: Exception) {}
+        }
+    }
+
+    /**
      * Get saved thumbnail for a locked video file.
      * Reads obfuscated thumbnail (XOR'd, no extension), reverses XOR, decodes to Bitmap.
      */
@@ -795,5 +822,33 @@ object FolderLockManager {
             }
             else -> null
         }
+    }
+}
+
+private class XorMediaDataSource(
+    private val file: File,
+    private val xorKey: ByteArray,
+    private val headerSize: Int = 8192
+) : android.media.MediaDataSource() {
+    private val raf = RandomAccessFile(file, "r")
+
+    override fun readAt(position: Long, buffer: ByteArray, offset: Int, size: Int): Int {
+        if (position >= raf.length()) return -1
+        raf.seek(position)
+        val read = raf.read(buffer, offset, size)
+        if (read <= 0) return read
+        for (i in 0 until read) {
+            val filePos = position + i
+            if (filePos < headerSize) {
+                buffer[offset + i] = (buffer[offset + i].toInt() xor xorKey[(filePos % xorKey.size).toInt()].toInt()).toByte()
+            }
+        }
+        return read
+    }
+
+    override fun getSize(): Long = try { raf.length() } catch (e: Exception) { -1 }
+
+    override fun close() {
+        try { raf.close() } catch (e: Exception) {}
     }
 }

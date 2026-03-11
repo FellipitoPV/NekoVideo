@@ -134,8 +134,14 @@
     <string name="settings_files_desc">फोल्डर और फाइल प्रबंधन</string>
     <string name="settings_performance">परफॉर्मेंस</string>
     <string name="settings_performance_desc">कैश और परफॉर्मेंस ऑप्टिमाइज़ेशन</string>
+    <string name="settings_storage">संग्रहण और कैश</string>
+    <string name="settings_storage_desc">थंबनेल कैश प्रबंधित करें</string>
     <string name="settings_about">के बारे में</string>
     <string name="settings_about_desc">ऐप की जानकारी और सहायता</string>
+    <string name="storage_thumbnails_section">थंबनेल कैश</string>
+    <string name="storage_clear_thumbnails">थंबनेल कैश साफ़ करें</string>
+    <string name="storage_clear_thumbnails_desc">डिस्क पर सहेजे गए सभी थंबनेल हटाता है। फ़ोल्डर ब्राउज़ करने पर पुनः बनाए जाएंगे</string>
+    <string name="storage_clear_thumbnails_success">थंबनेल कैश सफलतापूर्वक साफ़ किया गया</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">सेटिंग्स</string>
@@ -287,5 +293,7 @@
         <item quantity="one">%d आइटम स्थानांतरित हो रहा है</item>
         <item quantity="other">%d आइटम स्थानांतरित हो रहे हैं</item>
     </plurals>
+
+    <string name="private_folders_hint">निजी फ़ोल्डर दिखाने/छिपाने के लिए ऊपर ऐप आइकन पर 3× टैप करें</string>
 
 </resources>
