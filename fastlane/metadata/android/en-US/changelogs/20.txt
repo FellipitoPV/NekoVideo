@@ -1,0 +1,1 @@
+Remove foojay-resolver Gradle plugin for F-Droid build compatibility.
