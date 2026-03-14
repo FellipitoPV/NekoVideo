@@ -6,23 +6,23 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import com.nkls.nekovideo.MainActivity
-import android.media.MediaCodec
-import android.media.MediaExtractor
-import android.media.MediaFormat
-import android.media.MediaMuxer
 import android.os.Environment
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.FFmpegKitConfig
+import com.arthenica.ffmpegkit.ReturnCode
+import com.nkls.nekovideo.MainActivity
 import com.nkls.nekovideo.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
-import java.nio.ByteBuffer
+import kotlin.coroutines.resume
 
 class VideoCutService : Service() {
 
@@ -73,26 +73,37 @@ class VideoCutService : Service() {
     private var isProcessing = false
     private var resultNotifId = NOTIF_RESULT_BASE_ID
 
-    // Contadores da sessão atual (resetados quando fila esvazia)
     @Volatile private var jobsQueued = 0
     @Volatile private var jobsCompleted = 0
     @Volatile private var jobsSuccess = 0
     @Volatile private var jobsFailed = 0
     @Volatile private var cancelCurrentJob = false
+    @Volatile private var currentSessionId = -1L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        FFmpegKitConfig.enableLogCallback(null)
+        FFmpegKitConfig.enableStatisticsCallback(null)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_CANCEL_CURRENT -> { cancelCurrentJob = true; return START_NOT_STICKY }
-            ACTION_CANCEL_ALL     -> { cancelCurrentJob = true; jobQueue.clear(); return START_NOT_STICKY }
-            ACTION_CUT            -> { /* continua abaixo */ }
-            else                  -> return START_NOT_STICKY
+            ACTION_CANCEL_CURRENT -> {
+                cancelCurrentJob = true
+                if (currentSessionId >= 0) FFmpegKit.cancel(currentSessionId)
+                return START_NOT_STICKY
+            }
+            ACTION_CANCEL_ALL -> {
+                cancelCurrentJob = true
+                if (currentSessionId >= 0) FFmpegKit.cancel(currentSessionId)
+                jobQueue.clear()
+                return START_NOT_STICKY
+            }
+            ACTION_CUT -> { /* continua abaixo */ }
+            else -> return START_NOT_STICKY
         }
 
         val inputPath = intent.getStringExtra(EXTRA_INPUT_PATH) ?: return START_NOT_STICKY
@@ -117,7 +128,6 @@ class VideoCutService : Service() {
     private fun processNext() {
         val job = jobQueue.removeFirstOrNull() ?: run {
             isProcessing = false
-            // Atualiza o index de vídeos para o novo arquivo aparecer
             FolderVideoScanner.startScan(applicationContext, forceRefresh = true)
             showSummaryNotification()
             jobsQueued = 0; jobsCompleted = 0; jobsSuccess = 0; jobsFailed = 0
@@ -161,7 +171,6 @@ class VideoCutService : Service() {
                 outputFiles.add(outputPath)
             }
 
-            // Mesclar segmentos se houver mais de um
             if (outputFiles.size > 1) {
                 updateProgressNotification(
                     title = if (queueLabel.isNotEmpty()) "Cortando vídeo $queueLabel" else "Cortando vídeo",
@@ -184,7 +193,10 @@ class VideoCutService : Service() {
         }
     }
 
-    // ── Corte lossless ────────────────────────────────────────────────────────
+    // ── Corte lossless via FFmpegKit (-c copy) ────────────────────────────────
+    //
+    // Funciona para qualquer formato (MP4, WebM, MKV, AVI...) sem re-encoding.
+    // O arquivo de saída mantém o mesmo formato e nunca fica maior que o original.
 
     private suspend fun cutSegment(
         inputPath: String,
@@ -192,165 +204,86 @@ class VideoCutService : Service() {
         startUs: Long,
         endUs: Long,
         onProgress: (Float) -> Unit
-    ): Boolean {
-        var extractor: MediaExtractor? = null
-        var muxer: MediaMuxer? = null
-        return try {
-            extractor = MediaExtractor()
-            extractor.setDataSource(inputPath)
+    ): Boolean = suspendCancellableCoroutine { cont ->
 
-            val trackIndexMap = mutableMapOf<Int, Int>()
-            muxer = MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+        val startSec = startUs / 1_000_000.0
+        val endSec = endUs / 1_000_000.0
+        val durationMs = ((endUs - startUs) / 1_000.0).coerceAtLeast(1.0)
 
-            for (i in 0 until extractor.trackCount) {
-                val format = extractor.getTrackFormat(i)
-                val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
-                if (mime.startsWith("video/") || mime.startsWith("audio/")) {
-                    trackIndexMap[i] = muxer.addTrack(format)
-                    extractor.selectTrack(i)
+        // -ss antes de -i: seek rápido no container, sem decodificar frames
+        // -c copy: cópia lossless, sem re-encoding
+        // -avoid_negative_ts make_zero: corrige timestamps no ponto de corte
+        val command = "-ss $startSec -to $endSec -i \"$inputPath\" -c copy -avoid_negative_ts make_zero -y \"$outputPath\""
+
+        val session = FFmpegKit.executeAsync(
+            command,
+            { session ->
+                currentSessionId = -1
+                if (ReturnCode.isSuccess(session.returnCode)) {
+                    if (cont.isActive) cont.resume(true)
+                } else {
+                    Log.e(TAG, "FFmpeg falhou [${session.returnCode}]: ${session.failStackTrace}")
+                    File(outputPath).delete()
+                    if (cont.isActive) cont.resume(false)
                 }
+            },
+            null,
+            { statistics ->
+                val progressMs = statistics.time.toDouble()
+                val progress = (progressMs / durationMs).coerceIn(0.0, 0.99).toFloat()
+                onProgress(progress)
             }
+        )
 
-            if (trackIndexMap.isEmpty()) return false
+        currentSessionId = session.sessionId
 
-            extractor.seekTo(startUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
-            val actualStartUs = extractor.sampleTime.coerceAtLeast(0L)
-            val durationUs = (endUs - actualStartUs).coerceAtLeast(1L)
-
-            muxer.start()
-
-            val buffer = ByteBuffer.allocate(1024 * 1024)
-            val bufferInfo = MediaCodec.BufferInfo()
-
-            var cancelledByUser = false
-            while (true) {
-                if (cancelCurrentJob) { cancelledByUser = true; break }
-                val sampleSize = extractor.readSampleData(buffer, 0)
-                if (sampleSize < 0) break
-
-                val sampleTimeUs = extractor.sampleTime
-                if (sampleTimeUs > endUs) break
-
-                val muxerIdx = trackIndexMap[extractor.sampleTrackIndex]
-                if (muxerIdx != null) {
-                    bufferInfo.offset = 0
-                    bufferInfo.size = sampleSize
-                    bufferInfo.presentationTimeUs = (sampleTimeUs - actualStartUs).coerceAtLeast(0L)
-                    bufferInfo.flags = if (extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0) MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
-                    muxer.writeSampleData(muxerIdx, buffer, bufferInfo)
-                }
-
-                onProgress(((sampleTimeUs - actualStartUs).toFloat() / durationUs).coerceIn(0f, 0.99f))
-                extractor.advance()
-            }
-
-            if (cancelledByUser) {
-                File(outputPath).delete()
-                false
-            } else {
-                muxer.stop()
-                muxer.release()
-                muxer = null
-                extractor.release()
-                extractor = null
-                true
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "cutSegment falhou: ${e.message}", e)
+        cont.invokeOnCancellation {
+            FFmpegKit.cancel(session.sessionId)
             File(outputPath).delete()
-            false
-        } finally {
-            extractor?.release()
-            try { muxer?.stop() } catch (_: Exception) {}
-            muxer?.release()
         }
     }
 
-    // ── Merge lossless ────────────────────────────────────────────────────────
+    // ── Merge lossless via FFmpegKit (concat demuxer) ─────────────────────────
 
     private suspend fun mergeSegments(files: List<String>, outputPath: String): Boolean {
         if (files.size == 1) return File(files[0]).renameTo(File(outputPath))
 
-        var muxer: MediaMuxer? = null
-        val extractors = mutableListOf<MediaExtractor>()
+        // Cria arquivo de lista temporário para o concat demuxer
+        val concatList = File(cacheDir, "ffmpeg_concat_${System.currentTimeMillis()}.txt")
         return try {
-            muxer = MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-            var muxerStarted = false
-            val mimeToMuxerTrack = mutableMapOf<String, Int>()
-            var timeOffsetUs = 0L
-            val buffer = ByteBuffer.allocate(1024 * 1024)
-            val bufferInfo = MediaCodec.BufferInfo()
+            concatList.writeText(files.joinToString("\n") { "file '${it.replace("'", "\\'")}'" })
 
-            for (filePath in files) {
-                val extractor = MediaExtractor()
-                extractor.setDataSource(filePath)
-                extractors.add(extractor)
+            val command = "-f concat -safe 0 -i \"${concatList.absolutePath}\" -c copy -y \"$outputPath\""
 
-                val localTrackMap = mutableMapOf<Int, Int>()
-                var fileDurationUs = 0L
+            suspendCancellableCoroutine { cont ->
+                val session = FFmpegKit.executeAsync(
+                    command,
+                    { session ->
+                        currentSessionId = -1
+                        if (ReturnCode.isSuccess(session.returnCode)) {
+                            if (cont.isActive) cont.resume(true)
+                        } else {
+                            Log.e(TAG, "Merge FFmpeg falhou [${session.returnCode}]")
+                            File(outputPath).delete()
+                            if (cont.isActive) cont.resume(false)
+                        }
+                    },
+                    null,
+                    null
+                )
+                currentSessionId = session.sessionId
 
-                for (i in 0 until extractor.trackCount) {
-                    val format = extractor.getTrackFormat(i)
-                    val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
-                    if (!mime.startsWith("video/") && !mime.startsWith("audio/")) continue
-
-                    extractor.selectTrack(i)
-
-                    val muxerIdx = if (!muxerStarted) {
-                        val idx = muxer.addTrack(format)
-                        mimeToMuxerTrack[mime] = idx
-                        idx
-                    } else {
-                        mimeToMuxerTrack[mime] ?: continue
-                    }
-                    localTrackMap[i] = muxerIdx
-
-                    if (format.containsKey(MediaFormat.KEY_DURATION)) {
-                        val dur = format.getLong(MediaFormat.KEY_DURATION)
-                        if (dur > fileDurationUs) fileDurationUs = dur
-                    }
+                cont.invokeOnCancellation {
+                    FFmpegKit.cancel(session.sessionId)
+                    File(outputPath).delete()
                 }
-
-                if (!muxerStarted) {
-                    muxer.start()
-                    muxerStarted = true
-                }
-
-                var lastSampleTimeUs = 0L
-                while (true) {
-                    val sampleSize = extractor.readSampleData(buffer, 0)
-                    if (sampleSize < 0) break
-
-                    val muxerIdx = localTrackMap[extractor.sampleTrackIndex]
-                    if (muxerIdx != null) {
-                        val sampleTimeUs = extractor.sampleTime
-                        lastSampleTimeUs = maxOf(lastSampleTimeUs, sampleTimeUs)
-                        bufferInfo.offset = 0
-                        bufferInfo.size = sampleSize
-                        bufferInfo.presentationTimeUs = sampleTimeUs + timeOffsetUs
-                        bufferInfo.flags = if (extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0) MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
-                        muxer.writeSampleData(muxerIdx, buffer, bufferInfo)
-                    }
-                    extractor.advance()
-                }
-
-                if (fileDurationUs == 0L) fileDurationUs = lastSampleTimeUs
-                timeOffsetUs += fileDurationUs
-                extractor.release()
             }
-
-            muxer.stop()
-            muxer.release()
-            muxer = null
-            true
         } catch (e: Exception) {
             Log.e(TAG, "mergeSegments falhou: ${e.message}", e)
             File(outputPath).delete()
             false
         } finally {
-            extractors.forEach { try { it.release() } catch (_: Exception) {} }
-            try { muxer?.stop() } catch (_: Exception) {}
-            muxer?.release()
+            concatList.delete()
         }
     }
 

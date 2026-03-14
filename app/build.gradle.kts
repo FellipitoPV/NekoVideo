@@ -34,7 +34,7 @@ android {
 
             ndk {
                 debugSymbolLevel = "full"
-
+                abiFilters += "arm64-v8a"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -90,6 +90,8 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.session)
+    implementation(libs.androidx.media3.transformer)
+    implementation(libs.ffmpegkit.android)
     implementation(libs.material.icons.extended.v168)
 
     implementation(libs.glide)
