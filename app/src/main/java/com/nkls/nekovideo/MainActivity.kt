@@ -177,10 +177,6 @@ class MainActivity : AppCompatActivity() {
                     handleExternalVideos(uris)
                 }
             }
-            "com.nkls.nekovideo.ACTION_OPEN_CUTS_FOLDER" -> {
-                val path = intent.getStringExtra("cuts_folder_path")
-                if (path != null) _openFolderPath.value = path
-            }
             null -> {
                 Log.d("MainActivity", "   ⚠️ Action NULL")
             }
@@ -248,7 +244,8 @@ class MainActivity : AppCompatActivity() {
                         lastAction = actionState,
                         lastTime = timeState,
                         openFolderPath = folderPathState,
-                        externalVideoReceived = externalVideoState
+                        externalVideoReceived = externalVideoState,
+                        onFolderPathConsumed = { _openFolderPath.value = null }
                     )
                 }
             }

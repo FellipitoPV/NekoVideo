@@ -29,7 +29,6 @@ media3Exoplayer = "1.7.1"
 media3Ui = "1.7.1"
 media3Session = "1.7.1"
 media3Transformer = "1.7.1"
-ffmpegkit16kb = "6.1.1"
 datastorePreferencesCoreAndroid = "1.1.7"
 runtime = "1.10.1"
 
@@ -67,7 +66,6 @@ androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplaye
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3Ui" }
 androidx-media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3Session" }
 androidx-media3-transformer = { group = "androidx.media3", name = "media3-transformer", version.ref = "media3Transformer" }
-ffmpegkit-android = { group = "com.moizhassan.ffmpeg", name = "ffmpeg-kit-16kb", version.ref = "ffmpegkit16kb" }
 material = { module = "com.google.android.material:material", version.ref = "material" }
 material-icons-extended-v168 = { module = "androidx.compose.material:material-icons-extended", version.ref = "androidxMaterialIconsExtended" }
 androidx-datastore-preferences-core-android = { group = "androidx.datastore", name = "datastore-preferences-core-android", version.ref = "datastorePreferencesCoreAndroid" }

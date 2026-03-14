@@ -34,7 +34,7 @@ import com.nkls.nekovideo.R
 
 enum class ActionType {
     UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS, PASTE,
-    PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE, SET_AS_SECURE_FOLDER, CUT_VIDEO
+    PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE, SET_AS_SECURE_FOLDER
 }
 
 data class ActionItem(
@@ -73,7 +73,6 @@ fun ActionFAB(
     val createFolderText = stringResource(R.string.action_create_folder)
     val settingsText = stringResource(R.string.action_settings)
     val secureFolderSet = stringResource(R.string.action_set_secure_folder)
-    val cutVideoText = stringResource(R.string.action_cut_video)
     val moveItemsText = pluralStringResource(R.plurals.move_items_count, itemsToMoveCount, itemsToMoveCount)
 
     // NOVOS: strings que estavam hardcoded
@@ -107,13 +106,7 @@ fun ActionFAB(
                 file.isDirectory && file.name.startsWith(".")
             }
 
-    val videoExtensions = setOf("mp4", "mkv", "webm", "avi", "mov", "wmv", "m4v", "3gp", "flv")
-    val isSingleVideoFile = selectedItems.size == 1 &&
-            java.io.File(selectedItems.first()).let { file ->
-                file.isFile && file.extension.lowercase() in videoExtensions
-            }
-
-    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder, isSingleVideoFile) {
+    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder) {
         when {
             isMoveMode -> {
                 listOf(
@@ -131,16 +124,6 @@ fun ActionFAB(
                         shufflePlayText
                     )
                 )
-
-                if (isSingleVideoFile) {
-                    actionsList.add(
-                        ActionItem(
-                            ActionType.CUT_VIDEO,
-                            Icons.Default.ContentCut,
-                            cutVideoText
-                        )
-                    )
-                }
 
                 if (isInsideLockedFolder) {
                     // Inside locked folder: delete, rename, move

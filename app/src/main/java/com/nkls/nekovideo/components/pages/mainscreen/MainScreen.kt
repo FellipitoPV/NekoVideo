@@ -110,7 +110,8 @@ fun MainScreen(
     lastTime: Long = 0,
     externalVideoReceived: Boolean = false,
     autoOpenOverlay: Boolean = false,
-    openFolderPath: String? = null
+    openFolderPath: String? = null,
+    onFolderPathConsumed: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
@@ -124,6 +125,7 @@ fun MainScreen(
     LaunchedEffect(openFolderPath) {
         if (openFolderPath != null) {
             folderNavState.navigateToPath(openFolderPath)
+            onFolderPathConsumed()  // reseta para null → próxima notificação volta a disparar
         }
     }
     val isAtRootLevel = folderNavState.isAtRoot
@@ -190,10 +192,6 @@ fun MainScreen(
     fun quickRefresh() {
         FolderVideoScanner.startScan(context, forceRefresh = true)
     }
-
-    val cutVideoLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { /* refresh é feito pelo VideoCutService ao terminar o corte */ }
 
     fun performRefresh() {
         FolderVideoScanner.startScan(context, forceRefresh = true)
@@ -1043,17 +1041,6 @@ fun MainScreen(
                                         }
                                         quickRefresh()
                                     }
-                                }
-                            }
-                            ActionType.CUT_VIDEO -> {
-                                if (selectedItems.size == 1) {
-                                    cutVideoLauncher.launch(
-                                        com.nkls.nekovideo.components.cutter.VideoCutterActivity.createIntent(
-                                            context,
-                                            selectedItems.first()
-                                        )
-                                    )
-                                    selectedItems.clear()
                                 }
                             }
                             ActionType.SET_AS_SECURE_FOLDER -> {
