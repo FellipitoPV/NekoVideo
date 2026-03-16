@@ -30,6 +30,7 @@
     <string name="action_create_folder">Nueva Carpeta</string>
     <string name="action_settings">Configuración</string>
     <string name="no_videos_found">Sin videos en esta carpeta</string>
+    <string name="neko_private_folder_name">Bóveda Privada</string>
     <string name="secure_folders_hidden">Carpetas seguras ocultas</string>
     <string name="secure_folders_shown">Carpetas seguras mostradas</string>
     <string name="select_private_folders_to_unprivatize">Selecciona carpetas privadas para desprivatizar</string>

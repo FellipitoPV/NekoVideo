@@ -631,6 +631,26 @@ object FilesManager {
             }
         }
 
+        // Nova pasta privada real — usa o sistema .nekovideo do app
+        private const val NEKO_PRIVATE_FOLDER_NAME = "NekoVideo"
+
+        fun getNekoPrivateFolderPath(): String {
+            return File("/storage/emulated/0", NEKO_PRIVATE_FOLDER_NAME).absolutePath
+        }
+
+        fun ensureNekoPrivateFolderExists(): Boolean {
+            return try {
+                val nekoFolder = File(getNekoPrivateFolderPath())
+                if (!nekoFolder.exists()) {
+                    nekoFolder.mkdirs()
+                    File(nekoFolder, ".nekovideo").createNewFile()
+                }
+                nekoFolder.exists() && nekoFolder.isDirectory
+            } catch (e: Exception) {
+                false
+            }
+        }
+
         fun savePassword(context: Context, password: String): Boolean {
             return try {
                 val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

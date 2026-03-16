@@ -21,11 +21,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
@@ -216,7 +218,7 @@ class MainActivity : AppCompatActivity() {
         FolderVideoScanner.loadCacheFromDisk(this)
 
         lifecycleScope.launch {
-            FolderVideoScanner.startScan(this@MainActivity)
+            FolderVideoScanner.startScan(this@MainActivity, forceRefresh = true)
         }
 
         setContent {
@@ -232,21 +234,23 @@ class MainActivity : AppCompatActivity() {
                 LanguageManager.getLocalizedContext(this@MainActivity, currentLanguage)
             }
 
-            NekoVideoTheme(themeManager = themeManager) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    MainScreen(
-                        intent = intent,
-                        themeManager = themeManager,
-                        notificationReceived = notificationState,
-                        lastAction = actionState,
-                        lastTime = timeState,
-                        openFolderPath = folderPathState,
-                        externalVideoReceived = externalVideoState,
-                        onFolderPathConsumed = { _openFolderPath.value = null }
-                    )
+            CompositionLocalProvider(LocalContext provides localizedContext) {
+                NekoVideoTheme(themeManager = themeManager) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        MainScreen(
+                            intent = intent,
+                            themeManager = themeManager,
+                            notificationReceived = notificationState,
+                            lastAction = actionState,
+                            lastTime = timeState,
+                            openFolderPath = folderPathState,
+                            externalVideoReceived = externalVideoState,
+                            onFolderPathConsumed = { _openFolderPath.value = null }
+                        )
+                    }
                 }
             }
         }

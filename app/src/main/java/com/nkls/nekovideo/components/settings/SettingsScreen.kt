@@ -289,8 +289,6 @@ fun InterfaceSettingsScreen(themeManager: ThemeManager) {
                     selectedValue = currentLanguage,
                     onValueChange = { newLanguage ->
                         LanguageManager.updateLanguage(context, newLanguage)
-
-                        Toast.makeText(context, "Language will be applied after app restart", Toast.LENGTH_LONG).show()
                     },
                     isCompact = isCompact
                 )

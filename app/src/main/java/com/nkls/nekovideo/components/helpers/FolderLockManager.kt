@@ -25,10 +25,16 @@ data class LockedFileEntry(
     val originalSize: Long
 )
 
+data class LockedSubfolderEntry(
+    val obfuscatedName: String,
+    val originalName: String
+)
+
 data class LockedFolderManifest(
     val folderPath: String,
     val originalFolderName: String,
     val files: List<LockedFileEntry>,
+    val subfolders: List<LockedSubfolderEntry> = emptyList(),
     val salt: String, // Base64 encoded salt
     val lockedAt: Long
 )
@@ -241,11 +247,27 @@ object FolderLockManager {
                 entries.add(LockedFileEntry(obfuscatedName, originalName, originalSize))
             }
 
+            // Rename direct subdirectories to UUIDs
+            val subfolderEntries = mutableListOf<LockedSubfolderEntry>()
+            folder.listFiles()?.filter { f -> f.isDirectory && f.name != THUMBS_DIR }?.forEach { subdir ->
+                val originalName = subdir.name
+                val obfuscatedName = UUID.randomUUID().toString().replace("-", "")
+                val renamedDir = File(folder, obfuscatedName)
+                if (subdir.renameTo(renamedDir)) {
+                    subfolderEntries.add(LockedSubfolderEntry(obfuscatedName, originalName))
+                    if (isLocked(renamedDir.absolutePath)) {
+                        updateRegistryPath(context, subdir.absolutePath, renamedDir.absolutePath)
+                    }
+                    LockedPlaybackSession.renameSession(subdir.absolutePath, renamedDir.absolutePath)
+                }
+            }
+
             // Create manifest
             val manifest = LockedFolderManifest(
                 folderPath = folderPath,
                 originalFolderName = folder.name,
                 files = entries,
+                subfolders = subfolderEntries,
                 salt = Base64.encodeToString(salt, Base64.NO_WRAP),
                 lockedAt = System.currentTimeMillis()
             )
@@ -332,6 +354,20 @@ object FolderLockManager {
                 }
             }
 
+            // Restore subdirectory names
+            manifest.subfolders?.forEach { entry ->
+                val obfuscatedDir = File(folder, entry.obfuscatedName)
+                if (obfuscatedDir.exists() && obfuscatedDir.isDirectory) {
+                    val restoredDir = File(folder, entry.originalName)
+                    if (obfuscatedDir.renameTo(restoredDir)) {
+                        if (isLocked(restoredDir.absolutePath)) {
+                            updateRegistryPath(context, obfuscatedDir.absolutePath, restoredDir.absolutePath)
+                        }
+                        LockedPlaybackSession.renameSession(obfuscatedDir.absolutePath, restoredDir.absolutePath)
+                    }
+                }
+            }
+
             // Clean up marker files and thumbs
             File(folder, LOCKED_MARKER).delete()
             File(folder, MANIFEST_FILE).delete()
@@ -410,6 +446,14 @@ object FolderLockManager {
     private fun removeFromRegistry(context: Context, folderPath: String) {
         val registry = loadRegistry(context)
         registry.folders.removeAll { it.folderPath == folderPath }
+        saveRegistry(context, registry)
+    }
+
+    private fun updateRegistryPath(context: Context, oldPath: String, newPath: String) {
+        val registry = loadRegistry(context)
+        val existing = registry.folders.find { it.folderPath == oldPath } ?: return
+        registry.folders.removeAll { it.folderPath == oldPath }
+        registry.folders.add(existing.copy(folderPath = newPath))
         saveRegistry(context, registry)
     }
 
@@ -546,6 +590,182 @@ object FolderLockManager {
             Log.e(TAG, "Error adding files to locked folder: ${e.message}", e)
             onError("Error: ${e.message}")
         }
+    }
+
+    /**
+     * Recursively lock a folder and all its subfolders.
+     * Each level: encrypts direct videos + obfuscates direct subfolders, then recurses into them.
+     * Uses the same password for every level.
+     */
+    fun lockFolderRecursive(
+        context: Context,
+        folderPath: String,
+        password: String,
+        onProgress: (current: Int, total: Int, fileName: String) -> Unit = { _, _, _ -> },
+        onError: (String) -> Unit = {},
+        onSuccess: () -> Unit = {}
+    ) {
+        if (!isLocked(folderPath)) {
+            var didError = false
+            lockFolder(
+                context = context,
+                folderPath = folderPath,
+                password = password,
+                onProgress = onProgress,
+                onError = { msg -> didError = true; onError(msg) },
+                onSuccess = {}
+            )
+            if (didError) return
+        }
+
+        // Recurse into subfolders (already renamed to UUIDs in manifest after lockFolder)
+        val manifest = readManifest(folderPath, password) ?: run { onSuccess(); return }
+        manifest.subfolders?.forEach { subEntry ->
+            val subPath = File(folderPath, subEntry.obfuscatedName).absolutePath
+            if (File(subPath).exists()) {
+                lockFolderRecursive(
+                    context = context,
+                    folderPath = subPath,
+                    password = password,
+                    onProgress = onProgress,
+                    onError = { /* continue with other subfolders */ },
+                    onSuccess = {}
+                )
+            }
+        }
+
+        onSuccess()
+    }
+
+    /**
+     * Extract a subfolder from a locked parent: restore its original name and remove it from the
+     * parent manifest. The subfolder is NOT unlocked here — call unlockFolderRecursive afterwards
+     * if needed. Returns the restored directory File, or null on failure.
+     */
+    fun extractSubfolderFromLockedParent(
+        context: Context,
+        parentFolderPath: String,
+        obfuscatedName: String,
+        password: String
+    ): File? {
+        val manifest = readManifest(parentFolderPath, password) ?: return null
+        val salt = getSalt(parentFolderPath) ?: return null
+
+        val subEntry = (manifest.subfolders ?: emptyList()).find { it.obfuscatedName == obfuscatedName }
+            ?: return null
+        val obfuscatedDir = File(parentFolderPath, obfuscatedName)
+        if (!obfuscatedDir.exists() || !obfuscatedDir.isDirectory) return null
+
+        val restoredDir = File(parentFolderPath, subEntry.originalName)
+        if (!obfuscatedDir.renameTo(restoredDir)) return null
+
+        if (isLocked(restoredDir.absolutePath)) {
+            updateRegistryPath(context, obfuscatedDir.absolutePath, restoredDir.absolutePath)
+        }
+        LockedPlaybackSession.renameSession(obfuscatedDir.absolutePath, restoredDir.absolutePath)
+
+        val updatedManifest = manifest.copy(
+            subfolders = (manifest.subfolders ?: emptyList()).filter { it.obfuscatedName != obfuscatedName }
+        )
+        val encryptedManifest = encryptManifest(updatedManifest, password, salt)
+        File(parentFolderPath, MANIFEST_FILE).writeBytes(encryptedManifest)
+
+        if (LockedPlaybackSession.hasSessionForFolder(parentFolderPath)) {
+            LockedPlaybackSession.updateManifest(parentFolderPath, updatedManifest)
+        }
+
+        return restoredDir
+    }
+
+    /**
+     * Recursively unlock a folder and all its locked subfolders.
+     * Each level: read subfolder names, unlock current folder, then recurse into them.
+     * Uses the same password for every level.
+     */
+    fun unlockFolderRecursive(
+        context: Context,
+        folderPath: String,
+        password: String,
+        onProgress: (current: Int, total: Int, fileName: String) -> Unit = { _, _, _ -> },
+        onError: (String) -> Unit = {},
+        onSuccess: () -> Unit = {}
+    ) {
+        if (!isLocked(folderPath)) {
+            // Not locked — still recurse into any locked subfolders
+            File(folderPath).listFiles()?.filter { it.isDirectory && isLocked(it.absolutePath) }
+                ?.forEach { subdir ->
+                    unlockFolderRecursive(context, subdir.absolutePath, password, onProgress, {}, {})
+                }
+            onSuccess()
+            return
+        }
+
+        // Read subfolder original names BEFORE unlocking (unlockFolder renames them back)
+        val subOriginalNames = readManifest(folderPath, password)?.subfolders
+            ?.map { it.originalName } ?: emptyList()
+
+        var didError = false
+        unlockFolder(
+            context = context,
+            folderPath = folderPath,
+            password = password,
+            onProgress = onProgress,
+            onError = { msg -> didError = true; onError(msg) },
+            onSuccess = {}
+        )
+        if (didError) return
+
+        // After unlock, subfolders have original names again — recurse into locked ones
+        subOriginalNames.forEach { originalName ->
+            val subPath = File(folderPath, originalName).absolutePath
+            if (File(subPath).exists()) {
+                unlockFolderRecursive(context, subPath, password, onProgress, {}, {})
+            }
+        }
+
+        onSuccess()
+    }
+
+    /**
+     * Rename a subfolder inside a locked parent to a UUID, tracking it in the parent manifest.
+     * Call this after moving/locking a subfolder into an already-locked parent.
+     * Returns the new obfuscated path, or null on failure.
+     */
+    fun addSubfolderToLockedFolder(
+        context: Context,
+        parentFolderPath: String,
+        subfolderPath: String,
+        password: String
+    ): String? {
+        if (!isLocked(parentFolderPath)) return null
+        val manifest = readManifest(parentFolderPath, password) ?: return null
+        val salt = getSalt(parentFolderPath) ?: return null
+
+        val subdir = File(subfolderPath)
+        if (!subdir.exists() || !subdir.isDirectory) return null
+
+        val originalName = subdir.name
+        val obfuscatedName = UUID.randomUUID().toString().replace("-", "")
+        val renamedDir = File(parentFolderPath, obfuscatedName)
+
+        if (!subdir.renameTo(renamedDir)) return null
+
+        if (isLocked(renamedDir.absolutePath)) {
+            updateRegistryPath(context, subfolderPath, renamedDir.absolutePath)
+        }
+        LockedPlaybackSession.renameSession(subfolderPath, renamedDir.absolutePath)
+
+        val updatedManifest = manifest.copy(
+            subfolders = (manifest.subfolders ?: emptyList()) + LockedSubfolderEntry(obfuscatedName, originalName)
+        )
+        val encryptedManifest = encryptManifest(updatedManifest, password, salt)
+        File(parentFolderPath, MANIFEST_FILE).writeBytes(encryptedManifest)
+
+        if (LockedPlaybackSession.hasSessionForFolder(parentFolderPath)) {
+            LockedPlaybackSession.updateManifest(parentFolderPath, updatedManifest)
+        }
+
+        return renamedDir.absolutePath
     }
 
     /**

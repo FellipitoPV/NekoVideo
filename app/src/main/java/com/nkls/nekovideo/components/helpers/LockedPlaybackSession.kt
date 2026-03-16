@@ -97,6 +97,18 @@ object LockedPlaybackSession {
     }
 
     /**
+     * Move a session from oldPath to newPath (e.g. when a folder directory is renamed/obfuscated).
+     */
+    fun renameSession(oldPath: String, newPath: String) {
+        val session = sessions[oldPath] ?: return
+        sessions[newPath] = session
+        sessions.remove(oldPath)
+        if (currentFolderPath == oldPath) {
+            currentFolderPath = newPath
+        }
+    }
+
+    /**
      * Remove a session for a specific folder (e.g. when deleting a locked subfolder).
      */
     fun removeSession(folderPath: String) {

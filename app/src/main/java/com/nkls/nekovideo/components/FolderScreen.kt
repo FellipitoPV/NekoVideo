@@ -18,11 +18,17 @@ import android.util.Log
 import android.util.LruCache
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -46,17 +52,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.services.FolderVideoScanner
@@ -172,7 +185,10 @@ data class MediaItem(
     val name: String = File(path).name,
     val displayName: String = if (File(path).name.startsWith(".")) File(path).name.drop(1) else File(path).name,
     val lastModified: Long = 0L,
-    val sizeInBytes: Long = 0L
+    val sizeInBytes: Long = 0L,
+    val videoCount: Int = 0,
+    val subfolderCount: Int = 0,
+    val isInsidePrivateFolder: Boolean = false
 )
 
 // SIMPLIFICADO - Cache e constantes
@@ -260,17 +276,36 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
             )
         })
 
-        // Add subdirectories (locked subfolders show as folders)
+        // Add subdirectories using manifest subfolder entries for display names
         folder.listFiles()?.forEach { file ->
-            if (file.isDirectory && file.name !in listOf(".neko_thumbs")) {
-                items.add(MediaItem(
-                    path = file.absolutePath,
-                    uri = null,
-                    isFolder = true,
-                    lastModified = file.lastModified(),
-                    sizeInBytes = getFolderSize(file)
-                ))
+            if (!file.isDirectory || file.name == ".neko_thumbs") return@forEach
+            val subEntry = manifest.subfolders?.find { it.obfuscatedName == file.name }
+            val displayName = subEntry?.originalName ?: file.name
+            val subIsLocked = FolderLockManager.isLocked(file.absolutePath)
+            val subVideoCount = if (subIsLocked) {
+                // Use active session manifest if available, otherwise count non-marker files
+                LockedPlaybackSession.getManifestForFolder(file.absolutePath)?.files?.size
+                    ?: file.listFiles()?.count { f ->
+                        f.isFile && f.name !in setOf(".neko_locked", ".neko_manifest.enc", ".neko_lock_in_progress", ".nomedia", ".nekovideo")
+                    } ?: 0
+            } else {
+                file.listFiles()?.count { it.isFile && it.extension.lowercase() in videoExtensions } ?: 0
             }
+            val subFolderCount = try {
+                file.listFiles()?.count { it.isDirectory && it.name != ".neko_thumbs" } ?: 0
+            } catch (e: Exception) { 0 }
+            items.add(MediaItem(
+                path = file.absolutePath,
+                uri = null,
+                isFolder = true,
+                name = displayName,
+                displayName = displayName,
+                lastModified = file.lastModified(),
+                sizeInBytes = getFolderSize(file),
+                videoCount = subVideoCount,
+                subfolderCount = subFolderCount,
+                isInsidePrivateFolder = true
+            ))
         }
 
         return applySorting(items, sortType)
@@ -280,7 +315,7 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
         when {
             file.name in listOf(".nekovideo", ".neko_locked", ".neko_manifest.enc",
                 ".neko_lock_in_progress", ".nomedia", "recovery_hint.txt", ".neko_thumbs") -> null
-            file.isDirectory -> MediaItem(file.absolutePath, null, true, lastModified = file.lastModified(), sizeInBytes = getFolderSize(file))
+            file.isDirectory -> MediaItem(file.absolutePath, null, true, lastModified = file.lastModified(), sizeInBytes = getFolderSize(file), isInsidePrivateFolder = true)
             file.isFile && file.extension.lowercase() in videoExtensions -> MediaItem(file.absolutePath, null, false, lastModified = file.lastModified(), sizeInBytes = file.length())
             else -> null
         }
@@ -315,6 +350,7 @@ private fun loadNormalContentFromCache(
     // Carregar pastas usando o cache
     folder.listFiles()?.filter { it.isDirectory }?.forEach { subfolder ->
         if (subfolder.name in listOf(".nekovideo", ".neko_thumbs")) return@forEach
+        if (isRootLevel && subfolder.name == "Android") return@forEach
 
         val folderInfo = folderCache[subfolder.absolutePath]
         val isSecure = folderInfo?.isSecure ?: (File(subfolder, ".nomedia").exists())
@@ -369,13 +405,45 @@ private fun loadNormalContentFromCache(
         }
 
         if (shouldShow) {
+            // Para pastas seguras/privadas: conta direto do filesystem (cache pode estar desatualizado)
+            // Para pastas normais: usa o cache do scanner (MediaStore mantém atualizado)
+            val directVideoCount = when {
+                isFolderLocked -> FolderLockManager.getRegistryEntry(context, subfolder.absolutePath)?.fileCount ?: 0
+                isNekoFolder || isSecure -> try {
+                    subfolder.listFiles()?.count {
+                        it.isFile && it.extension.lowercase() in videoExtensions
+                    } ?: 0
+                } catch (e: Exception) { folderInfo?.videoCount ?: 0 }
+                else -> folderInfo?.videoCount ?: 0
+            }
+            val directSubfolderCount = when {
+                isFolderLocked -> try {
+                    subfolder.listFiles()?.count { it.isDirectory && it.name != ".neko_thumbs" } ?: 0
+                } catch (e: Exception) { 0 }
+                isNekoFolder || isSecure -> try {
+                    subfolder.listFiles()?.count {
+                        it.isDirectory && !it.name.startsWith(".")
+                    } ?: 0
+                } catch (e: Exception) {
+                    folderCache.count { (cachedPath, cachedInfo) ->
+                        File(cachedPath).parent == subfolder.absolutePath &&
+                        (cachedInfo.hasVideos || cachedInfo.isLocked)
+                    }
+                }
+                else -> folderCache.count { (cachedPath, cachedInfo) ->
+                    File(cachedPath).parent == subfolder.absolutePath &&
+                    (cachedInfo.hasVideos || cachedInfo.isLocked)
+                }
+            }
             items.add(
                 MediaItem(
                     subfolder.absolutePath,
                     null,
                     true,
                     lastModified = folderInfo?.lastModified ?: subfolder.lastModified(),
-                    sizeInBytes = 0L
+                    sizeInBytes = 0L,
+                    videoCount = directVideoCount,
+                    subfolderCount = directSubfolderCount
                 )
             )
         }
@@ -437,10 +505,37 @@ fun SortRow(
     var showTutorial by remember { mutableStateOf(!prefs.getBoolean("pull_to_refresh_tutorial_shown", false)) }
     var tutorialAlpha by remember { mutableStateOf(0f) }
     var showDropdown by remember { mutableStateOf(false) }
-    var pullOffset by remember { mutableStateOf(0f) }
+    var pullOffsetTarget by remember { mutableStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
     var isReadyToRefresh by remember { mutableStateOf(false) }
     val density = LocalDensity.current
     val refreshThreshold = with(density) { 80.dp.toPx() }
+    val pullOffset by animateFloatAsState(
+        targetValue = pullOffsetTarget,
+        animationSpec = if (isDragging) snap() else spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "pullOffset"
+    )
+    val iconScale by animateFloatAsState(
+        targetValue = if (pullOffsetTarget > 0f) (pullOffsetTarget / refreshThreshold).coerceIn(0.4f, 1.1f) else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        label = "iconScale"
+    )
+    val iconRotation by animateFloatAsState(
+        targetValue = (pullOffsetTarget / refreshThreshold * 180f).coerceIn(0f, 180f),
+        animationSpec = tween(200),
+        label = "iconRotation"
+    )
+
+    val searchFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(isSearchExpanded) {
+        if (isSearchExpanded) {
+            delay(250)
+            try { searchFocusRequester.requestFocus() } catch (_: Exception) { }
+        }
+    }
 
     LaunchedEffect(showTutorial) {
         if (showTutorial && tutorialAlpha == 0f) {
@@ -474,20 +569,23 @@ fun SortRow(
                                     }
                                 }
                             }
-                            pullOffset = 0f
+                            isDragging = false
+                            pullOffsetTarget = 0f
                             isReadyToRefresh = false
                         },
                         onDragCancel = {
-                            pullOffset = 0f
+                            isDragging = false
+                            pullOffsetTarget = 0f
                             isReadyToRefresh = false
                         },
                         onVerticalDrag = { _, dragAmount ->
+                            isDragging = true
                             if (dragAmount > 0) {
-                                pullOffset = (pullOffset + dragAmount * 0.5f).coerceIn(0f, refreshThreshold * 1.5f)
-                                isReadyToRefresh = pullOffset >= refreshThreshold
-                            } else if (dragAmount < 0 && pullOffset > 0) {
-                                pullOffset = (pullOffset + dragAmount * 0.5f).coerceAtLeast(0f)
-                                isReadyToRefresh = pullOffset >= refreshThreshold
+                                pullOffsetTarget = (pullOffsetTarget + dragAmount * 0.5f).coerceIn(0f, refreshThreshold * 1.5f)
+                                isReadyToRefresh = pullOffsetTarget >= refreshThreshold
+                            } else if (dragAmount < 0 && pullOffsetTarget > 0) {
+                                pullOffsetTarget = (pullOffsetTarget + dragAmount * 0.5f).coerceAtLeast(0f)
+                                isReadyToRefresh = pullOffsetTarget >= refreshThreshold
                             }
                         }
                     )
@@ -498,7 +596,7 @@ fun SortRow(
         val isCompact = this.maxWidth > 600.dp
 
         Column {
-            if (!isCompact && !isRefreshing && pullOffset == 0f) {
+            if (!isCompact && !isRefreshing && pullOffsetTarget == 0f) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -519,133 +617,231 @@ fun SortRow(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(with(density) { pullOffset.toDp() })
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
+                        .height(with(density) { pullOffset.toDp() }),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (isRefreshing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    } else {
-                        Icon(
-                            imageVector = if (isReadyToRefresh) Icons.Default.Refresh else Icons.Default.ArrowDownward,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .size(24.dp)
-                                .alpha((pullOffset / refreshThreshold).coerceIn(0f, 1f))
-                        )
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .scale(iconScale)
+                            .background(
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(
+                                    alpha = (pullOffsetTarget / refreshThreshold).coerceIn(0f, 0.9f)
+                                ),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isRefreshing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.ArrowDownward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .rotate(iconRotation)
+                            )
+                        }
                     }
                 }
             }
 
-            // Linha única com sort e busca
-            Row(
+            // Linha de sort/busca — troca de modo animada
+            AnimatedContent(
+                targetState = isSearchExpanded,
+                transitionSpec = {
+                    if (targetState) {
+                        (slideInHorizontally(tween(300)) { it / 3 } + fadeIn(tween(200))) togetherWith
+                        (slideOutHorizontally(tween(250)) { -it / 3 } + fadeOut(tween(150)))
+                    } else {
+                        (slideInHorizontally(tween(300)) { -it / 3 } + fadeIn(tween(200))) togetherWith
+                        (slideOutHorizontally(tween(250)) { it / 3 } + fadeOut(tween(150)))
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = if (isCompact) 2.dp else 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Ícone de sort sempre visível
-                Icon(
-                    Icons.Default.Sort,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                // Dropdown de ordenação
-                Box(modifier = Modifier.weight(1f, fill = !isSearchExpanded)) {
-                    TextButton(onClick = { showDropdown = true }) {
-                        Text(
-                            when (currentSort) {
-                                SortType.NAME_ASC -> stringResource(R.string.sort_name_asc)
-                                SortType.NAME_DESC -> stringResource(R.string.sort_name_desc)
-                                SortType.DATE_NEWEST -> stringResource(R.string.sort_date_newest)
-                                SortType.DATE_OLDEST -> stringResource(R.string.sort_date_oldest)
-                                SortType.SIZE_LARGEST -> stringResource(R.string.sort_size_largest)
-                                SortType.SIZE_SMALLEST -> stringResource(R.string.sort_size_smallest)
-                            }
-                        )
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                    }
-
-                    DropdownMenu(
-                        expanded = showDropdown,
-                        onDismissRequest = { showDropdown = false }
+                    .padding(horizontal = 12.dp, vertical = if (isCompact) 4.dp else 8.dp),
+                label = "sortSearchToggle"
+            ) { inSearch ->
+                if (inSearch) {
+                    // Modo busca: row vira barra de pesquisa
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        SortType.values().forEach { sort ->
-                            DropdownMenuItem(
-                                text = {
+                        IconButton(onClick = {
+                            onSearchQueryChange("")
+                            onSearchExpandChange(false)
+                        }) {
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                contentDescription = "Fechar busca",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                                BasicTextField(
+                                    value = searchQuery,
+                                    onValueChange = onSearchQueryChange,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .focusRequester(searchFocusRequester),
+                                    singleLine = true,
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                    decorationBox = { innerTextField ->
+                                        Box {
+                                            if (searchQuery.isEmpty()) {
+                                                Text(
+                                                    text = "Buscar...",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                                )
+                                            }
+                                            innerTextField()
+                                        }
+                                    }
+                                )
+                                AnimatedVisibility(
+                                    visible = searchQuery.isNotEmpty(),
+                                    enter = fadeIn(tween(150)) + expandHorizontally(tween(150)),
+                                    exit = fadeOut(tween(150)) + shrinkHorizontally(tween(150))
+                                ) {
+                                    IconButton(
+                                        onClick = { onSearchQueryChange("") },
+                                        modifier = Modifier.size(20.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Clear,
+                                            contentDescription = "Limpar",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Modo normal: chip de sort + botão de busca
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Box {
+                            Surface(
+                                onClick = { showDropdown = true },
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Sort,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
                                     Text(
-                                        when (sort) {
+                                        text = when (currentSort) {
                                             SortType.NAME_ASC -> stringResource(R.string.sort_name_asc)
                                             SortType.NAME_DESC -> stringResource(R.string.sort_name_desc)
                                             SortType.DATE_NEWEST -> stringResource(R.string.sort_date_newest)
                                             SortType.DATE_OLDEST -> stringResource(R.string.sort_date_oldest)
                                             SortType.SIZE_LARGEST -> stringResource(R.string.sort_size_largest)
                                             SortType.SIZE_SMALLEST -> stringResource(R.string.sort_size_smallest)
-                                        }
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
                                     )
-                                },
-                                onClick = {
-                                    onSortChange(sort)
-                                    showDropdown = false
-                                },
-                                leadingIcon = if (currentSort == sort) {
-                                    { Icon(Icons.Default.Check, contentDescription = null) }
-                                } else null
+                                    Icon(
+                                        Icons.Default.ArrowDropDown,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                            }
+                            DropdownMenu(
+                                expanded = showDropdown,
+                                onDismissRequest = { showDropdown = false }
+                            ) {
+                                SortType.values().forEach { sort ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                when (sort) {
+                                                    SortType.NAME_ASC -> stringResource(R.string.sort_name_asc)
+                                                    SortType.NAME_DESC -> stringResource(R.string.sort_name_desc)
+                                                    SortType.DATE_NEWEST -> stringResource(R.string.sort_date_newest)
+                                                    SortType.DATE_OLDEST -> stringResource(R.string.sort_date_oldest)
+                                                    SortType.SIZE_LARGEST -> stringResource(R.string.sort_size_largest)
+                                                    SortType.SIZE_SMALLEST -> stringResource(R.string.sort_size_smallest)
+                                                }
+                                            )
+                                        },
+                                        onClick = {
+                                            onSortChange(sort)
+                                            showDropdown = false
+                                        },
+                                        leadingIcon = if (currentSort == sort) {
+                                            { Icon(Icons.Default.Check, contentDescription = null) }
+                                        } else null
+                                    )
+                                }
+                            }
+                        }
+                        IconButton(onClick = { onSearchExpandChange(true) }) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = "Buscar",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 }
+            }
 
-                // Campo de busca expansível
-                AnimatedVisibility(
-                    visible = isSearchExpanded,
-                    enter = fadeIn(animationSpec = tween(200)) + expandHorizontally(animationSpec = tween(200)),
-                    exit = fadeOut(animationSpec = tween(200)) + shrinkHorizontally(animationSpec = tween(200))
-                ) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = onSearchQueryChange,
-                        modifier = Modifier.width(200.dp),
-                        placeholder = { Text("Buscar...") },
-                        singleLine = true,
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { onSearchQueryChange("") }) {
-                                    Icon(Icons.Default.Clear, contentDescription = "Limpar")
-                                }
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        )
-                    )
-                }
-
-                // Botão de busca
-                IconButton(
-                    onClick = {
-                        if (isSearchExpanded) {
-                            onSearchQueryChange("")
-                            onSearchExpandChange(false)
-                        } else {
-                            onSearchExpandChange(true)
-                        }
-                    }
-                ) {
-                    Icon(
-                        imageVector = if (isSearchExpanded) Icons.Default.Close else Icons.Default.Search,
-                        contentDescription = if (isSearchExpanded) "Fechar busca" else "Buscar",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            // Indicador de scan persistente — visível enquanto isRefreshing = true
+            AnimatedVisibility(
+                visible = isRefreshing,
+                enter = expandVertically(animationSpec = tween(200)) + fadeIn(animationSpec = tween(200)),
+                exit = shrinkVertically(animationSpec = tween(200)) + fadeOut(animationSpec = tween(200))
+            ) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 2.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
             }
         }
 
@@ -1061,35 +1257,6 @@ fun FolderScreen(
                 }
             }
 
-            // ✅ ÚNICO indicador de scan em background (discreto, no topo)
-            if (isScanning && items.isNotEmpty()) {
-                Card(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 8.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp, 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Atualizando...",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
-            }
         }
     }
 }
@@ -1332,7 +1499,7 @@ private fun MediaCard(
 // SIMPLIFICADO - Conteúdo da pasta
 @Composable
 private fun FolderContent(item: MediaItem) {
-    val isSecure = item.name.startsWith(".")
+    val isSecure = item.name.startsWith(".") || item.isInsidePrivateFolder
     val isLocked = FolderLockManager.isLocked(item.path)
 
     Column(
@@ -1377,14 +1544,66 @@ private fun FolderContent(item: MediaItem) {
             )
         }
 
+        val nekoPrivatePath = FilesManager.SecureStorage.getNekoPrivateFolderPath()
+        val folderDisplayName = if (item.path == nekoPrivatePath)
+            stringResource(R.string.neko_private_folder_name)
+        else
+            item.displayName
+
         Text(
-            text = item.displayName,
+            text = folderDisplayName,
             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(6.dp, 4.dp)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp)
         )
+
+        if (item.videoCount > 0 || item.subfolderCount > 0) {
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 6.dp)
+            ) {
+                if (item.videoCount > 0) {
+                    Icon(
+                        Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(10.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Text(
+                        "${item.videoCount}",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+                if (item.videoCount > 0 && item.subfolderCount > 0) {
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        "·",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                    )
+                    Spacer(Modifier.width(5.dp))
+                }
+                if (item.subfolderCount > 0) {
+                    Icon(
+                        Icons.Default.Folder,
+                        contentDescription = null,
+                        modifier = Modifier.size(10.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Text(
+                        "${item.subfolderCount}",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        }
     }
 }
 

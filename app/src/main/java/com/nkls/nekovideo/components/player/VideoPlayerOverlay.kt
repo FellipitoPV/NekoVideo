@@ -41,6 +41,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.activity.ComponentActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -87,6 +88,7 @@ fun VideoPlayerOverlay(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val activity = lifecycleOwner as? ComponentActivity
     var mediaController by remember { mutableStateOf<MediaController?>(null) }
     var isFullscreen by remember { mutableStateOf(false) }
     var hasRefreshed by remember { mutableStateOf(false) }
@@ -101,7 +103,7 @@ fun VideoPlayerOverlay(
     var isDiscovering by remember { mutableStateOf(false) }
 
     // ✅ Observar estado de PIP da MainActivity (usando State para reatividade)
-    val mainActivity = context.findActivity() as? MainActivity
+    val mainActivity = activity as? MainActivity
     val isInPiPMode by mainActivity?.isInPiPModeState ?: remember { mutableStateOf(false) }
 
     // Estados para controles customizados
@@ -151,7 +153,6 @@ fun VideoPlayerOverlay(
     // ✅ Restaurar orientação padrão quando não pode controlar rotação
     LaunchedEffect(canControlRotation) {
         if (!canControlRotation) {
-            val activity = context.findActivity()
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
@@ -206,11 +207,11 @@ fun VideoPlayerOverlay(
 
 
     fun applyRotation(videoSize: VideoSize? = null) {
-        val activity = context.findActivity() ?: return
+        val localActivity = activity ?: return
 
         // Se não pode controlar rotação, restaurar orientação padrão e sair
         if (!canControlRotation) {
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            localActivity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             return
         }
 
@@ -235,7 +236,7 @@ fun VideoPlayerOverlay(
         // Só aplicar se mudou e atualizar cache
         if (targetOrientation != ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED) {
             lastValidOrientation = targetOrientation
-            activity.requestedOrientation = targetOrientation
+            localActivity.requestedOrientation = targetOrientation
         }
     }
 
@@ -317,9 +318,8 @@ fun VideoPlayerOverlay(
 
     }
 
-    val activity = context.findActivity() as? MainActivity
     LaunchedEffect(isVisible, isPlaying) {
-        activity?.setPlayerState(isVisible, isPlaying)
+        (activity as? MainActivity)?.setPlayerState(isVisible, isPlaying)
     }
 
     // ✅ RECEPTOR DE COMANDOS PIP
@@ -392,6 +392,14 @@ fun VideoPlayerOverlay(
     LaunchedEffect(controlsVisible) {
         if (controlsVisible) {
             uiTimer = 4 // Inicia com 4 segundos
+        } else if (isVisible) {
+            // Re-hide system bars whenever controls are dismissed
+            val window = activity?.window ?: return@LaunchedEffect
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            WindowCompat.getInsetsController(window, window.decorView).apply {
+                hide(WindowInsetsCompat.Type.systemBars())
+                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
         }
     }
 
@@ -667,6 +675,10 @@ fun VideoPlayerOverlay(
             }
 
             mediaController!!.addListener(listener)
+
+            // Apply rotation immediately — onVideoSizeChanged may have fired before
+            // this listener was registered (race between recomposition and ExoPlayer decode)
+            applyRotation(mediaController!!.videoSize)
         }
 
         onDispose {
@@ -679,8 +691,8 @@ fun VideoPlayerOverlay(
     // Controle de modo imersivo (mesmo código)
     DisposableEffect(isVisible) {
         if (isVisible) {
-            val activity = context.findActivity() ?: return@DisposableEffect onDispose {}
-            val window = activity.window
+            val localActivity = activity ?: return@DisposableEffect onDispose {}
+            val window = localActivity.window
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
 
             WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -697,7 +709,7 @@ fun VideoPlayerOverlay(
                 WindowCompat.setDecorFitsSystemWindows(window, true)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
                 // Restaurar orientação padrão ao voltar para o FolderScreen
-                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                localActivity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 isFullscreen = false
 
                 // Remover flag de manter tela ligada
@@ -717,8 +729,7 @@ fun VideoPlayerOverlay(
 
             if (event == Lifecycle.Event.ON_RESUME && isVisible) {
                 Log.d("BackDebug", "🎬 VideoPlayerOverlay - ON_RESUME com overlay visível, reaplicando flags")
-                val activity = context.findActivity() ?: return@LifecycleEventObserver
-                val window = activity.window
+                val window = activity?.window ?: return@LifecycleEventObserver
                 val insetsController = WindowCompat.getInsetsController(window, window.decorView)
 
                 // Reaplicar modo imersivo
@@ -953,8 +964,7 @@ fun VideoPlayerOverlay(
                         onSubtitlesClick = { showTrackSelectionDialog = true },
                         onPiPClick = {
                             controlsVisible = false
-                            val activity = context.findActivity() as? MainActivity
-                            activity?.enterPiPMode()
+                            (activity as? MainActivity)?.enterPiPMode()
                         },
                         needsMetadataFix = !isSeekable,
                         onFixMetadataClick = {

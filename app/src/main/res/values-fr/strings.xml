@@ -30,6 +30,7 @@
     <string name="action_create_folder">Nouveau Dossier</string>
     <string name="action_settings">Paramètres</string>
     <string name="no_videos_found">Aucune vidéo dans ce dossier</string>
+    <string name="neko_private_folder_name">Coffre Privé</string>
     <string name="secure_folders_hidden">Dossiers sécurisés masqués</string>
     <string name="secure_folders_shown">Dossiers sécurisés affichés</string>
     <string name="select_private_folders_to_unprivatize">Sélectionner des dossiers privés à déprivatiser</string>

@@ -30,6 +30,7 @@
     <string name="action_create_folder">Neuer Ordner</string>
     <string name="action_settings">Einstellungen</string>
     <string name="no_videos_found">Keine Videos in diesem Ordner</string>
+    <string name="neko_private_folder_name">Privater Tresor</string>
     <string name="secure_folders_hidden">Sichere Ordner ausgeblendet</string>
     <string name="secure_folders_shown">Sichere Ordner angezeigt</string>
     <string name="select_private_folders_to_unprivatize">Wählen Sie private Ordner zum Entprivatisieren aus</string>

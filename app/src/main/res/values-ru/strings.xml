@@ -30,6 +30,7 @@
     <string name="action_create_folder">Новая папка</string>
     <string name="action_settings">Настройки</string>
     <string name="no_videos_found">Нет видео в этой папке</string>
+    <string name="neko_private_folder_name">Личное Хранилище</string>
     <string name="secure_folders_hidden">Защищённые папки скрыты</string>
     <string name="secure_folders_shown">Защищённые папки отображены</string>
     <string name="select_private_folders_to_unprivatize">Выберите приватные папки для отмены приватности</string>

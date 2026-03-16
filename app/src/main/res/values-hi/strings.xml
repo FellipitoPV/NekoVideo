@@ -30,6 +30,7 @@
     <string name="action_create_folder">नया फोल्डर</string>
     <string name="action_settings">सेटिंग्स</string>
     <string name="no_videos_found">इस फोल्डर में कोई वीडियो नहीं</string>
+    <string name="neko_private_folder_name">निजी तिजोरी</string>
     <string name="secure_folders_hidden">सुरक्षित फ़ोल्डर छुपाए गए</string>
     <string name="secure_folders_shown">सुरक्षित फ़ोल्डर प्रदर्शित</string>
     <string name="select_private_folders_to_unprivatize">अनप्राइवेटाइज़ करने के लिए प्राइवेट फ़ोल्डर चुनें</string>

@@ -144,10 +144,9 @@ object FolderVideoScanner {
         }
 
         scanJob?.cancel()
+        _isScanning.value = true
 
         scanJob = scope.launch(Dispatchers.IO) {
-            _isScanning.value = true
-
             try {
                 val folderMap = ConcurrentHashMap<String, FolderInfo>()
 

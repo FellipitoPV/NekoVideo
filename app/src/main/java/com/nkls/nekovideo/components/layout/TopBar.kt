@@ -46,6 +46,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.nkls.nekovideo.R
+import com.nkls.nekovideo.components.helpers.FilesManager
+import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -207,8 +209,20 @@ fun TopBar(
                         ) {
                             itemsIndexed(pathSegments) { index, segment ->
                                 Row(verticalAlignment = Alignment.CenterVertically) {
+                                    // Resolve real name if segment is an obfuscated subfolder
+                                    val parentFullPath = rootPath + if (index > 0) "/" + pathSegments.take(index).joinToString("/") else ""
+                                    val segmentFullPath = "$rootPath/${pathSegments.take(index + 1).joinToString("/")}"
+                                    val realName = LockedPlaybackSession.getManifestForFolder(parentFullPath)
+                                        ?.subfolders?.find { it.obfuscatedName == segment }
+                                        ?.originalName
                                     val isHidden = segment.startsWith(".")
-                                    val displayName = if (isHidden) segment.drop(1) else segment
+                                    val displayName = when {
+                                        segmentFullPath == FilesManager.SecureStorage.getNekoPrivateFolderPath() ->
+                                            stringResource(R.string.neko_private_folder_name)
+                                        realName != null -> realName
+                                        isHidden -> segment.drop(1)
+                                        else -> segment
+                                    }
                                     val isCurrentFolder = index == pathSegments.size - 1
 
                                     Text(
