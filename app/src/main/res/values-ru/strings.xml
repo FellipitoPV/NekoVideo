@@ -262,21 +262,6 @@
     <string name="fix_video_success">Видео исправлено!</string>
     <string name="fix_video_error">Ошибка исправления</string>
 
-    <!-- Video Cutter -->
-    <string name="action_cut_video">Вырезать видео</string>
-    <string name="cut_add_point">Разрезать здесь</string>
-    <string name="cut_segments">Сегменты</string>
-    <string name="cut_save">Сохранить вырезки</string>
-    <string name="cut_processing">Обработка... %1$d%%</string>
-    <string name="cut_success">Вырезка успешно сохранена!</string>
-    <string name="cut_processing_background">Обработка в фоне…</string>
-    <string name="cut_segment_label">Сегмент %d</string>
-    <string name="cut_merge_title">Несколько сегментов</string>
-    <string name="cut_merge_message">Сохранено %d сегментов. Объединить в один lossless файл?</string>
-    <string name="cut_merge_yes">Объединить</string>
-    <string name="cut_save_separate">Сохранить отдельно</string>
-    <string name="cut_timeline_hint">Перетащите &#x2022; Сожмите для масштаба</string>
-
     <!-- ADICIONAR plurals corretos -->
     <plurals name="items_selected">
         <item quantity="one">Выбран %d элемент</item>

@@ -262,21 +262,6 @@
     <string name="fix_video_success">वीडियो ठीक हो गया!</string>
     <string name="fix_video_error">ठीक करने में त्रुटि</string>
 
-    <!-- Video Cutter -->
-    <string name="action_cut_video">वीडियो काटें</string>
-    <string name="cut_add_point">यहाँ काटें</string>
-    <string name="cut_segments">खंड</string>
-    <string name="cut_save">कट सहेजें</string>
-    <string name="cut_processing">प्रसंस्करण... %1$d%%</string>
-    <string name="cut_success">कट सफलतापूर्वक सहेजा गया!</string>
-    <string name="cut_processing_background">बैकग्राउंड में प्रोसेस हो रहा है…</string>
-    <string name="cut_segment_label">खंड %d</string>
-    <string name="cut_merge_title">कई खंड</string>
-    <string name="cut_merge_message">%d खंड सहेजे गए। एक lossless फ़ाइल में मर्ज करें?</string>
-    <string name="cut_merge_yes">मर्ज करें</string>
-    <string name="cut_save_separate">अलग सहेजें</string>
-    <string name="cut_timeline_hint">खींचें &#x2022; ज़ूम के लिए पिंच करें</string>
-
     <!-- ADICIONAR plurals corretos -->
     <plurals name="items_selected">
         <item quantity="one">%d आइटम चुना गया</item>

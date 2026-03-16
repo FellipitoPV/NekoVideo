@@ -180,9 +180,11 @@ object OptimizedThumbnailManager {
 
             retriever.setDataSource(cleanPath)
 
-            // Pega primeiro frame do vídeo
+            // Pega frame do meio do vídeo
+            val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+            val middleTimeUs = (durationMs * 1000L) / 2
             val bitmap = retriever.getFrameAtTime(
-                0,
+                middleTimeUs,
                 MediaMetadataRetriever.OPTION_CLOSEST_SYNC
             )
 
@@ -515,7 +517,7 @@ object OptimizedThumbnailManager {
 
                     // Gera thumbnail se necessário
                     val thumbnail = if (showThumbnails && cachedThumbnail == null) {
-                        loadThumbnailWithGlide(context, videoUri, key, thumbnailSize)?.also { newBitmap ->
+                        loadThumbnailWithGlide(context, videoUri, videoPath, key, thumbnailSize)?.also { newBitmap ->
                             // Salva no disco (per-folder .neko_thumbs)
                             withContext(Dispatchers.IO) {
                                 saveThumbnailToDisk(videoPath, newBitmap)
@@ -561,9 +563,24 @@ object OptimizedThumbnailManager {
     private suspend fun loadThumbnailWithGlide(
         context: Context,
         videoUri: Uri,
+        videoPath: String,
         key: String,
         thumbnailSize: Int
-    ): Bitmap? = suspendCancellableCoroutine { continuation ->
+    ): Bitmap? {
+        // Obtém duração para usar frame do meio
+        val middleTimeUs = withContext(Dispatchers.IO) {
+            try {
+                val retriever = MediaMetadataRetriever()
+                retriever.setDataSource(videoPath)
+                val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                retriever.release()
+                (durationMs * 1000L) / 2
+            } catch (e: Exception) {
+                0L
+            }
+        }
+
+        return suspendCancellableCoroutine { continuation ->
         val target = object : CustomTarget<Bitmap>() {
             override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
                 activeTargets.remove(key)
@@ -601,7 +618,7 @@ object OptimizedThumbnailManager {
             Glide.with(context)
                 .asBitmap()
                 .load(videoUri)
-                .apply(RequestOptions.frameOf(0L))
+                .apply(RequestOptions.frameOf(middleTimeUs))
                 .override(thumbnailSize, thumbnailSize)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .centerCrop()
@@ -621,6 +638,7 @@ object OptimizedThumbnailManager {
                 activeTargets.remove(key)
             }
         }
+    }
     }
 
     fun cancelLoading(videoPath: String) {
