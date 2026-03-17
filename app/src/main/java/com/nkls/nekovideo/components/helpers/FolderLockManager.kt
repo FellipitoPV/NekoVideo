@@ -988,7 +988,9 @@ object FolderLockManager {
         val retriever = MediaMetadataRetriever()
         return try {
             retriever.setDataSource(XorMediaDataSource(file, xorKey))
-            val bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+            val middleTimeUs = (durationMs * 1000L) / 2
+            val bitmap = retriever.getFrameAtTime(middleTimeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
             if (bitmap != null) {
                 val thumbFile = File(thumbsDir, file.name)
                 val baos = java.io.ByteArrayOutputStream()

@@ -3,17 +3,11 @@ package com.nkls.nekovideo.components
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.drawable.Drawable
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.LruCache
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.request.RequestOptions
-import com.bumptech.glide.request.target.CustomTarget
-import com.bumptech.glide.request.transition.Transition
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
@@ -23,7 +17,6 @@ import java.io.File
 import java.text.DecimalFormat
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.resume
 
 enum class ThumbnailState {
     IDLE, WAITING, LOADING, LOADED, CANCELLED, ERROR
@@ -41,7 +34,6 @@ object OptimizedThumbnailManager {
     private val loadedThumbnails = ConcurrentHashMap<String, Boolean>()
     private val pendingCancellations = ConcurrentHashMap<String, Job>()
     private val thumbnailStates = ConcurrentHashMap<String, ThumbnailState>()
-    private val activeTargets = ConcurrentHashMap<String, CustomTarget<Bitmap>>()
 
     private val THUMB_XOR_KEY = byteArrayOf(0x4E, 0x45, 0x4B, 0x4F) // "NEKO"
     private const val THUMBS_DIR = ".neko_thumbs"
@@ -445,17 +437,10 @@ object OptimizedThumbnailManager {
         val key = videoPath.hashCode().toString()
 
         activeJobs[key]?.cancel()
-        activeTargets[key]?.let { target ->
-            try {
-                Glide.with(context).clear(target)
-            } catch (e: Exception) {}
-            activeTargets.remove(key)
-        }
 
         val showThumbnails = shouldShowThumbnails(context)
         val showDurations = shouldShowDurations(context)
         val showFileSizes = shouldShowFileSizes(context)
-        val thumbnailSize = getThumbnailSizeFromSettings(context)
 
         // 1. Verifica cache em RAM, depois disco
         var cachedThumbnail = if (showThumbnails) {
@@ -515,13 +500,10 @@ object OptimizedThumbnailManager {
                         async(Dispatchers.IO) { getFileSize(videoPath) }
                     } else null
 
-                    // Gera thumbnail se necessário
+                    // Gera thumbnail se necessário — usa sempre MediaMetadataRetriever no frame do meio
                     val thumbnail = if (showThumbnails && cachedThumbnail == null) {
-                        loadThumbnailWithGlide(context, videoUri, videoPath, key, thumbnailSize)?.also { newBitmap ->
-                            // Salva no disco (per-folder .neko_thumbs)
-                            withContext(Dispatchers.IO) {
-                                saveThumbnailToDisk(videoPath, newBitmap)
-                            }
+                        withContext(Dispatchers.IO) {
+                            generateThumbnailSync(context, videoPath)
                         }
                     } else {
                         cachedThumbnail
@@ -560,98 +542,12 @@ object OptimizedThumbnailManager {
         }
     }
 
-    private suspend fun loadThumbnailWithGlide(
-        context: Context,
-        videoUri: Uri,
-        videoPath: String,
-        key: String,
-        thumbnailSize: Int
-    ): Bitmap? {
-        // Obtém duração para usar frame do meio
-        val middleTimeUs = withContext(Dispatchers.IO) {
-            try {
-                val retriever = MediaMetadataRetriever()
-                retriever.setDataSource(videoPath)
-                val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-                retriever.release()
-                (durationMs * 1000L) / 2
-            } catch (e: Exception) {
-                0L
-            }
-        }
-
-        return suspendCancellableCoroutine { continuation ->
-        val target = object : CustomTarget<Bitmap>() {
-            override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                activeTargets.remove(key)
-                if (continuation.isActive) {
-                    // Glide já faz centerCrop, então só precisa redimensionar se muito grande
-                    val compressedBitmap = if (resource.byteCount > 1024 * 1024) {
-                        createCenterCroppedThumbnail(resource, thumbnailSize).also {
-                            if (resource != it) resource.recycle()
-                        }
-                    } else {
-                        resource
-                    }
-                    continuation.resume(compressedBitmap)
-                }
-            }
-
-            override fun onLoadFailed(errorDrawable: Drawable?) {
-                activeTargets.remove(key)
-                if (continuation.isActive) {
-                    continuation.resume(null)
-                }
-            }
-
-            override fun onLoadCleared(placeholder: Drawable?) {
-                activeTargets.remove(key)
-                if (continuation.isActive) {
-                    continuation.resume(null)
-                }
-            }
-        }
-
-        activeTargets[key] = target
-
-        try {
-            Glide.with(context)
-                .asBitmap()
-                .load(videoUri)
-                .apply(RequestOptions.frameOf(middleTimeUs))
-                .override(thumbnailSize, thumbnailSize)
-                .diskCacheStrategy(DiskCacheStrategy.ALL)
-                .centerCrop()
-                .into(target)
-        } catch (e: Exception) {
-            activeTargets.remove(key)
-            if (continuation.isActive) {
-                continuation.resume(null)
-            }
-        }
-
-        continuation.invokeOnCancellation {
-            activeTargets[key]?.let { activeTarget ->
-                try {
-                    Glide.with(context).clear(activeTarget)
-                } catch (e: Exception) {}
-                activeTargets.remove(key)
-            }
-        }
-    }
-    }
 
     fun cancelLoading(videoPath: String) {
         val key = videoPath.hashCode().toString()
 
         activeJobs[key]?.cancel()
         activeJobs.remove(key)
-        activeTargets[key]?.let { target ->
-            try {
-                target.hashCode()
-            } catch (e: Exception) {}
-            activeTargets.remove(key)
-        }
         loadedThumbnails.remove(key)
         thumbnailStates[key] = ThumbnailState.CANCELLED
     }
@@ -659,7 +555,6 @@ object OptimizedThumbnailManager {
     fun clearCache() {
         activeJobs.values.forEach { it.cancel() }
         activeJobs.clear()
-        activeTargets.clear()
         loadedThumbnails.clear()
         thumbnailStates.clear()
 
@@ -705,7 +600,6 @@ object OptimizedThumbnailManager {
         // Cancela jobs ativos
         activeJobs[key]?.cancel()
         activeJobs.remove(key)
-        activeTargets.remove(key)
 
         // Remove do disco (.neko_thumbs)
         try {
@@ -788,11 +682,10 @@ object OptimizedThumbnailManager {
         val thumbnailMemoryMB = thumbnailMemoryBytes / (1024 * 1024)
 
         val activeJobsCount = activeJobs.size
-        val activeTargetsCount = activeTargets.size
 
         return """
             RAM: ${thumbnailMemoryMB}MB
-            Jobs: $activeJobsCount | Targets: $activeTargetsCount
+            Jobs: $activeJobsCount
         """.trimIndent()
     }
 

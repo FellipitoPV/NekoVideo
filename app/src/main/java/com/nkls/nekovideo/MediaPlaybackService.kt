@@ -182,8 +182,13 @@ class MediaPlaybackService : MediaSessionService() {
                 // Gera thumbnail do vídeo atual se não existir
                 mediaItem?.localConfiguration?.uri?.let { uri ->
                     val uriStr = uri.toString()
-                    if (!uriStr.startsWith("locked://")) {
-                        preloadScope.launch {
+                    preloadScope.launch {
+                        if (uriStr.startsWith("locked://")) {
+                            val cleanPath = uriStr.removePrefix("locked://")
+                            if (FolderLockManager.getLockedThumbnail(cleanPath) == null) {
+                                FolderLockManager.generateAndSaveLockedThumbnail(cleanPath)
+                            }
+                        } else {
                             val videoPath = uri.path ?: return@launch
                             OptimizedThumbnailManager.getOrGenerateThumbnailSync(
                                 this@MediaPlaybackService,
@@ -191,7 +196,6 @@ class MediaPlaybackService : MediaSessionService() {
                             )
                         }
                     }
-                    // Locked thumbnails are already pre-generated in .neko_thumbs, no need to generate
                 }
             }
         }
@@ -404,10 +408,9 @@ class MediaPlaybackService : MediaSessionService() {
                 val cleanPath = if (isLocked) videoPath.removePrefix("locked://") else videoPath.removePrefix("file://")
 
                 val thumbnail = if (isLocked) {
-                    // Locked thumbnails are already stored in .neko_thumbs, just load them
                     FolderLockManager.getLockedThumbnail(cleanPath)
+                        ?: FolderLockManager.generateAndSaveLockedThumbnail(cleanPath)
                 } else {
-                    // Usa a função síncrona que verifica cache e gera se necessário
                     OptimizedThumbnailManager.getOrGenerateThumbnailSync(
                         this@MediaPlaybackService,
                         cleanPath

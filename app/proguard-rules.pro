@@ -26,6 +26,7 @@
 
 # Locked folder system
 -keep class com.nkls.nekovideo.components.helpers.LockedFileEntry { *; }
+-keep class com.nkls.nekovideo.components.helpers.LockedSubfolderEntry { *; }
 -keep class com.nkls.nekovideo.components.helpers.LockedFolderManifest { *; }
 -keep class com.nkls.nekovideo.components.helpers.LockedFolderRegistryEntry { *; }
 -keep class com.nkls.nekovideo.components.helpers.LockedFoldersRegistry { *; }

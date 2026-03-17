@@ -279,21 +279,19 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
         // Add subdirectories using manifest subfolder entries for display names
         folder.listFiles()?.forEach { file ->
             if (!file.isDirectory || file.name == ".neko_thumbs") return@forEach
-            val subEntry = manifest.subfolders?.find { it.obfuscatedName == file.name }
+            val subEntry = manifest.subfolders.orEmpty().find { it.obfuscatedName != null && it.obfuscatedName == file.name }
             val displayName = subEntry?.originalName ?: file.name
             val subIsLocked = FolderLockManager.isLocked(file.absolutePath)
+            val subChildren = file.listFiles() // single listFiles() call, reused below
             val subVideoCount = if (subIsLocked) {
-                // Use active session manifest if available, otherwise count non-marker files
                 LockedPlaybackSession.getManifestForFolder(file.absolutePath)?.files?.size
-                    ?: file.listFiles()?.count { f ->
+                    ?: subChildren?.count { f ->
                         f.isFile && f.name !in setOf(".neko_locked", ".neko_manifest.enc", ".neko_lock_in_progress", ".nomedia", ".nekovideo")
                     } ?: 0
             } else {
-                file.listFiles()?.count { it.isFile && it.extension.lowercase() in videoExtensions } ?: 0
+                subChildren?.count { it.isFile && it.extension.lowercase() in videoExtensions } ?: 0
             }
-            val subFolderCount = try {
-                file.listFiles()?.count { it.isDirectory && it.name != ".neko_thumbs" } ?: 0
-            } catch (e: Exception) { 0 }
+            val subFolderCount = subChildren?.count { it.isDirectory && it.name != ".neko_thumbs" } ?: 0
             items.add(MediaItem(
                 path = file.absolutePath,
                 uri = null,
@@ -301,7 +299,7 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
                 name = displayName,
                 displayName = displayName,
                 lastModified = file.lastModified(),
-                sizeInBytes = getFolderSize(file),
+                sizeInBytes = 0L,
                 videoCount = subVideoCount,
                 subfolderCount = subFolderCount,
                 isInsidePrivateFolder = true
@@ -315,7 +313,7 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
         when {
             file.name in listOf(".nekovideo", ".neko_locked", ".neko_manifest.enc",
                 ".neko_lock_in_progress", ".nomedia", "recovery_hint.txt", ".neko_thumbs") -> null
-            file.isDirectory -> MediaItem(file.absolutePath, null, true, lastModified = file.lastModified(), sizeInBytes = getFolderSize(file), isInsidePrivateFolder = true)
+            file.isDirectory -> MediaItem(file.absolutePath, null, true, lastModified = file.lastModified(), sizeInBytes = 0L, isInsidePrivateFolder = true)
             file.isFile && file.extension.lowercase() in videoExtensions -> MediaItem(file.absolutePath, null, false, lastModified = file.lastModified(), sizeInBytes = file.length())
             else -> null
         }
@@ -466,11 +464,6 @@ private fun loadNormalContentFromCache(
     return applySorting(items, sortType)
 }
 
-private fun getFolderSize(folder: File): Long {
-    return try {
-        folder.listFiles()?.sumOf { if (it.isDirectory) getFolderSize(it) else it.length() } ?: 0L
-    } catch (e: Exception) { 0L }
-}
 
 private fun applySorting(items: List<MediaItem>, sortType: SortType): List<MediaItem> {
     val folders = items.filter { it.isFolder }
