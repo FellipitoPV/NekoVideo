@@ -26,6 +26,8 @@
     <string name="action_delete">Eliminar</string>
     <string name="action_rename">Renombrar</string>
     <string name="action_move">Mover</string>
+    <string name="action_share">Compartir</string>
+    <string name="share_videos">Compartir videos</string>
     <string name="action_shuffle_play">Aleatorio</string>
     <string name="action_create_folder">Nueva Carpeta</string>
     <string name="action_settings">Configuración</string>

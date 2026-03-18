@@ -26,6 +26,8 @@
     <string name="action_delete">Удалить</string>
     <string name="action_rename">Переименовать</string>
     <string name="action_move">Переместить</string>
+    <string name="action_share">Поделиться</string>
+    <string name="share_videos">Поделиться видео</string>
     <string name="action_shuffle_play">Случайно</string>
     <string name="action_create_folder">Новая папка</string>
     <string name="action_settings">Настройки</string>

@@ -34,7 +34,7 @@ import com.nkls.nekovideo.R
 
 enum class ActionType {
     UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS, PASTE,
-    PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE, SET_AS_SECURE_FOLDER
+    PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE, SET_AS_SECURE_FOLDER, SHARE
 }
 
 data class ActionItem(
@@ -73,6 +73,7 @@ fun ActionFAB(
     val createFolderText = stringResource(R.string.action_create_folder)
     val settingsText = stringResource(R.string.action_settings)
     val secureFolderSet = stringResource(R.string.action_set_secure_folder)
+    val shareText = stringResource(R.string.action_share)
     val moveItemsText = pluralStringResource(R.plurals.move_items_count, itemsToMoveCount, itemsToMoveCount)
 
     // NOVOS: strings que estavam hardcoded
@@ -106,7 +107,11 @@ fun ActionFAB(
                 file.isDirectory && file.name.startsWith(".")
             }
 
-    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder) {
+    val hasOnlyFiles = remember(selectedItems) {
+        selectedItems.isNotEmpty() && selectedItems.all { java.io.File(it).isFile }
+    }
+
+    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder, hasOnlyFiles) {
         when {
             isMoveMode -> {
                 listOf(
@@ -132,6 +137,9 @@ fun ActionFAB(
                         ActionItem(ActionType.RENAME, Icons.Default.Edit, renameText),
                         ActionItem(ActionType.MOVE, Icons.AutoMirrored.Filled.DriveFileMove, moveText)
                     ))
+                    if (hasOnlyFiles) {
+                        actionsList.add(ActionItem(ActionType.SHARE, Icons.Default.Share, shareText))
+                    }
                 } else {
                     // All actions available in non-locked folders (even inside secure_videos)
                     if (!isSecureMode) {
@@ -151,6 +159,10 @@ fun ActionFAB(
                         ActionItem(ActionType.RENAME, Icons.Default.Edit, renameText),
                         ActionItem(ActionType.MOVE, Icons.AutoMirrored.Filled.DriveFileMove, moveText)
                     ))
+
+                    if (hasOnlyFiles) {
+                        actionsList.add(ActionItem(ActionType.SHARE, Icons.Default.Share, shareText))
+                    }
 
                     if (isSingleNomediaFolder) {
                         actionsList.add(

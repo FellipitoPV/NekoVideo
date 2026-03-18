@@ -1,7 +1,6 @@
 package com.nkls.nekovideo.components.player
 
 import android.graphics.Bitmap
-import android.media.MediaMetadataRetriever
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -27,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import com.nkls.nekovideo.MediaPlaybackService
+import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.PlaylistNavigator
@@ -109,7 +109,7 @@ fun MiniPlayerImproved(
 
                             if (currentUri.isNotEmpty()) {
                                 kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                                    val thumb = generateThumbnail(currentUri)
+                                    val thumb = generateThumbnail(context, currentUri)
                                     withContext(Dispatchers.Main) {
                                         thumbnail = thumb
                                     }
@@ -134,7 +134,7 @@ fun MiniPlayerImproved(
 
                     if (currentUri.isNotEmpty()) {
                         kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                            val thumb = generateThumbnail(currentUri)
+                            val thumb = generateThumbnail(context, currentUri)
                             withContext(Dispatchers.Main) {
                                 thumbnail = thumb
                             }
@@ -349,18 +349,13 @@ private fun formatTime(timeMs: Long): String {
     return String.format("%02d:%02d", minutes, seconds)
 }
 
-private suspend fun generateThumbnail(videoUri: String): Bitmap? = withContext(Dispatchers.IO) {
+private suspend fun generateThumbnail(context: android.content.Context, videoUri: String): Bitmap? = withContext(Dispatchers.IO) {
     try {
         if (videoUri.startsWith("locked://")) {
             val path = videoUri.removePrefix("locked://")
             FolderLockManager.getLockedThumbnail(path)
         } else {
-            val retriever = MediaMetadataRetriever()
-            val path = videoUri.removePrefix("file://")
-            retriever.setDataSource(path)
-            val bitmap = retriever.getFrameAtTime(1000000L)
-            retriever.release()
-            bitmap
+            OptimizedThumbnailManager.getOrGenerateThumbnailSync(context, videoUri)
         }
     } catch (e: Exception) {
         null

@@ -26,6 +26,8 @@
     <string name="action_delete">Delete</string>
     <string name="action_rename">Rename</string>
     <string name="action_move">Move</string>
+    <string name="action_share">Share</string>
+    <string name="share_videos">Share videos</string>
     <string name="action_shuffle_play">Shuffle</string>
     <string name="action_create_folder">New Folder</string>
     <string name="action_settings">Settings</string>

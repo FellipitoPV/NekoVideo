@@ -26,6 +26,8 @@
     <string name="action_delete">डिलीट करें</string>
     <string name="action_rename">नाम बदलें</string>
     <string name="action_move">स्थानांतरित करें</string>
+    <string name="action_share">शेयर करें</string>
+    <string name="share_videos">वीडियो शेयर करें</string>
     <string name="action_shuffle_play">शफल</string>
     <string name="action_create_folder">नया फोल्डर</string>
     <string name="action_settings">सेटिंग्स</string>

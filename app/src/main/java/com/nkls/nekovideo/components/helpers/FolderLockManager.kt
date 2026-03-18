@@ -68,6 +68,92 @@ object FolderLockManager {
     private val gson = Gson()
     private val videoExtensions = setOf("mp4", "mkv", "webm", "avi", "mov", "wmv", "m4v", "3gp", "flv")
 
+    // Used to track completed operations so they can be rolled back on failure
+    private data class PendingFileEntry(
+        val renamedFile: File,       // UUID-named file (current on-disk state)
+        val originalName: String,    // original filename, used to rename back on rollback
+        val thumbFile: File?,        // thumbnail file (now at UUID name in .neko_thumbs)
+        val thumbWasRenamed: Boolean // true = thumb was renamed from existing; false = newly generated
+    )
+
+    /**
+     * Rollback all entries that were already XOR'd and renamed.
+     * Reverts XOR and renames UUID files back to their original names.
+     * Called when an error occurs mid-operation so no files are left in limbo.
+     */
+    private fun rollbackPendingFiles(entries: List<PendingFileEntry>, folder: File, xorKey: ByteArray) {
+        entries.reversed().forEach { entry ->
+            try {
+                xorFileHeader(entry.renamedFile, xorKey) // revert XOR
+                entry.renamedFile.renameTo(File(folder, entry.originalName)) // restore original name
+                if (entry.thumbFile != null) {
+                    if (entry.thumbWasRenamed) {
+                        // Restore thumb to its original ThumbnailManager name (name without extension)
+                        val originalThumbName = File(entry.originalName).nameWithoutExtension
+                        entry.thumbFile.renameTo(File(entry.thumbFile.parentFile, originalThumbName))
+                    } else {
+                        entry.thumbFile.delete()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Rollback failed for: ${entry.originalName}", e)
+            }
+        }
+    }
+
+    /**
+     * Provides a thumbnail for a video file about to be locked.
+     * Priority: reuse existing ThumbnailManager thumbnail (already XOR'd on disk, middle frame).
+     * Fallback: generate a new thumbnail from the middle frame.
+     * Returns the saved thumb File at [thumbsDir]/[obfuscatedName], or null on failure.
+     * [thumbWasRenamed] is set to true if an existing thumbnail was reused.
+     */
+    private fun saveOrGenerateThumbnailForLock(
+        videoFile: File,
+        obfuscatedName: String,
+        thumbsDir: File
+    ): Pair<File?, Boolean> {
+        val destThumb = File(thumbsDir, obfuscatedName)
+
+        // If ThumbnailManager already saved a thumbnail for this file, reuse it
+        val existingThumb = File(thumbsDir, videoFile.nameWithoutExtension)
+        if (existingThumb.exists()) {
+            return if (existingThumb.renameTo(destThumb)) {
+                Pair(destThumb, true)
+            } else {
+                Pair(null, false)
+            }
+        }
+
+        // No existing thumbnail — generate from the middle frame
+        return try {
+            val retriever = MediaMetadataRetriever()
+            retriever.setDataSource(videoFile.absolutePath)
+            val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull() ?: 0L
+            val middleTimeUs = (durationMs * 1000L) / 2
+            val bitmap = retriever.getFrameAtTime(middleTimeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            retriever.release()
+
+            if (bitmap != null) {
+                val baos = java.io.ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, baos)
+                val thumbBytes = baos.toByteArray()
+                for (i in thumbBytes.indices) {
+                    thumbBytes[i] = (thumbBytes[i].toInt() xor THUMB_XOR_KEY[i % THUMB_XOR_KEY.size].toInt()).toByte()
+                }
+                destThumb.writeBytes(thumbBytes)
+                bitmap.recycle()
+                Pair(destThumb, false)
+            } else {
+                Pair(null, false)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to save thumbnail for: ${videoFile.name}", e)
+            Pair(null, false)
+        }
+    }
+
     // Derive XOR key from password + salt using PBKDF2
     fun deriveXorKey(password: String, salt: ByteArray): ByteArray {
         val spec = PBEKeySpec(password.toCharArray(), salt, PBKDF2_ITERATIONS, KEY_LENGTH)
@@ -187,11 +273,12 @@ object FolderLockManager {
         val inProgressMarker = File(folder, LOCK_IN_PROGRESS_MARKER)
         inProgressMarker.createNewFile()
 
-        try {
-            // Generate random salt for this folder
-            val salt = ByteArray(SALT_SIZE).also { SecureRandom().nextBytes(it) }
-            val xorKey = deriveXorKey(password, salt)
+        // Declared outside try so the catch block can rollback on unexpected errors
+        val salt = ByteArray(SALT_SIZE).also { SecureRandom().nextBytes(it) }
+        val xorKey = deriveXorKey(password, salt)
+        val pendingEntries = mutableListOf<PendingFileEntry>()
 
+        try {
             // Create thumbs directory for thumbnail preservation
             val thumbsDir = File(folder, THUMBS_DIR)
             thumbsDir.mkdirs()
@@ -206,31 +293,9 @@ object FolderLockManager {
 
                 onProgress(index + 1, totalFiles, originalName)
 
-                // Save thumbnail BEFORE XOR-ing (headers still intact)
-                try {
-                    val retriever = MediaMetadataRetriever()
-                    retriever.setDataSource(videoFile.absolutePath)
-                    val bitmap = retriever.getFrameAtTime(
-                        0,
-                        MediaMetadataRetriever.OPTION_CLOSEST_SYNC
-                    )
-                    if (bitmap != null) {
-                        // Save as obfuscated file (no extension, XOR'd data)
-                        val thumbFile = File(thumbsDir, obfuscatedName)
-                        val baos = java.io.ByteArrayOutputStream()
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, baos)
-                        val thumbBytes = baos.toByteArray()
-                        // XOR thumbnail bytes to make them unrecognizable
-                        for (i in thumbBytes.indices) {
-                            thumbBytes[i] = (thumbBytes[i].toInt() xor THUMB_XOR_KEY[i % THUMB_XOR_KEY.size].toInt()).toByte()
-                        }
-                        thumbFile.writeBytes(thumbBytes)
-                        bitmap.recycle()
-                    }
-                    retriever.release()
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to save thumbnail for: $originalName", e)
-                }
+                // Reuse existing ThumbnailManager thumbnail or generate from middle frame
+                // MUST be done BEFORE XOR-ing (video headers must still be intact for MediaMetadataRetriever)
+                val (savedThumbFile, thumbWasRenamed) = saveOrGenerateThumbnailForLock(videoFile, obfuscatedName, thumbsDir)
 
                 // XOR the first 8KB
                 xorFileHeader(videoFile, xorKey)
@@ -238,12 +303,18 @@ object FolderLockManager {
                 // Rename to UUID (no extension)
                 val renamedFile = File(folder, obfuscatedName)
                 if (!videoFile.renameTo(renamedFile)) {
-                    // Revert XOR if rename fails
+                    // Revert XOR on this file, then rollback all previously processed files
                     xorFileHeader(videoFile, xorKey)
+                    if (savedThumbFile != null && thumbWasRenamed) {
+                        savedThumbFile.renameTo(File(thumbsDir, videoFile.nameWithoutExtension))
+                    } else savedThumbFile?.delete()
+                    rollbackPendingFiles(pendingEntries, folder, xorKey)
+                    inProgressMarker.delete()
                     onError("Failed to rename: $originalName")
                     return
                 }
 
+                pendingEntries.add(PendingFileEntry(renamedFile, originalName, savedThumbFile, thumbWasRenamed))
                 entries.add(LockedFileEntry(obfuscatedName, originalName, originalSize))
             }
 
@@ -292,6 +363,7 @@ object FolderLockManager {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error locking folder: ${e.message}", e)
+            rollbackPendingFiles(pendingEntries, folder, xorKey)
             inProgressMarker.delete()
             onError("Error: ${e.message}")
         }
@@ -523,6 +595,9 @@ object FolderLockManager {
             return
         }
 
+        // Declared outside try so the catch block can rollback on unexpected errors
+        val pendingEntries = mutableListOf<PendingFileEntry>()
+
         try {
             val newEntries = mutableListOf<LockedFileEntry>()
             val totalFiles = videoFiles.size
@@ -534,31 +609,9 @@ object FolderLockManager {
 
                 onProgress(index + 1, totalFiles, originalName)
 
-                // Save thumbnail BEFORE XOR
-                try {
-                    val retriever = MediaMetadataRetriever()
-                    retriever.setDataSource(videoFile.absolutePath)
-                    val bitmap = retriever.getFrameAtTime(
-                        0,
-                        MediaMetadataRetriever.OPTION_CLOSEST_SYNC
-                    )
-                    if (bitmap != null) {
-                        // Save as obfuscated file (no extension, XOR'd data)
-                        val thumbFile = File(thumbsDir, obfuscatedName)
-                        val baos = java.io.ByteArrayOutputStream()
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, baos)
-                        val thumbBytes = baos.toByteArray()
-                        // XOR thumbnail bytes to make them unrecognizable
-                        for (i in thumbBytes.indices) {
-                            thumbBytes[i] = (thumbBytes[i].toInt() xor THUMB_XOR_KEY[i % THUMB_XOR_KEY.size].toInt()).toByte()
-                        }
-                        thumbFile.writeBytes(thumbBytes)
-                        bitmap.recycle()
-                    }
-                    retriever.release()
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to save thumbnail for: $originalName", e)
-                }
+                // Reuse existing ThumbnailManager thumbnail or generate from middle frame
+                // MUST be done BEFORE XOR-ing (video headers must still be intact for MediaMetadataRetriever)
+                val (savedThumbFile, thumbWasRenamed) = saveOrGenerateThumbnailForLock(videoFile, obfuscatedName, thumbsDir)
 
                 // XOR header
                 xorFileHeader(videoFile, xorKey)
@@ -566,11 +619,17 @@ object FolderLockManager {
                 // Rename to UUID
                 val renamedFile = File(folder, obfuscatedName)
                 if (!videoFile.renameTo(renamedFile)) {
-                    xorFileHeader(videoFile, xorKey) // Revert
+                    // Revert XOR on this file, then rollback all previously processed files
+                    xorFileHeader(videoFile, xorKey)
+                    if (savedThumbFile != null && thumbWasRenamed) {
+                        savedThumbFile.renameTo(File(thumbsDir, videoFile.nameWithoutExtension))
+                    } else savedThumbFile?.delete()
+                    rollbackPendingFiles(pendingEntries, folder, xorKey)
                     onError("Failed to rename: $originalName")
                     return
                 }
 
+                pendingEntries.add(PendingFileEntry(renamedFile, originalName, savedThumbFile, thumbWasRenamed))
                 newEntries.add(LockedFileEntry(obfuscatedName, originalName, originalSize))
             }
 
@@ -588,6 +647,8 @@ object FolderLockManager {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error adding files to locked folder: ${e.message}", e)
+            // Rollback all files processed before the crash — no files left in limbo
+            rollbackPendingFiles(pendingEntries, folder, xorKey)
             onError("Error: ${e.message}")
         }
     }

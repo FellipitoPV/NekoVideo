@@ -208,6 +208,7 @@ fun PlaybackSettingsScreen() {
                     range = 5..30,
                     step = 5,
                     onValueChange = {
+                        doubleTapSeek = it
                         prefs.edit { putInt("double_tap_seek", it) }
                     },
                     isCompact = isCompact
@@ -442,7 +443,7 @@ Device: $deviceInfo
         val mailtoIntent = Intent(Intent.ACTION_VIEW, mailtoUri)
 
         if (mailtoIntent.resolveActivity(context.packageManager) != null) {
-            context.startActivity(mailtoIntent)
+            context.startActivity(mailtoIntent.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
             return
         }
 
@@ -451,6 +452,7 @@ Device: $deviceInfo
             putExtra(Intent.EXTRA_EMAIL, arrayOf("nklssuport@gmail.com"))
             putExtra(Intent.EXTRA_SUBJECT, "Bug Report - ${context.getString(R.string.app_name)}")
             putExtra(Intent.EXTRA_TEXT, emailBody)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
 
         if (emailIntent.resolveActivity(context.packageManager) != null) {
@@ -797,6 +799,8 @@ private fun SettingsSliderItem(
     onValueChange: (Int) -> Unit,
     isCompact: Boolean = false
 ) {
+    var sliderValue by remember(value) { mutableIntStateOf(value) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -834,7 +838,7 @@ private fun SettingsSliderItem(
                 }
 
                 Text(
-                    text = if (title.contains("Cache")) "${value}MB" else value.toString(),
+                    text = if (title.contains("Cache")) "${sliderValue}MB" else sliderValue.toString(),
                     style = if (isCompact) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
@@ -844,9 +848,10 @@ private fun SettingsSliderItem(
             Spacer(modifier = Modifier.height(if (isCompact) 4.dp else 8.dp))
 
             Slider(
-                value = value.toFloat(),
+                value = sliderValue.toFloat(),
                 onValueChange = {
                     val newValue = (it.toInt() / step) * step
+                    sliderValue = newValue
                     onValueChange(newValue)
                 },
                 valueRange = range.first.toFloat()..range.last.toFloat(),

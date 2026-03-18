@@ -26,6 +26,8 @@
     <string name="action_delete">Löschen</string>
     <string name="action_rename">Umbenennen</string>
     <string name="action_move">Verschieben</string>
+    <string name="action_share">Teilen</string>
+    <string name="share_videos">Videos teilen</string>
     <string name="action_shuffle_play">Zufällig</string>
     <string name="action_create_folder">Neuer Ordner</string>
     <string name="action_settings">Einstellungen</string>

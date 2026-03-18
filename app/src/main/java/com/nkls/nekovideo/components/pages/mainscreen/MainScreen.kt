@@ -198,10 +198,6 @@ fun MainScreen(
         FolderVideoScanner.startScan(context, forceRefresh = true)
     }
 
-    fun performRefresh() {
-        FolderVideoScanner.startScan(context, forceRefresh = true)
-    }
-
     val currentTheme by themeManager.themeMode.collectAsState()
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
 
@@ -325,8 +321,7 @@ fun MainScreen(
                     selectedItems.clear()
                     renameTrigger++
                     quickRefresh()
-                },
-                onRefresh = ::performRefresh
+                }
             )
         }
     }
@@ -477,8 +472,7 @@ fun MainScreen(
                             destinationPath = securePath,
                             onProgress = { current, total -> moveProgress = "$current/$total" },
                             onError = { message -> launch(Dispatchers.Main) { Toast.makeText(context, "Error: $message", Toast.LENGTH_SHORT).show() } },
-                            onSuccess = {},
-                            onRefresh = ::performRefresh
+                            onSuccess = {}
                         )
                         withContext(Dispatchers.Main) { isMoving = false; moveProgress = "" }
 
@@ -596,7 +590,6 @@ fun MainScreen(
                     quickRefresh()
                 }
             },
-            onRefresh = ::performRefresh
         )
     }
 
@@ -663,8 +656,7 @@ fun MainScreen(
                                 showFabMenu = false
                                 renameTrigger++
                                 quickRefresh()
-                            },
-                            onRefresh = ::performRefresh
+                            }
                         )
                     } else {
                         FilesManager.deleteSelectedItems(
@@ -683,8 +675,7 @@ fun MainScreen(
                                 showFabMenu = false
                                 renameTrigger++
                                 quickRefresh()
-                            },
-                            onRefresh = ::performRefresh
+                            }
                         )
                     }
                 }
@@ -858,8 +849,7 @@ fun MainScreen(
                                                 destinationPath = securePath,
                                                 onProgress = { current, total -> moveProgress = "$current/$total" },
                                                 onError = { message -> launch(Dispatchers.Main) { Toast.makeText(context, "Error: $message", Toast.LENGTH_SHORT).show() } },
-                                                onSuccess = {},
-                                                onRefresh = ::performRefresh
+                                                onSuccess = {}
                                             )
                                             withContext(Dispatchers.Main) { isMoving = false; moveProgress = "" }
 
@@ -1005,6 +995,38 @@ fun MainScreen(
                                         showLockPasswordDialog = true
                                     }
                                 }
+                            }
+                            ActionType.SHARE -> {
+                                val uris = selectedItems
+                                    .filter { java.io.File(it).isFile }
+                                    .mapNotNull { path ->
+                                        try {
+                                            androidx.core.content.FileProvider.getUriForFile(
+                                                context,
+                                                "${context.packageName}.provider",
+                                                java.io.File(path)
+                                            )
+                                        } catch (e: Exception) { null }
+                                    }
+                                if (uris.isNotEmpty()) {
+                                    val intent = if (uris.size == 1) {
+                                        android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                            type = "video/*"
+                                            putExtra(android.content.Intent.EXTRA_STREAM, uris.first())
+                                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                    } else {
+                                        android.content.Intent(android.content.Intent.ACTION_SEND_MULTIPLE).apply {
+                                            type = "video/*"
+                                            putParcelableArrayListExtra(android.content.Intent.EXTRA_STREAM, ArrayList(uris))
+                                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                    }
+                                    context.startActivity(android.content.Intent.createChooser(intent, context.getString(R.string.share_videos)).apply {
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    })
+                                }
+                                selectedItems.clear()
                             }
                             ActionType.DELETE -> showDeleteConfirmDialog = true
                             ActionType.RENAME -> showRenameDialog = true
