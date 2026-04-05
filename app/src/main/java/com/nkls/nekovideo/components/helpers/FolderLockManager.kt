@@ -552,6 +552,91 @@ object FolderLockManager {
     }
 
     /**
+     * Re-keys a single locked folder: swaps XOR key on all 8KB headers and
+     * re-encrypts the manifest with the new password + a freshly generated salt.
+     * File UUIDs and structure are left unchanged.
+     */
+    fun reKeyFolder(
+        folderPath: String,
+        oldPassword: String,
+        newPassword: String,
+        onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
+        onError: (String) -> Unit = {},
+        onSuccess: () -> Unit = {}
+    ) {
+        val folder = File(folderPath)
+        if (!folder.exists() || !folder.isDirectory) { onError("Folder not found"); return }
+        if (!isLocked(folderPath)) { onSuccess(); return } // nothing to re-key
+
+        val manifest = readManifest(folderPath, oldPassword)
+        if (manifest == null) { onError("Invalid password"); return }
+
+        val oldSalt = Base64.decode(manifest.salt, Base64.NO_WRAP)
+        val oldXorKey = deriveXorKey(oldPassword, oldSalt)
+        val newSalt = ByteArray(SALT_SIZE).also { SecureRandom().nextBytes(it) }
+        val newXorKey = deriveXorKey(newPassword, newSalt)
+        val total = manifest.files.size
+
+        try {
+            manifest.files.forEachIndexed { index, entry ->
+                val file = File(folder, entry.obfuscatedName)
+                if (!file.exists()) return@forEachIndexed
+                onProgress(index + 1, total)
+                xorFileHeader(file, oldXorKey) // restore original 8KB
+                xorFileHeader(file, newXorKey) // apply new 8KB XOR
+            }
+
+            val newManifest = manifest.copy(salt = Base64.encodeToString(newSalt, Base64.NO_WRAP))
+            File(folder, MANIFEST_FILE).writeBytes(encryptManifest(newManifest, newPassword, newSalt))
+            File(folder, LOCKED_MARKER).writeText(Base64.encodeToString(newSalt, Base64.NO_WRAP))
+            onSuccess()
+        } catch (e: Exception) {
+            onError(e.message ?: "Re-key failed")
+        }
+    }
+
+    /**
+     * Re-keys all folders in the registry plus the NekoVideo private vault folder.
+     * Stops and calls onError immediately on the first failure.
+     */
+    fun reKeyAllFolders(
+        context: Context,
+        oldPassword: String,
+        newPassword: String,
+        onProgress: (foldersDone: Int, foldersTotal: Int, filesDone: Int, filesTotal: Int) -> Unit = { _, _, _, _ -> },
+        onError: (String) -> Unit = {},
+        onSuccess: () -> Unit = {}
+    ) {
+        // Collect all folder paths to re-key (registry + private vault if locked)
+        val registryFolders = getAllLockedFolders(context).map { it.folderPath }
+        val vaultPath = FilesManager.SecureStorage.getNekoPrivateFolderPath()
+        val allPaths = (registryFolders + vaultPath)
+            .distinct()
+            .filter { isLocked(it) }
+
+        val total = allPaths.size
+
+        for ((index, path) in allPaths.withIndex()) {
+            var failed = false
+            reKeyFolder(
+                folderPath = path,
+                oldPassword = oldPassword,
+                newPassword = newPassword,
+                onProgress = { current, fileTotal ->
+                    onProgress(index + 1, total, current, fileTotal)
+                },
+                onError = { msg ->
+                    failed = true
+                    onError(msg)
+                }
+            )
+            if (failed) return
+        }
+
+        onSuccess()
+    }
+
+    /**
      * Add new files to an already-locked folder.
      * XORs headers, renames to UUIDs, saves thumbnails, and updates the encrypted manifest.
      */

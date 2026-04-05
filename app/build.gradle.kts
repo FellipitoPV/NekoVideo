@@ -81,6 +81,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose.android)
     implementation(libs.androidx.foundation.android)
     implementation(libs.gson)
+    implementation(libs.androidx.biometric)
 
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.coil.video)

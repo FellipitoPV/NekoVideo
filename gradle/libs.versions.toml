@@ -31,6 +31,7 @@ media3Session = "1.7.1"
 media3Transformer = "1.7.1"
 datastorePreferencesCoreAndroid = "1.1.7"
 runtime = "1.10.1"
+biometric = "1.1.0"
 
 [libraries]
 androidx-animation = { module = "androidx.compose.animation:animation", version.ref = "animation" }
@@ -71,6 +72,7 @@ material-icons-extended-v168 = { module = "androidx.compose.material:material-ic
 androidx-datastore-preferences-core-android = { group = "androidx.datastore", name = "datastore-preferences-core-android", version.ref = "datastorePreferencesCoreAndroid" }
 nanohttpd = { module = "org.nanohttpd:nanohttpd", version.ref = "nanohttpd" }
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
+androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

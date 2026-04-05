@@ -128,6 +128,13 @@ fun TopBar(
                         fontWeight = FontWeight.Medium
                     )
                 }
+                currentRoute == "settings/security" -> {
+                    Text(
+                        text = stringResource(R.string.security_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
                 currentRoute == "folder" && isAtRootLevel -> {
                     // Está na raiz: mostra ícone e nome do app com triple tap
                     Row(

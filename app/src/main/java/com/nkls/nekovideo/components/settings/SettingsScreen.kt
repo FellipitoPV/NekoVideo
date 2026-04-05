@@ -40,7 +40,17 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.text.style.TextAlign
+import android.content.ContextWrapper
+import androidx.fragment.app.FragmentActivity
+import com.nkls.nekovideo.components.ChangePasswordDialog
+import com.nkls.nekovideo.components.PasswordDialog
+import com.nkls.nekovideo.components.helpers.BiometricHelper
+import com.nkls.nekovideo.components.helpers.FilesManager
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -63,6 +73,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -129,6 +140,16 @@ fun SettingsScreen(navController: NavController) {
                     title = stringResource(R.string.settings_storage),
                     subtitle = stringResource(R.string.settings_storage_desc),
                     onClick = { navController.navigate("settings/storage") },
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsCategoryCard(
+                    icon = Icons.Default.Lock,
+                    title = stringResource(R.string.settings_security),
+                    subtitle = stringResource(R.string.settings_security_desc),
+                    onClick = { navController.navigate("settings/security") },
                     isCompact = isCompact
                 )
             }
@@ -415,6 +436,197 @@ fun StorageSettingsScreen() {
                     },
                     isCompact = isCompact
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun SecuritySettingsScreen() {
+    val context = LocalContext.current
+    val view = LocalView.current
+    val activity = remember(view) {
+        var ctx: android.content.Context = view.context
+        while (ctx is ContextWrapper && ctx !is FragmentActivity) ctx = ctx.baseContext
+        ctx as FragmentActivity
+    }
+    val hasPassword = remember { FilesManager.SecureStorage.hasPassword(context) }
+    val biometricAvailable = remember { BiometricHelper.isBiometricAvailable(context) }
+    var biometricEnabled by remember { mutableStateOf(BiometricHelper.isBiometricEnabled(context)) }
+    var showPasswordConfirmDialog by remember { mutableStateOf(false) }
+    var pendingAction by remember { mutableStateOf("") } // "enable" or "disable"
+    var showChangePasswordDialog by remember { mutableStateOf(false) }
+
+    if (showChangePasswordDialog) {
+        ChangePasswordDialog(
+            onDismiss = { showChangePasswordDialog = false },
+            onSuccess = {
+                showChangePasswordDialog = false
+                Toast.makeText(context, context.getString(R.string.change_password_success), Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    if (showPasswordConfirmDialog) {
+        PasswordDialog(
+            onDismiss = { showPasswordConfirmDialog = false; pendingAction = "" },
+            onPasswordVerified = { password ->
+                showPasswordConfirmDialog = false
+                when (pendingAction) {
+                    "enable" -> {
+                        BiometricHelper.enable(
+                            activity = activity,
+                            password = password,
+                            title = context.getString(R.string.biometric_enable_prompt_title),
+                            subtitle = context.getString(R.string.biometric_enable_prompt_subtitle),
+                            negativeText = context.getString(R.string.biometric_enable_cancel),
+                            onSuccess = {
+                                biometricEnabled = true
+                                Toast.makeText(context, context.getString(R.string.biometric_enabled_success), Toast.LENGTH_SHORT).show()
+                            },
+                            onError = { }
+                        )
+                    }
+                    "disable" -> {
+                        BiometricHelper.disable(context)
+                        biometricEnabled = false
+                        Toast.makeText(context, context.getString(R.string.biometric_disabled), Toast.LENGTH_SHORT).show()
+                    }
+                }
+                pendingAction = ""
+            }
+        )
+    }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        @Suppress("UnusedBoxWithConstraintsScope")
+        val isCompact = this.maxWidth > 600.dp
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isCompact) 8.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
+        ) {
+            item { SettingsSectionHeader(stringResource(R.string.change_password_section), isCompact) }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    onClick = { if (hasPassword) showChangePasswordDialog = true }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(if (isCompact) 10.dp else 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = if (hasPassword) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(if (isCompact) 10.dp else 16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.change_password),
+                                style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = if (hasPassword) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = if (hasPassword) stringResource(R.string.change_password_desc) else stringResource(R.string.biometric_no_password),
+                                style = if (isCompact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = if (hasPassword) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
+                    }
+                }
+            }
+
+            item { SettingsSectionHeader(stringResource(R.string.biometric_section), isCompact) }
+
+            item {
+                when {
+                    !hasPassword -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = stringResource(R.string.biometric_no_password),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    !biometricAvailable -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Fingerprint,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = stringResource(R.string.biometric_not_available),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    else -> {
+                        SettingsSwitchItem(
+                            icon = Icons.Default.Fingerprint,
+                            title = stringResource(R.string.biometric_unlock),
+                            subtitle = stringResource(R.string.biometric_unlock_desc),
+                            checked = biometricEnabled,
+                            onCheckedChange = { enabled ->
+                                pendingAction = if (enabled) "enable" else "disable"
+                                showPasswordConfirmDialog = true
+                            },
+                            isCompact = isCompact
+                        )
+                    }
+                }
             }
         }
     }

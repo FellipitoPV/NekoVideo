@@ -67,8 +67,10 @@ import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.CreateFolderDialog
 import com.nkls.nekovideo.components.DeleteConfirmationDialog
 import com.nkls.nekovideo.components.FixVideoMetadataDialog
+import com.nkls.nekovideo.components.EnableBiometricDialog
 import com.nkls.nekovideo.components.PasswordDialog
 import com.nkls.nekovideo.components.ProcessingDialog
+import com.nkls.nekovideo.components.helpers.BiometricHelper
 import com.nkls.nekovideo.components.LockedRenameDialog
 import com.nkls.nekovideo.components.RenameDialog
 import com.nkls.nekovideo.components.helpers.VideoRemuxer
@@ -90,6 +92,7 @@ import com.nkls.nekovideo.components.settings.StorageSettingsScreen
 import com.nkls.nekovideo.components.settings.DisplaySettingsScreen
 import com.nkls.nekovideo.components.settings.InterfaceSettingsScreen
 import com.nkls.nekovideo.components.settings.PlaybackSettingsScreen
+import com.nkls.nekovideo.components.settings.SecuritySettingsScreen
 import com.nkls.nekovideo.components.settings.SettingsScreen
 import com.nkls.nekovideo.findActivity
 import com.nkls.nekovideo.services.FolderVideoScanner
@@ -166,6 +169,8 @@ fun MainScreen(
     var pendingActionIsUnlock by remember { mutableStateOf(false) }
     var pendingSecureItems by remember { mutableStateOf<List<String>?>(null) }
     var showSecurePasswordDialog by remember { mutableStateOf(false) }
+    var showBiometricOfferDialog by remember { mutableStateOf(false) }
+    var biometricOfferPassword by remember { mutableStateOf("") }
 
     // Estados para correção de metadados de vídeo
     var showFixMetadataDialog by remember { mutableStateOf(false) }
@@ -326,9 +331,30 @@ fun MainScreen(
         }
     }
 
+    if (showBiometricOfferDialog) {
+        EnableBiometricDialog(
+            password = biometricOfferPassword,
+            onDismiss = { showBiometricOfferDialog = false },
+            onEnabled = {
+                showBiometricOfferDialog = false
+                android.widget.Toast.makeText(
+                    context,
+                    context.getString(R.string.biometric_enabled_success),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        )
+    }
+
     if (showPasswordDialog) {
         PasswordDialog(
             onDismiss = { showPasswordDialog = false },
+            onFirstTimePasswordCreated = { pwd ->
+                if (BiometricHelper.isBiometricAvailable(context)) {
+                    biometricOfferPassword = pwd
+                    showBiometricOfferDialog = true
+                }
+            },
             onPasswordVerified = { password ->
                 sessionPassword = password
                 val encodedFolderPath = currentBackStackEntry?.arguments?.getString("folderPath") ?: ""
@@ -357,6 +383,12 @@ fun MainScreen(
                 showLockPasswordDialog = false
                 pendingLockAction = null
                 pendingActionIsUnlock = false
+            },
+            onFirstTimePasswordCreated = { pwd ->
+                if (BiometricHelper.isBiometricAvailable(context)) {
+                    biometricOfferPassword = pwd
+                    showBiometricOfferDialog = true
+                }
             },
             onPasswordVerified = { password ->
                 showLockPasswordDialog = false
@@ -433,6 +465,12 @@ fun MainScreen(
             onDismiss = {
                 showSecurePasswordDialog = false
                 pendingSecureItems = null
+            },
+            onFirstTimePasswordCreated = { pwd ->
+                if (BiometricHelper.isBiometricAvailable(context)) {
+                    biometricOfferPassword = pwd
+                    showBiometricOfferDialog = true
+                }
             },
             onPasswordVerified = { password ->
                 showSecurePasswordDialog = false
@@ -1439,6 +1477,9 @@ fun MainScreen(
                 }
                 composable("settings/display") {
                     DisplaySettingsScreen()
+                }
+                composable("settings/security") {
+                    SecuritySettingsScreen()
                 }
             }
         }

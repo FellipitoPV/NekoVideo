@@ -292,6 +292,7 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
                 subChildren?.count { it.isFile && it.extension.lowercase() in videoExtensions } ?: 0
             }
             val subFolderCount = subChildren?.count { it.isDirectory && it.name != ".neko_thumbs" } ?: 0
+            val subTotalSize = subChildren?.filter { it.isFile && !it.name.startsWith(".") }?.sumOf { it.length() } ?: 0L
             items.add(MediaItem(
                 path = file.absolutePath,
                 uri = null,
@@ -299,7 +300,7 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
                 name = displayName,
                 displayName = displayName,
                 lastModified = file.lastModified(),
-                sizeInBytes = 0L,
+                sizeInBytes = subTotalSize,
                 videoCount = subVideoCount,
                 subfolderCount = subFolderCount,
                 isInsidePrivateFolder = true
@@ -313,7 +314,29 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
         when {
             file.name in listOf(".nekovideo", ".neko_locked", ".neko_manifest.enc",
                 ".neko_lock_in_progress", ".nomedia", "recovery_hint.txt", ".neko_thumbs") -> null
-            file.isDirectory -> MediaItem(file.absolutePath, null, true, lastModified = file.lastModified(), sizeInBytes = 0L, isInsidePrivateFolder = true)
+            file.isDirectory -> {
+                    val subIsLocked = FolderLockManager.isLocked(file.absolutePath)
+                    val subChildren = file.listFiles()
+                    val subVideoCount = if (subIsLocked) {
+                        subChildren?.count { f ->
+                            f.isFile && f.name !in setOf(".neko_locked", ".neko_manifest.enc", ".neko_lock_in_progress", ".nomedia", ".nekovideo")
+                        } ?: 0
+                    } else {
+                        subChildren?.count { it.isFile && it.extension.lowercase() in videoExtensions } ?: 0
+                    }
+                    val subFolderCount = subChildren?.count { it.isDirectory && it.name != ".neko_thumbs" } ?: 0
+                    val subTotalSize = subChildren?.filter { it.isFile && !it.name.startsWith(".") }?.sumOf { it.length() } ?: 0L
+                    MediaItem(
+                        path = file.absolutePath,
+                        uri = null,
+                        isFolder = true,
+                        lastModified = file.lastModified(),
+                        sizeInBytes = subTotalSize,
+                        videoCount = subVideoCount,
+                        subfolderCount = subFolderCount,
+                        isInsidePrivateFolder = true
+                    )
+                }
             file.isFile && file.extension.lowercase() in videoExtensions -> MediaItem(file.absolutePath, null, false, lastModified = file.lastModified(), sizeInBytes = file.length())
             else -> null
         }
@@ -433,13 +456,22 @@ private fun loadNormalContentFromCache(
                     (cachedInfo.hasVideos || cachedInfo.isLocked)
                 }
             }
+            val totalFolderSize = when {
+                isFolderLocked -> try {
+                    subfolder.listFiles()?.filter { it.isFile && !it.name.startsWith(".") }?.sumOf { it.length() } ?: 0L
+                } catch (e: Exception) { 0L }
+                isNekoFolder || isSecure -> try {
+                    subfolder.listFiles()?.filter { it.isFile && it.extension.lowercase() in videoExtensions }?.sumOf { it.length() } ?: 0L
+                } catch (e: Exception) { folderInfo?.videos?.sumOf { it.sizeInBytes } ?: 0L }
+                else -> folderInfo?.videos?.sumOf { it.sizeInBytes } ?: 0L
+            }
             items.add(
                 MediaItem(
                     subfolder.absolutePath,
                     null,
                     true,
                     lastModified = folderInfo?.lastModified ?: subfolder.lastModified(),
-                    sizeInBytes = 0L,
+                    sizeInBytes = totalFolderSize,
                     videoCount = directVideoCount,
                     subfolderCount = directSubfolderCount
                 )
