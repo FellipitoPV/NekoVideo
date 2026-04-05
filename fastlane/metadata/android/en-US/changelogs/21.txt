@@ -1,0 +1,8 @@
+Added Share action for files (uses Android native chooser).
+Removed video cutter due to FFmpegKit compatibility issues.
+Fixed player auto-rotation and system bar (immersive mode).
+Fixed private vault: localized folder name, subfolder extraction, and release crash (NPE).
+Fixed thumbnail accuracy — now uses video midpoint instead of frame 0.
+Fixed folder lock atomic rollback on mid-operation failure.
+Fixed MiniPlayer thumbnail and settings slider real-time update.
+Improved translations (ES, FR, DE, RU, HI).
