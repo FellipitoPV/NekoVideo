@@ -67,6 +67,10 @@
     <string name="available_devices">Доступные устройства</string>
     <string name="refresh">Обновить</string>
     <string name="select_cast_device">Выбрать устройство трансляции</string>
+    <string name="cast_playing_on">Воспроизводится на</string>
+    <string name="cast_disconnect_title">Остановить трансляцию?</string>
+    <string name="cast_disconnect_message">Воспроизведение на %s будет остановлено.</string>
+    <string name="cast_disconnect_confirm">Отключить</string>
 
     <!-- Premium -->
     <string name="premium_title">Убрать Рекламу</string>

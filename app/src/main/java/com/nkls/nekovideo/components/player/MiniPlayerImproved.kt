@@ -27,6 +27,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
+import com.nkls.nekovideo.components.helpers.DLNACastManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.PlaylistNavigator
@@ -44,10 +45,10 @@ fun MiniPlayerImproved(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
-    // Estados locais
+    // Local player state
     val mediaController by MediaControllerManager.mediaController.collectAsStateWithLifecycle()
-
     var isPlaying by remember { mutableStateOf(false) }
     var currentTitle by remember { mutableStateOf("") }
     var currentUri by remember { mutableStateOf("") }
@@ -57,9 +58,25 @@ fun MiniPlayerImproved(
     var hasNext by remember { mutableStateOf(false) }
     var hasPrevious by remember { mutableStateOf(false) }
 
-    // ✅ Animações suaves e minimalistas
+    // Cast state
+    val castManager = remember { DLNACastManager.getInstance(context) }
+    var isCasting by remember { mutableStateOf(castManager.isConnected) }
+    var castTitle by remember { mutableStateOf(castManager.currentTitle) }
+    var castIsPlaying by remember { mutableStateOf(castManager.isPlaying) }
+    var castPosition by remember { mutableStateOf(castManager.currentPositionMs) }
+    var castDuration by remember { mutableStateOf(castManager.durationMs) }
+    var castVideoPath by remember { mutableStateOf(castManager.currentVideoPath) }
+    var castThumbnail by remember { mutableStateOf<Bitmap?>(null) }
+
+    // Effective values — cast takes priority when connected
+    val effectiveIsPlaying = if (isCasting) castIsPlaying else isPlaying
+    val effectiveTitle = if (isCasting) castTitle else currentTitle
+    val effectivePosition = if (isCasting) castPosition else currentPosition
+    val effectiveDuration = if (isCasting) castDuration else duration
+    val effectiveThumbnail = if (isCasting) castThumbnail else thumbnail
+
     val playButtonScale by animateFloatAsState(
-        targetValue = if (isPlaying) 1f else 1f,
+        targetValue = 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -68,12 +85,52 @@ fun MiniPlayerImproved(
     )
 
     val thumbnailScale by animateFloatAsState(
-        targetValue = if (isPlaying) 1f else 0.95f,
+        targetValue = if (effectiveIsPlaying) 1f else 0.95f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "thumbnailScale"
     )
 
-    // Atualizar posição
+    // Cast connection listener
+    DisposableEffect(Unit) {
+        MediaControllerManager.connect(context)
+        castManager.onConnectionStateChanged = { connected ->
+            isCasting = connected
+            if (!connected) {
+                castTitle = ""
+                castPosition = 0L
+                castDuration = 0L
+                castIsPlaying = false
+                castThumbnail = null
+                castVideoPath = ""
+            }
+        }
+        onDispose {
+            castManager.onConnectionStateChanged = null
+        }
+    }
+
+    // Cast state polling — avoids conflicting with CastControlsOverlay's onStateChanged slot
+    LaunchedEffect(isCasting) {
+        while (isCasting) {
+            castIsPlaying = castManager.isPlaying
+            castPosition = castManager.currentPositionMs
+            castDuration = castManager.durationMs
+            castTitle = castManager.currentTitle
+            val newPath = castManager.currentVideoPath
+            if (newPath != castVideoPath) castVideoPath = newPath
+            delay(500)
+        }
+    }
+
+    // Load cast thumbnail when the cast video changes
+    LaunchedEffect(castVideoPath) {
+        if (castVideoPath.isEmpty()) return@LaunchedEffect
+        castThumbnail = withContext(Dispatchers.IO) {
+            generateThumbnail(context, castVideoPath)
+        }
+    }
+
+    // Local player position ticker
     LaunchedEffect(mediaController, isPlaying) {
         while (isPlaying) {
             mediaController?.let {
@@ -84,86 +141,86 @@ fun MiniPlayerImproved(
         }
     }
 
-    // Listener do player local
+    // Local player listener
     LaunchedEffect(mediaController) {
         mediaController?.let { controller ->
-                val listener = object : Player.Listener {
-                    override fun onPlaybackStateChanged(playbackState: Int) {
-                        isPlaying = controller.isPlaying
-                    }
+            val listener = object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    isPlaying = controller.isPlaying
+                }
 
-                    override fun onIsPlayingChanged(playing: Boolean) {
-                        isPlaying = playing
-                    }
+                override fun onIsPlayingChanged(playing: Boolean) {
+                    isPlaying = playing
+                }
 
-                    override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
-                        mediaItem?.let { item ->
-                            currentTitle = item.mediaMetadata.title?.toString()
-                                ?: File(item.localConfiguration?.uri?.path ?: "").nameWithoutExtension
-                            currentUri = item.localConfiguration?.uri?.toString() ?: ""
+                override fun onMediaItemTransition(
+                    mediaItem: androidx.media3.common.MediaItem?,
+                    reason: Int
+                ) {
+                    mediaItem?.let { item ->
+                        currentTitle = item.mediaMetadata.title?.toString()
+                            ?: File(item.localConfiguration?.uri?.path ?: "").nameWithoutExtension
+                        currentUri = item.localConfiguration?.uri?.toString() ?: ""
+                        hasNext = PlaylistManager.hasNext()
+                        hasPrevious = PlaylistManager.hasPrevious()
+                        currentPosition = controller.currentPosition
+                        duration = controller.duration.takeIf { it > 0 } ?: 0L
 
-                            hasNext = PlaylistManager.hasNext()
-                            hasPrevious = PlaylistManager.hasPrevious()
-                            currentPosition = controller.currentPosition
-                            duration = controller.duration.takeIf { it > 0 } ?: 0L
-
-                            if (currentUri.isNotEmpty()) {
-                                kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                                    val thumb = generateThumbnail(context, currentUri)
-                                    withContext(Dispatchers.Main) {
-                                        thumbnail = thumb
-                                    }
+                        if (currentUri.isNotEmpty()) {
+                            coroutineScope.launch {
+                                thumbnail = withContext(Dispatchers.IO) {
+                                    generateThumbnail(context, currentUri)
                                 }
                             }
                         }
                     }
                 }
+            }
 
-                controller.addListener(listener)
+            controller.addListener(listener)
+            isPlaying = controller.isPlaying
+            hasNext = PlaylistManager.hasNext()
+            hasPrevious = PlaylistManager.hasPrevious()
+            currentPosition = controller.currentPosition
+            duration = controller.duration.takeIf { it > 0 } ?: 0L
 
-                isPlaying = controller.isPlaying
-                hasNext = PlaylistManager.hasNext()
-                hasPrevious = PlaylistManager.hasPrevious()
-                currentPosition = controller.currentPosition
-                duration = controller.duration.takeIf { it > 0 } ?: 0L
+            controller.currentMediaItem?.let { item ->
+                currentTitle = item.mediaMetadata.title?.toString()
+                    ?: File(item.localConfiguration?.uri?.path ?: "").nameWithoutExtension
+                currentUri = item.localConfiguration?.uri?.toString() ?: ""
 
-                controller.currentMediaItem?.let { item ->
-                    currentTitle = item.mediaMetadata.title?.toString()
-                        ?: File(item.localConfiguration?.uri?.path ?: "").nameWithoutExtension
-                    currentUri = item.localConfiguration?.uri?.toString() ?: ""
-
-                    if (currentUri.isNotEmpty()) {
-                        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                            val thumb = generateThumbnail(context, currentUri)
-                            withContext(Dispatchers.Main) {
-                                thumbnail = thumb
-                            }
+                if (currentUri.isNotEmpty()) {
+                    coroutineScope.launch {
+                        thumbnail = withContext(Dispatchers.IO) {
+                            generateThumbnail(context, currentUri)
                         }
                     }
                 }
+            }
         }
     }
 
-    DisposableEffect(Unit) {
-        MediaControllerManager.connect(context)
-        onDispose { }
-    }
-
     fun closePlayer() {
-        PlaylistManager.clear()
-        MediaPlaybackService.stopService(context)
-        currentTitle = ""
-        currentUri = ""
-        thumbnail = null
-        currentPosition = 0L
-        duration = 0L
-        isPlaying = false
-        hasNext = false
-        hasPrevious = false
+        if (isCasting) {
+            castManager.stopPlayback()
+        } else {
+            PlaylistManager.clear()
+            MediaPlaybackService.stopService(context)
+            currentTitle = ""
+            currentUri = ""
+            thumbnail = null
+            currentPosition = 0L
+            duration = 0L
+            isPlaying = false
+            hasNext = false
+            hasPrevious = false
+        }
     }
 
-    // ✅ UI MINIMALISTA E CLEAN
-    if (mediaController != null && currentTitle.isNotEmpty()) {
+    val shouldShow = (isCasting && castTitle.isNotEmpty()) ||
+            (mediaController != null && currentTitle.isNotEmpty())
+
+    if (shouldShow) {
         Card(
             modifier = modifier
                 .fillMaxWidth()
@@ -176,15 +233,15 @@ fun MiniPlayerImproved(
             shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
         ) {
             Column {
-                // ✅ Progress bar minimalista no topo
-                if (duration > 0) {
-                    val progress = (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                // Progress bar
+                if (effectiveDuration > 0) {
+                    val progress = (effectivePosition.toFloat() / effectiveDuration.toFloat()).coerceIn(0f, 1f)
                     LinearProgressIndicator(
-                        progress = progress,
+                        progress = { progress },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(2.dp),
-                        color = MaterialTheme.colorScheme.primary,
+                        color = if (isCasting) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 }
@@ -195,7 +252,7 @@ fun MiniPlayerImproved(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // ✅ Thumbnail com animação sutil
+                    // Thumbnail with cast badge when casting
                     Box(
                         modifier = Modifier
                             .size(56.dp)
@@ -203,17 +260,18 @@ fun MiniPlayerImproved(
                             .clip(RoundedCornerShape(8.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                     ) {
-                        thumbnail?.let { thumb ->
-                            Image(
-                                bitmap = thumb.asImageBitmap(),
-                                contentDescription = "Thumbnail",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
+                        effectiveThumbnail?.let { thumb ->
+                            if (!thumb.isRecycled) {
+                                Image(
+                                    bitmap = thumb.asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
                         }
 
-                        // ✅ Overlay de pause discreto
-                        if (!isPlaying) {
+                        if (!effectiveIsPlaying) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -222,9 +280,27 @@ fun MiniPlayerImproved(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Pause,
-                                    contentDescription = "Paused",
+                                    contentDescription = null,
                                     tint = Color.White,
                                     modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+
+                        // Cast badge
+                        if (isCasting) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(3.dp)
+                                    .background(Color(0xFF4CAF50), CircleShape)
+                                    .padding(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Cast,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(10.dp)
                                 )
                             }
                         }
@@ -232,12 +308,10 @@ fun MiniPlayerImproved(
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-                    // ✅ Informações do vídeo
-                    Column(
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    // Title + time
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = currentTitle,
+                            text = effectiveTitle,
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = FontWeight.Medium
                             ),
@@ -249,23 +323,29 @@ fun MiniPlayerImproved(
                         Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
-                            text = "${formatTime(currentPosition)} / ${formatTime(duration)}",
+                            text = if (effectiveDuration > 0)
+                                "${formatTime(effectivePosition)} / ${formatTime(effectiveDuration)}"
+                            else if (isCasting) "Transmitindo…" else "",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isCasting) Color(0xFF4CAF50).copy(alpha = 0.8f)
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp
                         )
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))
 
-                    // ✅ Controles minimalistas
+                    // Controls
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Previous
                         IconButton(
-                            onClick = { PlaylistNavigator.previous(context) },
+                            onClick = {
+                                if (isCasting) castManager.previous()
+                                else PlaylistNavigator.previous(context)
+                            },
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
@@ -276,11 +356,15 @@ fun MiniPlayerImproved(
                             )
                         }
 
-                        // ✅ Play/Pause com animação
+                        // Play/Pause
                         Surface(
                             onClick = {
-                                mediaController?.let {
-                                    if (it.isPlaying) it.pause() else it.play()
+                                if (isCasting) {
+                                    if (castIsPlaying) castManager.pause() else castManager.play()
+                                } else {
+                                    mediaController?.let {
+                                        if (it.isPlaying) it.pause() else it.play()
+                                    }
                                 }
                             },
                             modifier = Modifier
@@ -290,9 +374,8 @@ fun MiniPlayerImproved(
                             color = MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                // ✅ Animação de troca de ícone
                                 AnimatedContent(
-                                    targetState = isPlaying,
+                                    targetState = effectiveIsPlaying,
                                     transitionSpec = {
                                         fadeIn(animationSpec = tween(150)) togetherWith
                                                 fadeOut(animationSpec = tween(150))
@@ -311,7 +394,10 @@ fun MiniPlayerImproved(
 
                         // Next
                         IconButton(
-                            onClick = { PlaylistNavigator.next(context) },
+                            onClick = {
+                                if (isCasting) castManager.next()
+                                else PlaylistNavigator.next(context)
+                            },
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
@@ -322,7 +408,7 @@ fun MiniPlayerImproved(
                             )
                         }
 
-                        // ✅ Close minimalista
+                        // Close / Stop cast
                         IconButton(
                             onClick = { closePlayer() },
                             modifier = Modifier.size(40.dp)
@@ -349,15 +435,16 @@ private fun formatTime(timeMs: Long): String {
     return String.format("%02d:%02d", minutes, seconds)
 }
 
-private suspend fun generateThumbnail(context: android.content.Context, videoUri: String): Bitmap? = withContext(Dispatchers.IO) {
-    try {
-        if (videoUri.startsWith("locked://")) {
-            val path = videoUri.removePrefix("locked://")
-            FolderLockManager.getLockedThumbnail(path)
-        } else {
-            OptimizedThumbnailManager.getOrGenerateThumbnailSync(context, videoUri)
+private suspend fun generateThumbnail(context: android.content.Context, videoUri: String): Bitmap? =
+    withContext(Dispatchers.IO) {
+        try {
+            if (videoUri.startsWith("locked://")) {
+                val path = videoUri.removePrefix("locked://")
+                FolderLockManager.getLockedThumbnail(path)
+            } else {
+                OptimizedThumbnailManager.getOrGenerateThumbnailSync(context, videoUri)
+            }
+        } catch (e: Exception) {
+            null
         }
-    } catch (e: Exception) {
-        null
     }
-}

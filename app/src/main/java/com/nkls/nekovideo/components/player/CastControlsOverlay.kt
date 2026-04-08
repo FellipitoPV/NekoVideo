@@ -1,6 +1,8 @@
 package com.nkls.nekovideo.components.player
 
 import android.content.pm.ActivityInfo
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -13,14 +15,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nkls.nekovideo.R
+import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.DLNACastManager
 import com.nkls.nekovideo.components.player.PlayerUtils.findActivity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun CastControlsOverlay(
@@ -39,6 +48,9 @@ fun CastControlsOverlay(
     var duration by remember { mutableStateOf(castManager.durationMs) }
     var isSeeking by remember { mutableStateOf(false) }
     var currentTitle by remember { mutableStateOf(videoTitle) }
+    var currentVideoPath by remember { mutableStateOf(castManager.currentVideoPath) }
+    var thumbnailBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var showDisconnectDialog by remember { mutableStateOf(false) }
 
     // Poll state from the DLNA manager
     LaunchedEffect(Unit) {
@@ -47,7 +59,31 @@ fun CastControlsOverlay(
             if (!isSeeking) currentPosition = castManager.currentPositionMs
             duration = castManager.durationMs
             if (castManager.currentTitle.isNotEmpty()) currentTitle = castManager.currentTitle
+            if (castManager.currentVideoPath != currentVideoPath) {
+                currentVideoPath = castManager.currentVideoPath
+            }
         }
+    }
+
+    // Load thumbnail whenever the current video path changes
+    LaunchedEffect(currentVideoPath) {
+        thumbnailBitmap = null
+        if (currentVideoPath.isEmpty()) return@LaunchedEffect
+        val bitmap = withContext(Dispatchers.IO) {
+            when {
+                currentVideoPath.startsWith("locked://") -> {
+                    val cleanPath = currentVideoPath.removePrefix("locked://")
+                    // Locked videos: try cache only (file is encrypted)
+                    OptimizedThumbnailManager.getCachedThumbnail(cleanPath)
+                        ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(cleanPath)
+                }
+                else -> {
+                    val cleanPath = currentVideoPath.removePrefix("file://")
+                    OptimizedThumbnailManager.getOrGenerateThumbnailSync(context, cleanPath)
+                }
+            }
+        }
+        thumbnailBitmap = bitmap
     }
 
     // Progress ticker while playing
@@ -60,25 +96,42 @@ fun CastControlsOverlay(
 
     DisposableEffect(Unit) {
         val activity = context.findActivity()
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         onDispose {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             castManager.onStateChanged = null
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        // Background: thumbnail (if available) or solid black
+        val thumb = thumbnailBitmap
+        if (thumb != null && !thumb.isRecycled) {
+            Image(
+                bitmap = thumb.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black))
+        }
+
+        // Dark scrim so UI stays readable regardless of thumbnail brightness
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.65f))
+        )
+
         // Header
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
+                        colors = listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent)
                     )
                 )
                 .padding(16.dp)
@@ -102,7 +155,7 @@ fun CastControlsOverlay(
                 }
 
                 IconButton(
-                    onClick = onDisconnect,
+                    onClick = { showDisconnectDialog = true },
                     modifier = Modifier
                         .background(Color.Black.copy(alpha = 0.5f), CircleShape)
                         .size(48.dp)
@@ -137,7 +190,7 @@ fun CastControlsOverlay(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Reproduzindo em",
+                    text = stringResource(R.string.cast_playing_on),
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = 14.sp
                 )
@@ -215,6 +268,37 @@ fun CastControlsOverlay(
                     )
                 }
             }
+        }
+
+        // Disconnect confirmation dialog
+        if (showDisconnectDialog) {
+            AlertDialog(
+                onDismissRequest = { showDisconnectDialog = false },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.CastConnected,
+                        contentDescription = null,
+                        tint = Color(0xFF4CAF50)
+                    )
+                },
+                title = { Text(stringResource(R.string.cast_disconnect_title)) },
+                text = {
+                    Text(stringResource(R.string.cast_disconnect_message, deviceName))
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDisconnectDialog = false
+                        onDisconnect()
+                    }) {
+                        Text(stringResource(R.string.cast_disconnect_confirm), color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDisconnectDialog = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            )
         }
 
         // Seek bar at bottom

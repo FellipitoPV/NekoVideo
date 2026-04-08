@@ -67,6 +67,10 @@
     <string name="available_devices">Verfügbare Geräte</string>
     <string name="refresh">Aktualisieren</string>
     <string name="select_cast_device">Cast-Gerät auswählen</string>
+    <string name="cast_playing_on">Wiedergabe auf</string>
+    <string name="cast_disconnect_title">Übertragung beenden?</string>
+    <string name="cast_disconnect_message">Die Wiedergabe auf %s wird gestoppt.</string>
+    <string name="cast_disconnect_confirm">Trennen</string>
 
     <!-- Premium -->
     <string name="premium_title">Werbung Entfernen</string>

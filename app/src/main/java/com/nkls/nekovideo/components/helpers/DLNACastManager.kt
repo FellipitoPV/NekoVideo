@@ -1,10 +1,13 @@
 package com.nkls.nekovideo.components.helpers
 
 import android.content.Context
+import android.net.wifi.WifiManager
 import android.util.Log
 import kotlinx.coroutines.*
 import java.io.File
 import java.net.*
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 /**
  * DLNA/UPnP cast manager — open-source replacement for Google Cast SDK.
@@ -14,6 +17,15 @@ import java.net.*
  * Playback control: UPnP AvTransport via SOAP/HTTP
  */
 class DLNACastManager(private val context: Context) {
+
+    companion object {
+        @Volatile private var instance: DLNACastManager? = null
+
+        fun getInstance(context: Context): DLNACastManager =
+            instance ?: synchronized(this) {
+                instance ?: DLNACastManager(context.applicationContext).also { instance = it }
+            }
+    }
 
     private val tag = "DLNACastManager"
 
@@ -35,6 +47,7 @@ class DLNACastManager(private val context: Context) {
     // Playback state (updated via polling)
     var isConnected = false
         private set
+    val connectedDeviceName: String get() = connectedDevice?.name ?: ""
     var isPlaying = false
         private set
     var currentPositionMs = 0L
@@ -43,10 +56,14 @@ class DLNACastManager(private val context: Context) {
         private set
     var currentTitle = ""
         private set
+    var currentVideoPath = ""
+        private set
 
     var onConnectionStateChanged: ((Boolean) -> Unit)? = null
     var onDevicesFound: ((List<DLNADevice>) -> Unit)? = null
     var onStateChanged: (() -> Unit)? = null
+
+    private var stoppedByUser = false
 
     private var connectionListener: ((Boolean) -> Unit)? = null
 
@@ -59,44 +76,110 @@ class DLNACastManager(private val context: Context) {
     fun discoverDevices() {
         scope.launch {
             val found = mutableListOf<DLNADevice>()
+
+            val wifiManager = context.applicationContext
+                .getSystemService(Context.WIFI_SERVICE) as WifiManager
+            val multicastLock = wifiManager.createMulticastLock("nekovideo_ssdp").apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+            Log.d(tag, "MulticastLock acquired: ${multicastLock.isHeld}")
+
             try {
+                // Resolve WiFi interface via WifiManager IP (reliable on API 30+)
+                @Suppress("DEPRECATION")
+                val wifiIpInt = wifiManager.connectionInfo.ipAddress
+                val wifiAddr = if (wifiIpInt != 0) {
+                    InetAddress.getByAddress(
+                        ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(wifiIpInt).array()
+                    )
+                } else null
+                Log.d(tag, "WiFi IP from WifiManager: $wifiAddr")
+
+                val wifiIface = wifiAddr?.let { addr ->
+                    NetworkInterface.getNetworkInterfaces()
+                        ?.asSequence()
+                        ?.firstOrNull { iface ->
+                            iface.inetAddresses.asSequence().any { it == addr }
+                        }
+                } ?: NetworkInterface.getNetworkInterfaces()
+                    ?.asSequence()
+                    ?.firstOrNull { iface ->
+                        iface.isUp && !iface.isLoopback &&
+                            iface.inetAddresses.asSequence().any { it is Inet4Address && !it.isLoopbackAddress }
+                    }
+                Log.d(tag, "Using network interface: ${wifiIface?.name} / ${wifiIface?.inetAddresses?.asSequence()?.toList()}")
+
                 val group = InetAddress.getByName("239.255.255.250")
+                val bindAddr = wifiAddr ?: InetAddress.getByName("0.0.0.0")
+
                 val socket = MulticastSocket(null).apply {
-                    bind(InetSocketAddress(0))
-                    soTimeout = 3000
-                    joinGroup(group)
+                    // Bind to WiFi IP so send and receive both use WiFi interface
+                    bind(InetSocketAddress(bindAddr, 0))
+                    soTimeout = 500
+                    if (wifiIface != null) {
+                        networkInterface = wifiIface          // forces multicast SEND on WiFi
+                        joinGroup(InetSocketAddress(group, 1900), wifiIface)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        joinGroup(group)
+                    }
                 }
+                Log.d(tag, "Socket bound to ${socket.localAddress}:${socket.localPort}")
 
                 val search = buildString {
                     append("M-SEARCH * HTTP/1.1\r\n")
                     append("HOST: 239.255.255.250:1900\r\n")
                     append("MAN: \"ssdp:discover\"\r\n")
                     append("MX: 3\r\n")
-                    append("ST: urn:schemas-upnp-org:service:AVTransport:1\r\n\r\n")
+                    append("ST: urn:schemas-upnp-org:device:MediaRenderer:1\r\n\r\n")
                 }
                 val buf = search.toByteArray()
-                socket.send(DatagramPacket(buf, buf.size, group, 1900))
 
-                val deadline = System.currentTimeMillis() + 3000L
-                val respBuf = ByteArray(2048)
+                // Send M-SEARCH twice — some devices miss the first packet
+                repeat(2) {
+                    socket.send(DatagramPacket(buf, buf.size, group, 1900))
+                    Log.d(tag, "M-SEARCH sent (attempt ${it + 1})")
+                    delay(200)
+                }
+
+                val deadline = System.currentTimeMillis() + 4000L
+                val respBuf = ByteArray(4096)
+                var packetCount = 0
                 while (System.currentTimeMillis() < deadline) {
                     try {
                         val pkt = DatagramPacket(respBuf, respBuf.size)
                         socket.receive(pkt)
+                        packetCount++
                         val response = String(pkt.data, 0, pkt.length)
-                        val location = extractHeader(response, "LOCATION") ?: continue
+                        Log.d(tag, "SSDP packet #$packetCount from ${pkt.address}:\n$response")
+
+                        val location = extractHeader(response, "LOCATION")
+                        if (location == null) {
+                            Log.d(tag, "  → no LOCATION header, skipping")
+                            continue
+                        }
+                        Log.d(tag, "  → fetching device description: $location")
                         val device = fetchDeviceDescription(location)
                         if (device != null && found.none { it.baseUrl == device.baseUrl }) {
+                            Log.d(tag, "  → device added: ${device.name} @ ${device.controlUrl}")
                             found.add(device)
+                        } else if (device == null) {
+                            Log.w(tag, "  → fetchDeviceDescription returned null for $location")
                         }
                     } catch (_: SocketTimeoutException) {
-                        break
+                        // keep looping until deadline
                     }
                 }
+                Log.d(tag, "Discovery done. Packets received: $packetCount, devices found: ${found.size}")
                 socket.close()
             } catch (e: Exception) {
                 Log.e(tag, "SSDP discovery error", e)
+            } finally {
+                multicastLock.release()
+                Log.d(tag, "MulticastLock released")
             }
+
             withContext(Dispatchers.Main) {
                 onDevicesFound?.invoke(found)
             }
@@ -142,13 +225,23 @@ class DLNACastManager(private val context: Context) {
 
     private fun startPolling() {
         scope.launch {
+            var wasPlaying = false
             while (isConnected) {
                 try {
                     val pos = getPositionInfo()
                     if (pos != null) {
                         currentPositionMs = pos.first
                         durationMs = pos.second
-                        isPlaying = getTransportState() == "PLAYING"
+                        val transportState = getTransportState()
+                        isPlaying = transportState == "PLAYING"
+
+                        // Auto-advance when video ends naturally (PLAYING → STOPPED/NO_MEDIA_PRESENT)
+                        if (wasPlaying && !isPlaying && !stoppedByUser && playlist.size > 1
+                            && transportState != "PAUSED_PLAYBACK") {
+                            withContext(Dispatchers.Main) { next() }
+                        }
+
+                        wasPlaying = isPlaying
                         withContext(Dispatchers.Main) { onStateChanged?.invoke() }
                     }
                 } catch (_: Exception) {
@@ -213,14 +306,43 @@ class DLNACastManager(private val context: Context) {
         return "http://$ip:8080/video/$encoded"
     }
 
+    private fun mimeTypeFor(videoPath: String): String {
+        val name = if (videoPath.startsWith("locked://")) {
+            val obfuscated = File(videoPath.removePrefix("locked://")).name
+            LockedPlaybackSession.getOriginalName(obfuscated) ?: obfuscated
+        } else {
+            File(videoPath.removePrefix("file://")).name
+        }
+        return when (name.substringAfterLast('.').lowercase()) {
+            "mp4", "m4v"  -> "video/mp4"
+            "mkv"          -> "video/x-matroska"
+            "avi"          -> "video/x-msvideo"
+            "mov"          -> "video/quicktime"
+            "webm"         -> "video/webm"
+            "wmv"          -> "video/x-ms-wmv"
+            "3gp"          -> "video/3gpp"
+            "flv"          -> "video/x-flv"
+            else           -> "video/mp4"
+        }
+    }
+
+    private fun buildDIDLMetadata(title: String, url: String, mimeType: String): String {
+        val didl = """<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/"><item id="0" parentID="-1" restricted="false"><dc:title>${title.escapeXml()}</dc:title><upnp:class>object.item.videoItem</upnp:class><res protocolInfo="http-get:*:$mimeType:DLNA.ORG_OP=01;DLNA.ORG_FLAGS=01500000000000000000000000000000">${url.escapeXml()}</res></item></DIDL-Lite>"""
+        return didl.escapeXml()
+    }
+
     private fun loadAndPlay(videoPath: String, videoTitle: String) {
         val device = connectedDevice ?: return
         currentTitle = videoTitle
+        currentVideoPath = videoPath
+        stoppedByUser = false
         scope.launch {
             try {
                 val url = videoUrlFor(videoPath)
+                val mime = mimeTypeFor(videoPath)
+                val metadata = buildDIDLMetadata(videoTitle, url, mime)
                 sendSoap(device.controlUrl, "SetAVTransportURI",
-                    "<CurrentURI>${url.escapeXml()}</CurrentURI><CurrentURIMetaData></CurrentURIMetaData>")
+                    "<CurrentURI>${url.escapeXml()}</CurrentURI><CurrentURIMetaData>$metadata</CurrentURIMetaData>")
                 delay(500)
                 sendSoap(device.controlUrl, "Play", "<Speed>1</Speed>")
                 isPlaying = true
@@ -257,24 +379,37 @@ class DLNACastManager(private val context: Context) {
     }
 
     fun next() {
-        if (currentIndex < playlist.size - 1) {
-            currentIndex++
-            val path = playlist[currentIndex]
-            val title = playlistTitles.getOrElse(currentIndex) { File(path.removePrefix("file://")).nameWithoutExtension }
-            loadAndPlay(path, title)
-        }
+        if (playlist.isEmpty()) return
+        currentIndex = (currentIndex + 1) % playlist.size
+        val path = playlist[currentIndex]
+        val title = playlistTitles.getOrElse(currentIndex) { File(path.removePrefix("file://")).nameWithoutExtension }
+        loadAndPlay(path, title)
     }
 
     fun previous() {
-        if (currentIndex > 0) {
-            currentIndex--
-            val path = playlist[currentIndex]
-            val title = playlistTitles.getOrElse(currentIndex) { File(path.removePrefix("file://")).nameWithoutExtension }
-            loadAndPlay(path, title)
-        }
+        if (playlist.isEmpty()) return
+        currentIndex = (currentIndex - 1 + playlist.size) % playlist.size
+        val path = playlist[currentIndex]
+        val title = playlistTitles.getOrElse(currentIndex) { File(path.removePrefix("file://")).nameWithoutExtension }
+        loadAndPlay(path, title)
+    }
+
+    fun stopPlayback() {
+        stoppedByUser = true
+        playlist = listOf()
+        playlistTitles = listOf()
+        currentIndex = 0
+        currentTitle = ""
+        currentVideoPath = ""
+        isPlaying = false
+        currentPositionMs = 0L
+        durationMs = 0L
+        connectedDevice?.let { scope.launch { sendSoap(it.controlUrl, "Stop", "") } }
+        scope.launch(Dispatchers.Main) { onStateChanged?.invoke() }
     }
 
     fun stopCasting() {
+        stoppedByUser = true
         connectedDevice?.let { scope.launch { sendSoap(it.controlUrl, "Stop", "") } }
         disconnect()
     }

@@ -14,18 +14,23 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.CastConnected
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -35,8 +40,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -46,8 +53,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.nkls.nekovideo.R
+import com.nkls.nekovideo.components.helpers.DLNACastManager
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
+import com.nkls.nekovideo.components.player.DLNADevicePickerDialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -65,12 +74,70 @@ fun TopBar(
     onNavigateToPath: (String) -> Unit = {},
     onNavigateBack: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val maxTapInterval = 500L
     var tapCount by remember { mutableIntStateOf(0) }
 
     val density = LocalDensity.current
     var isCompact by remember { mutableStateOf(false) }
+
+    // Cast state
+    val castManager = remember { DLNACastManager.getInstance(context) }
+    var isCasting by remember { mutableStateOf(castManager.isConnected) }
+    var showDevicePicker by remember { mutableStateOf(false) }
+    var showDisconnectDialog by remember { mutableStateOf(false) }
+    var discoveredDevices by remember { mutableStateOf<List<DLNACastManager.DLNADevice>>(emptyList()) }
+    var isDiscovering by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            isCasting = castManager.isConnected
+            delay(1000)
+        }
+    }
+
+    if (showDevicePicker) {
+        DLNADevicePickerDialog(
+            devices = discoveredDevices,
+            isDiscovering = isDiscovering,
+            onDeviceSelected = { device ->
+                showDevicePicker = false
+                castManager.connectToDevice(device)
+                isCasting = true
+            },
+            onDismiss = { showDevicePicker = false }
+        )
+    }
+
+    if (showDisconnectDialog) {
+        AlertDialog(
+            onDismissRequest = { showDisconnectDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.CastConnected,
+                    contentDescription = null,
+                    tint = Color(0xFF4CAF50)
+                )
+            },
+            title = { Text(stringResource(R.string.cast_disconnect_title)) },
+            text = { Text(stringResource(R.string.cast_disconnect_message, castManager.connectedDeviceName)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDisconnectDialog = false
+                    castManager.stopCasting()
+                    isCasting = false
+                }) {
+                    Text(stringResource(R.string.cast_disconnect_confirm), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDisconnectDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 
     TopAppBar(
         modifier = Modifier.onSizeChanged { size ->
@@ -336,6 +403,29 @@ fun TopBar(
             }
         },
         actions = {
+            // Botão Cast — visível na tela de pasta, fora do modo seleção
+            if (currentRoute == "folder" && selectedItems.isEmpty()) {
+                IconButton(onClick = {
+                    if (isCasting) {
+                        showDisconnectDialog = true
+                    } else {
+                        discoveredDevices = emptyList()
+                        isDiscovering = true
+                        showDevicePicker = true
+                        castManager.onDevicesFound = { devices ->
+                            discoveredDevices = devices
+                            isDiscovering = false
+                        }
+                        castManager.discoverDevices()
+                    }
+                }) {
+                    Icon(
+                        imageVector = if (isCasting) Icons.Default.CastConnected else Icons.Default.Cast,
+                        contentDescription = "Cast",
+                        tint = if (isCasting) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
             // Botão SelectAll
             if (selectedItems.isNotEmpty() && currentRoute == "folder") {
                 IconButton(onClick = onSelectAll) {

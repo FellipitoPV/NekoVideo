@@ -68,6 +68,10 @@
     <string name="available_devices">Dispositivos disponíveis</string>
     <string name="refresh">Atualizar</string>
     <string name="select_cast_device">Selecionar dispositivo de transmissão</string>
+    <string name="cast_playing_on">Reproduzindo em</string>
+    <string name="cast_disconnect_title">Encerrar transmissão?</string>
+    <string name="cast_disconnect_message">A reprodução em %s será interrompida.</string>
+    <string name="cast_disconnect_confirm">Desconectar</string>
 
     <!-- Premium -->
     <string name="premium_title">Remover Anúncios</string>

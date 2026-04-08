@@ -67,6 +67,10 @@
     <string name="available_devices">Available devices</string>
     <string name="refresh">Refresh</string>
     <string name="select_cast_device">Select cast device</string>
+    <string name="cast_playing_on">Playing on</string>
+    <string name="cast_disconnect_title">Stop casting?</string>
+    <string name="cast_disconnect_message">Playback on %s will be stopped.</string>
+    <string name="cast_disconnect_confirm">Disconnect</string>
 
     <!-- Premium -->
     <string name="premium_title">Remove Ads</string>

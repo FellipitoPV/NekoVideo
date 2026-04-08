@@ -67,6 +67,10 @@
     <string name="available_devices">उपलब्ध डिवाइस</string>
     <string name="refresh">रीफ्रेश</string>
     <string name="select_cast_device">कास्ट डिवाइस चुनें</string>
+    <string name="cast_playing_on">चल रहा है</string>
+    <string name="cast_disconnect_title">कास्ट बंद करें?</string>
+    <string name="cast_disconnect_message">%s पर प्लेबैक रुक जाएगा।</string>
+    <string name="cast_disconnect_confirm">डिस्कनेक्ट करें</string>
 
     <!-- Premium -->
     <string name="premium_title">विज्ञापन हटाएं</string>

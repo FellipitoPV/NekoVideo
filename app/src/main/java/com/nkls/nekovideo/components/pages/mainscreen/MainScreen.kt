@@ -96,6 +96,7 @@ import com.nkls.nekovideo.components.settings.SecuritySettingsScreen
 import com.nkls.nekovideo.components.settings.SettingsScreen
 import com.nkls.nekovideo.findActivity
 import com.nkls.nekovideo.services.FolderVideoScanner
+import com.nkls.nekovideo.components.helpers.DLNACastManager
 import com.nkls.nekovideo.theme.ThemeManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -1119,11 +1120,25 @@ fun MainScreen(
                                             }
                                         }
 
-                                        PlaylistManager.setPlaylist(videos, startIndex = 0, shuffle = true)
-                                        val window = PlaylistManager.getCurrentWindow()
-
-                                        MediaPlaybackService.startWithPlaylist(context, window, 0)
-                                        showPlayerOverlay = true
+                                        val castManager = DLNACastManager.getInstance(context)
+                                        if (castManager.isConnected) {
+                                            val shuffled = videos.shuffled()
+                                            val titles = shuffled.map { path ->
+                                                if (path.startsWith("locked://")) {
+                                                    val obfuscatedName = File(path.removePrefix("locked://")).name
+                                                    LockedPlaybackSession.getOriginalName(obfuscatedName)
+                                                        ?.substringBeforeLast(".") ?: obfuscatedName
+                                                } else {
+                                                    File(path.removePrefix("file://")).nameWithoutExtension
+                                                }
+                                            }
+                                            castManager.castPlaylist(shuffled, titles, 0)
+                                        } else {
+                                            PlaylistManager.setPlaylist(videos, startIndex = 0, shuffle = true)
+                                            val window = PlaylistManager.getCurrentWindow()
+                                            MediaPlaybackService.startWithPlaylist(context, window, 0)
+                                            showPlayerOverlay = true
+                                        }
                                         selectedItems.clear()
                                     } else {
                                         Toast.makeText(
@@ -1414,32 +1429,54 @@ fun MainScreen(
                             } else {
                                 // Função para reproduzir o vídeo
                                 val playVideo = {
-                                    // Check if we're in a locked folder session
-                                    if (LockedPlaybackSession.isActive && LockedPlaybackSession.hasSessionForFolder(folderPath)) {
-                                        // Playing from locked folder - use locked:// URI scheme
-                                        val videos = items.filter { !it.isFolder }.map { "locked://${it.path}" }
-                                        val clickedVideoIndex = videos.indexOf("locked://$itemPath")
-                                        if (clickedVideoIndex >= 0) {
-                                            PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
-                                            val window = PlaylistManager.getCurrentWindow()
-                                            val windowIndex = PlaylistManager.getCurrentIndexInWindow()
-                                            MediaPlaybackService.startWithPlaylist(context, window, windowIndex)
-                                            showPlayerOverlay = true
+                                    val castManager = DLNACastManager.getInstance(context)
+                                    if (castManager.isConnected) {
+                                        // Cast to connected device instead of opening local player
+                                        if (LockedPlaybackSession.isActive && LockedPlaybackSession.hasSessionForFolder(folderPath)) {
+                                            val videos = items.filter { !it.isFolder }.map { "locked://${it.path}" }
+                                            val titles = items.filter { !it.isFolder }.map { it.displayName }
+                                            val clickedVideoIndex = videos.indexOf("locked://$itemPath")
+                                            if (clickedVideoIndex >= 0) {
+                                                castManager.castPlaylist(videos, titles, clickedVideoIndex)
+                                            }
+                                        } else {
+                                            val videos = items.filter { !it.isFolder }.map { "file://${it.path}" }
+                                            val titles = items.filter { !it.isFolder }.map { it.displayName }
+                                            val clickedVideoIndex = videos.indexOf("file://$itemPath")
+                                            if (clickedVideoIndex >= 0) {
+                                                castManager.castPlaylist(videos, titles, clickedVideoIndex)
+                                            } else {
+                                                castManager.castVideo("file://$itemPath", File(itemPath).nameWithoutExtension)
+                                            }
                                         }
                                     } else {
-                                        val videos = items.filter { !it.isFolder }.map { "file://${it.path}" }
-                                        val clickedVideoIndex = videos.indexOf("file://$itemPath")
-                                        if (clickedVideoIndex >= 0) {
-                                            PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
-                                            val window = PlaylistManager.getCurrentWindow()
-                                            val windowIndex = PlaylistManager.getCurrentIndexInWindow()
-                                            MediaPlaybackService.startWithPlaylist(context, window, windowIndex)
-                                            showPlayerOverlay = true
+                                        // Check if we're in a locked folder session
+                                        if (LockedPlaybackSession.isActive && LockedPlaybackSession.hasSessionForFolder(folderPath)) {
+                                            // Playing from locked folder - use locked:// URI scheme
+                                            val videos = items.filter { !it.isFolder }.map { "locked://${it.path}" }
+                                            val clickedVideoIndex = videos.indexOf("locked://$itemPath")
+                                            if (clickedVideoIndex >= 0) {
+                                                PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
+                                                val window = PlaylistManager.getCurrentWindow()
+                                                val windowIndex = PlaylistManager.getCurrentIndexInWindow()
+                                                MediaPlaybackService.startWithPlaylist(context, window, windowIndex)
+                                                showPlayerOverlay = true
+                                            }
                                         } else {
-                                            val videoUri = "file://$itemPath"
-                                            PlaylistManager.setPlaylist(listOf(videoUri), startIndex = 0, shuffle = false)
-                                            MediaPlaybackService.startWithPlaylist(context, listOf(videoUri), 0)
-                                            showPlayerOverlay = true
+                                            val videos = items.filter { !it.isFolder }.map { "file://${it.path}" }
+                                            val clickedVideoIndex = videos.indexOf("file://$itemPath")
+                                            if (clickedVideoIndex >= 0) {
+                                                PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
+                                                val window = PlaylistManager.getCurrentWindow()
+                                                val windowIndex = PlaylistManager.getCurrentIndexInWindow()
+                                                MediaPlaybackService.startWithPlaylist(context, window, windowIndex)
+                                                showPlayerOverlay = true
+                                            } else {
+                                                val videoUri = "file://$itemPath"
+                                                PlaylistManager.setPlaylist(listOf(videoUri), startIndex = 0, shuffle = false)
+                                                MediaPlaybackService.startWithPlaylist(context, listOf(videoUri), 0)
+                                                showPlayerOverlay = true
+                                            }
                                         }
                                     }
                                 }

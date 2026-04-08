@@ -95,9 +95,9 @@ fun VideoPlayerOverlay(
     var overlayActuallyVisible by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var currentVideoPath by remember { mutableStateOf("") }
-    var isCasting by remember { mutableStateOf(false) }
-    var connectedDeviceName by remember { mutableStateOf("") }
-    val castManager = remember { CastManager(context) }
+    val castManager = remember { DLNACastManager.getInstance(context) }
+    var isCasting by remember { mutableStateOf(castManager.isConnected) }
+    var connectedDeviceName by remember { mutableStateOf(if (castManager.isConnected) castManager.connectedDeviceName else "") }
     var showCastDevicePicker by remember { mutableStateOf(false) }
     var discoveredDevices by remember { mutableStateOf<List<DLNACastManager.DLNADevice>>(emptyList()) }
     var isDiscovering by remember { mutableStateOf(false) }
@@ -208,6 +208,9 @@ fun VideoPlayerOverlay(
 
     fun applyRotation(videoSize: VideoSize? = null) {
         val localActivity = activity ?: return
+
+        // Não interferir na orientação enquanto cast estiver ativo
+        if (isCasting) return
 
         // Se não pode controlar rotação, restaurar orientação padrão e sair
         if (!canControlRotation) {
@@ -777,7 +780,7 @@ fun VideoPlayerOverlay(
                 val currentIndex = PlaylistManager.getCurrentIndex()
                 MediaPlaybackService.stopService(context)
                 castManager.castPlaylist(playlist, titles, currentIndex)
-                onDismiss()
+                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             },
             onDismiss = { showCastDevicePicker = false }
         )
