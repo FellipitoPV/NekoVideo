@@ -38,6 +38,11 @@
             </intent-filter>
         </service>
 
+        <service
+            android:name=".DLNACastService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

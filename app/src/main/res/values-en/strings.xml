@@ -71,6 +71,13 @@
     <string name="cast_disconnect_title">Stop casting?</string>
     <string name="cast_disconnect_message">Playback on %s will be stopped.</string>
     <string name="cast_disconnect_confirm">Disconnect</string>
+    <string name="cast_notification_channel_name">Cast Controls</string>
+    <string name="cast_notification_casting_to">Casting to %s</string>
+    <string name="cast_notification_idle">Ready to cast</string>
+    <string name="previous">Previous</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="next">Next</string>
 
     <!-- Premium -->
     <string name="premium_title">Remove Ads</string>

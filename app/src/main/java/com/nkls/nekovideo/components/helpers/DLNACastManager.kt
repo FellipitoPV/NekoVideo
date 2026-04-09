@@ -1,6 +1,7 @@
 package com.nkls.nekovideo.components.helpers
 
 import android.content.Context
+import android.content.Intent
 import android.net.wifi.WifiManager
 import android.util.Log
 import kotlinx.coroutines.*
@@ -62,8 +63,11 @@ class DLNACastManager(private val context: Context) {
     var onConnectionStateChanged: ((Boolean) -> Unit)? = null
     var onDevicesFound: ((List<DLNADevice>) -> Unit)? = null
     var onStateChanged: (() -> Unit)? = null
+    // Separate observer for DLNACastService (avoids overwriting onStateChanged from UI)
+    var onServiceStateChanged: (() -> Unit)? = null
 
     private var stoppedByUser = false
+    private var isLoadingTrack = false
 
     private var connectionListener: ((Boolean) -> Unit)? = null
 
@@ -220,6 +224,7 @@ class DLNACastManager(private val context: Context) {
         isConnected = true
         connectionListener?.invoke(true)
         onConnectionStateChanged?.invoke(true)
+        context.startService(Intent(context, com.nkls.nekovideo.DLNACastService::class.java))
         startPolling()
     }
 
@@ -236,13 +241,18 @@ class DLNACastManager(private val context: Context) {
                         isPlaying = transportState == "PLAYING"
 
                         // Auto-advance when video ends naturally (PLAYING → STOPPED/NO_MEDIA_PRESENT)
-                        if (wasPlaying && !isPlaying && !stoppedByUser && playlist.size > 1
+                        // Guard isLoadingTrack: Smart TVs briefly enter STOPPED during SetAVTransportURI
+                        // which would otherwise trigger a spurious next() and skip the intended video.
+                        if (wasPlaying && !isPlaying && !stoppedByUser && !isLoadingTrack && playlist.size > 1
                             && transportState != "PAUSED_PLAYBACK") {
                             withContext(Dispatchers.Main) { next() }
                         }
 
                         wasPlaying = isPlaying
-                        withContext(Dispatchers.Main) { onStateChanged?.invoke() }
+                        withContext(Dispatchers.Main) {
+                            onStateChanged?.invoke()
+                            onServiceStateChanged?.invoke()
+                        }
                     }
                 } catch (_: Exception) {
                 }
@@ -336,6 +346,7 @@ class DLNACastManager(private val context: Context) {
         currentTitle = videoTitle
         currentVideoPath = videoPath
         stoppedByUser = false
+        isLoadingTrack = true
         scope.launch {
             try {
                 val url = videoUrlFor(videoPath)
@@ -346,8 +357,14 @@ class DLNACastManager(private val context: Context) {
                 delay(500)
                 sendSoap(device.controlUrl, "Play", "<Speed>1</Speed>")
                 isPlaying = true
+                // Keep the flag set until the TV has had time to transition to PLAYING.
+                // Smart TVs briefly report STOPPED during SetAVTransportURI; without this
+                // guard the polling loop would fire next() and skip the intended video.
+                delay(1500)
+                isLoadingTrack = false
             } catch (e: Exception) {
                 Log.e(tag, "loadAndPlay error", e)
+                isLoadingTrack = false
             }
         }
     }
@@ -420,6 +437,7 @@ class DLNACastManager(private val context: Context) {
         connectedDevice = null
         connectionListener?.invoke(false)
         onConnectionStateChanged?.invoke(false)
+        context.stopService(Intent(context, com.nkls.nekovideo.DLNACastService::class.java))
         stopServer()
     }
 

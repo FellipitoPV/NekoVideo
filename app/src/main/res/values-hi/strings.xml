@@ -71,6 +71,13 @@
     <string name="cast_disconnect_title">कास्ट बंद करें?</string>
     <string name="cast_disconnect_message">%s पर प्लेबैक रुक जाएगा।</string>
     <string name="cast_disconnect_confirm">डिस्कनेक्ट करें</string>
+    <string name="cast_notification_channel_name">कास्ट नियंत्रण</string>
+    <string name="cast_notification_casting_to">%s पर कास्ट हो रहा है</string>
+    <string name="cast_notification_idle">कास्ट के लिए तैयार</string>
+    <string name="previous">पिछला</string>
+    <string name="play">चलाएं</string>
+    <string name="pause">रोकें</string>
+    <string name="next">अगला</string>
 
     <!-- Premium -->
     <string name="premium_title">विज्ञापन हटाएं</string>

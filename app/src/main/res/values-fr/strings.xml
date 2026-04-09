@@ -71,6 +71,13 @@
     <string name="cast_disconnect_title">Arrêter la diffusion ?</string>
     <string name="cast_disconnect_message">La lecture sur %s sera interrompue.</string>
     <string name="cast_disconnect_confirm">Déconnecter</string>
+    <string name="cast_notification_channel_name">Contrôles de diffusion</string>
+    <string name="cast_notification_casting_to">Diffusion vers %s</string>
+    <string name="cast_notification_idle">Prêt à diffuser</string>
+    <string name="previous">Précédent</string>
+    <string name="play">Lire</string>
+    <string name="pause">Pause</string>
+    <string name="next">Suivant</string>
 
     <!-- Premium -->
     <string name="premium_title">Supprimer les Publicités</string>

@@ -52,10 +52,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.helpers.DLNACastManager
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
+import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.player.DLNADevicePickerDialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -105,6 +107,17 @@ fun TopBar(
                 showDevicePicker = false
                 castManager.connectToDevice(device)
                 isCasting = true
+                // Se há uma playlist local ativa, migra para o cast
+                val localPlaylist = PlaylistManager.getFullPlaylist()
+                if (localPlaylist.isNotEmpty()) {
+                    MediaPlaybackService.stopService(context)
+                    val titles = localPlaylist.map { path ->
+                        java.io.File(
+                            path.removePrefix("locked://").removePrefix("file://")
+                        ).nameWithoutExtension
+                    }
+                    castManager.castPlaylist(localPlaylist, titles, PlaylistManager.getCurrentIndex())
+                }
             },
             onDismiss = { showDevicePicker = false }
         )

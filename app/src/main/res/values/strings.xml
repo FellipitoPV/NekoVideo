@@ -72,6 +72,13 @@
     <string name="cast_disconnect_title">Encerrar transmissão?</string>
     <string name="cast_disconnect_message">A reprodução em %s será interrompida.</string>
     <string name="cast_disconnect_confirm">Desconectar</string>
+    <string name="cast_notification_channel_name">Controles de Cast</string>
+    <string name="cast_notification_casting_to">Transmitindo para %s</string>
+    <string name="cast_notification_idle">Pronto para transmitir</string>
+    <string name="previous">Anterior</string>
+    <string name="play">Reproduzir</string>
+    <string name="pause">Pausar</string>
+    <string name="next">Próximo</string>
 
     <!-- Premium -->
     <string name="premium_title">Remover Anúncios</string>

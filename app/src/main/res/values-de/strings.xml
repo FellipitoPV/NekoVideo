@@ -71,6 +71,13 @@
     <string name="cast_disconnect_title">Übertragung beenden?</string>
     <string name="cast_disconnect_message">Die Wiedergabe auf %s wird gestoppt.</string>
     <string name="cast_disconnect_confirm">Trennen</string>
+    <string name="cast_notification_channel_name">Cast-Steuerung</string>
+    <string name="cast_notification_casting_to">Wird auf %s übertragen</string>
+    <string name="cast_notification_idle">Bereit zum Übertragen</string>
+    <string name="previous">Zurück</string>
+    <string name="play">Abspielen</string>
+    <string name="pause">Pause</string>
+    <string name="next">Weiter</string>
 
     <!-- Premium -->
     <string name="premium_title">Werbung Entfernen</string>

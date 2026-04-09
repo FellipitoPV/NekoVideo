@@ -71,6 +71,13 @@
     <string name="cast_disconnect_title">Остановить трансляцию?</string>
     <string name="cast_disconnect_message">Воспроизведение на %s будет остановлено.</string>
     <string name="cast_disconnect_confirm">Отключить</string>
+    <string name="cast_notification_channel_name">Управление трансляцией</string>
+    <string name="cast_notification_casting_to">Трансляция на %s</string>
+    <string name="cast_notification_idle">Готово к трансляции</string>
+    <string name="previous">Назад</string>
+    <string name="play">Воспроизвести</string>
+    <string name="pause">Пауза</string>
+    <string name="next">Далее</string>
 
     <!-- Premium -->
     <string name="premium_title">Убрать Рекламу</string>
