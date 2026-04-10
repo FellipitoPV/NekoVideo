@@ -290,6 +290,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        // Se o player está pausado quando a Activity é destruída (ex: botão back),
+        // para o serviço e zera a playlist para não contaminar um cast futuro
+        val controller = MediaControllerManager.getCurrentController()
+        if (controller != null && !controller.isPlaying) {
+            PlaylistManager.clear()
+            MediaPlaybackService.stopService(this)
+        }
         super.onDestroy()
         MediaControllerManager.disconnect()
         OptimizedThumbnailManager.stopPeriodicCleanup()

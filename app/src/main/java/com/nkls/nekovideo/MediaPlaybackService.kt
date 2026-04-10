@@ -575,7 +575,28 @@ class MediaPlaybackService : MediaSessionService() {
         updateNotificationIntent()
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        val currentPlayer = player
+        if (currentPlayer == null || !currentPlayer.isPlaying) {
+            // App removido dos recentes com vídeo pausado → limpa playlist e para o serviço
+            PlaylistManager.clear()
+            currentPlayer?.run {
+                pause()
+                clearMediaItems()
+                stop()
+            }
+            stopSelf()
+            return
+        }
+        // Se estiver tocando, o serviço continua em background
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onDestroy() {
+        // Serviço destruído com vídeo pausado (ex: notificação arrastada enquanto pausado)
+        if (player?.isPlaying == false) {
+            PlaylistManager.clear()
+        }
         preloadScope.cancel() // Cancela thumbnails em progresso
         abandonAudioFocus()
         mediaSession?.run {
