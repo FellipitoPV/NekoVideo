@@ -38,6 +38,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -94,7 +95,14 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem as ExoMediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import com.nkls.nekovideo.services.FolderInfo
+import com.nkls.nekovideo.components.helpers.HybridDataSourceFactory
 
 enum class SortType { NAME_ASC, NAME_DESC, DATE_NEWEST, DATE_OLDEST, SIZE_LARGEST, SIZE_SMALLEST }
 
@@ -983,6 +991,13 @@ fun FolderScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var isSearchExpanded by remember { mutableStateOf(false) }
+    var previewingPath by remember(folderPath) { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(selectedItems.size) {
+        if (selectedItems.isEmpty()) {
+            previewingPath = null
+        }
+    }
 
     // Função de refresh — usa GlobalScope interno do scanner para não ser cancelada por navegação
     fun performRefresh() {
@@ -1266,6 +1281,7 @@ fun FolderScreen(
                                     items = rowItems,
                                     gridColumns = gridColumns,
                                     selectedItems = selectedItems,
+                                    previewingPath = previewingPath,
                                     showThumbnails = true,
                                     showDurations = showDurations,
                                     showFileSizes = showFileSizes,
@@ -1273,7 +1289,15 @@ fun FolderScreen(
                                     isMoveMode = isMoveMode,
                                     itemsToMove = itemsToMove,
                                     onFolderClick = onFolderClick,
-                                    onSelectionChange = onSelectionChange
+                                    onSelectionChange = onSelectionChange,
+                                    onPreviewToggle = { path ->
+                                        previewingPath = if (previewingPath == path) null else path
+                                    },
+                                    onPreviewFinished = { path ->
+                                        if (previewingPath == path) {
+                                            previewingPath = null
+                                        }
+                                    }
                                 )
                             }
 
@@ -1292,6 +1316,7 @@ private fun MediaRow(
     items: List<MediaItem>,
     gridColumns: Int,
     selectedItems: MutableList<String>,
+    previewingPath: String?,
     showThumbnails: Boolean,
     showDurations: Boolean,
     showFileSizes: Boolean,
@@ -1300,13 +1325,17 @@ private fun MediaRow(
     itemsToMove: List<String>,
     onFolderClick: (String) -> Unit,
     onSelectionChange: (List<String>) -> Unit,
+    onPreviewToggle: (String) -> Unit,
+    onPreviewFinished: (String) -> Unit,
 ) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         items.forEach { item ->
             MediaCard(
                 item = item,
                 isSelected = item.path in selectedItems,
+                isPreviewing = previewingPath == item.path,
                 isBeingMoved = isMoveMode && item.path in itemsToMove,
+                canPreview = selectedItems.isNotEmpty(),
                 showThumbnails = showThumbnails,
                 showDurations = showDurations,
                 showFileSizes = showFileSizes,
@@ -1324,6 +1353,12 @@ private fun MediaRow(
                 onLongPress = {
                     if (item.path in selectedItems) selectedItems.remove(item.path) else selectedItems.add(item.path)
                     onSelectionChange(selectedItems.toList())
+                },
+                onPreviewToggle = {
+                    onPreviewToggle(item.path)
+                },
+                onPreviewFinished = {
+                    onPreviewFinished(item.path)
                 }
             )
         }
@@ -1336,7 +1371,9 @@ private fun MediaRow(
 private fun MediaCard(
     item: MediaItem,
     isSelected: Boolean,
+    isPreviewing: Boolean,
     isBeingMoved: Boolean = false,
+    canPreview: Boolean,
     showThumbnails: Boolean,
     showDurations: Boolean,
     showFileSizes: Boolean,
@@ -1344,7 +1381,9 @@ private fun MediaCard(
     isSecureMode: Boolean,
     modifier: Modifier = Modifier,
     onTap: () -> Unit,
-    onLongPress: () -> Unit
+    onLongPress: () -> Unit,
+    onPreviewToggle: () -> Unit,
+    onPreviewFinished: () -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -1508,13 +1547,22 @@ private fun MediaCard(
                     fileSize = fileSize,
                     isLoading = isLoading,
                     isSelected = isSelected,
+                    isPreviewing = isPreviewing,
                     isBeingMoved = isBeingMoved,
+                    canPreview = canPreview,
                     showThumbnails = showThumbnails,
                     randomColor = randomColor,
                     gridColumns = gridColumns,
+                    previewUri = when {
+                        LockedPlaybackSession.getXorKeyForFile(item.path) != null -> Uri.parse("locked://${item.path}")
+                        isSecureMode -> Uri.fromFile(File(item.path))
+                        else -> item.uri
+                    },
                     hasError = hasError,
                     retryCount = retryCount,
-                    onRetry = { regenerateThumbnail() }
+                    onRetry = { regenerateThumbnail() },
+                    onPreviewToggle = onPreviewToggle,
+                    onPreviewFinished = onPreviewFinished
                 )
             }
         }
@@ -1641,13 +1689,18 @@ private fun VideoContent(
     fileSize: String?,
     isLoading: Boolean,
     isSelected: Boolean,
+    isPreviewing: Boolean,
     isBeingMoved: Boolean,
+    canPreview: Boolean,
     showThumbnails: Boolean,
     randomColor: Color,
     gridColumns: Int,
+    previewUri: Uri?,
     hasError: Boolean = false,
     retryCount: Int = 0,
-    onRetry: () -> Unit = {}
+    onRetry: () -> Unit = {},
+    onPreviewToggle: () -> Unit = {},
+    onPreviewFinished: () -> Unit = {}
 ) {
     val textSize = when {
         gridColumns <= 2 -> 12.sp
@@ -1658,6 +1711,13 @@ private fun VideoContent(
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {
+            isPreviewing && previewUri != null -> {
+                InlineVideoPreview(
+                    videoUri = previewUri,
+                    modifier = Modifier.fillMaxSize(),
+                    onPreviewFinished = onPreviewFinished
+                )
+            }
             !showThumbnails -> Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1750,7 +1810,7 @@ private fun VideoContent(
 
         if (!isSelected) {
             // Play button - só mostra se tem thumbnail válido
-            if (thumbnail != null && !thumbnail.isRecycled && showThumbnails) {
+            if (!isPreviewing && thumbnail != null && !thumbnail.isRecycled && showThumbnails) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
@@ -1803,6 +1863,48 @@ private fun VideoContent(
             }
         }
 
+        if (canPreview && previewUri != null) {
+            FilledIconButton(
+                onClick = onPreviewToggle,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(6.dp)
+                    .size(28.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = if (isPreviewing) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        Color.Black.copy(alpha = 0.55f)
+                    },
+                    contentColor = if (isPreviewing) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        Color.White
+                    }
+                )
+            ) {
+                Icon(
+                    imageVector = if (isPreviewing) Icons.Default.Stop else Icons.Default.Visibility,
+                    contentDescription = if (isPreviewing) "Parar preview" else "Preview do video",
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
+        if (isPreviewing) {
+            Text(
+                text = "Preview",
+                fontSize = textSize,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 6.dp)
+                    .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            )
+        }
+
         if (isBeingMoved && !isSelected) {
             Icon(
                 imageVector = Icons.Default.DriveFileMove,
@@ -1819,9 +1921,115 @@ private fun VideoContent(
 
         // Check de seleção
         if (isSelected) {
-            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp).size(18.dp))
+            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).size(18.dp))
         }
     }
+}
+
+@Composable
+private fun InlineVideoPreview(
+    videoUri: Uri,
+    modifier: Modifier = Modifier,
+    onPreviewFinished: () -> Unit
+) {
+    val context = LocalContext.current
+    val latestOnPreviewFinished by rememberUpdatedState(onPreviewFinished)
+    var hasSignalledFinish by remember(videoUri) { mutableStateOf(false) }
+
+    fun finishPreview() {
+        if (!hasSignalledFinish) {
+            hasSignalledFinish = true
+            latestOnPreviewFinished()
+        }
+    }
+
+    val player = remember(videoUri) {
+        val dataSourceFactory = HybridDataSourceFactory(context)
+        val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .build().apply {
+            volume = 0f
+            repeatMode = ExoPlayer.REPEAT_MODE_OFF
+            playWhenReady = false
+            videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+        }
+    }
+
+    DisposableEffect(player) {
+        onDispose {
+            player.release()
+            finishPreview()
+        }
+    }
+
+    LaunchedEffect(player, videoUri) {
+        try {
+            player.setMediaItem(ExoMediaItem.fromUri(videoUri))
+            player.prepare()
+
+            var durationMs = 0L
+            for (attempt in 0 until 40) {
+                durationMs = player.duration
+                if (durationMs > 0L) break
+                delay(100)
+            }
+
+            if (durationMs <= 0L) {
+                finishPreview()
+                return@LaunchedEffect
+            }
+
+            suspend fun playWindow(startMs: Long, requestedDurationMs: Long) {
+                val maxStart = (durationMs - 500L).coerceAtLeast(0L)
+                val segmentStart = startMs.coerceIn(0L, maxStart)
+                val remaining = (durationMs - segmentStart).coerceAtLeast(0L)
+                val segmentDuration = minOf(requestedDurationMs, remaining)
+                if (segmentDuration <= 0L) return
+
+                player.seekTo(segmentStart)
+                player.play()
+                delay(segmentDuration)
+                player.pause()
+            }
+
+            if (durationMs <= 15_000L) {
+                val middleStart = ((durationMs / 2) - 1_500L).coerceAtLeast(0L)
+                playWindow(middleStart, 3_000L)
+            } else if (durationMs <= 30_000L) {
+                val endStart = (durationMs - 3_000L).coerceAtLeast(0L)
+
+                playWindow(0L, 3_000L)
+                delay(150)
+                playWindow(endStart, 3_000L)
+            } else {
+                val middleStart = ((durationMs / 2) - 1_500L).coerceAtLeast(0L)
+                val endStart = (durationMs - 3_000L).coerceAtLeast(0L)
+
+                playWindow(0L, 3_000L)
+                delay(150)
+                playWindow(middleStart, 3_000L)
+                delay(150)
+                playWindow(endStart, 3_000L)
+            }
+        } finally {
+            player.pause()
+            player.stop()
+            finishPreview()
+        }
+    }
+
+    AndroidView(
+        factory = { viewContext ->
+            PlayerView(viewContext).apply {
+                useController = false
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                this.player = player
+            }
+        },
+        update = { it.player = player },
+        modifier = modifier
+    )
 }
 
 // Função auxiliar para busca recursiva (para shuffle play)
