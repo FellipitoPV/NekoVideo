@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
@@ -40,7 +41,7 @@ import com.nkls.nekovideo.R
 
 enum class ActionType {
     UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS, PASTE,
-    PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE, SET_AS_SECURE_FOLDER, SHARE
+    PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE, SET_AS_SECURE_FOLDER, SHARE, TAGS
 }
 
 data class ActionItem(
@@ -61,7 +62,8 @@ fun ActionFAB(
     selectedItems: List<String> = emptyList(),
     itemsToMoveCount: Int = 0,
     isInsideLockedFolder: Boolean = false,
-    onActionClick: (ActionType) -> Unit
+    onActionClick: (ActionType) -> Unit,
+    onActionLongClick: (ActionType) -> Unit = {}
 ) {
     var showBottomSheet by remember { mutableStateOf(false) }
     val bottomSheetState = rememberModalBottomSheetState()
@@ -90,6 +92,7 @@ fun ActionFAB(
     val settingsText = stringResource(R.string.action_settings)
     val secureFolderSet = stringResource(R.string.action_set_secure_folder)
     val shareText = stringResource(R.string.action_share)
+    val tagsText = stringResource(R.string.action_tags)
     val moveItemsText = pluralStringResource(R.plurals.move_items_count, itemsToMoveCount, itemsToMoveCount)
 
     // NOVOS: strings que estavam hardcoded
@@ -127,7 +130,7 @@ fun ActionFAB(
         selectedItems.isNotEmpty() && selectedItems.all { java.io.File(it).isFile }
     }
 
-    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder, hasOnlyFiles) {
+    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder, hasOnlyFiles, tagsText) {
         when {
             isMoveMode -> {
                 listOf(
@@ -155,6 +158,7 @@ fun ActionFAB(
                     ))
                     if (hasOnlyFiles) {
                         actionsList.add(ActionItem(ActionType.SHARE, Icons.Default.Share, shareText))
+                        actionsList.add(ActionItem(ActionType.TAGS, Icons.Default.LocalOffer, tagsText))
                     }
                 } else {
                     // All actions available in non-locked folders (even inside secure_videos)
@@ -178,6 +182,7 @@ fun ActionFAB(
 
                     if (hasOnlyFiles) {
                         actionsList.add(ActionItem(ActionType.SHARE, Icons.Default.Share, shareText))
+                        actionsList.add(ActionItem(ActionType.TAGS, Icons.Default.LocalOffer, tagsText))
                     }
 
                     if (isSingleNomediaFolder) {
@@ -391,6 +396,10 @@ fun ActionFAB(
                             onClick = {
                                 onActionClick(action.type)
                                 showBottomSheet = false
+                            },
+                            onLongClick = {
+                                onActionLongClick(action.type)
+                                showBottomSheet = false
                             }
                         )
                     }
@@ -408,7 +417,8 @@ private fun ActionGridItem(
     action: ActionItem,
     isMoveMode: Boolean = false,
     isCompact: Boolean = false,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
     val itemHeight = when {
         isCompact -> 76.dp
@@ -422,9 +432,15 @@ private fun ActionGridItem(
         modifier = Modifier
             .fillMaxWidth()
             .height(itemHeight)
-            .clickable(enabled = action.isEnabled) {
-                if (action.isEnabled) onClick()
-            },
+            .combinedClickable(
+                enabled = action.isEnabled,
+                onClick = {
+                    if (action.isEnabled) onClick()
+                },
+                onLongClick = {
+                    if (action.isEnabled) onLongClick()
+                }
+            ),
         color = Color.Transparent,
         shape = RoundedCornerShape(12.dp)
     ) {

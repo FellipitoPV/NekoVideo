@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,12 +30,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Schedule
@@ -56,18 +59,27 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -85,6 +97,9 @@ import com.nkls.nekovideo.theme.ThemeManager
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
+import com.nkls.nekovideo.components.helpers.TagEntity
+import com.nkls.nekovideo.components.helpers.TagScope
+import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.services.FolderVideoScanner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -140,6 +155,16 @@ fun SettingsScreen(navController: NavController) {
                     title = stringResource(R.string.settings_storage),
                     subtitle = stringResource(R.string.settings_storage_desc),
                     onClick = { navController.navigate("settings/storage") },
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsCategoryCard(
+                    icon = Icons.Default.LocalOffer,
+                    title = stringResource(R.string.settings_tags),
+                    subtitle = stringResource(R.string.settings_tags_desc),
+                    onClick = { navController.navigate("settings/tags") },
                     isCompact = isCompact
                 )
             }
@@ -436,6 +461,124 @@ fun StorageSettingsScreen() {
                     },
                     isCompact = isCompact
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun TagsSettingsScreen() {
+    val context = LocalContext.current
+    val hasPassword = remember { FilesManager.SecureStorage.hasPassword(context) }
+    var showPrivatePasswordDialog by remember { mutableStateOf(false) }
+    var privateUnlocked by remember { mutableStateOf(false) }
+    var normalTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
+    var privateTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
+    var refreshToken by remember { mutableIntStateOf(0) }
+
+    suspend fun refreshTags() {
+        normalTags = VideoTagStore.getAllTags(context, TagScope.NORMAL)
+        if (privateUnlocked) {
+            privateTags = VideoTagStore.getAllTags(context, TagScope.PRIVATE)
+        }
+    }
+
+    LaunchedEffect(refreshToken, privateUnlocked) {
+        refreshTags()
+    }
+
+    if (showPrivatePasswordDialog) {
+        PasswordDialog(
+            onDismiss = { showPrivatePasswordDialog = false },
+            onPasswordVerified = {
+                showPrivatePasswordDialog = false
+                privateUnlocked = true
+            }
+        )
+    }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        @Suppress("UnusedBoxWithConstraintsScope")
+        val isCompact = this.maxWidth > 600.dp
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isCompact) 8.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
+        ) {
+            item { SettingsSectionHeader(stringResource(R.string.tags_normal_section), isCompact) }
+            item {
+                TagScopeManagerCard(
+                    scope = TagScope.NORMAL,
+                    tags = normalTags,
+                    isCompact = isCompact,
+                    onCreateTag = { name ->
+                        val result = VideoTagStore.createTag(context, name, TagScope.NORMAL)
+                        if (result.isSuccess) refreshToken++
+                        result
+                    },
+                    onDeleteTag = { tagId ->
+                        VideoTagStore.deleteTag(context, tagId)
+                        refreshToken++
+                    }
+                )
+            }
+
+            item { SettingsSectionHeader(stringResource(R.string.tags_private_section), isCompact) }
+            if (!privateUnlocked) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(if (isCompact) 12.dp else 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.tags_private_locked_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = if (hasPassword) stringResource(R.string.tags_private_locked_desc) else stringResource(R.string.tags_private_password_required),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Button(
+                                onClick = { showPrivatePasswordDialog = true },
+                                enabled = hasPassword,
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                                    contentColor = MaterialTheme.colorScheme.onSurface
+                                )
+                            ) {
+                                Text(stringResource(R.string.tags_private_unlock))
+                            }
+                        }
+                    }
+                }
+            } else {
+                item {
+                    TagScopeManagerCard(
+                        scope = TagScope.PRIVATE,
+                        tags = privateTags,
+                        isCompact = isCompact,
+                        onCreateTag = { name ->
+                            val result = VideoTagStore.createTag(context, name, TagScope.PRIVATE)
+                            if (result.isSuccess) refreshToken++
+                            result
+                        },
+                        onDeleteTag = { tagId ->
+                            VideoTagStore.deleteTag(context, tagId)
+                            refreshToken++
+                        }
+                    )
+                }
             }
         }
     }
@@ -787,6 +930,125 @@ Device: $deviceInfo
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TagScopeManagerCard(
+    scope: TagScope,
+    tags: List<TagEntity>,
+    isCompact: Boolean,
+    onCreateTag: suspend (String) -> Result<TagEntity>,
+    onDeleteTag: suspend (Long) -> Unit
+) {
+    var newTagName by remember(scope) { mutableStateOf("") }
+    var errorMessage by remember(scope) { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+    val emptyNameMessage = stringResource(R.string.video_tags_name_empty)
+    val duplicateNameMessage = stringResource(R.string.video_tags_name_exists)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(if (isCompact) 12.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = newTagName,
+                    onValueChange = {
+                        newTagName = it
+                        errorMessage = null
+                    },
+                    label = { Text(stringResource(R.string.tags_create_hint)) },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                    )
+                )
+                Button(
+                    onClick = {
+                        val trimmed = newTagName.trim()
+                        if (trimmed.isEmpty()) {
+                            errorMessage = emptyNameMessage
+                            return@Button
+                        }
+                        coroutineScope.launch {
+                            val result = onCreateTag(trimmed)
+                            result.onSuccess {
+                                newTagName = ""
+                            }.onFailure { error ->
+                                errorMessage = when (error.message) {
+                                    "empty" -> emptyNameMessage
+                                    "exists" -> duplicateNameMessage
+                                    else -> error.localizedMessage
+                                }
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Text(stringResource(R.string.video_tags_create))
+                }
+            }
+
+            errorMessage?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
+            if (tags.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.tags_empty_scope),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    tags.forEach { tag ->
+                        val deleteLabel = stringResource(R.string.tags_delete)
+                        AssistChip(
+                            onClick = { coroutineScope.launch { onDeleteTag(tag.id) } },
+                            label = { Text(tag.name) },
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = deleteLabel,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
+                                labelColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        )
+                    }
+                }
             }
         }
     }

@@ -82,6 +82,8 @@ dependencies {
     implementation(libs.androidx.foundation.android)
     implementation(libs.gson)
     implementation(libs.androidx.biometric)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
 
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.coil.video)
@@ -102,6 +104,8 @@ dependencies {
     implementation(libs.androidx.mediarouter)
     implementation(libs.nanohttpd)
     implementation(libs.material)
+
+    kapt(libs.androidx.room.compiler)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit) 

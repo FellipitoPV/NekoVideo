@@ -48,6 +48,9 @@ object FilesManager {
 
             val newFile = File(parentDir, "$newName$extension")
             if (file.renameTo(newFile)) {
+                kotlinx.coroutines.runBlocking {
+                    VideoTagStore.moveTagsForPath(context, file.absolutePath, newFile.absolutePath)
+                }
                 existingFiles.add("$newName$extension")
                 renamedCount++
             } else {
@@ -102,11 +105,17 @@ object FilesManager {
             }
 
             if (file.renameTo(newFile)) {
+                kotlinx.coroutines.runBlocking {
+                    VideoTagStore.moveTagsForPath(context, file.absolutePath, newFile.absolutePath)
+                }
                 movedCount++
             } else {
                 try {
                     file.copyTo(newFile)
                     file.delete()
+                    kotlinx.coroutines.runBlocking {
+                        VideoTagStore.moveTagsForPath(context, file.absolutePath, newFile.absolutePath)
+                    }
                     movedCount++
                 } catch (e: Exception) {
                     onError("Failed to move ${file.name}")
@@ -353,6 +362,9 @@ object FilesManager {
             }
 
             try {
+                kotlinx.coroutines.runBlocking {
+                    VideoTagStore.resetTagsForPathTree(context, originalFolder.absolutePath)
+                }
                 val parentDir = originalFolder.parentFile
                 val newName = ".${originalFolder.name}"
                 val newFolder = File(parentDir, newName)
@@ -423,6 +435,9 @@ object FilesManager {
             }
 
             try {
+                kotlinx.coroutines.runBlocking {
+                    VideoTagStore.resetTagsForPathTree(context, privateFolder.absolutePath)
+                }
                 val parentDir = privateFolder.parentFile
                 val newName = privateFolder.name.substring(1)
                 val newFolder = File(parentDir, newName)

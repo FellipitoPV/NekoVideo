@@ -70,6 +70,9 @@ import com.nkls.nekovideo.components.FixVideoMetadataDialog
 import com.nkls.nekovideo.components.EnableBiometricDialog
 import com.nkls.nekovideo.components.PasswordDialog
 import com.nkls.nekovideo.components.ProcessingDialog
+import com.nkls.nekovideo.components.ShuffleTagsDialog
+import com.nkls.nekovideo.components.ShuffleTagFilter
+import com.nkls.nekovideo.components.VideoTagsDialog
 import com.nkls.nekovideo.components.helpers.BiometricHelper
 import com.nkls.nekovideo.components.LockedRenameDialog
 import com.nkls.nekovideo.components.RenameDialog
@@ -80,6 +83,9 @@ import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
+import com.nkls.nekovideo.components.helpers.TagEntity
+import com.nkls.nekovideo.components.helpers.TagScope
+import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.components.helpers.rememberFolderNavigationState
 import com.nkls.nekovideo.components.layout.ActionFAB
 import com.nkls.nekovideo.components.layout.ActionType
@@ -89,6 +95,7 @@ import com.nkls.nekovideo.components.player.MiniPlayerImproved
 import com.nkls.nekovideo.components.player.VideoPlayerOverlay
 import com.nkls.nekovideo.components.settings.AboutSettingsScreen
 import com.nkls.nekovideo.components.settings.StorageSettingsScreen
+import com.nkls.nekovideo.components.settings.TagsSettingsScreen
 import com.nkls.nekovideo.components.settings.DisplaySettingsScreen
 import com.nkls.nekovideo.components.settings.InterfaceSettingsScreen
 import com.nkls.nekovideo.components.settings.PlaybackSettingsScreen
@@ -178,6 +185,10 @@ fun MainScreen(
     var videoToFix by remember { mutableStateOf<String?>(null) }
     var isFixingVideo by remember { mutableStateOf(false) }
     var pendingVideoPlayback: (() -> Unit)? by remember { mutableStateOf(null) }
+    var showVideoTagsDialog by remember { mutableStateOf(false) }
+    var showShuffleTagsDialog by remember { mutableStateOf(false) }
+    var availableTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
+    var commonSelectedTagIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
 
     fun isSecureFolder(folderPath: String): Boolean {
         val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
@@ -191,6 +202,107 @@ fun MainScreen(
                 File(folderPath, ".secure").exists() ||
                 File(folderPath, ".nomedia").exists() ||
                 File(folderPath, ".nekovideo").exists()
+    }
+
+    fun isPrivateTagContext(folderPath: String): Boolean {
+        val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
+        val nekoPrivatePath = FilesManager.SecureStorage.getNekoPrivateFolderPath()
+        return folderPath.startsWith(secureFolderPath) ||
+                folderPath.startsWith(nekoPrivatePath) ||
+                folderPath.contains("/.private/") ||
+                folderPath.contains("/secure/") ||
+                folderPath.contains(".secure_videos") ||
+                folderPath.endsWith(".secure_videos") ||
+                File(folderPath, ".secure").exists() ||
+                FolderLockManager.isLocked(folderPath)
+    }
+
+    fun currentTagScope(): TagScope {
+        return if (isPrivateTagContext(folderPath)) {
+            TagScope.PRIVATE
+        } else {
+            TagScope.NORMAL
+        }
+    }
+
+    suspend fun playShuffledVideos(tagFilter: ShuffleTagFilter? = null) {
+        val tagScope = currentTagScope()
+        val videos = FilesManager.getVideosRecursive(
+            context = context,
+            folderPath = folderPath,
+            isSecureMode = isSecureFolder(folderPath),
+            showPrivateFolders = showPrivateFolders,
+            selectedItems = selectedItems.toList(),
+            sessionPassword = sessionPassword
+        )
+
+        val filteredVideos = if (tagFilter == null) {
+            videos
+        } else {
+            val includePaths = withContext(Dispatchers.IO) {
+                VideoTagStore.getVideoPathsForAnyTagIds(context, tagFilter.includeTagIds, tagScope)
+            }
+            val excludePaths = withContext(Dispatchers.IO) {
+                VideoTagStore.getVideoPathsForAnyTagIds(context, tagFilter.excludeTagIds, tagScope)
+            }
+            videos.filter { path ->
+                val normalizedPath = path.removePrefix("locked://").removePrefix("file://")
+                val matchesInclude = tagFilter.includeTagIds.isEmpty() || normalizedPath in includePaths
+                val matchesExclude = normalizedPath in excludePaths
+                matchesInclude && !matchesExclude
+            }
+        }
+
+        if (filteredVideos.isNotEmpty()) {
+            val lockedVideos = filteredVideos.filter { it.startsWith("locked://") }
+            if (lockedVideos.isNotEmpty()) {
+                val pwd = sessionPassword
+                if (pwd != null) {
+                    val lockedFolderPaths = lockedVideos
+                        .map { it.removePrefix("locked://") }
+                        .mapNotNull { File(it).parent }
+                        .distinct()
+
+                    for (lockedPath in lockedFolderPaths) {
+                        if (!LockedPlaybackSession.hasSessionForFolder(lockedPath)) {
+                            val salt = FolderLockManager.getSalt(lockedPath)
+                            val manifest = FolderLockManager.readManifest(lockedPath, pwd)
+                            if (salt != null && manifest != null) {
+                                val xorKey = FolderLockManager.deriveXorKey(pwd, salt)
+                                LockedPlaybackSession.start(xorKey, manifest, lockedPath, pwd)
+                            }
+                        }
+                    }
+                }
+            }
+
+            val castManager = DLNACastManager.getInstance(context)
+            if (castManager.isConnected) {
+                val shuffled = filteredVideos.shuffled()
+                val titles = shuffled.map { path ->
+                    if (path.startsWith("locked://")) {
+                        val obfuscatedName = File(path.removePrefix("locked://")).name
+                        LockedPlaybackSession.getOriginalName(obfuscatedName)
+                            ?.substringBeforeLast(".") ?: obfuscatedName
+                    } else {
+                        File(path.removePrefix("file://")).nameWithoutExtension
+                    }
+                }
+                castManager.castPlaylist(shuffled, titles, 0)
+            } else {
+                PlaylistManager.setPlaylist(filteredVideos, startIndex = 0, shuffle = true)
+                val window = PlaylistManager.getCurrentWindow()
+                MediaPlaybackService.startWithPlaylist(context, window, 0)
+                showPlayerOverlay = true
+            }
+            selectedItems.clear()
+        } else {
+            Toast.makeText(
+                context,
+                context.getString(if (tagFilter == null) R.string.no_videos_found else R.string.shuffle_tags_no_match),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 
     fun togglePrivateFolders() {
@@ -343,6 +455,57 @@ fun MainScreen(
                     context.getString(R.string.biometric_enabled_success),
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
+            }
+        )
+    }
+
+    if (showVideoTagsDialog) {
+        VideoTagsDialog(
+            selectedVideoCount = selectedItems.size,
+            tags = availableTags,
+            initialSelectedTagIds = commonSelectedTagIds,
+            onDismiss = { showVideoTagsDialog = false },
+            onCreateTag = { name ->
+                val result = withContext(Dispatchers.IO) {
+                    VideoTagStore.createTag(context, name, currentTagScope())
+                }
+                result.onSuccess { createdTag ->
+                    availableTags = (availableTags + createdTag).sortedBy { it.name.lowercase() }
+                    Toast.makeText(context, context.getString(R.string.video_tags_create_success), Toast.LENGTH_SHORT).show()
+                }
+                result
+            },
+            onSave = { selectedTagIds ->
+                val targetVideos = selectedItems.filter { File(it).isFile }
+                if (targetVideos.isEmpty()) {
+                    Result.failure(IllegalStateException(context.getString(R.string.no_videos_found)))
+                } else {
+                    withContext(Dispatchers.IO) {
+                        VideoTagStore.syncCommonTagsForVideos(
+                            context = context,
+                            videoPaths = targetVideos,
+                            initiallyCommonTagIds = commonSelectedTagIds,
+                            selectedTagIds = selectedTagIds
+                        )
+                    }
+                    renameTrigger++
+                    selectedItems.clear()
+                    Toast.makeText(context, context.getString(R.string.video_tags_add_success), Toast.LENGTH_SHORT).show()
+                    Result.success(Unit)
+                }
+            }
+        )
+    }
+
+    if (showShuffleTagsDialog) {
+        ShuffleTagsDialog(
+            tags = availableTags,
+            onDismiss = { showShuffleTagsDialog = false },
+            onConfirm = { filter ->
+                showShuffleTagsDialog = false
+                coroutineScope.launch {
+                    playShuffledVideos(filter)
+                }
             }
         )
     }
@@ -1067,6 +1230,18 @@ fun MainScreen(
                                 }
                                 selectedItems.clear()
                             }
+                            ActionType.TAGS -> {
+                                coroutineScope.launch {
+                                    val targetVideos = selectedItems.filter { File(it).isFile }
+                                    availableTags = withContext(Dispatchers.IO) {
+                                        VideoTagStore.getAllTags(context, currentTagScope())
+                                    }
+                                    commonSelectedTagIds = withContext(Dispatchers.IO) {
+                                        VideoTagStore.getCommonTagIds(context, targetVideos, currentTagScope())
+                                    }
+                                    showVideoTagsDialog = true
+                                }
+                            }
                             ActionType.DELETE -> showDeleteConfirmDialog = true
                             ActionType.RENAME -> showRenameDialog = true
                             ActionType.MOVE -> {
@@ -1087,66 +1262,7 @@ fun MainScreen(
                             }
                             ActionType.SHUFFLE_PLAY -> {
                                 coroutineScope.launch {
-                                    val videos = FilesManager.getVideosRecursive(
-                                        context = context,
-                                        folderPath = folderPath,
-                                        isSecureMode = isSecureFolder(folderPath),
-                                        showPrivateFolders = showPrivateFolders,
-                                        selectedItems = selectedItems.toList(),
-                                        sessionPassword = sessionPassword
-                                    )
-
-                                    if (videos.isNotEmpty()) {
-                                        // Register ALL locked folders for playback (supports multi-folder playlists)
-                                        val lockedVideos = videos.filter { it.startsWith("locked://") }
-                                        if (lockedVideos.isNotEmpty()) {
-                                            val pwd = sessionPassword
-                                            if (pwd != null) {
-                                                val lockedFolderPaths = lockedVideos
-                                                    .map { it.removePrefix("locked://") }
-                                                    .mapNotNull { File(it).parent }
-                                                    .distinct()
-
-                                                for (lockedPath in lockedFolderPaths) {
-                                                    if (!LockedPlaybackSession.hasSessionForFolder(lockedPath)) {
-                                                        val salt = FolderLockManager.getSalt(lockedPath)
-                                                        val manifest = FolderLockManager.readManifest(lockedPath, pwd)
-                                                        if (salt != null && manifest != null) {
-                                                            val xorKey = FolderLockManager.deriveXorKey(pwd, salt)
-                                                            LockedPlaybackSession.start(xorKey, manifest, lockedPath, pwd)
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        val castManager = DLNACastManager.getInstance(context)
-                                        if (castManager.isConnected) {
-                                            val shuffled = videos.shuffled()
-                                            val titles = shuffled.map { path ->
-                                                if (path.startsWith("locked://")) {
-                                                    val obfuscatedName = File(path.removePrefix("locked://")).name
-                                                    LockedPlaybackSession.getOriginalName(obfuscatedName)
-                                                        ?.substringBeforeLast(".") ?: obfuscatedName
-                                                } else {
-                                                    File(path.removePrefix("file://")).nameWithoutExtension
-                                                }
-                                            }
-                                            castManager.castPlaylist(shuffled, titles, 0)
-                                        } else {
-                                            PlaylistManager.setPlaylist(videos, startIndex = 0, shuffle = true)
-                                            val window = PlaylistManager.getCurrentWindow()
-                                            MediaPlaybackService.startWithPlaylist(context, window, 0)
-                                            showPlayerOverlay = true
-                                        }
-                                        selectedItems.clear()
-                                    } else {
-                                        Toast.makeText(
-                                            context,
-                                            context.getString(R.string.no_videos_found),
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
+                                    playShuffledVideos()
                                 }
                             }
                             ActionType.CREATE_FOLDER -> showCreateFolderDialog = true
@@ -1330,6 +1446,16 @@ fun MainScreen(
                                 }
                             }
                         }
+                    },
+                    onActionLongClick = { action ->
+                        if (action == ActionType.SHUFFLE_PLAY) {
+                            coroutineScope.launch {
+                                availableTags = withContext(Dispatchers.IO) {
+                                    VideoTagStore.getAllTags(context, currentTagScope())
+                                }
+                                showShuffleTagsDialog = true
+                            }
+                        }
                     }
                 )
                 } // Box navigationBarsPadding
@@ -1508,6 +1634,9 @@ fun MainScreen(
                 }
                 composable("settings/storage") {
                     StorageSettingsScreen()
+                }
+                composable("settings/tags") {
+                    TagsSettingsScreen()
                 }
                 composable("settings/about") {
                     AboutSettingsScreen()

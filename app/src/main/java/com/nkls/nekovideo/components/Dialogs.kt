@@ -66,6 +66,7 @@ import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.helpers.CastManager
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.language.LanguageManager
+import com.nkls.nekovideo.components.helpers.VideoTagStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -150,6 +151,9 @@ fun SingleRenameDialog(
                                 val success = file.renameTo(newFile)
 
                                 if (success) {
+                                    withContext(Dispatchers.IO) {
+                                        VideoTagStore.moveTagsForPath(context, file.absolutePath, newFile.absolutePath)
+                                    }
                                     onRefresh?.invoke()
                                 }
 

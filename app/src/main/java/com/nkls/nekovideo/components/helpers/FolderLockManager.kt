@@ -282,6 +282,10 @@ object FolderLockManager {
             return
         }
 
+        kotlinx.coroutines.runBlocking {
+            VideoTagStore.resetTagsForPathTree(context, folderPath)
+        }
+
         // Find all video files
         val videoFiles = folder.listFiles()?.filter { file ->
             file.isFile && file.extension.lowercase() in videoExtensions
@@ -419,6 +423,10 @@ object FolderLockManager {
 
         val salt = Base64.decode(manifest.salt, Base64.NO_WRAP)
         val xorKey = deriveXorKey(password, salt)
+
+        kotlinx.coroutines.runBlocking {
+            VideoTagStore.resetTagsForPathTree(context, folderPath)
+        }
 
         try {
             val totalFiles = manifest.files.size
@@ -734,6 +742,10 @@ object FolderLockManager {
                     return
                 }
 
+                kotlinx.coroutines.runBlocking {
+                    VideoTagStore.moveTagsForPath(context, videoFile.absolutePath, renamedFile.absolutePath)
+                }
+
                 pendingEntries.add(PendingFileEntry(renamedFile, originalName, savedThumbFile, thumbWasRenamed))
                 newEntries.add(LockedFileEntry(obfuscatedName, originalName, originalSize, duration))
             }
@@ -1023,6 +1035,9 @@ object FolderLockManager {
             // Restore original name
             val restoredFile = File(folder, entry.originalName)
             if (obfuscatedFile.renameTo(restoredFile)) {
+                kotlinx.coroutines.runBlocking {
+                    VideoTagStore.moveTagsForPath(context, obfuscatedFile.absolutePath, restoredFile.absolutePath)
+                }
                 restoredFiles.add(restoredFile)
             } else {
                 // Revert XOR back if rename fails

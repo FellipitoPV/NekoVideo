@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.sp
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
+import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.services.FolderVideoScanner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -1282,6 +1283,7 @@ fun FolderScreen(
                                 MediaRow(
                                     items = rowItems,
                                     gridColumns = gridColumns,
+                                    renameTrigger = renameTrigger,
                                     selectedItems = selectedItems,
                                     previewingPath = previewingPath,
                                     showThumbnails = true,
@@ -1317,6 +1319,7 @@ fun FolderScreen(
 private fun MediaRow(
     items: List<MediaItem>,
     gridColumns: Int,
+    renameTrigger: Int,
     selectedItems: MutableList<String>,
     previewingPath: String?,
     showThumbnails: Boolean,
@@ -1334,6 +1337,7 @@ private fun MediaRow(
         items.forEach { item ->
             MediaCard(
                 item = item,
+                renameTrigger = renameTrigger,
                 isSelected = item.path in selectedItems,
                 isPreviewing = previewingPath == item.path,
                 isBeingMoved = isMoveMode && item.path in itemsToMove,
@@ -1372,6 +1376,7 @@ private fun MediaRow(
 @Composable
 private fun MediaCard(
     item: MediaItem,
+    renameTrigger: Int,
     isSelected: Boolean,
     isPreviewing: Boolean,
     isBeingMoved: Boolean = false,
@@ -1392,6 +1397,7 @@ private fun MediaCard(
     var thumbnail by remember(item.path) { mutableStateOf<Bitmap?>(null) }
     var duration by remember(item.path, item.durationHint) { mutableStateOf(item.durationHint) }
     var fileSize by remember(item.path) { mutableStateOf<String?>(null) }
+    var tagCount by remember(item.path) { mutableIntStateOf(0) }
     var isLoading by remember(item.path) { mutableStateOf(false) }
     var job by remember(item.path) { mutableStateOf<Job?>(null) }
 
@@ -1512,6 +1518,14 @@ private fun MediaCard(
         }
     }
 
+    LaunchedEffect(item.path, renameTrigger) {
+        if (!item.isFolder) {
+            tagCount = withContext(Dispatchers.IO) {
+                VideoTagStore.getTagCountForVideoPath(context, item.path)
+            }
+        }
+    }
+
     DisposableEffect(item.path) {
         onDispose {
             job?.cancel()
@@ -1547,6 +1561,7 @@ private fun MediaCard(
                     thumbnail = thumbnail,
                     duration = duration,
                     fileSize = fileSize,
+                    tagCount = tagCount,
                     isLoading = isLoading,
                     isSelected = isSelected,
                     isPreviewing = isPreviewing,
@@ -1689,6 +1704,7 @@ private fun VideoContent(
     thumbnail: Bitmap?,
     duration: String?,
     fileSize: String?,
+    tagCount: Int,
     isLoading: Boolean,
     isSelected: Boolean,
     isPreviewing: Boolean,
@@ -1861,6 +1877,19 @@ private fun VideoContent(
                     fontSize = textSize,
                     color = Color.White,
                     modifier = Modifier.align(Alignment.TopStart).padding(6.dp).background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(4.dp)).padding(4.dp, 2.dp)
+                )
+            }
+
+            if (tagCount > 0) {
+                Text(
+                    text = "#$tagCount",
+                    fontSize = textSize,
+                    color = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 6.dp)
+                        .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
                 )
             }
         }
