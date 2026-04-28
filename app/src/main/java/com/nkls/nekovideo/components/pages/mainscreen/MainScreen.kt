@@ -240,7 +240,7 @@ fun MainScreen(
             videos
         } else {
             val includePaths = withContext(Dispatchers.IO) {
-                VideoTagStore.getVideoPathsForAnyTagIds(context, tagFilter.includeTagIds, tagScope)
+                VideoTagStore.getVideoPathsForAllTagIds(context, tagFilter.includeTagIds, tagScope)
             }
             val excludePaths = withContext(Dispatchers.IO) {
                 VideoTagStore.getVideoPathsForAnyTagIds(context, tagFilter.excludeTagIds, tagScope)

@@ -67,6 +67,9 @@ interface VideoTagDao {
     @Query("SELECT DISTINCT r.videoPath FROM video_tag_refs r INNER JOIN video_tags t ON t.id = r.tagId WHERE r.tagId IN (:tagIds) AND t.scope = :scope")
     suspend fun getVideoPathsForAnyTagIds(tagIds: List<Long>, scope: TagScope): List<String>
 
+    @Query("SELECT r.videoPath FROM video_tag_refs r INNER JOIN video_tags t ON t.id = r.tagId WHERE r.tagId IN (:tagIds) AND t.scope = :scope GROUP BY r.videoPath HAVING COUNT(DISTINCT r.tagId) = :tagCount")
+    suspend fun getVideoPathsForAllTagIds(tagIds: List<Long>, tagCount: Int, scope: TagScope): List<String>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertVideoTagRefs(refs: List<VideoTagCrossRef>)
 
@@ -186,6 +189,14 @@ object VideoTagStore {
         return getDatabase(context)
             .videoTagDao()
             .getVideoPathsForAnyTagIds(tagIds.toList(), scope)
+            .toSet()
+    }
+
+    suspend fun getVideoPathsForAllTagIds(context: Context, tagIds: Set<Long>, scope: TagScope): Set<String> {
+        if (tagIds.isEmpty()) return emptySet()
+        return getDatabase(context)
+            .videoTagDao()
+            .getVideoPathsForAllTagIds(tagIds.toList(), tagIds.size, scope)
             .toSet()
     }
 

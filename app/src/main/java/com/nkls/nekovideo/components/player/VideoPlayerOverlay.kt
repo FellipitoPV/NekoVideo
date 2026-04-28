@@ -61,11 +61,17 @@ import androidx.media3.ui.SubtitleView
 import com.google.common.util.concurrent.MoreExecutors
 import com.nkls.nekovideo.MainActivity
 import com.nkls.nekovideo.MediaPlaybackService
+import com.nkls.nekovideo.components.VideoTagsDialog
 import com.nkls.nekovideo.components.helpers.CastManager
 import com.nkls.nekovideo.components.helpers.DLNACastManager
+import com.nkls.nekovideo.components.helpers.FilesManager
+import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.PlaylistNavigator
+import com.nkls.nekovideo.components.helpers.TagEntity
+import com.nkls.nekovideo.components.helpers.TagScope
+import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.components.player.PlayerUtils.findActivity
 import com.nkls.nekovideo.components.settings.SettingsManager
 import com.nkls.nekovideo.components.FixVideoMetadataDialog
@@ -94,7 +100,10 @@ fun VideoPlayerOverlay(
     var hasRefreshed by remember { mutableStateOf(false) }
     var overlayActuallyVisible by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showVideoTagsDialog by remember { mutableStateOf(false) }
     var currentVideoPath by remember { mutableStateOf("") }
+    var availableTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
+    var commonSelectedTagIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     val castManager = remember { DLNACastManager.getInstance(context) }
     var isCasting by remember { mutableStateOf(castManager.isConnected) }
     var connectedDeviceName by remember { mutableStateOf(if (castManager.isConnected) castManager.connectedDeviceName else "") }
@@ -319,6 +328,56 @@ fun VideoPlayerOverlay(
             applyRotation(mediaController!!.videoSize)
         }
 
+    }
+
+    fun getTagScopeForPath(videoPath: String): TagScope {
+        val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
+        val nekoPrivatePath = FilesManager.SecureStorage.getNekoPrivateFolderPath()
+        return if (
+            videoPath.startsWith(secureFolderPath) ||
+            videoPath.startsWith(nekoPrivatePath) ||
+            videoPath.contains("/.private/") ||
+            videoPath.contains("/secure/") ||
+            videoPath.contains(".secure_videos") ||
+            videoPath.endsWith(".secure_videos") ||
+            File(videoPath).parent?.let { FolderLockManager.isLocked(it) } == true
+        ) {
+            TagScope.PRIVATE
+        } else {
+            TagScope.NORMAL
+        }
+    }
+
+    if (showVideoTagsDialog && currentVideoPath.isNotEmpty()) {
+        VideoTagsDialog(
+            selectedVideoCount = 1,
+            tags = availableTags,
+            initialSelectedTagIds = commonSelectedTagIds,
+            onDismiss = { showVideoTagsDialog = false },
+            onCreateTag = { name ->
+                val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    VideoTagStore.createTag(context, name, getTagScopeForPath(currentVideoPath))
+                }
+                result.onSuccess { createdTag ->
+                    availableTags = (availableTags + createdTag).sortedBy { it.name.lowercase() }
+                    Toast.makeText(context, context.getString(R.string.video_tags_create_success), Toast.LENGTH_SHORT).show()
+                }
+                result
+            },
+            onSave = { selectedTagIds ->
+                val targetVideo = currentVideoPath
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    VideoTagStore.syncCommonTagsForVideos(
+                        context = context,
+                        videoPaths = listOf(targetVideo),
+                        initiallyCommonTagIds = commonSelectedTagIds,
+                        selectedTagIds = selectedTagIds
+                    )
+                }
+                Toast.makeText(context, context.getString(R.string.video_tags_add_success), Toast.LENGTH_SHORT).show()
+                Result.success(Unit)
+            }
+        )
     }
 
     LaunchedEffect(isVisible, isPlaying) {
@@ -929,6 +988,20 @@ fun VideoPlayerOverlay(
                         onDeleteClick = {
                             mediaController?.pause()
                             showDeleteDialog = true
+                        },
+                        onTagsClick = {
+                            if (currentVideoPath.isNotEmpty()) {
+                                coroutineScope.launch {
+                                    val scope = getTagScopeForPath(currentVideoPath)
+                                    availableTags = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                        VideoTagStore.getAllTags(context, scope)
+                                    }
+                                    commonSelectedTagIds = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                        VideoTagStore.getCommonTagIds(context, listOf(currentVideoPath), scope)
+                                    }
+                                    showVideoTagsDialog = true
+                                }
+                            }
                         },
                         onBackClick = onDismiss,
                         resetUITimer = resetUITimer,

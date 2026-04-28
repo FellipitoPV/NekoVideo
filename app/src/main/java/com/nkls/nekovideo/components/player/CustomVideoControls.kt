@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.CastConnected
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.PlayArrow
@@ -78,6 +79,7 @@ fun CustomVideoControls(
     onSeekStart: () -> Unit,
     onSeekEnd: () -> Unit,
     onDeleteClick: () -> Unit,
+    onTagsClick: () -> Unit,
     onBackClick: () -> Unit,
     resetUITimer: () -> Unit,
     repeatMode: RepeatMode,
@@ -196,6 +198,23 @@ fun CustomVideoControls(
                             imageVector = if (isCasting) Icons.Default.CastConnected else Icons.Default.Cast,
                             contentDescription = if (isCasting) "Casting" else "Cast",
                             tint = if (isCasting) Color(0xFF4CAF50) else Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            onTagsClick()
+                            resetUITimer()
+                        },
+                        modifier = Modifier
+                            .background(CtrlBtnBg, CircleShape)
+                            .size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocalOffer,
+                            contentDescription = "Tags",
+                            tint = CtrlIconOn,
                             modifier = Modifier.size(20.dp)
                         )
                     }
