@@ -196,7 +196,8 @@ data class MediaItem(
     val sizeInBytes: Long = 0L,
     val videoCount: Int = 0,
     val subfolderCount: Int = 0,
-    val isInsidePrivateFolder: Boolean = false
+    val isInsidePrivateFolder: Boolean = false,
+    val durationHint: String? = null
 )
 
 // SIMPLIFICADO - Cache e constantes
@@ -280,7 +281,8 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
                 name = entry.originalName,
                 displayName = entry.originalName,
                 lastModified = obfuscatedFile.lastModified(),
-                sizeInBytes = entry.originalSize
+                sizeInBytes = entry.originalSize,
+                durationHint = entry.duration
             )
         })
 
@@ -1388,7 +1390,7 @@ private fun MediaCard(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var thumbnail by remember(item.path) { mutableStateOf<Bitmap?>(null) }
-    var duration by remember(item.path) { mutableStateOf<String?>(null) }
+    var duration by remember(item.path, item.durationHint) { mutableStateOf(item.durationHint) }
     var fileSize by remember(item.path) { mutableStateOf<String?>(null) }
     var isLoading by remember(item.path) { mutableStateOf(false) }
     var job by remember(item.path) { mutableStateOf<Job?>(null) }
@@ -1409,7 +1411,7 @@ private fun MediaCard(
 
             // Limpa estado local
             thumbnail = null
-            duration = null
+            duration = item.durationHint
             fileSize = null
             hasError = false
             retryCount++
@@ -1477,13 +1479,13 @@ private fun MediaCard(
                                     return@loadVideoMetadataWithDelay
                                 }
 
-                                if (showDurations) duration = metadata.duration
+                                if (showDurations) duration = metadata.duration ?: item.durationHint
                                 if (showFileSizes) fileSize = metadata.fileSize
                                 isLoading = false
                             },
                             onCancelled = {
                                 thumbnail = null
-                                duration = null
+                                duration = item.durationHint
                                 fileSize = null
                                 isLoading = false
                             },
@@ -1501,7 +1503,7 @@ private fun MediaCard(
                     } else {
                         hasError = true
                         thumbnail = null
-                        duration = null
+                        duration = item.durationHint
                         fileSize = null
                         isLoading = false
                     }
@@ -2101,7 +2103,8 @@ private fun loadSecureContentRecursive(folderPath: String, allItems: MutableList
                     uri = null,
                     isFolder = false,
                     name = entry.originalName,
-                    displayName = entry.originalName
+                    displayName = entry.originalName,
+                    durationHint = entry.duration
                 ))
             }
         }

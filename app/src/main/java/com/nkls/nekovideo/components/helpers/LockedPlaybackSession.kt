@@ -140,4 +140,17 @@ object LockedPlaybackSession {
         }
         return null
     }
+
+    /**
+     * Get stored duration for a locked file when available in the manifest.
+     */
+    fun getDurationForFile(filePath: String): String? {
+        val parentPath = java.io.File(filePath).parent ?: return null
+        val obfuscatedName = java.io.File(filePath).name
+        return sessions[parentPath]
+            ?.manifest
+            ?.files
+            ?.find { it.obfuscatedName == obfuscatedName }
+            ?.duration
+    }
 }

@@ -9,6 +9,7 @@ import android.util.LruCache
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.nkls.nekovideo.components.helpers.FolderLockManager
+import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -614,6 +615,12 @@ object OptimizedThumbnailManager {
 
     private fun getVideoDuration(videoPath: String): String? {
         if (!File(videoPath).exists()) return null
+
+        LockedPlaybackSession.getDurationForFile(videoPath)?.let { return it }
+
+        if (LockedPlaybackSession.getXorKeyForFile(videoPath) != null) {
+            return FolderLockManager.getLockedVideoDuration(videoPath)
+        }
 
         val retriever = borrowRetriever()
         return try {

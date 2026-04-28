@@ -22,7 +22,8 @@ import javax.crypto.spec.SecretKeySpec
 data class LockedFileEntry(
     val obfuscatedName: String,
     val originalName: String,
-    val originalSize: Long
+    val originalSize: Long,
+    val duration: String? = null
 )
 
 data class LockedSubfolderEntry(
@@ -151,6 +152,23 @@ object FolderLockManager {
         } catch (e: Exception) {
             Log.w(TAG, "Failed to save thumbnail for: ${videoFile.name}", e)
             Pair(null, false)
+        }
+    }
+
+    private fun getFormattedVideoDuration(videoFile: File): String? {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(videoFile.absolutePath)
+            val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            durationMs?.let {
+                val minutes = it / 1000L / 60L
+                val seconds = (it / 1000L) % 60L
+                String.format("%02d:%02d", minutes, seconds)
+            }
+        } catch (_: Exception) {
+            null
+        } finally {
+            try { retriever.release() } catch (_: Exception) {}
         }
     }
 
@@ -289,6 +307,7 @@ object FolderLockManager {
             videoFiles.forEachIndexed { index, videoFile ->
                 val originalName = videoFile.name
                 val originalSize = videoFile.length()
+                val duration = getFormattedVideoDuration(videoFile)
                 val obfuscatedName = UUID.randomUUID().toString().replace("-", "")
 
                 onProgress(index + 1, totalFiles, originalName)
@@ -315,7 +334,7 @@ object FolderLockManager {
                 }
 
                 pendingEntries.add(PendingFileEntry(renamedFile, originalName, savedThumbFile, thumbWasRenamed))
-                entries.add(LockedFileEntry(obfuscatedName, originalName, originalSize))
+                entries.add(LockedFileEntry(obfuscatedName, originalName, originalSize, duration))
             }
 
             // Rename direct subdirectories to UUIDs
@@ -690,6 +709,7 @@ object FolderLockManager {
             videoFiles.forEachIndexed { index, videoFile ->
                 val originalName = videoFile.name
                 val originalSize = videoFile.length()
+                val duration = getFormattedVideoDuration(videoFile)
                 val obfuscatedName = UUID.randomUUID().toString().replace("-", "")
 
                 onProgress(index + 1, totalFiles, originalName)
@@ -715,7 +735,7 @@ object FolderLockManager {
                 }
 
                 pendingEntries.add(PendingFileEntry(renamedFile, originalName, savedThumbFile, thumbWasRenamed))
-                newEntries.add(LockedFileEntry(obfuscatedName, originalName, originalSize))
+                newEntries.add(LockedFileEntry(obfuscatedName, originalName, originalSize, duration))
             }
 
             // Update manifest with new entries
@@ -1189,6 +1209,25 @@ object FolderLockManager {
                 }
             }
             else -> null
+        }
+    }
+
+    fun getLockedVideoDuration(videoPath: String): String? {
+        val file = File(videoPath)
+        val xorKey = LockedPlaybackSession.getXorKeyForFile(videoPath) ?: return null
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(XorMediaDataSource(file, xorKey))
+            val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            durationMs?.let {
+                val minutes = it / 1000L / 60L
+                val seconds = (it / 1000L) % 60L
+                String.format("%02d:%02d", minutes, seconds)
+            }
+        } catch (_: Exception) {
+            null
+        } finally {
+            try { retriever.release() } catch (_: Exception) {}
         }
     }
 }

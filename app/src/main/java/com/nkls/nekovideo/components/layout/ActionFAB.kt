@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -17,10 +18,13 @@ import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -28,8 +32,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import com.nkls.nekovideo.R
 
 enum class ActionType {
@@ -59,6 +65,16 @@ fun ActionFAB(
 ) {
     var showBottomSheet by remember { mutableStateOf(false) }
     val bottomSheetState = rememberModalBottomSheetState()
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val screenWidthPx = remember(configuration.screenWidthDp, density) {
+        with(density) { configuration.screenWidthDp.dp.toPx() }
+    }
+    var dragOffsetX by rememberSaveable { mutableFloatStateOf(0f) }
+    var fabGroupWidthPx by remember { mutableIntStateOf(0) }
+    val maxHorizontalDragPx = remember(screenWidthPx, fabGroupWidthPx) {
+        (screenWidthPx / 2f - fabGroupWidthPx).coerceAtLeast(0f)
+    }
 
     val pasteHereText = stringResource(R.string.action_paste_here)
     val cancelText = stringResource(R.string.action_cancel)
@@ -205,84 +221,96 @@ fun ActionFAB(
             }
         }
     }
-    // NOVO: Layout para modo Move - FAB duplo
-    if (isMoveMode) {
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Indicador de status do Move
-            Surface(
-                modifier = Modifier.padding(end = 4.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                shape = RoundedCornerShape(20.dp)
+    Box(
+        modifier = Modifier
+            .onSizeChanged { fabGroupWidthPx = it.width }
+            .offset { IntOffset(dragOffsetX.roundToInt(), 0) }
+            .pointerInput(maxHorizontalDragPx) {
+                detectDragGestures(
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        dragOffsetX = (dragOffsetX + dragAmount.x).coerceIn(-maxHorizontalDragPx, 0f)
+                    }
+                )
+            },
+        contentAlignment = Alignment.CenterEnd
+    ) {
+        // NOVO: Layout para modo Move - FAB duplo
+        if (isMoveMode) {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Indicador de status do Move
+                Surface(
+                    modifier = Modifier.padding(end = 4.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DriveFileMove,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = movingItemsText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.DriveFileMove,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        text = movingItemsText, // ✅ CORRIGIDO
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        fontSize = 11.sp
-                    )
+                    FloatingActionButton(
+                        onClick = { onActionClick(ActionType.CANCEL_MOVE) },
+                        modifier = Modifier.size(48.dp),
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = cancelDescription,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    FloatingActionButton(
+                        onClick = { onActionClick(ActionType.PASTE) },
+                        modifier = Modifier.size(56.dp),
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentPaste,
+                            contentDescription = pasteHereDescription,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+        } else {
+            FloatingActionButton(
+                onClick = { showBottomSheet = true },
+                modifier = Modifier.size(56.dp),
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
-                // Botão Cancelar
-                FloatingActionButton(
-                    onClick = { onActionClick(ActionType.CANCEL_MOVE) },
-                    modifier = Modifier.size(48.dp),
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = cancelDescription, // ✅ CORRIGIDO
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                // Botão Colar (principal)
-                FloatingActionButton(
-                    onClick = { onActionClick(ActionType.PASTE) },
-                    modifier = Modifier.size(56.dp),
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ContentPaste,
-                        contentDescription = pasteHereDescription, // ✅ CORRIGIDO
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                Icon(
+                    imageVector = if (hasSelectedItems) Icons.Default.MoreVert else Icons.Default.Settings,
+                    contentDescription = if (hasSelectedItems) actionsDescription else optionsDescription,
+                    modifier = Modifier.size(24.dp)
+                )
             }
-        }
-    } else {
-        // FAB normal (sem modo Move)
-        FloatingActionButton(
-            onClick = { showBottomSheet = true },
-            modifier = Modifier.size(56.dp),
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary
-        ) {
-            Icon(
-                imageVector = if (hasSelectedItems) Icons.Default.MoreVert else Icons.Default.Settings,
-                contentDescription = if (hasSelectedItems) actionsDescription else optionsDescription, // ✅ CORRIGIDO
-                modifier = Modifier.size(24.dp)
-            )
         }
     }
 

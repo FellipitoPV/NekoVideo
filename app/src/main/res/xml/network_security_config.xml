@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+        DLNA/UPnP uses cleartext HTTP by protocol design (no HTTPS option).
+        Device description fetch, SOAP/AVTransport control, and local video
+        streaming (NanoHTTPD) all operate over plain HTTP on the local network.
+    -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
