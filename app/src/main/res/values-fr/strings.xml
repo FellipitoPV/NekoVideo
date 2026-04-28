@@ -27,6 +27,7 @@
     <string name="action_rename">Renommer</string>
     <string name="action_move">Déplacer</string>
     <string name="action_share">Partager</string>
+    <string name="action_tags">Tags</string>
     <string name="share_videos">Partager les vidéos</string>
     <string name="action_shuffle_play">Aléatoire</string>
     <string name="action_create_folder">Nouveau Dossier</string>
@@ -107,6 +108,26 @@
     <string name="new_name">Nouveau nom</string>
     <string name="rename_multiple_items">Renommer plusieurs éléments</string>
     <string name="selected_items_count">%d élément(s) sélectionné(s)</string>
+    <string name="video_tags_title">Tags des vidéos</string>
+    <string name="video_tags_empty">Aucun tag créé pour le moment</string>
+    <string name="video_tags_empty_desc">Créez des tags pour organiser vos vidéos et les réutiliser plus tard dans le shuffle.</string>
+    <string name="video_tags_create">Créer un tag</string>
+    <string name="video_tags_new_label">Nom du tag</string>
+    <string name="video_tags_save">Enregistrer les tags</string>
+    <string name="video_tags_choose">Choisissez les tags à ajouter aux vidéos sélectionnées</string>
+    <string name="video_tags_add_success">Tags mises à jour pour les vidéos</string>
+    <string name="video_tags_create_success">Tag créé</string>
+    <string name="video_tags_name_empty">Saisissez un nom pour le tag</string>
+    <string name="video_tags_name_exists">Ce tag existe déjà</string>
+    <string name="video_tags_none_selected">Sélectionnez au moins un tag</string>
+    <string name="shuffle_tags_title">Shuffle par tags</string>
+    <string name="shuffle_tags_description">Touchez un tag pour alterner entre utiliser, ignorer et neutre. Si aucun tag n\'est marqué comme à utiliser, le shuffle prendra toutes les vidéos et exclura seulement les tags ignorés.</string>
+    <string name="shuffle_tags_empty">Aucun tag créé pour le moment. Ajoutez d\'abord des tags aux vidéos.</string>
+    <string name="shuffle_tags_confirm">Créer le shuffle</string>
+    <string name="shuffle_tags_no_match">Aucune vidéo avec les tags sélectionnés n\'a été trouvée</string>
+    <string name="shuffle_tags_mode_neutral">Neutre</string>
+    <string name="shuffle_tags_mode_include">Utiliser dans le shuffle</string>
+    <string name="shuffle_tags_mode_exclude">Ignorer dans le shuffle</string>
 
     <!-- Permissions -->
     <string name="permission_title">Accès aux Fichiers Requis</string>
@@ -150,6 +171,8 @@
     <string name="settings_performance_desc">Cache et optimisations de performance</string>
     <string name="settings_storage">Stockage &amp; Cache</string>
     <string name="settings_storage_desc">Gérer le cache des miniatures</string>
+    <string name="settings_tags">Tags</string>
+    <string name="settings_tags_desc">Gérer les tags pour les vidéos normales et privées</string>
     <string name="settings_about">À Propos</string>
     <string name="settings_about_desc">Informations de lapplication et support</string>
     <string name="settings_security">Sécurité et Confidentialité</string>
@@ -191,6 +214,16 @@
     <string name="storage_clear_thumbnails">Vider le cache des miniatures</string>
     <string name="storage_clear_thumbnails_desc">Supprime toutes les miniatures enregistrées. Elles seront régénérées lors de la navigation dans les dossiers</string>
     <string name="storage_clear_thumbnails_success">Cache des miniatures vidé avec succès</string>
+    <string name="tags_title">Tags</string>
+    <string name="tags_normal_section">Tags des vidéos normales</string>
+    <string name="tags_private_section">Tags des vidéos privées</string>
+    <string name="tags_private_locked_title">Tags privées protégées</string>
+    <string name="tags_private_locked_desc">Déverrouillez avec la biométrie ou le mot de passe pour voir, créer et supprimer les tags privées.</string>
+    <string name="tags_private_unlock">Déverrouiller les tags privées</string>
+    <string name="tags_private_password_required">Définissez un mot de passe de confidentialité pour gérer les tags privées</string>
+    <string name="tags_create_hint">Créer un nouveau tag</string>
+    <string name="tags_empty_scope">Aucun tag créé dans cette catégorie</string>
+    <string name="tags_delete">Supprimer le tag</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Paramètres</string>
@@ -326,6 +359,11 @@
     <plurals name="moving_items_status">
         <item quantity="one">Déplacement de %d élément</item>
         <item quantity="other">Déplacement de %d éléments</item>
+    </plurals>
+
+    <plurals name="video_tags_selected_count">
+        <item quantity="one">%d vidéo sélectionnée</item>
+        <item quantity="other">%d vidéos sélectionnées</item>
     </plurals>
 
     <string name="private_folders_hint">Appuyez 3× sur l\'icône de l\'app en haut pour afficher/masquer les dossiers privés</string>

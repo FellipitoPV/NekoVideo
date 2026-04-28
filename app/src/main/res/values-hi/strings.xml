@@ -27,6 +27,7 @@
     <string name="action_rename">नाम बदलें</string>
     <string name="action_move">स्थानांतरित करें</string>
     <string name="action_share">शेयर करें</string>
+    <string name="action_tags">टैग्स</string>
     <string name="share_videos">वीडियो शेयर करें</string>
     <string name="action_shuffle_play">शफल</string>
     <string name="action_create_folder">नया फोल्डर</string>
@@ -107,6 +108,26 @@
     <string name="new_name">नया नाम</string>
     <string name="rename_multiple_items">कई आइटमों का नाम बदलें</string>
     <string name="selected_items_count">%d आइटम चुने गए</string>
+    <string name="video_tags_title">वीडियो टैग्स</string>
+    <string name="video_tags_empty">अभी तक कोई टैग नहीं बनाई गई</string>
+    <string name="video_tags_empty_desc">अपने वीडियो व्यवस्थित करने और बाद में शफल में उपयोग करने के लिए टैग्स बनाएं।</string>
+    <string name="video_tags_create">टैग बनाएं</string>
+    <string name="video_tags_new_label">टैग का नाम</string>
+    <string name="video_tags_save">टैग्स सहेजें</string>
+    <string name="video_tags_choose">चुने गए वीडियो में जोड़ने के लिए टैग्स चुनें</string>
+    <string name="video_tags_add_success">वीडियो के टैग्स अपडेट किए गए</string>
+    <string name="video_tags_create_success">टैग बनाई गई</string>
+    <string name="video_tags_name_empty">टैग के लिए नाम दर्ज करें</string>
+    <string name="video_tags_name_exists">यह टैग पहले से मौजूद है</string>
+    <string name="video_tags_none_selected">कम से कम एक टैग चुनें</string>
+    <string name="shuffle_tags_title">टैग्स के अनुसार शफल</string>
+    <string name="shuffle_tags_description">किसी टैग पर टैप करके उपयोग, अनदेखा और न्यूट्रल के बीच बदलें। यदि उपयोग के लिए कोई टैग चिन्हित नहीं है, तो शफल सभी वीडियो मानेगा और केवल अनदेखी टैग्स को बाहर करेगा।</string>
+    <string name="shuffle_tags_empty">अभी तक कोई टैग नहीं बनाई गई। पहले वीडियो में टैग जोड़ें।</string>
+    <string name="shuffle_tags_confirm">शफल बनाएं</string>
+    <string name="shuffle_tags_no_match">चुनी गई टैग्स वाले कोई वीडियो नहीं मिले</string>
+    <string name="shuffle_tags_mode_neutral">न्यूट्रल</string>
+    <string name="shuffle_tags_mode_include">शफल में उपयोग करें</string>
+    <string name="shuffle_tags_mode_exclude">शफल में अनदेखा करें</string>
 
     <!-- Permissions -->
     <string name="permission_title">फाइल एक्सेस की आवश्यकता</string>
@@ -150,6 +171,8 @@
     <string name="settings_performance_desc">कैश और परफॉर्मेंस ऑप्टिमाइज़ेशन</string>
     <string name="settings_storage">संग्रहण और कैश</string>
     <string name="settings_storage_desc">थंबनेल कैश प्रबंधित करें</string>
+    <string name="settings_tags">टैग्स</string>
+    <string name="settings_tags_desc">सामान्य और निजी वीडियो के लिए टैग्स प्रबंधित करें</string>
     <string name="settings_about">के बारे में</string>
     <string name="settings_about_desc">ऐप की जानकारी और सहायता</string>
     <string name="settings_security">सुरक्षा और गोपनीयता</string>
@@ -191,6 +214,16 @@
     <string name="storage_clear_thumbnails">थंबनेल कैश साफ़ करें</string>
     <string name="storage_clear_thumbnails_desc">डिस्क पर सहेजे गए सभी थंबनेल हटाता है। फ़ोल्डर ब्राउज़ करने पर पुनः बनाए जाएंगे</string>
     <string name="storage_clear_thumbnails_success">थंबनेल कैश सफलतापूर्वक साफ़ किया गया</string>
+    <string name="tags_title">टैग्स</string>
+    <string name="tags_normal_section">सामान्य वीडियो टैग्स</string>
+    <string name="tags_private_section">निजी वीडियो टैग्स</string>
+    <string name="tags_private_locked_title">निजी टैग्स सुरक्षित हैं</string>
+    <string name="tags_private_locked_desc">निजी टैग्स देखने, बनाने और हटाने के लिए बायोमेट्रिक्स या पासवर्ड से अनलॉक करें।</string>
+    <string name="tags_private_unlock">निजी टैग्स अनलॉक करें</string>
+    <string name="tags_private_password_required">निजी टैग्स प्रबंधित करने के लिए गोपनीयता पासवर्ड सेट करें</string>
+    <string name="tags_create_hint">नई टैग बनाएं</string>
+    <string name="tags_empty_scope">इस श्रेणी में कोई टैग नहीं बनाई गई</string>
+    <string name="tags_delete">टैग हटाएं</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">सेटिंग्स</string>
@@ -326,6 +359,11 @@
     <plurals name="moving_items_status">
         <item quantity="one">%d आइटम स्थानांतरित हो रहा है</item>
         <item quantity="other">%d आइटम स्थानांतरित हो रहे हैं</item>
+    </plurals>
+
+    <plurals name="video_tags_selected_count">
+        <item quantity="one">%d वीडियो चयनित</item>
+        <item quantity="other">%d वीडियो चयनित</item>
     </plurals>
 
     <string name="private_folders_hint">निजी फ़ोल्डर दिखाने/छिपाने के लिए ऊपर ऐप आइकन पर 3× टैप करें</string>

@@ -27,6 +27,7 @@
     <string name="action_rename">Переименовать</string>
     <string name="action_move">Переместить</string>
     <string name="action_share">Поделиться</string>
+    <string name="action_tags">Теги</string>
     <string name="share_videos">Поделиться видео</string>
     <string name="action_shuffle_play">Случайно</string>
     <string name="action_create_folder">Новая папка</string>
@@ -107,6 +108,26 @@
     <string name="new_name">Новое имя</string>
     <string name="rename_multiple_items">Переименовать несколько элементов</string>
     <string name="selected_items_count">Выбрано элементов: %d</string>
+    <string name="video_tags_title">Теги видео</string>
+    <string name="video_tags_empty">Теги ещё не созданы</string>
+    <string name="video_tags_empty_desc">Создайте теги, чтобы упорядочить видео и позже использовать их в shuffle.</string>
+    <string name="video_tags_create">Создать тег</string>
+    <string name="video_tags_new_label">Название тега</string>
+    <string name="video_tags_save">Сохранить теги</string>
+    <string name="video_tags_choose">Выберите теги, которые нужно добавить к выбранным видео</string>
+    <string name="video_tags_add_success">Теги для видео обновлены</string>
+    <string name="video_tags_create_success">Тег создан</string>
+    <string name="video_tags_name_empty">Введите название тега</string>
+    <string name="video_tags_name_exists">Такой тег уже существует</string>
+    <string name="video_tags_none_selected">Выберите хотя бы один тег</string>
+    <string name="shuffle_tags_title">Shuffle по тегам</string>
+    <string name="shuffle_tags_description">Нажмите на тег, чтобы переключаться между использовать, игнорировать и нейтрально. Если ни один тег не отмечен для использования, shuffle возьмёт все видео и исключит только игнорируемые теги.</string>
+    <string name="shuffle_tags_empty">Теги ещё не созданы. Сначала добавьте теги к видео.</string>
+    <string name="shuffle_tags_confirm">Создать shuffle</string>
+    <string name="shuffle_tags_no_match">Видео с выбранными тегами не найдены</string>
+    <string name="shuffle_tags_mode_neutral">Нейтрально</string>
+    <string name="shuffle_tags_mode_include">Использовать в shuffle</string>
+    <string name="shuffle_tags_mode_exclude">Игнорировать в shuffle</string>
 
     <!-- Permissions -->
     <string name="permission_title">Требуется доступ к файлам</string>
@@ -150,6 +171,8 @@
     <string name="settings_performance_desc">Кэш и оптимизация производительности</string>
     <string name="settings_storage">Хранилище и кэш</string>
     <string name="settings_storage_desc">Управление кэшем миниатюр</string>
+    <string name="settings_tags">Теги</string>
+    <string name="settings_tags_desc">Управление тегами для обычных и приватных видео</string>
     <string name="settings_about">О программе</string>
     <string name="settings_about_desc">Информация о приложении и поддержка</string>
     <string name="settings_security">Безопасность и конфиденциальность</string>
@@ -191,6 +214,16 @@
     <string name="storage_clear_thumbnails">Очистить кэш миниатюр</string>
     <string name="storage_clear_thumbnails_desc">Удаляет все сохранённые миниатюры. Они будут созданы заново при просмотре папок</string>
     <string name="storage_clear_thumbnails_success">Кэш миниатюр успешно очищен</string>
+    <string name="tags_title">Теги</string>
+    <string name="tags_normal_section">Теги обычных видео</string>
+    <string name="tags_private_section">Теги приватных видео</string>
+    <string name="tags_private_locked_title">Приватные теги защищены</string>
+    <string name="tags_private_locked_desc">Разблокируйте с помощью биометрии или пароля, чтобы просматривать, создавать и удалять приватные теги.</string>
+    <string name="tags_private_unlock">Разблокировать приватные теги</string>
+    <string name="tags_private_password_required">Установите пароль конфиденциальности, чтобы управлять приватными тегами</string>
+    <string name="tags_create_hint">Создать новый тег</string>
+    <string name="tags_empty_scope">В этой категории нет созданных тегов</string>
+    <string name="tags_delete">Удалить тег</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Настройки</string>
@@ -332,6 +365,13 @@
         <item quantity="few">Перемещение %d элементов</item>
         <item quantity="many">Перемещение %d элементов</item>
         <item quantity="other">Перемещение %d элементов</item>
+    </plurals>
+
+    <plurals name="video_tags_selected_count">
+        <item quantity="one">Выбрано %d видео</item>
+        <item quantity="few">Выбрано %d видео</item>
+        <item quantity="many">Выбрано %d видео</item>
+        <item quantity="other">Выбрано %d видео</item>
     </plurals>
 
     <string name="private_folders_hint">Нажмите 3× на значок приложения вверху, чтобы показать/скрыть приватные папки</string>

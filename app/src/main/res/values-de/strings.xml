@@ -27,6 +27,7 @@
     <string name="action_rename">Umbenennen</string>
     <string name="action_move">Verschieben</string>
     <string name="action_share">Teilen</string>
+    <string name="action_tags">Tags</string>
     <string name="share_videos">Videos teilen</string>
     <string name="action_shuffle_play">Zufällig</string>
     <string name="action_create_folder">Neuer Ordner</string>
@@ -107,6 +108,26 @@
     <string name="new_name">Neuer Name</string>
     <string name="rename_multiple_items">Mehrere Elemente umbenennen</string>
     <string name="selected_items_count">%d Element(e) ausgewählt</string>
+    <string name="video_tags_title">Video-Tags</string>
+    <string name="video_tags_empty">Noch keine Tags erstellt</string>
+    <string name="video_tags_empty_desc">Erstellen Sie Tags, um Ihre Videos zu organisieren und später beim Zufallsshuffle wiederzuverwenden.</string>
+    <string name="video_tags_create">Tag erstellen</string>
+    <string name="video_tags_new_label">Tag-Name</string>
+    <string name="video_tags_save">Tags speichern</string>
+    <string name="video_tags_choose">Wählen Sie die Tags aus, die zu den ausgewählten Videos hinzugefügt werden sollen</string>
+    <string name="video_tags_add_success">Tags für Videos aktualisiert</string>
+    <string name="video_tags_create_success">Tag erstellt</string>
+    <string name="video_tags_name_empty">Geben Sie einen Namen für den Tag ein</string>
+    <string name="video_tags_name_exists">Dieser Tag existiert bereits</string>
+    <string name="video_tags_none_selected">Wählen Sie mindestens einen Tag aus</string>
+    <string name="shuffle_tags_title">Shuffle nach Tags</string>
+    <string name="shuffle_tags_description">Tippen Sie auf einen Tag, um zwischen verwenden, ignorieren und neutral zu wechseln. Wenn kein Tag zum Verwenden markiert ist, berücksichtigt Shuffle alle Videos und schließt nur die ignorierten Tags aus.</string>
+    <string name="shuffle_tags_empty">Noch keine Tags erstellt. Fügen Sie zuerst Tags zu Videos hinzu.</string>
+    <string name="shuffle_tags_confirm">Shuffle erstellen</string>
+    <string name="shuffle_tags_no_match">Keine Videos mit den ausgewählten Tags gefunden</string>
+    <string name="shuffle_tags_mode_neutral">Neutral</string>
+    <string name="shuffle_tags_mode_include">Im Shuffle verwenden</string>
+    <string name="shuffle_tags_mode_exclude">Im Shuffle ignorieren</string>
 
     <!-- Permissions -->
     <string name="permission_title">Dateizugriff erforderlich</string>
@@ -150,6 +171,8 @@
     <string name="settings_performance_desc">Cache und Leistungsoptimierungen</string>
     <string name="settings_storage">Speicher &amp; Cache</string>
     <string name="settings_storage_desc">Thumbnail-Cache verwalten</string>
+    <string name="settings_tags">Tags</string>
+    <string name="settings_tags_desc">Tags für normale und private Videos verwalten</string>
     <string name="settings_about">Über</string>
     <string name="settings_about_desc">App-Informationen und Support</string>
     <string name="settings_security">Sicherheit &amp; Datenschutz</string>
@@ -191,6 +214,16 @@
     <string name="storage_clear_thumbnails">Thumbnail-Cache leeren</string>
     <string name="storage_clear_thumbnails_desc">Entfernt alle gespeicherten Thumbnails. Sie werden beim Durchsuchen der Ordner neu erstellt</string>
     <string name="storage_clear_thumbnails_success">Thumbnail-Cache erfolgreich geleert</string>
+    <string name="tags_title">Tags</string>
+    <string name="tags_normal_section">Tags für normale Videos</string>
+    <string name="tags_private_section">Tags für private Videos</string>
+    <string name="tags_private_locked_title">Private Tags geschützt</string>
+    <string name="tags_private_locked_desc">Entsperren Sie mit Biometrie oder Passwort, um private Tags anzusehen, zu erstellen und zu entfernen.</string>
+    <string name="tags_private_unlock">Private Tags entsperren</string>
+    <string name="tags_private_password_required">Legen Sie ein Datenschutz-Passwort fest, um private Tags zu verwalten</string>
+    <string name="tags_create_hint">Neuen Tag erstellen</string>
+    <string name="tags_empty_scope">In dieser Kategorie wurden keine Tags erstellt</string>
+    <string name="tags_delete">Tag löschen</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Einstellungen</string>
@@ -326,6 +359,11 @@
     <plurals name="moving_items_status">
         <item quantity="one">%d Element wird verschoben</item>
         <item quantity="other">%d Elemente werden verschoben</item>
+    </plurals>
+
+    <plurals name="video_tags_selected_count">
+        <item quantity="one">%d Video ausgewählt</item>
+        <item quantity="other">%d Videos ausgewählt</item>
     </plurals>
 
     <string name="private_folders_hint">Tippe 3× auf das App-Symbol oben, um private Ordner anzuzeigen/auszublenden</string>

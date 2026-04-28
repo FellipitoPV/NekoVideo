@@ -27,6 +27,7 @@
     <string name="action_rename">Rename</string>
     <string name="action_move">Move</string>
     <string name="action_share">Share</string>
+    <string name="action_tags">Tags</string>
     <string name="share_videos">Share videos</string>
     <string name="action_shuffle_play">Shuffle</string>
     <string name="action_create_folder">New Folder</string>
@@ -107,6 +108,26 @@
     <string name="new_name">New name</string>
     <string name="rename_multiple_items">Rename multiple items</string>
     <string name="selected_items_count">%d item(s) selected</string>
+    <string name="video_tags_title">Video tags</string>
+    <string name="video_tags_empty">No tags created yet</string>
+    <string name="video_tags_empty_desc">Create tags to organize your videos and reuse them later in shuffle.</string>
+    <string name="video_tags_create">Create tag</string>
+    <string name="video_tags_new_label">Tag name</string>
+    <string name="video_tags_save">Save tags</string>
+    <string name="video_tags_choose">Choose the tags to add to the selected videos</string>
+    <string name="video_tags_add_success">Tags updated for videos</string>
+    <string name="video_tags_create_success">Tag created</string>
+    <string name="video_tags_name_empty">Enter a name for the tag</string>
+    <string name="video_tags_name_exists">This tag already exists</string>
+    <string name="video_tags_none_selected">Select at least one tag</string>
+    <string name="shuffle_tags_title">Shuffle by tags</string>
+    <string name="shuffle_tags_description">Tap a tag to cycle between use, ignore and neutral. If no tag is marked to use, shuffle considers all videos and excludes only the ignored tags.</string>
+    <string name="shuffle_tags_empty">No tags created yet. Add tags to videos first.</string>
+    <string name="shuffle_tags_confirm">Create shuffle</string>
+    <string name="shuffle_tags_no_match">No videos with the selected tags were found</string>
+    <string name="shuffle_tags_mode_neutral">Neutral</string>
+    <string name="shuffle_tags_mode_include">Use in shuffle</string>
+    <string name="shuffle_tags_mode_exclude">Ignore in shuffle</string>
 
     <!-- Permissions -->
     <string name="permission_title">File Access Required</string>
@@ -150,6 +171,8 @@
     <string name="settings_performance_desc">Cache and performance optimizations</string>
     <string name="settings_storage">Storage &amp; Cache</string>
     <string name="settings_storage_desc">Manage thumbnail cache</string>
+    <string name="settings_tags">Tags</string>
+    <string name="settings_tags_desc">Manage tags for regular and private videos</string>
     <string name="settings_about">About</string>
     <string name="settings_about_desc">App information and support</string>
     <string name="settings_security">Security &amp; Privacy</string>
@@ -191,6 +214,16 @@
     <string name="storage_clear_thumbnails">Clear thumbnail cache</string>
     <string name="storage_clear_thumbnails_desc">Removes all thumbnails saved on disk. They will be regenerated when browsing folders</string>
     <string name="storage_clear_thumbnails_success">Thumbnail cache cleared successfully</string>
+    <string name="tags_title">Tags</string>
+    <string name="tags_normal_section">Regular video tags</string>
+    <string name="tags_private_section">Private video tags</string>
+    <string name="tags_private_locked_title">Private tags protected</string>
+    <string name="tags_private_locked_desc">Unlock with biometrics or password to view, create and remove private tags.</string>
+    <string name="tags_private_unlock">Unlock private tags</string>
+    <string name="tags_private_password_required">Set a privacy password to manage private tags</string>
+    <string name="tags_create_hint">Create new tag</string>
+    <string name="tags_empty_scope">No tags created in this category</string>
+    <string name="tags_delete">Delete tag</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Settings</string>
@@ -329,6 +362,11 @@
     <plurals name="moving_items_status">
         <item quantity="one">Moving %d item</item>
         <item quantity="other">Moving %d items</item>
+    </plurals>
+
+    <plurals name="video_tags_selected_count">
+        <item quantity="one">%d video selected</item>
+        <item quantity="other">%d videos selected</item>
     </plurals>
 
 </resources>
