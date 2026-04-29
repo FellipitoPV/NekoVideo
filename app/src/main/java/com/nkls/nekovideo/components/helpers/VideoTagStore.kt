@@ -55,11 +55,17 @@ interface VideoTagDao {
     @Query("SELECT EXISTS(SELECT 1 FROM video_tags WHERE LOWER(name) = LOWER(:name) AND scope = :scope)")
     suspend fun tagExists(name: String, scope: TagScope): Boolean
 
+    @Query("SELECT EXISTS(SELECT 1 FROM video_tags WHERE LOWER(name) = LOWER(:name) AND scope = :scope AND id != :tagId)")
+    suspend fun tagExistsForOther(tagId: Long, name: String, scope: TagScope): Boolean
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertTag(tag: TagEntity): Long
 
     @Query("DELETE FROM video_tags WHERE id = :tagId")
     suspend fun deleteTag(tagId: Long)
+
+    @Query("UPDATE video_tags SET name = :name WHERE id = :tagId")
+    suspend fun updateTagName(tagId: Long, name: String)
 
     @Query("SELECT r.tagId FROM video_tag_refs r INNER JOIN video_tags t ON t.id = r.tagId WHERE r.videoPath IN (:videoPaths) AND t.scope = :scope GROUP BY r.tagId HAVING COUNT(DISTINCT r.videoPath) = :videoCount")
     suspend fun getCommonTagIds(videoPaths: List<String>, videoCount: Int, scope: TagScope): List<Long>
@@ -131,6 +137,17 @@ object VideoTagStore {
 
     suspend fun deleteTag(context: Context, tagId: Long) {
         getDatabase(context).videoTagDao().deleteTag(tagId)
+    }
+
+    suspend fun renameTag(context: Context, tagId: Long, rawName: String, scope: TagScope): Result<Unit> {
+        val name = rawName.trim()
+        if (name.isEmpty()) return Result.failure(IllegalArgumentException("empty"))
+
+        val dao = getDatabase(context).videoTagDao()
+        if (dao.tagExistsForOther(tagId, name, scope)) return Result.failure(IllegalStateException("exists"))
+
+        dao.updateTagName(tagId, name)
+        return Result.success(Unit)
     }
 
     suspend fun getCommonTagIds(context: Context, videoPaths: List<String>, scope: TagScope): Set<Long> {

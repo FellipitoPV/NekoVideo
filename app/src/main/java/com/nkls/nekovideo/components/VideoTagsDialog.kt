@@ -1,17 +1,22 @@
 package com.nkls.nekovideo.components
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -28,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -37,7 +43,9 @@ import androidx.compose.ui.window.DialogProperties
 import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.helpers.TagEntity
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.CompositionLocalProvider
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoTagsDialog(
     selectedVideoCount: Int,
@@ -48,6 +56,8 @@ fun VideoTagsDialog(
     onSave: suspend (Set<Long>) -> Result<Unit>
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val emptyNameMessage = stringResource(R.string.video_tags_name_empty)
     val duplicateNameMessage = stringResource(R.string.video_tags_name_exists)
     val dialogTags = remember(tags) { mutableStateListOf<TagEntity>().apply { addAll(tags) } }
@@ -60,24 +70,26 @@ fun VideoTagsDialog(
     Dialog(
         onDismissRequest = { if (!isSaving && !isCreating) onDismiss() },
         properties = DialogProperties(
+            usePlatformDefaultWidth = false,
             dismissOnBackPress = !isSaving && !isCreating,
             dismissOnClickOutside = !isSaving && !isCreating
         )
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth(if (isLandscape) 0.9f else 0.96f)
+                .widthIn(max = if (isLandscape) 980.dp else 620.dp)
                 .clip(RoundedCornerShape(16.dp)),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 2.dp
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
                     text = stringResource(R.string.video_tags_title),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -88,15 +100,9 @@ fun VideoTagsDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Text(
-                    text = stringResource(R.string.video_tags_choose),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
@@ -106,10 +112,13 @@ fun VideoTagsDialog(
                             errorMessage = null
                         },
                         label = { Text(stringResource(R.string.video_tags_new_label)) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 44.dp),
                         singleLine = true,
                         enabled = !isCreating && !isSaving,
                         shape = RoundedCornerShape(10.dp),
+                        textStyle = MaterialTheme.typography.bodySmall,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
@@ -176,9 +185,9 @@ fun VideoTagsDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 20.dp),
+                            .padding(vertical = 16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.video_tags_empty),
@@ -195,29 +204,40 @@ fun VideoTagsDialog(
                     FlowRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(top = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        dialogTags.forEach { tag ->
-                            val isSelected = selectedTagIds.contains(tag.id)
-                            val containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
-                            val labelColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                            AssistChip(
-                                onClick = {
-                                    if (isSelected) {
-                                        selectedTagIds.remove(tag.id)
-                                    } else {
-                                        selectedTagIds.add(tag.id)
-                                    }
-                                },
-                                enabled = !isSaving && !isCreating,
-                                label = { Text(tag.name) },
-                                colors = AssistChipDefaults.assistChipColors(
-                                    containerColor = containerColor,
-                                    labelColor = labelColor
+                        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                            dialogTags.forEach { tag ->
+                                val isSelected = selectedTagIds.contains(tag.id)
+                                val containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
+                                val labelColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                AssistChip(
+                                    onClick = {
+                                        if (isSelected) {
+                                            selectedTagIds.remove(tag.id)
+                                        } else {
+                                            selectedTagIds.add(tag.id)
+                                        }
+                                    },
+                                    modifier = Modifier.heightIn(min = 24.dp),
+                                    enabled = !isSaving && !isCreating,
+                                    label = {
+                                        Text(
+                                            text = tag.name,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1
+                                        )
+                                    },
+                                    shape = RoundedCornerShape(7.dp),
+                                    colors = AssistChipDefaults.assistChipColors(
+                                        containerColor = containerColor,
+                                        labelColor = labelColor
+                                    ),
+                                    border = null
                                 )
-                            )
+                            }
                         }
                     }
                 }

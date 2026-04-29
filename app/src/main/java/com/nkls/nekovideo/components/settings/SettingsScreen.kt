@@ -31,6 +31,7 @@ import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
@@ -70,6 +71,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
@@ -518,6 +520,11 @@ fun TagsSettingsScreen() {
                         if (result.isSuccess) refreshToken++
                         result
                     },
+                    onRenameTag = { tagId, name ->
+                        val result = VideoTagStore.renameTag(context, tagId, name, TagScope.NORMAL)
+                        if (result.isSuccess) refreshToken++
+                        result
+                    },
                     onDeleteTag = { tagId ->
                         VideoTagStore.deleteTag(context, tagId)
                         refreshToken++
@@ -570,6 +577,11 @@ fun TagsSettingsScreen() {
                         isCompact = isCompact,
                         onCreateTag = { name ->
                             val result = VideoTagStore.createTag(context, name, TagScope.PRIVATE)
+                            if (result.isSuccess) refreshToken++
+                            result
+                        },
+                        onRenameTag = { tagId, name ->
+                            val result = VideoTagStore.renameTag(context, tagId, name, TagScope.PRIVATE)
                             if (result.isSuccess) refreshToken++
                             result
                         },
@@ -941,13 +953,21 @@ private fun TagScopeManagerCard(
     tags: List<TagEntity>,
     isCompact: Boolean,
     onCreateTag: suspend (String) -> Result<TagEntity>,
+    onRenameTag: suspend (Long, String) -> Result<Unit>,
     onDeleteTag: suspend (Long) -> Unit
 ) {
     var newTagName by remember(scope) { mutableStateOf("") }
+    var editingTagId by remember(scope) { mutableStateOf<Long?>(null) }
     var errorMessage by remember(scope) { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val emptyNameMessage = stringResource(R.string.video_tags_name_empty)
     val duplicateNameMessage = stringResource(R.string.video_tags_name_exists)
+
+    fun clearEditor() {
+        newTagName = ""
+        editingTagId = null
+        errorMessage = null
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -970,7 +990,15 @@ private fun TagScopeManagerCard(
                         newTagName = it
                         errorMessage = null
                     },
-                    label = { Text(stringResource(R.string.tags_create_hint)) },
+                    label = {
+                        Text(
+                            if (editingTagId == null) {
+                                stringResource(R.string.tags_create_hint)
+                            } else {
+                                stringResource(R.string.new_name)
+                            }
+                        )
+                    },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     shape = RoundedCornerShape(10.dp),
@@ -987,9 +1015,14 @@ private fun TagScopeManagerCard(
                             return@Button
                         }
                         coroutineScope.launch {
-                            val result = onCreateTag(trimmed)
+                            val result = editingTagId?.let { tagId ->
+                                onRenameTag(tagId, trimmed)
+                            } ?: onCreateTag(trimmed).fold(
+                                onSuccess = { Result.success(Unit) },
+                                onFailure = { Result.failure(it) }
+                            )
                             result.onSuccess {
-                                newTagName = ""
+                                clearEditor()
                             }.onFailure { error ->
                                 errorMessage = when (error.message) {
                                     "empty" -> emptyNameMessage
@@ -1005,7 +1038,19 @@ private fun TagScopeManagerCard(
                         contentColor = MaterialTheme.colorScheme.onSurface
                     )
                 ) {
-                    Text(stringResource(R.string.video_tags_create))
+                    Text(
+                        if (editingTagId == null) {
+                            stringResource(R.string.video_tags_create)
+                        } else {
+                            stringResource(R.string.action_rename)
+                        }
+                    )
+                }
+            }
+
+            if (editingTagId != null) {
+                TextButton(onClick = { clearEditor() }) {
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
 
@@ -1031,16 +1076,44 @@ private fun TagScopeManagerCard(
                 ) {
                     tags.forEach { tag ->
                         val deleteLabel = stringResource(R.string.tags_delete)
+                        val renameLabel = stringResource(R.string.action_rename)
                         AssistChip(
-                            onClick = { coroutineScope.launch { onDeleteTag(tag.id) } },
+                            onClick = { },
                             label = { Text(tag.name) },
                             trailingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = deleteLabel,
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(16.dp)
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(
+                                        onClick = {
+                                            editingTagId = tag.id
+                                            newTagName = tag.name
+                                            errorMessage = null
+                                        },
+                                        modifier = Modifier.size(18.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = renameLabel,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            coroutineScope.launch {
+                                                onDeleteTag(tag.id)
+                                                if (editingTagId == tag.id) clearEditor()
+                                            }
+                                        },
+                                        modifier = Modifier.size(18.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = deleteLabel,
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
                             },
                             colors = AssistChipDefaults.assistChipColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
