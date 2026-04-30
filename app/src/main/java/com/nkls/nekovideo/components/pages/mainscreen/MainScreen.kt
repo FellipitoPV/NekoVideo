@@ -403,10 +403,20 @@ fun MainScreen(
                 LockedPlaybackSession.hasSessionForFolder(folderPath)
 
         if (isInsideLockedForRename && selectedItems.size == 1) {
-            // Rename inside locked folder: only update the original name in manifest
+            // Rename inside locked folder: keep the obfuscated on-disk name and only
+            // update the user-facing name stored in the manifest.
             val obfuscatedPath = selectedItems.first()
+            val isFolderRename = File(obfuscatedPath).isDirectory
             val obfuscatedName = File(obfuscatedPath).name
-            val currentOriginalName = LockedPlaybackSession.getOriginalName(obfuscatedName) ?: obfuscatedName
+            val currentManifest = LockedPlaybackSession.getManifestForFolder(folderPath)
+            val currentOriginalName = if (isFolderRename) {
+                currentManifest?.subfolders
+                    ?.find { it.obfuscatedName == obfuscatedName }
+                    ?.originalName
+                    ?: obfuscatedName
+            } else {
+                LockedPlaybackSession.getOriginalName(obfuscatedName) ?: obfuscatedName
+            }
 
             LockedRenameDialog(
                 currentName = currentOriginalName,
@@ -416,9 +426,19 @@ fun MainScreen(
                         val pwd = sessionPassword ?: LockedPlaybackSession.sessionPassword
                         if (pwd != null) {
                             withContext(Dispatchers.IO) {
-                                val updatedManifest = FolderLockManager.renameFileInManifest(
-                                    folderPath, obfuscatedName, newName, pwd
-                                )
+                                val updatedManifest = if (isFolderRename) {
+                                    FolderLockManager.renameSubfolderInManifest(
+                                        context = context,
+                                        parentFolderPath = folderPath,
+                                        obfuscatedName = obfuscatedName,
+                                        newOriginalName = newName,
+                                        password = pwd
+                                    )
+                                } else {
+                                    FolderLockManager.renameFileInManifest(
+                                        folderPath, obfuscatedName, newName, pwd
+                                    )
+                                }
                                 if (updatedManifest != null) {
                                     LockedPlaybackSession.updateManifest(folderPath, updatedManifest)
                                 }
@@ -1347,25 +1367,6 @@ fun MainScreen(
                                             isMoving = false
                                             moveProgress = ""
                                             Toast.makeText(context, context.getString(R.string.items_moved), Toast.LENGTH_SHORT).show()
-                                        }
-
-                                        // Recursively unlock subfolders moved to a non-locked destination
-                                        if (!destIsLocked && pwd != null) {
-                                            actualItemsToMove.forEach { srcPath ->
-                                                val movedDir = File(folderPath, File(srcPath).name)
-                                                if (movedDir.isDirectory && FolderLockManager.isLocked(movedDir.absolutePath)) {
-                                                    withContext(Dispatchers.Main) { isLocking = true }
-                                                    FolderLockManager.unlockFolderRecursive(
-                                                        context = context,
-                                                        folderPath = movedDir.absolutePath,
-                                                        password = pwd,
-                                                        onProgress = { current, total, _ -> lockProgress = "$current/$total" },
-                                                        onError = { msg -> launch(Dispatchers.Main) { Toast.makeText(context, "Erro: $msg", Toast.LENGTH_SHORT).show() } },
-                                                        onSuccess = {}
-                                                    )
-                                                    withContext(Dispatchers.Main) { isLocking = false; lockProgress = "" }
-                                                }
-                                            }
                                         }
 
                                         // Auto-lock items pasted into a locked folder

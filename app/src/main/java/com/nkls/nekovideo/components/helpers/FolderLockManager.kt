@@ -69,6 +69,64 @@ object FolderLockManager {
     private val gson = Gson()
     private val videoExtensions = setOf("mp4", "mkv", "webm", "avi", "mov", "wmv", "m4v", "3gp", "flv")
 
+    private fun shouldObfuscateLockedFolderName(folderPath: String): Boolean {
+        if (folderPath == FilesManager.SecureStorage.getNekoPrivateFolderPath()) {
+            return false
+        }
+
+        val parentPath = File(folderPath).parent ?: return false
+        return !isLocked(parentPath)
+    }
+
+    private fun obfuscateLockedFolderNameIfNeeded(context: Context, folderPath: String): String {
+        if (!shouldObfuscateLockedFolderName(folderPath)) return folderPath
+
+        val folder = File(folderPath)
+        val parent = folder.parentFile ?: return folderPath
+        var renamedFolder: File
+        do {
+            renamedFolder = File(parent, UUID.randomUUID().toString().replace("-", ""))
+        } while (renamedFolder.exists())
+
+        if (!folder.renameTo(renamedFolder)) {
+            Log.w(TAG, "Failed to obfuscate locked folder name: $folderPath")
+            return folderPath
+        }
+
+        onLockedFolderMoved(context, folderPath, renamedFolder.absolutePath)
+
+        if (FilesManager.SecureStorage.getCustomSecureFolderPath(context) == folderPath) {
+            FilesManager.SecureStorage.setCustomSecureFolderPath(context, renamedFolder.absolutePath)
+        }
+
+        return renamedFolder.absolutePath
+    }
+
+    private fun restoreUnlockedFolderNameIfNeeded(context: Context, folderPath: String, originalFolderName: String): String {
+        if (folderPath == FilesManager.SecureStorage.getNekoPrivateFolderPath()) return folderPath
+
+        val folder = File(folderPath)
+        val parent = folder.parentFile ?: return folderPath
+        if (isLocked(parent.absolutePath) || folder.name == originalFolderName) return folderPath
+
+        val restoredFolder = File(parent, originalFolderName)
+        if (restoredFolder.exists()) {
+            Log.w(TAG, "Cannot restore unlocked folder name, target already exists: ${restoredFolder.absolutePath}")
+            return folderPath
+        }
+
+        if (!folder.renameTo(restoredFolder)) {
+            Log.w(TAG, "Failed to restore unlocked folder name: $folderPath")
+            return folderPath
+        }
+
+        if (FilesManager.SecureStorage.getCustomSecureFolderPath(context) == folderPath) {
+            FilesManager.SecureStorage.setCustomSecureFolderPath(context, restoredFolder.absolutePath)
+        }
+
+        return restoredFolder.absolutePath
+    }
+
     // Used to track completed operations so they can be rolled back on failure
     private data class PendingFileEntry(
         val renamedFile: File,       // UUID-named file (current on-disk state)
@@ -350,9 +408,8 @@ object FolderLockManager {
                 if (subdir.renameTo(renamedDir)) {
                     subfolderEntries.add(LockedSubfolderEntry(obfuscatedName, originalName))
                     if (isLocked(renamedDir.absolutePath)) {
-                        updateRegistryPath(context, subdir.absolutePath, renamedDir.absolutePath)
+                        onLockedFolderMoved(context, subdir.absolutePath, renamedDir.absolutePath)
                     }
-                    LockedPlaybackSession.renameSession(subdir.absolutePath, renamedDir.absolutePath)
                 }
             }
 
@@ -376,11 +433,13 @@ object FolderLockManager {
             // Add .nomedia to prevent gallery indexing
             File(folder, ".nomedia").createNewFile()
 
+            // Remove in-progress marker
+            inProgressMarker.delete()
+
             // Update registry
             addToRegistry(context, folderPath, folder.name, entries.size)
 
-            // Remove in-progress marker
-            inProgressMarker.delete()
+            obfuscateLockedFolderNameIfNeeded(context, folderPath)
 
             onSuccess()
 
@@ -460,9 +519,8 @@ object FolderLockManager {
                     val restoredDir = File(folder, entry.originalName)
                     if (obfuscatedDir.renameTo(restoredDir)) {
                         if (isLocked(restoredDir.absolutePath)) {
-                            updateRegistryPath(context, obfuscatedDir.absolutePath, restoredDir.absolutePath)
+                            onLockedFolderMoved(context, obfuscatedDir.absolutePath, restoredDir.absolutePath)
                         }
-                        LockedPlaybackSession.renameSession(obfuscatedDir.absolutePath, restoredDir.absolutePath)
                     }
                 }
             }
@@ -483,8 +541,12 @@ object FolderLockManager {
                 File(folder, ".nomedia").delete()
             }
 
+            val restoredFolderPath = restoreUnlockedFolderNameIfNeeded(context, folderPath, manifest.originalFolderName)
+
             // Remove from registry
             removeFromRegistry(context, folderPath)
+
+            LockedPlaybackSession.renameSessionsUnderPath(folderPath, restoredFolderPath)
 
             onSuccess()
 
@@ -554,6 +616,31 @@ object FolderLockManager {
         registry.folders.removeAll { it.folderPath == oldPath }
         registry.folders.add(existing.copy(folderPath = newPath))
         saveRegistry(context, registry)
+    }
+
+    private fun updateRegistryPathsUnderPath(context: Context, oldRootPath: String, newRootPath: String) {
+        val registry = loadRegistry(context)
+        var changed = false
+        registry.folders.replaceAll { entry ->
+            if (entry.folderPath == oldRootPath || entry.folderPath.startsWith("$oldRootPath/")) {
+                changed = true
+                entry.copy(folderPath = newRootPath + entry.folderPath.removePrefix(oldRootPath))
+            } else {
+                entry
+            }
+        }
+        if (changed) {
+            saveRegistry(context, registry)
+        }
+    }
+
+    fun onLockedFolderMoved(context: Context, oldPath: String, newPath: String) {
+        updateRegistryPathsUnderPath(context, oldPath, newPath)
+        LockedPlaybackSession.renameSessionsUnderPath(oldPath, newPath)
+
+        if (FilesManager.SecureStorage.getCustomSecureFolderPath(context) == oldPath) {
+            FilesManager.SecureStorage.setCustomSecureFolderPath(context, newPath)
+        }
     }
 
     /**
@@ -838,9 +925,8 @@ object FolderLockManager {
         if (!obfuscatedDir.renameTo(restoredDir)) return null
 
         if (isLocked(restoredDir.absolutePath)) {
-            updateRegistryPath(context, obfuscatedDir.absolutePath, restoredDir.absolutePath)
+            onLockedFolderMoved(context, obfuscatedDir.absolutePath, restoredDir.absolutePath)
         }
-        LockedPlaybackSession.renameSession(obfuscatedDir.absolutePath, restoredDir.absolutePath)
 
         val updatedManifest = manifest.copy(
             subfolders = (manifest.subfolders ?: emptyList()).filter { it.obfuscatedName != obfuscatedName }
@@ -929,9 +1015,8 @@ object FolderLockManager {
         if (!subdir.renameTo(renamedDir)) return null
 
         if (isLocked(renamedDir.absolutePath)) {
-            updateRegistryPath(context, subfolderPath, renamedDir.absolutePath)
+            onLockedFolderMoved(context, subfolderPath, renamedDir.absolutePath)
         }
-        LockedPlaybackSession.renameSession(subfolderPath, renamedDir.absolutePath)
 
         val updatedManifest = manifest.copy(
             subfolders = (manifest.subfolders ?: emptyList()) + LockedSubfolderEntry(obfuscatedName, originalName)
@@ -970,6 +1055,52 @@ object FolderLockManager {
         val updatedManifest = manifest.copy(files = updatedFiles)
         val encryptedManifest = encryptManifest(updatedManifest, password, salt)
         File(folderPath, MANIFEST_FILE).writeBytes(encryptedManifest)
+
+        return updatedManifest
+    }
+
+    /**
+     * Rename a subfolder's display name in the parent manifest without changing the
+     * obfuscated directory name on disk. If the child folder is also locked, keep its
+     * own manifest/registry display name in sync.
+     */
+    fun renameSubfolderInManifest(
+        context: Context,
+        parentFolderPath: String,
+        obfuscatedName: String,
+        newOriginalName: String,
+        password: String
+    ): LockedFolderManifest? {
+        val manifest = readManifest(parentFolderPath, password) ?: return null
+        val salt = getSalt(parentFolderPath) ?: return null
+
+        val updatedSubfolders = manifest.subfolders.map { entry ->
+            if (entry.obfuscatedName == obfuscatedName) {
+                entry.copy(originalName = newOriginalName)
+            } else {
+                entry
+            }
+        }
+
+        val updatedManifest = manifest.copy(subfolders = updatedSubfolders)
+        val encryptedManifest = encryptManifest(updatedManifest, password, salt)
+        File(parentFolderPath, MANIFEST_FILE).writeBytes(encryptedManifest)
+
+        val childFolderPath = File(parentFolderPath, obfuscatedName).absolutePath
+        if (isLocked(childFolderPath)) {
+            val childManifest = readManifest(childFolderPath, password)
+            val childSalt = getSalt(childFolderPath)
+            if (childManifest != null && childSalt != null) {
+                val updatedChildManifest = childManifest.copy(originalFolderName = newOriginalName)
+                File(childFolderPath, MANIFEST_FILE).writeBytes(
+                    encryptManifest(updatedChildManifest, password, childSalt)
+                )
+                if (LockedPlaybackSession.hasSessionForFolder(childFolderPath)) {
+                    LockedPlaybackSession.updateManifest(childFolderPath, updatedChildManifest)
+                }
+                addToRegistry(context, childFolderPath, newOriginalName, updatedChildManifest.files.size)
+            }
+        }
 
         return updatedManifest
     }

@@ -109,6 +109,25 @@ object LockedPlaybackSession {
     }
 
     /**
+     * Move all active sessions under a folder subtree when the folder path changes.
+     */
+    fun renameSessionsUnderPath(oldRootPath: String, newRootPath: String) {
+        val affected = sessions.keys
+            .filter { it == oldRootPath || it.startsWith("$oldRootPath/") }
+            .sortedByDescending { it.length }
+
+        affected.forEach { oldPath ->
+            val session = sessions.remove(oldPath) ?: return@forEach
+            val suffix = oldPath.removePrefix(oldRootPath)
+            val newPath = newRootPath + suffix
+            sessions[newPath] = session
+            if (currentFolderPath == oldPath) {
+                currentFolderPath = newPath
+            }
+        }
+    }
+
+    /**
      * Remove a session for a specific folder (e.g. when deleting a locked subfolder).
      */
     fun removeSession(folderPath: String) {

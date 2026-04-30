@@ -388,6 +388,11 @@ private fun loadNormalContentFromCache(
         val isSecure = folderInfo?.isSecure ?: (File(subfolder, ".nomedia").exists())
         val isNekoFolder = File(subfolder, ".nekovideo").exists() // Pasta criada pelo app
         val isFolderLocked = folderInfo?.isLocked ?: FolderLockManager.isLocked(subfolder.absolutePath)
+        val lockedRegistryEntry = if (isFolderLocked) {
+            FolderLockManager.getRegistryEntry(context, subfolder.absolutePath)
+        } else {
+            null
+        }
         val hasVideos = folderInfo?.hasVideos ?: false
         val hasSecureSubfolders = hasSecureSubfolderInCache(subfolder.absolutePath, folderCache)
 
@@ -481,6 +486,9 @@ private fun loadNormalContentFromCache(
                     subfolder.absolutePath,
                     null,
                     true,
+                    name = lockedRegistryEntry?.originalFolderName ?: subfolder.name,
+                    displayName = lockedRegistryEntry?.originalFolderName
+                        ?: if (subfolder.name.startsWith(".")) subfolder.name.drop(1) else subfolder.name,
                     lastModified = folderInfo?.lastModified ?: subfolder.lastModified(),
                     sizeInBytes = totalFolderSize,
                     videoCount = directVideoCount,

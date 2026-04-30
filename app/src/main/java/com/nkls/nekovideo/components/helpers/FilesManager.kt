@@ -98,6 +98,7 @@ object FilesManager {
             if (!file.exists()) return@forEachIndexed
 
             val newFile = File(destinationDir, file.name)
+            val wasLockedFolder = file.isDirectory && FolderLockManager.isLocked(file.absolutePath)
 
             if (newFile.exists()) {
                 onError("${file.name} already exists in destination")
@@ -108,13 +109,24 @@ object FilesManager {
                 kotlinx.coroutines.runBlocking {
                     VideoTagStore.moveTagsForPath(context, file.absolutePath, newFile.absolutePath)
                 }
+                if (wasLockedFolder) {
+                    FolderLockManager.onLockedFolderMoved(context, file.absolutePath, newFile.absolutePath)
+                }
                 movedCount++
             } else {
                 try {
-                    file.copyTo(newFile)
-                    file.delete()
+                    if (file.isDirectory) {
+                        file.copyRecursively(newFile, overwrite = false)
+                        file.deleteRecursively()
+                    } else {
+                        file.copyTo(newFile)
+                        file.delete()
+                    }
                     kotlinx.coroutines.runBlocking {
                         VideoTagStore.moveTagsForPath(context, file.absolutePath, newFile.absolutePath)
+                    }
+                    if (wasLockedFolder) {
+                        FolderLockManager.onLockedFolderMoved(context, file.absolutePath, newFile.absolutePath)
                     }
                     movedCount++
                 } catch (e: Exception) {

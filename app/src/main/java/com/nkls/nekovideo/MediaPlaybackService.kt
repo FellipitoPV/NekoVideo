@@ -50,25 +50,30 @@ class MediaPlaybackService : MediaSessionService() {
     private var lastWindowUpdateTime = 0L
     private val WINDOW_UPDATE_COOLDOWN_MS = 500L // Ignora eventos por 500ms após atualização
 
-
-    override fun onCreate() {
-        super.onCreate()
-
+    private fun createConfiguredPlayer(): ExoPlayer {
         val audioAttributes = AudioAttributes.Builder()
             .setUsage(C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
             .build()
 
-        // Use HybridDataSourceFactory so ExoPlayer can handle both normal and locked URIs
+        // Keep the custom datasource on every player recreation so locked:// URIs
+        // continue working after refreshes triggered by cast disconnects.
         val dataSourceFactory = HybridDataSourceFactory(this)
         val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
 
-        player = ExoPlayer.Builder(this)
+        return ExoPlayer.Builder(this)
             .setMediaSourceFactory(mediaSourceFactory)
             .build().apply {
-            setAudioAttributes(audioAttributes, true)
-            addListener(playerListener)
-        }
+                setAudioAttributes(audioAttributes, true)
+                addListener(playerListener)
+            }
+    }
+
+
+    override fun onCreate() {
+        super.onCreate()
+
+        player = createConfiguredPlayer()
 
         mediaSession = MediaSession.Builder(this, player!!)
             .setCallback(mediaSessionCallback)
@@ -545,15 +550,8 @@ class MediaPlaybackService : MediaSessionService() {
 
         currentPlayer.release()
 
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(C.USAGE_MEDIA)
-            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-            .build()
-
-        player = ExoPlayer.Builder(this).build().apply {
+        player = createConfiguredPlayer().apply {
             repeatMode = Player.REPEAT_MODE_OFF
-            setAudioAttributes(audioAttributes, true)
-            addListener(playerListener)
         }
 
         currentSession.player = player!!

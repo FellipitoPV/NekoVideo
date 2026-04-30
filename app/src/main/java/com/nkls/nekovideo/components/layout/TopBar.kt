@@ -56,6 +56,7 @@ import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.helpers.DLNACastManager
 import com.nkls.nekovideo.components.helpers.FilesManager
+import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.player.DLNADevicePickerDialog
@@ -309,11 +310,14 @@ fun TopBar(
                                     val realName = LockedPlaybackSession.getManifestForFolder(parentFullPath)
                                         ?.subfolders?.find { it.obfuscatedName == segment }
                                         ?.originalName
+                                    val registryName = FolderLockManager.getRegistryEntry(context, segmentFullPath)
+                                        ?.originalFolderName
                                     val isHidden = segment.startsWith(".")
                                     val displayName = when {
                                         segmentFullPath == FilesManager.SecureStorage.getNekoPrivateFolderPath() ->
                                             stringResource(R.string.neko_private_folder_name)
                                         realName != null -> realName
+                                        registryName != null -> registryName
                                         isHidden -> segment.drop(1)
                                         else -> segment
                                     }
