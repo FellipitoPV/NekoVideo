@@ -1,6 +1,7 @@
 package com.nkls.nekovideo.components.pages.mainscreen
 
 import android.content.Intent
+import android.content.Context
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
@@ -189,6 +190,7 @@ fun MainScreen(
     var showShuffleTagsDialog by remember { mutableStateOf(false) }
     var availableTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
     var commonSelectedTagIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var showShuffleLongPressHint by remember { mutableStateOf(false) }
 
     fun isSecureFolder(folderPath: String): Boolean {
         val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
@@ -223,6 +225,25 @@ fun MainScreen(
         } else {
             TagScope.NORMAL
         }
+    }
+
+    suspend fun refreshShuffleLongPressHintEligibility() {
+        val prefs = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+        val hintAlreadyShown = prefs.getBoolean("shuffle_tags_hint_shown", false)
+
+        if (!hintAlreadyShown) {
+            val hasAnyTags = withContext(Dispatchers.IO) {
+                VideoTagStore.getAllTags(context, TagScope.NORMAL).isNotEmpty() ||
+                    VideoTagStore.getAllTags(context, TagScope.PRIVATE).isNotEmpty()
+            }
+            showShuffleLongPressHint = hasAnyTags
+        } else {
+            showShuffleLongPressHint = false
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        refreshShuffleLongPressHintEligibility()
     }
 
     suspend fun playShuffledVideos(tagFilter: ShuffleTagFilter? = null) {
@@ -485,15 +506,8 @@ fun MainScreen(
             tags = availableTags,
             initialSelectedTagIds = commonSelectedTagIds,
             onDismiss = { showVideoTagsDialog = false },
-            onCreateTag = { name ->
-                val result = withContext(Dispatchers.IO) {
-                    VideoTagStore.createTag(context, name, currentTagScope())
-                }
-                result.onSuccess { createdTag ->
-                    availableTags = (availableTags + createdTag).sortedBy { it.name.lowercase() }
-                    Toast.makeText(context, context.getString(R.string.video_tags_create_success), Toast.LENGTH_SHORT).show()
-                }
-                result
+            onManageTags = {
+                navController.navigate("settings/tags")
             },
             onSave = { selectedTagIds ->
                 val targetVideos = selectedItems.filter { File(it).isFile }
@@ -1025,6 +1039,19 @@ fun MainScreen(
                     selectedItems = selectedItems.toList(),
                     itemsToMoveCount = itemsToMove.size,
                     isInsideLockedFolder = FolderLockManager.isLocked(folderPath) && LockedPlaybackSession.isActive && LockedPlaybackSession.hasSessionForFolder(folderPath),
+                    showShuffleLongPressHint = showShuffleLongPressHint,
+                    onFabOpened = {
+                        coroutineScope.launch {
+                            refreshShuffleLongPressHintEligibility()
+                        }
+                    },
+                    onShuffleLongPressHintShown = {
+                        context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+                            .edit()
+                            .putBoolean("shuffle_tags_hint_shown", true)
+                            .apply()
+                        showShuffleLongPressHint = false
+                    },
                     onActionClick = { action ->
                         when (action) {
                             ActionType.SETTINGS -> {
@@ -1693,6 +1720,11 @@ fun MainScreen(
             onDismiss = {
                 showPlayerOverlay = false
                 isInPiPMode = false
+            },
+            onManageTags = {
+                showPlayerOverlay = false
+                isInPiPMode = false
+                navController.navigate("settings/tags")
             },
             onVideoDeleted = { deletedPath ->
                 deletedVideoPath = deletedPath

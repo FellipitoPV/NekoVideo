@@ -5,63 +5,106 @@
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-latest-blue?logo=android)](https://developer.android.com/jetpack/compose)
 [![Media3](https://img.shields.io/badge/Media3%2FExoPlayer-latest-orange?logo=android)](https://developer.android.com/guide/topics/media/media3)
 [![License](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![F-Droid](https://img.shields.io/badge/F--Droid-Pending-lightgrey?logo=f-droid)](https://f-droid.org)
 
-A modern, privacy-focused local video player for Android built with **Kotlin** and **Jetpack Compose**. 100% open source, zero ads, zero tracking, zero proprietary dependencies.
+NekoVideo is an open-source local video player for Android built with Kotlin and Jetpack Compose.
 
----
+The app focuses on local playback, folder-based organization, private folders, tag-based organization, and DLNA casting without depending on proprietary cast SDKs.
 
-## Features
+## Highlights
 
-### Smart File Management
-- **Folder Browser**: Navigate your storage tree — folders, subfolders, all videos organized exactly as they are on disk
-- **Format Support**: MP4, MKV, AVI, MOV, WMV, M4V, 3GP, FLV and more
-- **Fast Indexing**: Background video scanner with StateFlow caching — no repeated scans
-- **Thumbnail Generation**: Automatic video thumbnails with memory + disk cache
-- **Open With**: Receive video files from other apps and play them directly, with full playlist support
+- Folder-based local video library
+- Modern player built on Media3 / ExoPlayer
+- Picture-in-Picture, mini player, and background playback
+- DLNA / UPnP casting to TVs and renderers on the local network
+- Private folders with password protection, hidden folders, and biometric unlock support
+- Video tags with separate normal/private scopes
+- Built-in MP4 metadata repair via remux
+- No ads, no analytics, no cloud dependency
 
-### Playback Engine
-- **Media3 / ExoPlayer**: Hardware-accelerated playback for all major formats
-- **Gesture Controls**: Swipe left/right to seek, swipe up/down on each side to adjust brightness and volume
-- **Double-Tap Seek**: Configurable skip amount (5–30 seconds)
-- **Audio & Subtitle Track Selector**: Switch between multiple audio streams and subtitle tracks mid-playback
-- **Auto-Rotation**: Landscape/portrait adapts automatically to video aspect ratio
-- **Background Playback**: MediaSessionService keeps playing when you switch apps
-- **Media Notification**: Full playback controls in the notification shade and on lock screen
-- **Headphone Support**: Play/pause and track skip via hardware media buttons
-- **Mini Player**: Persistent mini player at the bottom while browsing your library
+## What The App Does
+
+### Library and File Management
+
+- Browses your storage as real folders instead of forcing a media-library-only view
+- Scans and caches folders that contain videos for faster navigation
+- Supports common formats such as `mp4`, `mkv`, `webm`, `avi`, `mov`, `wmv`, `m4v`, `3gp`, and `flv`
+- Generates thumbnails and caches them in memory and on disk
+- Lets you search items inside the current folder
+- Supports sorting by name, date, and file size
+- Can show video duration and file size in the grid/list
+- Allows creating folders, renaming items, moving items, deleting items, and sharing videos
+- Supports opening videos from other apps via `VIEW` and `SEND_MULTIPLE` intents
+
+### Playback
+
+- Uses Media3 / ExoPlayer for local playback
+- Folder playback with playlist navigation
+- Shuffle playback for the current folder tree
+- Double-tap seek with configurable skip duration
+- Gesture-based seeking in the player
+- Audio track and subtitle track selection
+- Automatic orientation behavior based on the video
+- Background playback through `MediaSessionService`
+- Media notification and lock-screen controls
+- Persistent mini player while browsing the app
 
 ### Picture-in-Picture
-- **Auto PiP**: Automatically enters PiP mode when you leave the app
-- **PiP Controls**: Previous, play/pause, and next buttons directly in the PiP window
 
-### Playlists
-- **Folder Playlists**: Play all videos in a folder in order
-- **Shuffle Mode**: Instantly shuffle any folder into a randomized playlist
-- **Playlist Navigator**: Sequential and shuffle navigation across the current playlist
+- Supports Android PiP mode
+- Can enter PiP automatically when leaving the app
+- Includes previous, play/pause, and next PiP actions
 
 ### DLNA Casting
-- **Cast to TV**: Stream videos to any DLNA/UPnP renderer on your local network (smart TVs, media players, etc.)
-- **100% Open Source**: Implemented via SSDP discovery + UPnP AvTransport SOAP — no Google Cast SDK or proprietary libraries
-- **Local HTTP Server**: NanoHTTPD-based server serves the file to the renderer directly from your device
 
-### Private Folders
-- **True Encryption**: Lock any folder with a password — files are protected using PBKDF2 key derivation + XOR header obfuscation + AES-CBC encrypted manifest
-- **Zero Footprint**: Locked folders are invisible in other gallery apps and media scanners
-- **Transparent Playback**: Locked videos play seamlessly via a custom Media3 DataSource that reverses encryption on-the-fly — no temporary decrypted copies on disk
-- **Password-Free Browsing**: The folder registry persists in SharedPreferences so locked folders remain visible in the app without re-entering the password unless you actually open one
+- Discovers DLNA / UPnP renderers on the local network using SSDP
+- Streams local files through an embedded HTTP server
+- Supports playlist casting, next/previous navigation, and playback state polling
+- Works without Google Cast SDK or closed-source casting dependencies
 
-### Video Tools
-- **Video Trimmer**: Cut any video to a precise start/end range with a frame-accurate timeline preview — exports without re-encoding (remux only, lossless)
-- **Video Remuxer**: Fix broken MP4 files missing duration metadata by rewriting the container without re-encoding
+### Tags
+
+- Create, rename, and delete tags
+- Assign tags to one or many videos
+- Keep separate tag scopes for normal content and private content
+- Shuffle videos using tag include/exclude filters
+- Preserves tag references when files or folders are renamed or moved
+
+### Private Folders and Protected Content
+
+- Supports a dedicated secure folder path and hidden app-managed folders
+- Can lock folders behind a password
+- Supports biometric unlock after password setup
+- Keeps protected folders hidden by default when the app starts
+- Plays locked content without creating decrypted temporary copies on disk
+
+Important: the current protection model is not full-file encryption for every byte of the video. It uses password-derived data, obfuscated file and folder names, protected manifests, and on-the-fly header deobfuscation during playback.
+
+### Video Utilities
+
+- Repairs some problematic MP4 files by remuxing them without re-encoding
+- Rewrites container metadata while preserving original media streams
 
 ### Settings
-- **Playback**: Auto-hide controls, auto-PiP on exit, configurable double-tap seek duration
-- **Interface**: Theme selection (Light / Dark / System), language switching (Portuguese / English)
-- **Display**: Customize how videos and folders are listed
-- **About**: App version and links
 
----
+- Playback settings for auto-hide controls, auto PiP, and double-tap seek duration
+- Interface settings for theme and app language
+- Display settings for durations and file sizes
+- Storage settings for clearing thumbnail cache
+- Security settings for password changes and biometric unlock
+- Tag management screens for normal and private tags
+
+## Supported Languages
+
+The app currently includes support for:
+
+- Portuguese
+- English
+- Spanish
+- French
+- German
+- Russian
+- Hindi
+- System default mode
 
 ## Tech Stack
 
@@ -69,41 +112,46 @@ A modern, privacy-focused local video player for Android built with **Kotlin** a
 |---|---|
 | Language | Kotlin + Coroutines |
 | UI | Jetpack Compose + Material 3 |
-| Video | Media3 (ExoPlayer) |
-| Background Playback | MediaSessionService |
-| Casting | DLNA/UPnP (SSDP + SOAP), NanoHTTPD |
-| Storage | MediaStore API + custom folder scanner |
-| Thumbnails | Coil + MediaMetadataRetriever |
-| Encryption | PBKDF2 + XOR + AES-CBC (javax.crypto) |
-| Video Editing | Android MediaExtractor / MediaMuxer |
-| Serialization | GSON |
-| Build | Gradle with Kotlin DSL |
-
----
+| Playback | AndroidX Media3 / ExoPlayer |
+| Background media | MediaSessionService |
+| Navigation | Navigation Compose |
+| Thumbnails | Coil, Glide, MediaMetadataRetriever |
+| Local database | Room |
+| Serialization | Gson |
+| Casting | DLNA / UPnP via SSDP + SOAP |
+| Local streaming | NanoHTTPD |
+| Build | Gradle Kotlin DSL |
 
 ## Privacy
 
-NekoVideo does **not** collect any data. There are no analytics, no crash reporting services, no ads, and no network requests except for DLNA device discovery on your local network (which you explicitly trigger).
+NekoVideo does not include analytics, ads, or third-party tracking.
 
-All video processing (thumbnails, trimming, remuxing, encryption) happens entirely on-device.
+Network activity is limited to local-network casting features when you use DLNA discovery or playback control.
 
----
+Most media processing is done on-device, including thumbnail generation, tag storage, remux operations, and private-folder handling.
 
 ## Requirements
 
 - Android 11 (API 30) or higher
-- Storage permission for local file access
+- Access to local storage
+- `All files access` may be required for the folder-based browsing model on supported Android versions
 
----
+## Building
+
+```bash
+./gradlew assembleDebug
+```
+
+Project info:
+
+- `minSdk = 30`
+- `targetSdk = 36`
+- Current app version in the project: `1.2.0`
 
 ## License
 
-This project is licensed under the **GNU General Public License v3.0**.
+This project is licensed under the GNU General Public License v3.0.
 
 See [LICENSE](LICENSE) for the full text.
 
-**Copyright © 2025 NKL's**
-
----
-
-*Built with Kotlin & Jetpack Compose*
+Copyright © 2025 NKL's

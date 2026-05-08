@@ -1,14 +1,15 @@
 package com.nkls.nekovideo.components
 
-import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AssistChip
@@ -16,13 +17,14 @@ import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -32,14 +34,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.helpers.TagEntity
 import kotlinx.coroutines.launch
@@ -52,207 +50,147 @@ fun VideoTagsDialog(
     tags: List<TagEntity>,
     initialSelectedTagIds: Set<Long>,
     onDismiss: () -> Unit,
-    onCreateTag: suspend (String) -> Result<TagEntity>,
+    onManageTags: () -> Unit,
     onSave: suspend (Set<Long>) -> Result<Unit>
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val emptyNameMessage = stringResource(R.string.video_tags_name_empty)
-    val duplicateNameMessage = stringResource(R.string.video_tags_name_exists)
+    val title = stringResource(R.string.video_tags_title)
+    val selectedCountText = pluralStringResource(R.plurals.video_tags_selected_count, selectedVideoCount, selectedVideoCount)
+    val manageTagsText = stringResource(R.string.settings_tags)
     val dialogTags = remember(tags) { mutableStateListOf<TagEntity>().apply { addAll(tags) } }
     val selectedTagIds = remember(initialSelectedTagIds) { mutableStateListOf<Long>().apply { addAll(initialSelectedTagIds) } }
-    var newTagName by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
-    var isCreating by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    Dialog(
-        onDismissRequest = { if (!isSaving && !isCreating) onDismiss() },
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnBackPress = !isSaving && !isCreating,
-            dismissOnClickOutside = !isSaving && !isCreating
-        )
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(if (isLandscape) 0.9f else 0.96f)
-                .widthIn(max = if (isLandscape) 980.dp else 620.dp)
-                .clip(RoundedCornerShape(16.dp)),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+    ModalBottomSheet(
+        onDismissRequest = { if (!isSaving) onDismiss() },
+        sheetState = bottomSheetState,
+        dragHandle = {
+            Surface(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(2.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.video_tags_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
+            }
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
 
+            HorizontalDivider()
+
+            Text(
+                text = selectedCountText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            errorMessage?.let { message ->
                 Text(
-                    text = pluralStringResource(R.plurals.video_tags_selected_count, selectedVideoCount, selectedVideoCount),
+                    text = message,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.error
                 )
+            }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            if (dialogTags.isEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    OutlinedTextField(
-                        value = newTagName,
-                        onValueChange = {
-                            newTagName = it
-                            errorMessage = null
-                        },
-                        label = { Text(stringResource(R.string.video_tags_new_label)) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 44.dp),
-                        singleLine = true,
-                        enabled = !isCreating && !isSaving,
-                        shape = RoundedCornerShape(10.dp),
-                        textStyle = MaterialTheme.typography.bodySmall,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                        )
-                    )
-
-                    Button(
-                        onClick = {
-                            val trimmedName = newTagName.trim()
-                            if (trimmedName.isEmpty()) {
-                                errorMessage = emptyNameMessage
-                                return@Button
-                            }
-
-                            isCreating = true
-                            errorMessage = null
-                            coroutineScope.launch {
-                                val result = onCreateTag(trimmedName)
-                                result.onSuccess { createdTag ->
-                                    if (dialogTags.none { it.id == createdTag.id }) {
-                                        dialogTags.add(createdTag)
-                                        val sortedTags = dialogTags.sortedBy { it.name.lowercase() }
-                                        dialogTags.clear()
-                                        dialogTags.addAll(sortedTags)
-                                    }
-                                    if (!selectedTagIds.contains(createdTag.id)) {
-                                        selectedTagIds.add(createdTag.id)
-                                    }
-                                    newTagName = ""
-                                }.onFailure { error ->
-                                    errorMessage = when (error.message) {
-                                        "empty" -> emptyNameMessage
-                                        "exists" -> duplicateNameMessage
-                                        else -> error.localizedMessage ?: duplicateNameMessage
-                                    }
-                                }
-                                isCreating = false
-                            }
-                        },
-                        enabled = !isCreating && !isSaving,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
-                    ) {
-                        if (isCreating) {
-                            CircularProgressIndicator(modifier = Modifier.padding(horizontal = 2.dp), strokeWidth = 2.dp)
-                        } else {
-                            Text(stringResource(R.string.video_tags_create))
-                        }
-                    }
-                }
-
-                errorMessage?.let { message ->
                     Text(
-                        text = message,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
+                        text = stringResource(R.string.video_tags_empty),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.video_tags_empty_desc),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                if (dialogTags.isEmpty()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.video_tags_empty),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = stringResource(R.string.video_tags_empty_desc),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else {
-                    FlowRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                            dialogTags.forEach { tag ->
-                                val isSelected = selectedTagIds.contains(tag.id)
-                                val containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
-                                val labelColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                                AssistChip(
-                                    onClick = {
-                                        if (isSelected) {
-                                            selectedTagIds.remove(tag.id)
-                                        } else {
-                                            selectedTagIds.add(tag.id)
-                                        }
-                                    },
-                                    modifier = Modifier.heightIn(min = 24.dp),
-                                    enabled = !isSaving && !isCreating,
-                                    label = {
-                                        Text(
-                                            text = tag.name,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            maxLines = 1
-                                        )
-                                    },
-                                    shape = RoundedCornerShape(7.dp),
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        containerColor = containerColor,
-                                        labelColor = labelColor
-                                    ),
-                                    border = null
-                                )
-                            }
+            } else {
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                        dialogTags.forEach { tag ->
+                            val isSelected = selectedTagIds.contains(tag.id)
+                            val containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
+                            val labelColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                            AssistChip(
+                                onClick = {
+                                    if (isSelected) {
+                                        selectedTagIds.remove(tag.id)
+                                    } else {
+                                        selectedTagIds.add(tag.id)
+                                    }
+                                },
+                                modifier = Modifier.heightIn(min = 24.dp),
+                                enabled = !isSaving,
+                                label = {
+                                    Text(
+                                        text = tag.name,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1
+                                    )
+                                },
+                                shape = RoundedCornerShape(7.dp),
+                                colors = AssistChipDefaults.assistChipColors(
+                                    containerColor = containerColor,
+                                    labelColor = labelColor
+                                ),
+                                border = null
+                            )
                         }
                     }
                 }
+            }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = {
+                        onDismiss()
+                        onManageTags()
+                    },
+                    enabled = !isSaving,
+                    shape = RoundedCornerShape(8.dp)
                 ) {
+                    Text(manageTagsText)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(
                         onClick = onDismiss,
-                        enabled = !isSaving && !isCreating,
+                        enabled = !isSaving,
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(stringResource(R.string.cancel))
                     }
+
                     Button(
                         onClick = {
                             isSaving = true
@@ -267,7 +205,7 @@ fun VideoTagsDialog(
                                 isSaving = false
                             }
                         },
-                        enabled = !isSaving && !isCreating,
+                        enabled = !isSaving,
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),

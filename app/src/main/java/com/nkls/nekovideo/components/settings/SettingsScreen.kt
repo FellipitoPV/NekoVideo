@@ -30,8 +30,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
@@ -50,6 +52,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.text.style.TextAlign
 import android.content.ContextWrapper
+import androidx.compose.material.icons.filled.Favorite
 import androidx.fragment.app.FragmentActivity
 import com.nkls.nekovideo.components.ChangePasswordDialog
 import com.nkls.nekovideo.components.PasswordDialog
@@ -62,10 +65,12 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
@@ -74,6 +79,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -109,6 +115,13 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(navController: NavController) {
+    val context = LocalContext.current
+    val donateIntent = remember {
+        Intent(Intent.ACTION_VIEW, Uri.parse("https://ko-fi.com/fellipepv")).apply {
+            addCategory(Intent.CATEGORY_BROWSABLE)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+    }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         @Suppress("UnusedBoxWithConstraintsScope")
@@ -187,6 +200,16 @@ fun SettingsScreen(navController: NavController) {
                     title = stringResource(R.string.settings_about),
                     subtitle = stringResource(R.string.settings_about_desc),
                     onClick = { navController.navigate("settings/about") },
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsCategoryCard(
+                    icon = Icons.Default.Favorite,
+                    title = stringResource(R.string.settings_support_developer),
+                    subtitle = stringResource(R.string.settings_support_developer_desc),
+                    onClick = { context.startActivity(donateIntent) },
                     isCompact = isCompact
                 )
             }
@@ -308,7 +331,7 @@ fun InterfaceSettingsScreen(themeManager: ThemeManager) {
 
 
             item {
-                SettingsSectionHeader(stringResource(R.string.settings_appearance), isCompact)
+                SettingsSectionHeader(stringResource(R.string.settings_interface), isCompact)
             }
 
             item {
@@ -956,17 +979,45 @@ private fun TagScopeManagerCard(
     onRenameTag: suspend (Long, String) -> Result<Unit>,
     onDeleteTag: suspend (Long) -> Unit
 ) {
-    var newTagName by remember(scope) { mutableStateOf("") }
-    var editingTagId by remember(scope) { mutableStateOf<Long?>(null) }
-    var errorMessage by remember(scope) { mutableStateOf<String?>(null) }
+    var isSelectionMode by remember(scope) { mutableStateOf(false) }
+    var selectedTagIds by remember(scope) { mutableStateOf(setOf<Long>()) }
+    var showCreateSheet by remember(scope) { mutableStateOf(false) }
+    var renameTarget by remember(scope) { mutableStateOf<TagEntity?>(null) }
     val coroutineScope = rememberCoroutineScope()
-    val emptyNameMessage = stringResource(R.string.video_tags_name_empty)
-    val duplicateNameMessage = stringResource(R.string.video_tags_name_exists)
 
-    fun clearEditor() {
-        newTagName = ""
-        editingTagId = null
-        errorMessage = null
+    fun exitSelectionMode() {
+        isSelectionMode = false
+        selectedTagIds = emptySet()
+    }
+
+    if (showCreateSheet) {
+        TagNameBottomSheet(
+            title = stringResource(R.string.video_tags_create),
+            initialValue = "",
+            actionLabel = stringResource(R.string.video_tags_create),
+            onDismiss = { showCreateSheet = false },
+            onSubmit = { name -> onCreateTag(name) }
+        ) {
+            showCreateSheet = false
+        }
+    }
+
+    renameTarget?.let { target ->
+        TagNameBottomSheet(
+            title = stringResource(R.string.action_rename),
+            initialValue = target.name,
+            actionLabel = stringResource(R.string.action_rename),
+            onDismiss = { renameTarget = null },
+            onSubmit = { name ->
+                onRenameTag(target.id, name).also {
+                    if (it.isSuccess) {
+                        renameTarget = null
+                    }
+                }
+            }
+        ) {
+            renameTarget = null
+        }
     }
 
     Card(
@@ -984,82 +1035,118 @@ private fun TagScopeManagerCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedTextField(
-                    value = newTagName,
-                    onValueChange = {
-                        newTagName = it
-                        errorMessage = null
-                    },
-                    label = {
-                        Text(
-                            if (editingTagId == null) {
-                                stringResource(R.string.tags_create_hint)
-                            } else {
-                                stringResource(R.string.new_name)
-                            }
-                        )
-                    },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                    )
-                )
                 Button(
-                    onClick = {
-                        val trimmed = newTagName.trim()
-                        if (trimmed.isEmpty()) {
-                            errorMessage = emptyNameMessage
-                            return@Button
-                        }
-                        coroutineScope.launch {
-                            val result = editingTagId?.let { tagId ->
-                                onRenameTag(tagId, trimmed)
-                            } ?: onCreateTag(trimmed).fold(
-                                onSuccess = { Result.success(Unit) },
-                                onFailure = { Result.failure(it) }
-                            )
-                            result.onSuccess {
-                                clearEditor()
-                            }.onFailure { error ->
-                                errorMessage = when (error.message) {
-                                    "empty" -> emptyNameMessage
-                                    "exists" -> duplicateNameMessage
-                                    else -> error.localizedMessage
-                                }
-                            }
-                        }
-                    },
+                    onClick = { showCreateSheet = true },
+                    modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                         contentColor = MaterialTheme.colorScheme.onSurface
                     )
                 ) {
-                    Text(
-                        if (editingTagId == null) {
-                            stringResource(R.string.video_tags_create)
+                    Text(stringResource(R.string.video_tags_create))
+                }
+
+                Button(
+                    onClick = {
+                        if (isSelectionMode) {
+                            exitSelectionMode()
                         } else {
-                            stringResource(R.string.action_rename)
+                            isSelectionMode = true
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isSelectionMode) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                        },
+                        contentColor = if (isSelectionMode) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
                         }
                     )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(stringResource(R.string.edit_tag))
                 }
             }
 
-            if (editingTagId != null) {
-                TextButton(onClick = { clearEditor() }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            }
+            if (tags.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isSelectionMode) {
+                        Text(
+                            text = "${selectedTagIds.size}/${tags.size}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.width(1.dp))
+                    }
 
-            errorMessage?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (isSelectionMode) {
+                            IconButton(
+                                onClick = {
+                                    val selectedId = selectedTagIds.singleOrNull() ?: return@IconButton
+                                    val selectedTag = tags.firstOrNull { it.id == selectedId } ?: return@IconButton
+                                    renameTarget = selectedTag
+                                    exitSelectionMode()
+                                },
+                                enabled = selectedTagIds.size == 1
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = stringResource(R.string.action_rename)
+                                )
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    val idsToDelete = selectedTagIds.toList()
+                                    if (idsToDelete.isEmpty()) return@IconButton
+
+                                    coroutineScope.launch {
+                                        idsToDelete.forEach { tagId ->
+                                            onDeleteTag(tagId)
+                                        }
+                                        exitSelectionMode()
+                                    }
+                                },
+                                enabled = selectedTagIds.isNotEmpty()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = stringResource(R.string.tags_delete),
+                                    tint = if (selectedTagIds.isNotEmpty()) {
+                                        MaterialTheme.colorScheme.error
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
+
+                            IconButton(onClick = { exitSelectionMode() }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.action_cancel)
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             if (tags.isEmpty()) {
@@ -1075,52 +1162,159 @@ private fun TagScopeManagerCard(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     tags.forEach { tag ->
-                        val deleteLabel = stringResource(R.string.tags_delete)
-                        val renameLabel = stringResource(R.string.action_rename)
+                        val isSelected = tag.id in selectedTagIds
                         AssistChip(
-                            onClick = { },
-                            label = { Text(tag.name) },
-                            trailingIcon = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(
-                                        onClick = {
-                                            editingTagId = tag.id
-                                            newTagName = tag.name
-                                            errorMessage = null
-                                        },
-                                        modifier = Modifier.size(18.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Edit,
-                                            contentDescription = renameLabel,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                    }
-                                    IconButton(
-                                        onClick = {
-                                            coroutineScope.launch {
-                                                onDeleteTag(tag.id)
-                                                if (editingTagId == tag.id) clearEditor()
-                                            }
-                                        },
-                                        modifier = Modifier.size(18.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = deleteLabel,
-                                            tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(16.dp)
-                                        )
+                            onClick = {
+                                if (isSelectionMode) {
+                                    selectedTagIds = if (isSelected) {
+                                        selectedTagIds - tag.id
+                                    } else {
+                                        selectedTagIds + tag.id
                                     }
                                 }
                             },
+                            label = { Text(tag.name) },
+                            leadingIcon = if (isSelectionMode) {
+                                {
+                                    Icon(
+                                        imageVector = if (isSelected) Icons.Default.Check else Icons.Default.LocalOffer,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            } else {
+                                null
+                            },
                             colors = AssistChipDefaults.assistChipColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
-                                labelColor = MaterialTheme.colorScheme.onSurface
+                                containerColor = when {
+                                    isSelectionMode && isSelected -> MaterialTheme.colorScheme.primaryContainer
+                                    else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
+                                },
+                                labelColor = when {
+                                    isSelectionMode && isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
+                                    else -> MaterialTheme.colorScheme.onSurface
+                                }
                             )
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TagNameBottomSheet(
+    title: String,
+    initialValue: String,
+    actionLabel: String,
+    onDismiss: () -> Unit,
+    onSubmit: suspend (String) -> Result<*>,
+    onSuccess: () -> Unit
+) {
+    var value by remember(initialValue) { mutableStateOf(initialValue) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isSubmitting by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val emptyNameMessage = stringResource(R.string.video_tags_name_empty)
+    val duplicateNameMessage = stringResource(R.string.video_tags_name_exists)
+
+    fun submit() {
+        val trimmed = value.trim()
+        if (trimmed.isEmpty()) {
+            errorMessage = emptyNameMessage
+            return
+        }
+
+        isSubmitting = true
+        errorMessage = null
+        coroutineScope.launch {
+            val result = onSubmit(trimmed)
+            result.onSuccess {
+                isSubmitting = false
+                onSuccess()
+            }.onFailure { error ->
+                errorMessage = when (error.message) {
+                    "empty" -> emptyNameMessage
+                    "exists" -> duplicateNameMessage
+                    else -> error.localizedMessage
+                }
+                isSubmitting = false
+            }
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
+        sheetState = bottomSheetState,
+        dragHandle = {
+            Surface(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(2.dp)
+            ) {
+                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
+            }
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            HorizontalDivider()
+
+            OutlinedTextField(
+                value = value,
+                onValueChange = {
+                    value = it
+                    errorMessage = null
+                },
+                label = { Text(stringResource(R.string.new_name)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                enabled = !isSubmitting,
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                )
+            )
+
+            errorMessage?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+            ) {
+                TextButton(onClick = onDismiss, enabled = !isSubmitting) {
+                    Text(stringResource(R.string.cancel))
+                }
+                Button(
+                    onClick = { submit() },
+                    enabled = !isSubmitting,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Text(actionLabel)
                 }
             }
         }

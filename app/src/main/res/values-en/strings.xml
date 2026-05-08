@@ -112,6 +112,7 @@
     <string name="video_tags_empty">No tags created yet</string>
     <string name="video_tags_empty_desc">Create tags to organize your videos and reuse them later in shuffle.</string>
     <string name="video_tags_create">Create tag</string>
+    <string name="edit_tag">Edit tag</string>
     <string name="video_tags_new_label">Tag name</string>
     <string name="video_tags_save">Save tags</string>
     <string name="video_tags_choose">Choose the tags to add to the selected videos</string>
@@ -128,6 +129,7 @@
     <string name="shuffle_tags_mode_neutral">Neutral</string>
     <string name="shuffle_tags_mode_include">Use in shuffle</string>
     <string name="shuffle_tags_mode_exclude">Ignore in shuffle</string>
+    <string name="shuffle_tags_hint_message">Tip: long-press Shuffle to choose which tags should be used.</string>
 
     <!-- Permissions -->
     <string name="permission_title">File Access Required</string>
@@ -161,7 +163,7 @@
     <!-- Settings Screen -->
     <string name="settings_playback">Playback</string>
     <string name="settings_playback_desc">Playback controls and player behavior</string>
-    <string name="settings_interface">Appearance</string>
+    <string name="settings_interface">Interface</string>
     <string name="settings_interface_desc">Theme and language of the app</string>
     <string name="settings_display">Display</string>
     <string name="settings_display_desc">Thumbnails, grid and information display</string>
@@ -175,6 +177,8 @@
     <string name="settings_tags_desc">Manage tags for regular and private videos</string>
     <string name="settings_about">About</string>
     <string name="settings_about_desc">App information and support</string>
+    <string name="settings_support_developer">Support the developer</string>
+    <string name="settings_support_developer_desc">Help keep NekoVideo open source</string>
     <string name="settings_security">Security &amp; Privacy</string>
     <string name="settings_security_desc">Biometrics and password options</string>
     <string name="security_title">Security &amp; Privacy</string>

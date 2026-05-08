@@ -112,6 +112,7 @@
     <string name="video_tags_empty">Nenhuma tag criada ainda</string>
     <string name="video_tags_empty_desc">Crie tags para organizar seus vídeos e reutilizar depois no shuffle.</string>
     <string name="video_tags_create">Criar tag</string>
+    <string name="edit_tag">Editar tag</string>
     <string name="video_tags_new_label">Nome da tag</string>
     <string name="video_tags_save">Salvar tags</string>
     <string name="video_tags_choose">Escolha as tags para adicionar aos vídeos selecionados</string>
@@ -128,6 +129,7 @@
     <string name="shuffle_tags_mode_neutral">Neutro</string>
     <string name="shuffle_tags_mode_include">Usar no shuffle</string>
     <string name="shuffle_tags_mode_exclude">Ignorar no shuffle</string>
+    <string name="shuffle_tags_hint_message">Dica: segure em Aleatório para escolher quais tags usar no shuffle.</string>
 
     <plurals name="video_tags_selected_count">
         <item quantity="one">%d vídeo selecionado</item>
@@ -166,7 +168,7 @@
     <!-- Settings Screen -->
     <string name="settings_playback">Reprodução</string>
     <string name="settings_playback_desc">Controles de playback e comportamento do player</string>
-    <string name="settings_interface">Aparência</string>
+    <string name="settings_interface">Interface</string>
     <string name="settings_interface_desc">Tema e idioma do aplicativo</string>
     <string name="settings_display">Visualização</string>
     <string name="settings_display_desc">Thumbnails, grid e exibição de informações</string>
@@ -180,6 +182,8 @@
     <string name="settings_tags_desc">Gerencie tags para vídeos normais e privados</string>
     <string name="settings_about">Sobre</string>
     <string name="settings_about_desc">Informações do app e suporte</string>
+    <string name="settings_support_developer">Apoiar o desenvolvedor</string>
+    <string name="settings_support_developer_desc">Ajude a manter o NekoVideo open source</string>
     <string name="settings_security">Segurança e Privacidade</string>
     <string name="settings_security_desc">Biometria e opções de senha</string>
     <string name="security_title">Segurança e Privacidade</string>

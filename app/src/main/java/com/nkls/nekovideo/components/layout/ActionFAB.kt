@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
@@ -62,6 +63,9 @@ fun ActionFAB(
     selectedItems: List<String> = emptyList(),
     itemsToMoveCount: Int = 0,
     isInsideLockedFolder: Boolean = false,
+    showShuffleLongPressHint: Boolean = false,
+    onShuffleLongPressHintShown: () -> Unit = {},
+    onFabOpened: () -> Unit = {},
     onActionClick: (ActionType) -> Unit,
     onActionLongClick: (ActionType) -> Unit = {}
 ) {
@@ -305,7 +309,10 @@ fun ActionFAB(
             }
         } else {
             FloatingActionButton(
-                onClick = { showBottomSheet = true },
+                onClick = {
+                    onFabOpened()
+                    showBottomSheet = true
+                },
                 modifier = Modifier.size(56.dp),
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
@@ -322,7 +329,9 @@ fun ActionFAB(
     // Bottom Sheet Modal
     if (showBottomSheet) {
         ModalBottomSheet(
-            onDismissRequest = { showBottomSheet = false },
+            onDismissRequest = {
+                showBottomSheet = false
+            },
             sheetState = bottomSheetState,
             dragHandle = {
                 Surface(
@@ -375,6 +384,32 @@ fun ActionFAB(
 
                 Spacer(modifier = Modifier.height(if (isWide) 8.dp else 16.dp))
 
+                if (showShuffleLongPressHint) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.TouchApp,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.shuffle_tags_hint_message),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
                 // Grid de ações - mais colunas em landscape
                 val gridCols = when {
                     isMoveMode -> 2
@@ -393,12 +428,16 @@ fun ActionFAB(
                             action = action,
                             isMoveMode = isMoveMode,
                             isCompact = isWide,
+                            showHighlight = showShuffleLongPressHint && action.type == ActionType.SHUFFLE_PLAY,
                             onClick = {
                                 onActionClick(action.type)
                                 showBottomSheet = false
                             },
                             onLongClick = {
                                 onActionLongClick(action.type)
+                                if (showShuffleLongPressHint && action.type == ActionType.SHUFFLE_PLAY) {
+                                    onShuffleLongPressHintShown()
+                                }
                                 showBottomSheet = false
                             }
                         )
@@ -417,6 +456,7 @@ private fun ActionGridItem(
     action: ActionItem,
     isMoveMode: Boolean = false,
     isCompact: Boolean = false,
+    showHighlight: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
@@ -427,6 +467,9 @@ private fun ActionGridItem(
     }
     val iconSurfaceSize = if (isCompact) 36.dp else 40.dp
     val iconSize = if (isCompact) 18.dp else 20.dp
+    val highlightColor = MaterialTheme.colorScheme.primary
+    val highlightContainer = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.16f)
+    val outlineColor = if (showHighlight) highlightColor.copy(alpha = 0.45f) else Color.Transparent
 
     Surface(
         modifier = Modifier
@@ -441,12 +484,13 @@ private fun ActionGridItem(
                     if (action.isEnabled) onLongClick()
                 }
             ),
-        color = Color.Transparent,
+        color = if (showHighlight) highlightContainer else Color.Transparent,
         shape = RoundedCornerShape(12.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .border(width = 1.dp, color = outlineColor, shape = RoundedCornerShape(12.dp))
                 .padding(if (isCompact) 4.dp else 8.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -458,11 +502,13 @@ private fun ActionGridItem(
                 val isDestructive = action.type == ActionType.DELETE || action.type == ActionType.CANCEL_MOVE
                 val iconBg = when {
                     !action.isEnabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                    showHighlight -> highlightColor.copy(alpha = 0.16f)
                     isDestructive -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.18f)
                     else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)
                 }
                 val iconTint = when {
                     !action.isEnabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
+                    showHighlight -> highlightColor
                     isDestructive -> MaterialTheme.colorScheme.error
                     else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
                 }
@@ -499,9 +545,13 @@ private fun ActionGridItem(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp), // ✅ ADICIONE
+                        .padding(horizontal = 4.dp),
                     color = if (action.isEnabled) {
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                        if (showHighlight) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                        }
                     } else {
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                     }

@@ -3,10 +3,12 @@ package com.nkls.nekovideo.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,13 +31,16 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -93,122 +98,126 @@ fun SingleRenameDialog(
     val coroutineScope = rememberCoroutineScope()
     val context = LanguageManager.getLocalizedContext(LocalContext.current)
     val focusRequester = remember { FocusRequester() }
+    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
-    Dialog(
+    fun performRename() {
+        if (newName.trim().isNotEmpty()) {
+            isRenaming = true
+            coroutineScope.launch {
+                val file = File(selectedItem)
+                val extension = if (file.isFile) ".${file.extension}" else ""
+                val isPrivateFolder = file.isDirectory && file.name.startsWith(".")
+                val finalName = if (isPrivateFolder) ".${newName.trim()}" else newName.trim()
+
+                val newFile = File(file.parent, "$finalName$extension")
+                val success = file.renameTo(newFile)
+
+                if (success) {
+                    withContext(Dispatchers.IO) {
+                        VideoTagStore.moveTagsForPath(context, file.absolutePath, newFile.absolutePath)
+                    }
+                    onRefresh?.invoke()
+                }
+
+                isRenaming = false
+                onComplete()
+                onDismiss()
+            }
+        }
+    }
+
+    ModalBottomSheet(
         onDismissRequest = { if (!isRenaming) onDismiss() },
-        properties = DialogProperties(
-            dismissOnBackPress = !isRenaming,
-            dismissOnClickOutside = !isRenaming
-        )
+        sheetState = bottomSheetState,
+        dragHandle = {
+            Surface(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(2.dp)
+            ) {
+                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
+            }
+        }
     ) {
-        Surface(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = if (isRenaming) stringResource(R.string.renaming_files) else stringResource(R.string.rename_item),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+            Text(
+                text = if (isRenaming) stringResource(R.string.renaming_files) else stringResource(R.string.rename_item),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
 
-                if (isRenaming) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+            HorizontalDivider()
+
+            if (isRenaming) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 3.dp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = stringResource(R.string.renaming_item),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Item: ${File(selectedItem).name}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedTextField(
+                        value = newName,
+                        onValueChange = { newName = it },
+                        label = { Text(stringResource(R.string.new_name)) },
+                        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                        enabled = !isRenaming,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { performRename() }),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                        )
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 3.dp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                        Text(
-                            text = stringResource(R.string.renaming_item),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Text(stringResource(R.string.cancel))
                     }
-                } else {
-                    fun performRename() {
-                        if (newName.trim().isNotEmpty()) {
-                            isRenaming = true
-                            coroutineScope.launch {
-                                val file = File(selectedItem)
-                                val extension = if (file.isFile) ".${file.extension}" else ""
-                                val isPrivateFolder = file.isDirectory && file.name.startsWith(".")
-                                val finalName = if (isPrivateFolder) ".$newName" else newName
-
-                                val newFile = File(file.parent, "$finalName$extension")
-                                val success = file.renameTo(newFile)
-
-                                if (success) {
-                                    withContext(Dispatchers.IO) {
-                                        VideoTagStore.moveTagsForPath(context, file.absolutePath, newFile.absolutePath)
-                                    }
-                                    onRefresh?.invoke()
-                                }
-
-                                isRenaming = false
-                                onComplete()
-                                onDismiss()
-                            }
-                        }
-                    }
-
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(
-                            text = "Item: ${File(selectedItem).name}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Button(
+                        onClick = { performRename() },
+                        enabled = newName.trim().isNotEmpty(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            contentColor = MaterialTheme.colorScheme.onSurface
                         )
-
-                        OutlinedTextField(
-                            value = newName,
-                            onValueChange = { newName = it },
-                            label = { Text(stringResource(R.string.new_name)) },
-                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-                            enabled = !isRenaming,
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = { performRename() }),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                            )
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
                     ) {
-                        TextButton(
-                            onClick = onDismiss,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                        Button(
-                            onClick = { performRename() },
-                            enabled = newName.trim().isNotEmpty(),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        ) {
-                            Text(stringResource(R.string.rename))
-                        }
+                        Text(stringResource(R.string.rename))
                     }
                 }
             }
@@ -326,132 +335,136 @@ fun MultipleRenameDialog(
     val coroutineScope = rememberCoroutineScope()
     val context = LanguageManager.getLocalizedContext(LocalContext.current)
     val focusRequester = remember { FocusRequester() }
+    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
-    Dialog(
+    fun performMultiRename() {
+        if (baseName.trim().isNotEmpty() && startNumber.toIntOrNull() != null) {
+            isRenaming = true
+            coroutineScope.launch {
+                FilesManager.renameSelectedItems(
+                    context,
+                    selectedItems,
+                    baseName.trim(),
+                    startNumber.toIntOrNull() ?: 1,
+                    onProgress = { current, total ->
+                        currentProgress = current
+                        totalItems = total
+                    },
+                    onRefresh = onRefresh
+                )
+                isRenaming = false
+                onComplete()
+                onDismiss()
+            }
+        }
+    }
+
+    ModalBottomSheet(
         onDismissRequest = { if (!isRenaming) onDismiss() },
-        properties = DialogProperties(
-            dismissOnBackPress = !isRenaming,
-            dismissOnClickOutside = !isRenaming
-        )
+        sheetState = bottomSheetState,
+        dragHandle = {
+            Surface(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(2.dp)
+            ) {
+                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
+            }
+        }
     ) {
-        Surface(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = if (isRenaming) stringResource(R.string.renaming_files) else stringResource(R.string.rename_multiple_items),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+            Text(
+                text = if (isRenaming) stringResource(R.string.renaming_files) else stringResource(R.string.rename_multiple_items),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
 
-                if (isRenaming) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 3.dp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                        Text(
-                            text = stringResource(R.string.renaming_progress, currentProgress, totalItems),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else {
-                    fun performMultiRename() {
-                        if (baseName.trim().isNotEmpty() && startNumber.toIntOrNull() != null) {
-                            isRenaming = true
-                            coroutineScope.launch {
-                                FilesManager.renameSelectedItems(
-                                    context,
-                                    selectedItems,
-                                    baseName.trim(),
-                                    startNumber.toIntOrNull() ?: 1,
-                                    onProgress = { current, total ->
-                                        currentProgress = current
-                                        totalItems = total
-                                    },
-                                    onRefresh = onRefresh
-                                )
-                                isRenaming = false
-                                onComplete()
-                                onDismiss()
-                            }
-                        }
-                    }
+            HorizontalDivider()
 
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(
-                            text = stringResource(R.string.selected_items_count, selectedItems.size),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+            if (isRenaming) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 3.dp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = stringResource(R.string.renaming_progress, currentProgress, totalItems),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = stringResource(R.string.selected_items_count, selectedItems.size),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
-                        OutlinedTextField(
-                            value = baseName,
-                            onValueChange = { baseName = it },
-                            label = { Text(stringResource(R.string.base_name)) },
-                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-                            enabled = !isRenaming,
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                            )
+                    OutlinedTextField(
+                        value = baseName,
+                        onValueChange = { baseName = it },
+                        label = { Text(stringResource(R.string.base_name)) },
+                        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                        enabled = !isRenaming,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                         )
-                        OutlinedTextField(
-                            value = startNumber,
-                            onValueChange = { if (it.matches(Regex("\\d*"))) startNumber = it },
-                            label = { Text(stringResource(R.string.start_number)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isRenaming,
-                            singleLine = true,
-                            shape = RoundedCornerShape(10.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = { performMultiRename() }),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                            )
-                        )
-                    }
-
-                    Row(
+                    )
+                    OutlinedTextField(
+                        value = startNumber,
+                        onValueChange = { if (it.matches(Regex("\\d*"))) startNumber = it },
+                        label = { Text(stringResource(R.string.start_number)) },
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                        enabled = !isRenaming,
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { performMultiRename() }),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                        )
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        TextButton(
-                            onClick = onDismiss,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                        Button(
-                            onClick = { performMultiRename() },
-                            enabled = baseName.trim().isNotEmpty() && startNumber.toIntOrNull() != null,
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        ) {
-                            Text(stringResource(R.string.rename))
-                        }
+                        Text(stringResource(R.string.cancel))
+                    }
+                    Button(
+                        onClick = { performMultiRename() },
+                        enabled = baseName.trim().isNotEmpty() && startNumber.toIntOrNull() != null,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Text(stringResource(R.string.rename))
                     }
                 }
             }
@@ -658,10 +671,42 @@ fun PasswordDialog(
     }
     val isFirstTime = !FilesManager.SecureStorage.hasPassword(context)
     val focusRequester = remember { FocusRequester() }
+    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val biometricEnabled = remember { BiometricHelper.isBiometricEnabled(context) }
     val showBiometricFirst = biometricEnabled && !isFirstTime
     var showManualEntry by remember { mutableStateOf(!showBiometricFirst) }
+
+    fun performPasswordSubmit() {
+        if (password.isBlank()) {
+            errorMessage = "Password cannot be empty"
+            return
+        }
+        if (isFirstTime && password != confirmPassword) {
+            errorMessage = "Passwords do not match"
+            return
+        }
+        isProcessing = true
+        coroutineScope.launch {
+            val success = withContext(Dispatchers.IO) {
+                if (isFirstTime) {
+                    FilesManager.SecureStorage.savePassword(context, password)
+                } else {
+                    FilesManager.SecureStorage.verifyPassword(context, password)
+                }
+            }
+            isProcessing = false
+            if (success) {
+                if (isFirstTime) {
+                    FilesManager.SecureStorage.ensureSecureFolderExists(context)
+                    onFirstTimePasswordCreated?.invoke(password)
+                }
+                onPasswordVerified(password)
+            } else {
+                errorMessage = "Invalid password"
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (showBiometricFirst) {
@@ -681,123 +726,121 @@ fun PasswordDialog(
         }
     }
 
-    Dialog(
+    ModalBottomSheet(
         onDismissRequest = { if (!isProcessing) onDismiss() },
-        properties = DialogProperties(
-            dismissOnBackPress = !isProcessing,
-            dismissOnClickOutside = !isProcessing
-        )
+        sheetState = bottomSheetState,
+        dragHandle = {
+            Surface(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(2.dp)
+            ) {
+                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
+            }
+        }
     ) {
-        Surface(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = if (isFirstTime) {
-                        stringResource(R.string.set_secure_password)
-                    } else {
-                        stringResource(R.string.enter_password)
-                    },
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                if (isProcessing) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            strokeWidth = 2.5.dp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                        Text(
-                            text = stringResource(R.string.processing),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else if (!showManualEntry) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Fingerprint,
-                            contentDescription = null,
-                            modifier = Modifier.size(52.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = stringResource(R.string.biometric_scanning),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                        TextButton(onClick = { showManualEntry = true }) {
-                            Text(stringResource(R.string.biometric_use_password))
-                        }
-                    }
+            Text(
+                text = if (isFirstTime) {
+                    stringResource(R.string.set_secure_password)
                 } else {
-                    fun performPasswordSubmit() {
-                        if (password.isBlank()) {
-                            errorMessage = "Password cannot be empty"
-                            return
-                        }
-                        if (isFirstTime && password != confirmPassword) {
-                            errorMessage = "Passwords do not match"
-                            return
-                        }
-                        isProcessing = true
-                        coroutineScope.launch {
-                            val success = withContext(Dispatchers.IO) {
-                                if (isFirstTime) {
-                                    FilesManager.SecureStorage.savePassword(context, password)
-                                } else {
-                                    FilesManager.SecureStorage.verifyPassword(context, password)
-                                }
-                            }
-                            isProcessing = false
-                            if (success) {
-                                if (isFirstTime) {
-                                    FilesManager.SecureStorage.ensureSecureFolderExists(context)
-                                    onFirstTimePasswordCreated?.invoke(password)
-                                }
-                                onPasswordVerified(password)
-                            } else {
-                                errorMessage = "Invalid password"
-                            }
-                        }
-                    }
+                    stringResource(R.string.enter_password)
+                },
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
 
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            HorizontalDivider()
+
+            if (isProcessing) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.5.dp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = stringResource(R.string.processing),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else if (!showManualEntry) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Fingerprint,
+                        contentDescription = null,
+                        modifier = Modifier.size(52.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = stringResource(R.string.biometric_scanning),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    TextButton(onClick = { showManualEntry = true }) {
+                        Text(stringResource(R.string.biometric_use_password))
+                    }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = {
+                            password = it
+                            errorMessage = null
+                        },
+                        label = { Text(stringResource(R.string.password)) },
+                        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                        isError = errorMessage != null,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = if (isFirstTime) ImeAction.Next else ImeAction.Done
+                        ),
+                        keyboardActions = if (!isFirstTime) KeyboardActions(onDone = { performPasswordSubmit() }) else KeyboardActions.Default,
+                        visualTransformation = PasswordVisualTransformation(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            errorBorderColor = MaterialTheme.colorScheme.error
+                        )
+                    )
+
+                    if (isFirstTime) {
                         OutlinedTextField(
-                            value = password,
+                            value = confirmPassword,
                             onValueChange = {
-                                password = it
+                                confirmPassword = it
                                 errorMessage = null
                             },
-                            label = { Text(stringResource(R.string.password)) },
-                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                            label = { Text(stringResource(R.string.confirm_password)) },
+                            modifier = Modifier.fillMaxWidth(),
                             isError = errorMessage != null,
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Number,
-                                imeAction = if (isFirstTime) ImeAction.Next else ImeAction.Done
+                                imeAction = ImeAction.Done
                             ),
-                            keyboardActions = if (!isFirstTime) KeyboardActions(onDone = { performPasswordSubmit() }) else KeyboardActions.Default,
+                            keyboardActions = KeyboardActions(onDone = { performPasswordSubmit() }),
                             visualTransformation = PasswordVisualTransformation(),
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -806,70 +849,44 @@ fun PasswordDialog(
                                 errorBorderColor = MaterialTheme.colorScheme.error
                             )
                         )
-
-                        if (isFirstTime) {
-                            OutlinedTextField(
-                                value = confirmPassword,
-                                onValueChange = {
-                                    confirmPassword = it
-                                    errorMessage = null
-                                },
-                                label = { Text(stringResource(R.string.confirm_password)) },
-                                modifier = Modifier.fillMaxWidth(),
-                                isError = errorMessage != null,
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Number,
-                                    imeAction = ImeAction.Done
-                                ),
-                                keyboardActions = KeyboardActions(onDone = { performPasswordSubmit() }),
-                                visualTransformation = PasswordVisualTransformation(),
-                                shape = RoundedCornerShape(10.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                                    errorBorderColor = MaterialTheme.colorScheme.error
-                                )
-                            )
-                        }
-
-                        errorMessage?.let { error ->
-                            Text(
-                                text = error,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(start = 4.dp)
-                            )
-                        }
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                    errorMessage?.let { error ->
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        TextButton(
-                            onClick = onDismiss,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                        Button(
-                            onClick = { performPasswordSubmit() },
-                            enabled = password.isNotBlank() && (!isFirstTime || confirmPassword.isNotBlank()),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        ) {
-                            Text(
-                                if (isFirstTime) {
-                                    stringResource(R.string.set_password)
-                                } else {
-                                    stringResource(R.string.verify)
-                                }
-                            )
-                        }
+                        Text(stringResource(R.string.cancel))
+                    }
+                    Button(
+                        onClick = { performPasswordSubmit() },
+                        enabled = password.isNotBlank() && (!isFirstTime || confirmPassword.isNotBlank()),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Text(
+                            if (isFirstTime) {
+                                stringResource(R.string.set_password)
+                            } else {
+                                stringResource(R.string.verify)
+                            }
+                        )
                     }
                 }
             }
@@ -1187,55 +1204,66 @@ fun DeleteConfirmationDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
+    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = bottomSheetState,
+        dragHandle = {
+            Surface(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(2.dp)
+            ) {
+                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
+            }
+        }
+    ) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+            Text(
+                text = stringResource(R.string.confirm_deletion),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            HorizontalDivider()
+
+            Text(
+                text = stringResource(R.string.delete_confirmation_message, itemCount),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 20.sp
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
             ) {
-                Text(
-                    text = stringResource(R.string.confirm_deletion),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Text(
-                    text = stringResource(R.string.delete_confirmation_message, itemCount),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 20.sp
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                TextButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    ) {
-                        Text(stringResource(R.string.cancel))
-                    }
-                    Button(
-                        onClick = onConfirm,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(stringResource(R.string.delete))
-                    }
+                    Text(stringResource(R.string.cancel))
+                }
+                Button(
+                    onClick = onConfirm,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(stringResource(R.string.delete))
                 }
             }
         }
@@ -1252,56 +1280,66 @@ fun DeleteVideoDialog(
     onConfirm: () -> Unit
 ) {
     val fileName = File(videoPath).nameWithoutExtension
+    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = bottomSheetState,
+        dragHandle = {
+            Surface(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(2.dp)
+            ) {
+                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
+            }
+        }
+    ) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+            Text(
+                text = stringResource(R.string.delete_video),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            HorizontalDivider()
+
+            Text(
+                text = stringResource(R.string.delete_video_confirmation, fileName),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 20.sp
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
             ) {
-                Text(
-                    text = stringResource(R.string.delete_video),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Text(
-                    text = stringResource(R.string.delete_video_confirmation, fileName),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 20.sp
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                TextButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    ) {
-                        Text(stringResource(R.string.cancel))
-                    }
-                    Button(
-                        onClick = onConfirm,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(stringResource(R.string.delete))
-                    }
+                    Text(stringResource(R.string.cancel))
+                }
+                Button(
+                    onClick = onConfirm,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(stringResource(R.string.delete))
                 }
             }
         }

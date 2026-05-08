@@ -1,1 +1,1 @@
-Player de vídeo moderno com pastas, gestos, corte de vídeo e pastas privadas
+Player de vídeo local open-source com pastas, conteúdo privado e cast DLNA

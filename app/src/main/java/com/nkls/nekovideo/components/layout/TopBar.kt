@@ -195,6 +195,13 @@ fun TopBar(
                         fontWeight = FontWeight.Medium
                     )
                 }
+                currentRoute == "settings/storage" -> {
+                    Text(
+                        text = stringResource(R.string.settings_storage),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
                 currentRoute == "settings/tags" -> {
                     Text(
                         text = stringResource(R.string.tags_title),

@@ -90,6 +90,7 @@ fun VideoPlayerOverlay(
     isVisible: Boolean,
     canControlRotation: Boolean,
     onDismiss: () -> Unit,
+    onManageTags: () -> Unit = {},
     onVideoDeleted: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -354,15 +355,9 @@ fun VideoPlayerOverlay(
             tags = availableTags,
             initialSelectedTagIds = commonSelectedTagIds,
             onDismiss = { showVideoTagsDialog = false },
-            onCreateTag = { name ->
-                val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    VideoTagStore.createTag(context, name, getTagScopeForPath(currentVideoPath))
-                }
-                result.onSuccess { createdTag ->
-                    availableTags = (availableTags + createdTag).sortedBy { it.name.lowercase() }
-                    Toast.makeText(context, context.getString(R.string.video_tags_create_success), Toast.LENGTH_SHORT).show()
-                }
-                result
+            onManageTags = {
+                showVideoTagsDialog = false
+                onManageTags()
             },
             onSave = { selectedTagIds ->
                 val targetVideo = currentVideoPath

@@ -112,6 +112,7 @@
     <string name="video_tags_empty">Noch keine Tags erstellt</string>
     <string name="video_tags_empty_desc">Erstellen Sie Tags, um Ihre Videos zu organisieren und später beim Zufallsshuffle wiederzuverwenden.</string>
     <string name="video_tags_create">Tag erstellen</string>
+    <string name="edit_tag">Tag bearbeiten</string>
     <string name="video_tags_new_label">Tag-Name</string>
     <string name="video_tags_save">Tags speichern</string>
     <string name="video_tags_choose">Wählen Sie die Tags aus, die zu den ausgewählten Videos hinzugefügt werden sollen</string>

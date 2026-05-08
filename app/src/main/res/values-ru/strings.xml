@@ -112,6 +112,7 @@
     <string name="video_tags_empty">Теги ещё не созданы</string>
     <string name="video_tags_empty_desc">Создайте теги, чтобы упорядочить видео и позже использовать их в shuffle.</string>
     <string name="video_tags_create">Создать тег</string>
+    <string name="edit_tag">Редактировать тег</string>
     <string name="video_tags_new_label">Название тега</string>
     <string name="video_tags_save">Сохранить теги</string>
     <string name="video_tags_choose">Выберите теги, которые нужно добавить к выбранным видео</string>

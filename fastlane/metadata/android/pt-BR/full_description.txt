@@ -1,17 +1,14 @@
-NekoVideo é um player de vídeo moderno e open-source para Android, focado em simplicidade e privacidade.
-
-Navegue pela sua biblioteca de vídeos organizada por pastas e subpastas, com suporte completo a diretórios aninhados.
+NekoVideo é um player de vídeo local e open-source para Android, focado em privacidade e organização por pastas.
 
 Recursos:
 
 * Navegação por pastas e subpastas
-* Formatos suportados: MP4, MKV, AVI, MOV, WMV, M4V, 3GP, FLV
-* Pastas privadas protegidas por senha (criptografia AES local, sem nuvem)
-* Reprodução em segundo plano com controles na notificação
-* Controles por gestos: volume, brilho e avanço/retrocesso
-* Corte e edição de vídeos (sem re-codificação, sem perda de qualidade)
-* Playlists aleatórias a partir de qualquer pasta
+* Suporte a formatos comuns como MP4, MKV, AVI, MOV, WMV, M4V, 3GP e FLV
+* Pastas privadas com proteção por senha e suporte a biometria
+* Reprodução em segundo plano, notificação de mídia e mini player
+* Toque duplo para avançar, seleção de legendas e seleção de faixa de áudio
+* Reprodução aleatória por pasta e suporte a "Abrir com"
 * Suporte a Picture-in-Picture (PiP)
-* Suporte a "Abrir com" para arquivos externos
-* Transmissão para dispositivos DLNA/UPnP na rede local
-* Sem anúncios, sem rastreamento, sem permissão de internet
+* Transmissão DLNA/UPnP na rede local
+* Correção de metadados de MP4 por remux sem reencodificação
+* Sem anúncios e sem rastreamento

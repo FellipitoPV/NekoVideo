@@ -112,6 +112,7 @@
     <string name="video_tags_empty">अभी तक कोई टैग नहीं बनाई गई</string>
     <string name="video_tags_empty_desc">अपने वीडियो व्यवस्थित करने और बाद में शफल में उपयोग करने के लिए टैग्स बनाएं।</string>
     <string name="video_tags_create">टैग बनाएं</string>
+    <string name="edit_tag">टैग संपादित करें</string>
     <string name="video_tags_new_label">टैग का नाम</string>
     <string name="video_tags_save">टैग्स सहेजें</string>
     <string name="video_tags_choose">चुने गए वीडियो में जोड़ने के लिए टैग्स चुनें</string>

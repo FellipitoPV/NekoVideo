@@ -112,6 +112,7 @@
     <string name="video_tags_empty">Aucun tag créé pour le moment</string>
     <string name="video_tags_empty_desc">Créez des tags pour organiser vos vidéos et les réutiliser plus tard dans le shuffle.</string>
     <string name="video_tags_create">Créer un tag</string>
+    <string name="edit_tag">Modifier le tag</string>
     <string name="video_tags_new_label">Nom du tag</string>
     <string name="video_tags_save">Enregistrer les tags</string>
     <string name="video_tags_choose">Choisissez les tags à ajouter aux vidéos sélectionnées</string>

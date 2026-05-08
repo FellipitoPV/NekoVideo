@@ -1,1 +1,1 @@
-Modern video player with folder management, gesture controls and video cutting
+Open-source local video player with folders, private content and DLNA cast
