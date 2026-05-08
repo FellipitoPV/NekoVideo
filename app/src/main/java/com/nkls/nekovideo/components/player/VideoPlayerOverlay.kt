@@ -47,6 +47,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
@@ -82,6 +83,20 @@ import com.nkls.nekovideo.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
+
+private data class PreferredTrack(
+    val label: String?,
+    val language: String?,
+    val mimeType: String?
+)
+
+private fun Format.toPreferredTrack(): PreferredTrack {
+    return PreferredTrack(
+        label = label?.takeIf { it.isNotBlank() },
+        language = language?.takeIf { it.isNotBlank() },
+        mimeType = sampleMimeType?.takeIf { it.isNotBlank() }
+    )
+}
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @SuppressLint("OpaqueUnitKey")
@@ -172,6 +187,9 @@ fun VideoPlayerOverlay(
     var availableAudioTracks by remember { mutableStateOf<List<Tracks.Group>>(emptyList()) }
     var selectedSubtitleTrack by remember { mutableStateOf<Int?>(null) }
     var selectedAudioTrack by remember { mutableStateOf<Int?>(null) }
+    var preferredSubtitleTrack by remember { mutableStateOf<PreferredTrack?>(null) }
+    var preferredAudioTrack by remember { mutableStateOf<PreferredTrack?>(null) }
+    var subtitlesExplicitlyDisabled by remember { mutableStateOf(false) }
     var showTrackSelectionDialog by remember { mutableStateOf(false) }
 
     // PlayerView sem controles nativos
@@ -255,8 +273,10 @@ fun VideoPlayerOverlay(
 
     fun selectSubtitleTrack(groupIndex: Int, trackIndex: Int) {
         mediaController?.let { controller ->
+            val trackFormat = availableSubtitles[groupIndex].getTrackFormat(trackIndex)
             val trackSelectionParameters = controller.trackSelectionParameters
                 .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
                 .setOverrideForType(
                     TrackSelectionOverride(
                         availableSubtitles[groupIndex].mediaTrackGroup,
@@ -267,6 +287,8 @@ fun VideoPlayerOverlay(
 
             controller.trackSelectionParameters = trackSelectionParameters
             selectedSubtitleTrack = groupIndex
+            preferredSubtitleTrack = trackFormat.toPreferredTrack()
+            subtitlesExplicitlyDisabled = false
         }
     }
 
@@ -277,6 +299,89 @@ fun VideoPlayerOverlay(
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
                 .build()
             selectedSubtitleTrack = null
+            preferredSubtitleTrack = null
+            subtitlesExplicitlyDisabled = true
+        }
+    }
+
+    fun PreferredTrack.matches(format: Format): Boolean {
+        val normalizedLabel = label?.trim()?.lowercase()
+        val normalizedLanguage = language?.trim()?.lowercase()
+        val normalizedMimeType = mimeType?.trim()?.lowercase()
+
+        val formatLabel = format.label?.trim()?.lowercase()
+        val formatLanguage = format.language?.trim()?.lowercase()
+        val formatMimeType = format.sampleMimeType?.trim()?.lowercase()
+
+        return when {
+            normalizedLabel != null && normalizedLanguage != null -> {
+                formatLabel == normalizedLabel && formatLanguage == normalizedLanguage
+            }
+            normalizedLanguage != null && normalizedMimeType != null -> {
+                formatLanguage == normalizedLanguage && formatMimeType == normalizedMimeType
+            }
+            normalizedLanguage != null -> formatLanguage == normalizedLanguage
+            normalizedLabel != null -> formatLabel == normalizedLabel
+            normalizedMimeType != null -> formatMimeType == normalizedMimeType
+            else -> false
+        }
+    }
+
+    fun findMatchingTrack(groups: List<Tracks.Group>, preferredTrack: PreferredTrack?): Pair<Int, Int>? {
+        if (preferredTrack == null) return null
+
+        groups.forEachIndexed { groupIndex, group ->
+            for (trackIndex in 0 until group.length) {
+                if (preferredTrack.matches(group.getTrackFormat(trackIndex))) {
+                    return groupIndex to trackIndex
+                }
+            }
+        }
+
+        return null
+    }
+
+    fun reapplyPreferredTracks(controller: MediaController) {
+        val subtitleMatch = findMatchingTrack(availableSubtitles, preferredSubtitleTrack)
+        if (subtitleMatch != null) {
+            val (groupIndex, trackIndex) = subtitleMatch
+            val updatedParams = controller.trackSelectionParameters
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                .setOverrideForType(
+                    TrackSelectionOverride(
+                        availableSubtitles[groupIndex].mediaTrackGroup,
+                        trackIndex
+                    )
+                )
+                .build()
+            controller.trackSelectionParameters = updatedParams
+            selectedSubtitleTrack = groupIndex
+        } else if (preferredSubtitleTrack != null || subtitlesExplicitlyDisabled) {
+            controller.trackSelectionParameters = controller.trackSelectionParameters
+                .buildUpon()
+                .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                .build()
+            selectedSubtitleTrack = null
+        }
+
+        val audioMatch = findMatchingTrack(availableAudioTracks, preferredAudioTrack)
+        if (audioMatch != null) {
+            val (groupIndex, trackIndex) = audioMatch
+            val updatedParams = controller.trackSelectionParameters
+                .buildUpon()
+                .setOverrideForType(
+                    TrackSelectionOverride(
+                        availableAudioTracks[groupIndex].mediaTrackGroup,
+                        trackIndex
+                    )
+                )
+                .build()
+            controller.trackSelectionParameters = updatedParams
+            selectedAudioTrack = groupIndex
+        } else if (preferredAudioTrack != null) {
+            selectedAudioTrack = null
         }
     }
 
@@ -303,6 +408,7 @@ fun VideoPlayerOverlay(
 
         availableSubtitles = subtitleGroups
         availableAudioTracks = audioGroups
+        reapplyPreferredTracks(controller)
 
     }
 
@@ -479,6 +585,7 @@ fun VideoPlayerOverlay(
 
     fun selectAudioTrack(groupIndex: Int, trackIndex: Int) {
         mediaController?.let { controller ->
+            val trackFormat = availableAudioTracks[groupIndex].getTrackFormat(trackIndex)
             val trackSelectionParameters = controller.trackSelectionParameters
                 .buildUpon()
                 .setOverrideForType(
@@ -491,6 +598,7 @@ fun VideoPlayerOverlay(
 
             controller.trackSelectionParameters = trackSelectionParameters
             selectedAudioTrack = groupIndex
+            preferredAudioTrack = trackFormat.toPreferredTrack()
         }
     }
 

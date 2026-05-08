@@ -70,6 +70,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nkls.nekovideo.components.helpers.ContinueWatchingEntry
+import com.nkls.nekovideo.components.helpers.ContinueWatchingStore
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
@@ -103,8 +105,12 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nkls.nekovideo.services.FolderInfo
 import com.nkls.nekovideo.components.helpers.HybridDataSourceFactory
+import com.nkls.nekovideo.components.helpers.DLNACastManager
+import com.nkls.nekovideo.components.player.MediaControllerManager
+import java.util.concurrent.TimeUnit
 
 enum class SortType { NAME_ASC, NAME_DESC, DATE_NEWEST, DATE_OLDEST, SIZE_LARGEST, SIZE_SMALLEST }
 
@@ -957,6 +963,7 @@ fun SortRow(
 fun FolderScreen(
     folderPath: String,
     onFolderClick: (String) -> Unit,
+    onContinueWatchingClick: (ContinueWatchingEntry) -> Unit = {},
     selectedItems: MutableList<String>,
     onSelectionChange: (List<String>) -> Unit,
     renameTrigger: Int,
@@ -982,6 +989,18 @@ fun FolderScreen(
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val continueWatchingEntry by ContinueWatchingStore.entry.collectAsStateWithLifecycle()
+    val hasActivePlayback by ContinueWatchingStore.hasActivePlayback.collectAsStateWithLifecycle()
+    val castManager = remember { DLNACastManager.getInstance(context) }
+    var hasActiveCastPlayback by remember {
+        mutableStateOf(castManager.isConnected && castManager.currentTitle.isNotBlank())
+    }
+
+    fun reloadContinueWatching() {
+        if (isRootLevel) {
+            ContinueWatchingStore.get(context)
+        }
+    }
 
     // Cache de items por pasta para evitar flicker durante transições
     var itemsByPath by remember { mutableStateOf<Map<String, List<MediaItem>>>(emptyMap()) }
@@ -1034,10 +1053,31 @@ fun FolderScreen(
                     FolderVideoScanner.startScan(context, forceRefresh = false)
                 }
             }
+
+            if (event == Lifecycle.Event.ON_RESUME && isRootLevel) {
+                reloadContinueWatching()
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+
+    LaunchedEffect(isRootLevel, renameTrigger, scannerCache) {
+        if (isRootLevel) {
+            reloadContinueWatching()
+        }
+    }
+
+    LaunchedEffect(isRootLevel, castManager) {
+        if (!isRootLevel) return@LaunchedEffect
+
+        while (true) {
+            hasActiveCastPlayback = castManager.isConnected && castManager.currentTitle.isNotBlank()
+            delay(500)
+        }
+    }
+
+    val hasVisiblePlaybackSession = hasActivePlayback || hasActiveCastPlayback
 
     if (!hasPermission) {
         PermissionRequestScreen()
@@ -1297,6 +1337,17 @@ fun FolderScreen(
                                     }
                                 }
 
+                                if (isRootLevel && !hasVisiblePlaybackSession) {
+                                    continueWatchingEntry?.let { entry ->
+                                        item(key = "continue_watching") {
+                                            ContinueWatchingCard(
+                                                entry = entry,
+                                                onClick = { onContinueWatchingClick(entry) }
+                                            )
+                                        }
+                                    }
+                                }
+
                                 items(pathItems.chunked(gridColumns), key = { chunk -> "${targetPath}_${chunk.joinToString { it.path }}" }) { rowItems ->
                                     MediaRow(
                                         items = rowItems,
@@ -1407,6 +1458,110 @@ private fun MediaRow(
             )
         }
         repeat(gridColumns - items.size) { Box(modifier = Modifier.weight(1f)) }
+    }
+}
+
+@Composable
+private fun ContinueWatchingCard(
+    entry: ContinueWatchingEntry,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+    var thumbnail by remember(entry.videoPath) { mutableStateOf<Bitmap?>(null) }
+
+    LaunchedEffect(entry.videoPath) {
+        thumbnail = withContext(Dispatchers.IO) {
+            FolderLockManager.getLockedThumbnail(entry.videoPath)
+                ?: OptimizedThumbnailManager.getCachedThumbnail(entry.videoPath)
+                ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(entry.videoPath)
+                ?: OptimizedThumbnailManager.getOrGenerateThumbnailSync(context, entry.videoPath)
+        }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 4.dp),
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(width = 132.dp, height = 78.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                contentAlignment = Alignment.Center
+            ) {
+                if (thumbnail != null) {
+                    Image(
+                        bitmap = thumbnail!!.asImageBitmap(),
+                        contentDescription = entry.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.PlayCircleOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = entry.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "Parou em ${formatContinueWatchingTime(entry.positionMs)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = entry.folderPath,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+private fun formatContinueWatchingTime(timeMs: Long): String {
+    if (timeMs <= 0) return "00:00"
+
+    val totalSeconds = TimeUnit.MILLISECONDS.toSeconds(timeMs)
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+
+    return if (hours > 0) {
+        String.format("%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
     }
 }
 

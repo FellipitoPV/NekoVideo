@@ -29,6 +29,7 @@ import com.nkls.nekovideo.components.helpers.HybridDataSourceFactory
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.PlaylistNavigator
+import com.nkls.nekovideo.components.helpers.ContinueWatchingStore
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 
 @OptIn(UnstableApi::class)
@@ -317,7 +318,8 @@ class MediaPlaybackService : MediaSessionService() {
             "UPDATE_PLAYLIST" -> {
                 val playlist = intent.getStringArrayListExtra("PLAYLIST") ?: emptyList()
                 val initialIndex = intent.getIntExtra("INITIAL_INDEX", 0)
-                updatePlaylist(playlist, initialIndex)
+                val initialPositionMs = intent.getLongExtra("INITIAL_POSITION_MS", 0L)
+                updatePlaylist(playlist, initialIndex, initialPositionMs)
             }
             "UPDATE_WINDOW" -> {
                 val window = intent.getStringArrayListExtra("WINDOW") ?: emptyList()
@@ -336,6 +338,8 @@ class MediaPlaybackService : MediaSessionService() {
                 resumeLocalPlayback()
             }
             "STOP_SERVICE" -> {
+                persistContinueWatchingState()
+                ContinueWatchingStore.setPlaybackActive(false)
                 player?.run {
                     pause()
                     clearMediaItems()
@@ -351,8 +355,9 @@ class MediaPlaybackService : MediaSessionService() {
         return super.onStartCommand(intent, flags, startId)
     }
 
-    private fun updatePlaylist(playlist: List<String>, initialIndex: Int) {
+    private fun updatePlaylist(playlist: List<String>, initialIndex: Int, initialPositionMs: Long = 0L) {
         isUpdatingMetadata = true // ✅ Evita processamento de onMediaItemTransition
+        ContinueWatchingStore.setPlaybackActive(playlist.isNotEmpty())
 
         val isLocked = hasLockedUris(playlist)
 
@@ -361,7 +366,7 @@ class MediaPlaybackService : MediaSessionService() {
             setMediaItems(
                 playlist.map { createMediaItemWithMetadata(it) },
                 initialIndex,
-                0L  // ✅ Sempre começar do início quando uma nova playlist é iniciada
+                initialPositionMs.coerceAtLeast(0L)
             )
             prepare()
             playWhenReady = true
@@ -379,12 +384,14 @@ class MediaPlaybackService : MediaSessionService() {
 
     private fun updatePlaylistAfterDeletion(playlist: List<String>, nextIndex: Int) {
         isUpdatingMetadata = true // ✅ Evita processamento de onMediaItemTransition
+        ContinueWatchingStore.setPlaybackActive(playlist.isNotEmpty())
 
         player?.run {
             if (playlist.isEmpty()) {
                 pause()
                 clearMediaItems()
                 abandonAudioFocus()
+                ContinueWatchingStore.setPlaybackActive(false)
                 isUpdatingMetadata = false
                 return
             }
@@ -574,6 +581,8 @@ class MediaPlaybackService : MediaSessionService() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        persistContinueWatchingState()
+        ContinueWatchingStore.setPlaybackActive(false)
         val currentPlayer = player
         if (currentPlayer == null || !currentPlayer.isPlaying) {
             // App removido dos recentes com vídeo pausado → limpa playlist e para o serviço
@@ -591,6 +600,8 @@ class MediaPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        persistContinueWatchingState()
+        ContinueWatchingStore.setPlaybackActive(false)
         // Serviço destruído com vídeo pausado (ex: notificação arrastada enquanto pausado)
         if (player?.isPlaying == false) {
             PlaylistManager.clear()
@@ -689,12 +700,39 @@ class MediaPlaybackService : MediaSessionService() {
         return stream.toByteArray()
     }
 
+    private fun persistContinueWatchingState() {
+        val currentPlayer = player ?: return
+        val currentItem = currentPlayer.currentMediaItem ?: return
+        val currentUri = currentItem.localConfiguration?.uri?.toString() ?: return
+        val currentPosition = currentPlayer.currentPosition
+        val duration = currentPlayer.duration.takeIf { it > 0 } ?: 0L
+        val title = currentItem.mediaMetadata.title?.toString()
+            ?: File(
+                if (currentUri.startsWith("locked://")) currentUri.removePrefix("locked://")
+                else currentUri.removePrefix("file://")
+            ).nameWithoutExtension
+
+        ContinueWatchingStore.save(
+            context = this,
+            videoPath = currentUri,
+            title = title,
+            positionMs = currentPosition,
+            durationMs = duration
+        )
+    }
+
     companion object {
-        fun startWithPlaylist(context: Context, playlist: List<String>, initialIndex: Int = 0) {
+        fun startWithPlaylist(
+            context: Context,
+            playlist: List<String>,
+            initialIndex: Int = 0,
+            initialPositionMs: Long = 0L
+        ) {
             val intent = Intent(context, MediaPlaybackService::class.java).apply {
                 action = "UPDATE_PLAYLIST"
                 putStringArrayListExtra("PLAYLIST", ArrayList(playlist))
                 putExtra("INITIAL_INDEX", initialIndex)
+                putExtra("INITIAL_POSITION_MS", initialPositionMs)
             }
             context.startService(intent)
         }
