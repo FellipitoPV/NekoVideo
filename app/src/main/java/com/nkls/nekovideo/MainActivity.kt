@@ -199,6 +199,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         val currentLanguage = LanguageManager.getCurrentLanguage(this)
+        LanguageManager.initialize(this)
         if (currentLanguage != "system") {
             LanguageManager.setLocale(this, currentLanguage)
         }
