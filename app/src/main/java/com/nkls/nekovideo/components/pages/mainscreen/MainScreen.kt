@@ -1625,6 +1625,7 @@ fun MainScreen(
                         isSecureMode = isSecure,
                         isRootLevel = isAtRootLevel,
                         showPrivateFolders = showPrivateFolders,
+                        isPlayerOverlayVisible = showPlayerOverlay,
                         isMoveMode = isMoveMode,
                         itemsToMove = itemsToMove,
                         onContinueWatchingClick = { entry ->

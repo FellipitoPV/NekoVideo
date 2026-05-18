@@ -40,15 +40,16 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,7 +81,9 @@ import com.nkls.nekovideo.services.FolderVideoScanner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.io.File
@@ -971,6 +974,7 @@ fun FolderScreen(
     isSecureMode: Boolean = false,
     isRootLevel: Boolean = false,
     showPrivateFolders: Boolean = false,
+    isPlayerOverlayVisible: Boolean = false,
     isMoveMode: Boolean = false,
     itemsToMove: List<String> = emptyList()
 ) {
@@ -1207,6 +1211,42 @@ fun FolderScreen(
                     val pathItems = itemsByPath[targetPath] ?: emptyList()
                     val isPathLoading = targetPath in loadingPaths
                     val pathEmptyState = pathItems.isEmpty() && !isPathLoading && !isScanning
+                    val listState = rememberSaveable(targetPath, saver = LazyListState.Saver) {
+                        LazyListState()
+                    }
+                    var overlayRestoreAnchorPath by rememberSaveable(targetPath) {
+                        mutableStateOf<String?>(null)
+                    }
+                    var overlayRestoreScrollOffset by rememberSaveable(targetPath) {
+                        mutableStateOf(0)
+                    }
+
+                    LaunchedEffect(isPlayerOverlayVisible, targetPath) {
+                        if (!isPlayerOverlayVisible || targetPath != folderPath || pathItems.isEmpty()) {
+                            return@LaunchedEffect
+                        }
+
+                        val anchorIndex = (listState.firstVisibleItemIndex * gridColumns)
+                            .coerceIn(0, pathItems.lastIndex)
+                        overlayRestoreAnchorPath = pathItems[anchorIndex].path
+                        overlayRestoreScrollOffset = listState.firstVisibleItemScrollOffset
+                    }
+
+                    LaunchedEffect(isPlayerOverlayVisible, targetPath, pathItems, gridColumns) {
+                        if (isPlayerOverlayVisible || targetPath != folderPath) {
+                            return@LaunchedEffect
+                        }
+
+                        val anchorPath = overlayRestoreAnchorPath ?: return@LaunchedEffect
+                        val itemIndex = pathItems.indexOfFirst { it.path == anchorPath }
+                        if (itemIndex >= 0) {
+                            listState.scrollToItem(
+                                index = itemIndex / gridColumns,
+                                scrollOffset = overlayRestoreScrollOffset
+                            )
+                        }
+                        overlayRestoreAnchorPath = null
+                    }
 
                     Column(modifier = Modifier.fillMaxSize()) {
                         // Loading enquanto carrega os items desta pasta
@@ -1287,6 +1327,7 @@ fun FolderScreen(
 
                         Box(modifier = Modifier.fillMaxSize()) {
                             LazyColumn(
+                                state = listState,
                                 contentPadding = PaddingValues(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
@@ -2156,6 +2197,7 @@ private fun FloatingVideoPreview(
     val latestOnClose by rememberUpdatedState(onClose)
     var hasSignalledFinish by remember(videoUri) { mutableStateOf(false) }
     var aspectRatio by remember(videoUri) { mutableStateOf(16f / 9f) }
+    var isLoadingPreview by remember(videoUri) { mutableStateOf(true) }
 
     fun finishPreview() {
         if (!hasSignalledFinish) {
@@ -2197,6 +2239,16 @@ private fun FloatingVideoPreview(
                     aspectRatio = (videoSize.width.toFloat() / videoSize.height.toFloat()).coerceIn(0.4f, 2.5f)
                 }
             }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                isLoadingPreview = playbackState == Player.STATE_BUFFERING
+            }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying) {
+                    isLoadingPreview = false
+                }
+            }
         }
         player.addListener(listener)
         onDispose {
@@ -2230,9 +2282,19 @@ private fun FloatingVideoPreview(
                 val segmentDuration = minOf(requestedDurationMs, remaining)
                 if (segmentDuration <= 0L) return
 
+                isLoadingPreview = true
                 player.seekTo(segmentStart)
                 player.play()
-                delay(segmentDuration)
+                val targetPosition = (segmentStart + segmentDuration).coerceAtMost(durationMs)
+
+                // Conta apenas o tempo efetivamente reproduzido, ignorando buffering/tela preta.
+                withTimeoutOrNull(segmentDuration + 15_000L) {
+                    while (isActive) {
+                        if (player.playbackState == Player.STATE_ENDED) break
+                        if (player.currentPosition >= targetPosition) break
+                        delay(if (player.isPlaying) 50L else 100L)
+                    }
+                }
                 player.pause()
             }
 
@@ -2298,19 +2360,38 @@ private fun FloatingVideoPreview(
                 }
             }
 
-            AndroidView(
-                factory = { viewContext ->
-                    PlayerView(viewContext).apply {
-                        useController = false
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        this.player = player
-                    }
-                },
-                update = { it.player = player },
+            Box(
                 modifier = Modifier
                     .size(width = previewWidth, height = previewHeight)
                     .clip(RoundedCornerShape(12.dp))
-            )
+            ) {
+                AndroidView(
+                    factory = { viewContext ->
+                        PlayerView(viewContext).apply {
+                            useController = false
+                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            this.player = player
+                        }
+                    },
+                    update = { it.player = player },
+                    modifier = Modifier.matchParentSize()
+                )
+
+                if (isLoadingPreview) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(Color.Black.copy(alpha = 0.65f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            strokeWidth = 2.5.dp,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 }
