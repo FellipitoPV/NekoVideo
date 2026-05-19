@@ -153,7 +153,7 @@ object FolderVideoScanner {
                 // Scan normal folders via MediaStore
                 scanNormalFolders(context, folderMap)
 
-                // Scan secure folders (com .nomedia/.nekovideo) and locked folders
+                // Scan secure folders (.nomedia/locked) and locked folders
                 scanSecureFolders(context, folderMap)
 
                 // Scan direto das pastas principais para pegar arquivos não indexados
@@ -292,7 +292,7 @@ object FolderVideoScanner {
 
         if (!directory.exists() || !directory.isDirectory) return
 
-        val isSecure = File(directory, ".nekovideo").exists()
+        val isSecure = File(directory, ".nomedia").exists()
         val isLocked = FolderLockManager.isLocked(directory.absolutePath)
 
         if (isLocked) {
@@ -364,7 +364,7 @@ object FolderVideoScanner {
         directory.listFiles()?.forEach { subDir ->
             if (subDir.isDirectory) {
                 if (!subDir.name.startsWith(".") || isSecure || isLocked ||
-                    File(subDir, ".nekovideo").exists() || FolderLockManager.isLocked(subDir.absolutePath)) {
+                    File(subDir, ".nomedia").exists() || FolderLockManager.isLocked(subDir.absolutePath)) {
                     scanSecureFoldersRecursive(context, subDir, folderMap)
                 }
             }

@@ -403,8 +403,8 @@ private fun loadNormalContentFromCache(
         if (isRootLevel && subfolder.name == "Android") return@forEach
 
         val folderInfo = folderCache[subfolder.absolutePath]
-        val isSecure = folderInfo?.isSecure ?: (File(subfolder, ".nomedia").exists())
-        val isNekoFolder = File(subfolder, ".nekovideo").exists() // Pasta criada pelo app
+        val isSecure = folderInfo?.isSecure ?: File(subfolder, ".nomedia").exists()
+        val isAppManagedFolder = File(subfolder, ".nekovideo").exists()
         val isFolderLocked = folderInfo?.isLocked ?: FolderLockManager.isLocked(subfolder.absolutePath)
         val lockedRegistryEntry = if (isFolderLocked) {
             FolderLockManager.getRegistryEntry(context, subfolder.absolutePath)
@@ -424,8 +424,7 @@ private fun loadNormalContentFromCache(
             // Locked folders: show only when private folders are visible
             isFolderLocked -> showPrivateFolders
 
-            // ✅ Pastas criadas pelo app (com .nekovideo): respeita showPrivateFolders se for pasta privada
-            isNekoFolder -> {
+            isAppManagedFolder -> {
                 if (subfolder.name.startsWith(".")) {
                     showPrivateFolders
                 } else {
@@ -464,7 +463,7 @@ private fun loadNormalContentFromCache(
             // Para pastas normais: usa o cache do scanner (MediaStore mantém atualizado)
             val directVideoCount = when {
                 isFolderLocked -> FolderLockManager.getRegistryEntry(context, subfolder.absolutePath)?.fileCount ?: 0
-                isNekoFolder || isSecure -> try {
+                isSecure -> try {
                     subfolder.listFiles()?.count {
                         it.isFile && it.extension.lowercase() in videoExtensions
                     } ?: 0
@@ -475,7 +474,7 @@ private fun loadNormalContentFromCache(
                 isFolderLocked -> try {
                     subfolder.listFiles()?.count { it.isDirectory && it.name != ".neko_thumbs" } ?: 0
                 } catch (e: Exception) { 0 }
-                isNekoFolder || isSecure -> try {
+                isSecure -> try {
                     subfolder.listFiles()?.count {
                         it.isDirectory && !it.name.startsWith(".")
                     } ?: 0
@@ -494,7 +493,7 @@ private fun loadNormalContentFromCache(
                 isFolderLocked -> try {
                     subfolder.listFiles()?.filter { it.isFile && !it.name.startsWith(".") }?.sumOf { it.length() } ?: 0L
                 } catch (e: Exception) { 0L }
-                isNekoFolder || isSecure -> try {
+                isSecure -> try {
                     subfolder.listFiles()?.filter { it.isFile && it.extension.lowercase() in videoExtensions }?.sumOf { it.length() } ?: 0L
                 } catch (e: Exception) { folderInfo?.videos?.sumOf { it.sizeInBytes } ?: 0L }
                 else -> folderInfo?.videos?.sumOf { it.sizeInBytes } ?: 0L

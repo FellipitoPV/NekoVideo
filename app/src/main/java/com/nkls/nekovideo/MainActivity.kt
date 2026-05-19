@@ -22,11 +22,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -44,6 +46,37 @@ import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     private lateinit var themeManager: ThemeManager
+
+    private fun applySystemBarsForTheme(themeMode: String) {
+        val isDarkTheme = when (themeMode) {
+            "light" -> false
+            "dark" -> true
+            else -> {
+                val nightModeFlags = resources.configuration.uiMode and
+                    android.content.res.Configuration.UI_MODE_NIGHT_MASK
+                nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
+            }
+        }
+
+        enableEdgeToEdge(
+            statusBarStyle = if (isDarkTheme) {
+                SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+            } else {
+                SystemBarStyle.light(
+                    android.graphics.Color.TRANSPARENT,
+                    android.graphics.Color.TRANSPARENT
+                )
+            },
+            navigationBarStyle = if (isDarkTheme) {
+                SystemBarStyle.dark(android.graphics.Color.BLACK)
+            } else {
+                SystemBarStyle.light(
+                    android.graphics.Color.TRANSPARENT,
+                    android.graphics.Color.TRANSPARENT
+                )
+            }
+        )
+    }
 
     var externalVideoReceived = false
         private set
@@ -198,22 +231,19 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        themeManager = ThemeManager(this)
+
         val currentLanguage = LanguageManager.getCurrentLanguage(this)
         LanguageManager.initialize(this)
         if (currentLanguage != "system") {
             LanguageManager.setLocale(this, currentLanguage)
         }
 
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.BLACK)
-        )
+        applySystemBarsForTheme(themeManager.themeMode.value)
         FilesManager.SecureFoldersVisibility.resetOnAppStart(this)
 
         // PROCESSAR intent inicial
         handleNotificationIntent(intent)
-
-        themeManager = ThemeManager(this)
 
         // 🚀 Carrega cache e inicia scan se necessário
         FolderVideoScanner.loadCacheFromDisk(this)
@@ -224,12 +254,18 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             val currentLanguage by LanguageManager.currentLanguage.collectAsState()
+            val currentTheme by themeManager.themeMode.collectAsState()
+            val configuration = LocalConfiguration.current
 
             val notificationState = _notificationReceived.value
             val actionState = _lastIntentAction.value
             val timeState = _lastIntentTime.value
             val folderPathState = _openFolderPath.value
             val externalVideoState = _externalVideoReceived.value
+
+            LaunchedEffect(currentTheme, configuration.uiMode) {
+                applySystemBarsForTheme(currentTheme)
+            }
 
             val localizedContext = remember(currentLanguage) {
                 LanguageManager.getLocalizedContext(this@MainActivity, currentLanguage)

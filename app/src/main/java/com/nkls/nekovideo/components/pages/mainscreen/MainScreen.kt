@@ -93,6 +93,7 @@ import com.nkls.nekovideo.components.layout.ActionType
 import com.nkls.nekovideo.components.layout.TopBar
 import com.nkls.nekovideo.components.loadFolderContent
 import com.nkls.nekovideo.components.player.MiniPlayerImproved
+import com.nkls.nekovideo.components.player.MediaControllerManager
 import com.nkls.nekovideo.components.player.VideoPlayerOverlay
 import com.nkls.nekovideo.components.settings.AboutSettingsScreen
 import com.nkls.nekovideo.components.settings.StorageSettingsScreen
@@ -203,8 +204,7 @@ fun MainScreen(
                 folderPath.contains(".secure_videos") ||
                 folderPath.endsWith(".secure_videos") ||
                 File(folderPath, ".secure").exists() ||
-                File(folderPath, ".nomedia").exists() ||
-                File(folderPath, ".nekovideo").exists()
+                File(folderPath, ".nomedia").exists()
     }
 
     fun isPrivateTagContext(folderPath: String): Boolean {
@@ -422,6 +422,15 @@ fun MainScreen(
         FolderVideoScanner.startScan(context, forceRefresh = true)
     }
 
+    fun closePlayerOverlay() {
+        val controller = MediaControllerManager.getCurrentController()
+        if (controller != null && !controller.isPlaying) {
+            MediaPlaybackService.stopService(context)
+        }
+        showPlayerOverlay = false
+        isInPiPMode = false
+    }
+
     val currentTheme by themeManager.themeMode.collectAsState()
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
 
@@ -469,7 +478,14 @@ fun MainScreen(
                             android.graphics.Color.TRANSPARENT
                         )
                     },
-                    navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.BLACK)
+                    navigationBarStyle = if (isDarkTheme) {
+                        SystemBarStyle.dark(android.graphics.Color.BLACK)
+                    } else {
+                        SystemBarStyle.light(
+                            android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT
+                        )
+                    }
                 )
             }
         }
@@ -1750,16 +1766,13 @@ fun MainScreen(
         BackHandler(enabled = showPlayerOverlay) {
             Log.d("BackDebug", "🔙 BACK PRESSED - Handler: OVERLAY (após NavHost)")
             Log.d("BackDebug", "   Ação: Fechando overlay")
-            showPlayerOverlay = false
+            closePlayerOverlay()
         }
 
         VideoPlayerOverlay(
             isVisible = showPlayerOverlay,
             canControlRotation = showPlayerOverlay,
-            onDismiss = {
-                showPlayerOverlay = false
-                isInPiPMode = false
-            },
+            onDismiss = { closePlayerOverlay() },
             onManageTags = {
                 showPlayerOverlay = false
                 isInPiPMode = false

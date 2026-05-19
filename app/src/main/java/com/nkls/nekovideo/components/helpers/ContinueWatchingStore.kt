@@ -123,9 +123,7 @@ object ContinueWatchingStore {
             normalizedPath.contains(".secure_videos") ||
             parentPath.endsWith(".secure_videos") ||
             FolderLockManager.isLocked(parentPath) ||
-            File(parentPath, ".secure").exists() ||
-            File(parentPath, ".nomedia").exists() ||
-            File(parentPath, ".nekovideo").exists()
+            File(parentPath, ".secure").exists()
     }
 
     private fun shouldClear(positionMs: Long, durationMs: Long): Boolean {

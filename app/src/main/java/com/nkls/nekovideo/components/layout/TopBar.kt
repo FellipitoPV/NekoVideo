@@ -251,9 +251,10 @@ fun TopBar(
                                 }
                             }
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_app_icon),
+                        Icon(
+                            painter = painterResource(id = R.drawable.topbaricon),
                             contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(32.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -274,9 +275,10 @@ fun TopBar(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         // App icon with triple-tap for private folders toggle
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_app_icon),
+                        Icon(
+                            painter = painterResource(id = R.drawable.topbaricon),
                             contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier
                                 .size(28.dp)
                                 .pointerInput(Unit) {
@@ -387,9 +389,10 @@ fun TopBar(
                                 }
                             }
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_app_icon),
+                        Icon(
+                            painter = painterResource(id = R.drawable.topbaricon),
                             contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(32.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
