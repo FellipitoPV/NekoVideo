@@ -10,7 +10,7 @@ This folder keeps local notes for the F-Droid submission flow.
 - Current submitted version:
   - `versionName: 1.3.1`
   - `versionCode: 23`
-  - `commit/tag: v1.3.1`
+  - `commit: 258ca21bf807406a40a30747645163a54d89ce44`
 
 ## Before a new F-Droid update
 
@@ -49,7 +49,7 @@ Builds:
 
   - versionName: 1.3.1
     versionCode: 23
-    commit: v1.3.1
+    commit: 258ca21bf807406a40a30747645163a54d89ce44
     subdir: app
     gradle:
       - yes
@@ -119,3 +119,4 @@ glab mr create --source-branch update-nekovideo-x-y-z --target-branch master --t
 - The local `fdroid-metadata/` folder is only a reference/work area; F-Droid uses the file inside the `fdroiddata` fork.
 - Keep changelog entries short and plain.
 - Do not forget to create the GitHub tag before updating F-Droid metadata.
+- Prefer using the exact commit hash in `commit:` instead of the tag name.
