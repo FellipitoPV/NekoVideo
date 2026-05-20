@@ -44,7 +44,7 @@ Builds:
     gradle:
       - release
 
-AutoUpdateMode: Version v%v
+AutoUpdateMode: Version
 UpdateCheckMode: Tags
 CurrentVersion: 1.3.1
 CurrentVersionCode: 23
