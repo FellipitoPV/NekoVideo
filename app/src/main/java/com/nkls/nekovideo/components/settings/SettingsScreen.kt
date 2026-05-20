@@ -3,7 +3,6 @@ package com.nkls.nekovideo.components.settings
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.Image
@@ -93,6 +92,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -103,7 +103,6 @@ import com.nkls.nekovideo.R
 import com.nkls.nekovideo.language.LanguageManager
 import com.nkls.nekovideo.theme.ThemeManager
 import androidx.core.content.edit
-import androidx.core.net.toUri
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.TagEntity
 import com.nkls.nekovideo.components.helpers.TagScope
@@ -112,6 +111,10 @@ import com.nkls.nekovideo.services.FolderVideoScanner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun SettingsScreen(navController: NavController) {
@@ -494,18 +497,55 @@ fun StorageSettingsScreen() {
 @Composable
 fun TagsSettingsScreen() {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val hasPassword = remember { FilesManager.SecureStorage.hasPassword(context) }
     var showPrivatePasswordDialog by remember { mutableStateOf(false) }
     var privateUnlocked by remember { mutableStateOf(false) }
     var normalTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
     var privateTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
+    var hasAutomaticBackup by remember { mutableStateOf(false) }
+    var shouldOfferImport by remember { mutableStateOf(false) }
+    var lastAutomaticBackupAt by remember { mutableStateOf(0L) }
     var refreshToken by remember { mutableIntStateOf(0) }
 
     suspend fun refreshTags() {
-        normalTags = VideoTagStore.getAllTags(context, TagScope.NORMAL)
-        if (privateUnlocked) {
-            privateTags = VideoTagStore.getAllTags(context, TagScope.PRIVATE)
+        val loadedNormalTags = withContext(Dispatchers.IO) {
+            VideoTagStore.getAllTags(context, TagScope.NORMAL)
         }
+        val loadedPrivateTags = if (privateUnlocked) {
+            withContext(Dispatchers.IO) {
+                VideoTagStore.getAllTags(context, TagScope.PRIVATE)
+            }
+        } else {
+            emptyList()
+        }
+        val automaticBackupExists = withContext(Dispatchers.IO) {
+            VideoTagStore.hasAutomaticBackup(context)
+        }
+        val shouldShowImport = withContext(Dispatchers.IO) {
+            VideoTagStore.shouldOfferAutomaticImport(context)
+        }
+        val automaticBackupTimestamp = withContext(Dispatchers.IO) {
+            VideoTagStore.getLastAutomaticBackupAt(context)
+        }
+
+        normalTags = loadedNormalTags
+        privateTags = loadedPrivateTags
+        hasAutomaticBackup = automaticBackupExists
+        shouldOfferImport = shouldShowImport
+        lastAutomaticBackupAt = automaticBackupTimestamp
+    }
+
+    fun showImportSuccessToast(result: VideoTagStore.TagBackupImportResult) {
+        Toast.makeText(
+            context,
+            context.getString(
+                R.string.tags_backup_import_success,
+                result.createdTags,
+                result.restoredRefs
+            ),
+            Toast.LENGTH_LONG
+        ).show()
     }
 
     LaunchedEffect(refreshToken, privateUnlocked) {
@@ -532,6 +572,47 @@ fun TagsSettingsScreen() {
                 .padding(if (isCompact) 8.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
         ) {
+            item { SettingsSectionHeader(stringResource(R.string.tags_backup_section), isCompact) }
+            item {
+                Text(
+                    text = if (lastAutomaticBackupAt > 0L && hasAutomaticBackup) {
+                        stringResource(
+                            R.string.tags_backup_auto_status,
+                            formatBackupTimestamp(lastAutomaticBackupAt)
+                        )
+                    } else {
+                        stringResource(R.string.tags_backup_auto_status_empty)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = if (isCompact) 4.dp else 8.dp)
+                )
+            }
+            if (shouldOfferImport) {
+                item {
+                SettingsClickableItem(
+                    icon = Icons.Default.Folder,
+                    title = stringResource(R.string.tags_backup_import),
+                    subtitle = stringResource(R.string.tags_backup_import_desc),
+                    onClick = {
+                        coroutineScope.launch {
+                            val result = withContext(Dispatchers.IO) {
+                                VideoTagStore.importLatestAutomaticBackup(context)
+                            }
+
+                            if (result.isSuccess) {
+                                showImportSuccessToast(result.getOrThrow())
+                                refreshToken++
+                            } else {
+                                Toast.makeText(context, R.string.tags_backup_action_failed, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    isCompact = isCompact
+                )
+            }
+            }
+
             item { SettingsSectionHeader(stringResource(R.string.tags_normal_section), isCompact) }
             item {
                 TagScopeManagerCard(
@@ -813,40 +894,13 @@ fun SecuritySettingsScreen() {
 @Composable
 fun AboutSettingsScreen() {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
 
     fun openBugReport() {
-        val appVersion = BuildConfig.VERSION_NAME
-        val deviceInfo = "${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})"
-        val emailBody = """
-Describe the issue you found:
-
-
-
---- System Information ---
-App Version: $appVersion
-Device: $deviceInfo
-        """.trimIndent()
-
-        val mailtoUri = "mailto:nklssuport@gmail.com?subject=${
-            Uri.encode("Bug Report - ${context.getString(R.string.app_name)}")
-        }&body=${Uri.encode(emailBody)}".toUri()
-        val mailtoIntent = Intent(Intent.ACTION_VIEW, mailtoUri)
-
-        if (mailtoIntent.resolveActivity(context.packageManager) != null) {
-            context.startActivity(mailtoIntent.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
-            return
-        }
-
-        val emailIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "message/rfc822"
-            putExtra(Intent.EXTRA_EMAIL, arrayOf("nklssuport@gmail.com"))
-            putExtra(Intent.EXTRA_SUBJECT, "Bug Report - ${context.getString(R.string.app_name)}")
-            putExtra(Intent.EXTRA_TEXT, emailBody)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-
-        if (emailIntent.resolveActivity(context.packageManager) != null) {
-            context.startActivity(emailIntent)
+        runCatching {
+            uriHandler.openUri("https://github.com/FellipitoPV/NekoVideo/issues/new/choose")
+        }.onFailure {
+            Toast.makeText(context, "Nao foi possivel abrir o link", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -1668,4 +1722,8 @@ object SettingsManager {
             .getInt("double_tap_seek", 10)
     }
 
+}
+
+private fun formatBackupTimestamp(timestamp: Long): String {
+    return SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(timestamp))
 }

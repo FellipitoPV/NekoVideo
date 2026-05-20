@@ -222,6 +222,16 @@
     <string name="tags_private_locked_desc">Entsperren Sie mit Biometrie oder Passwort, um private Tags anzusehen, zu erstellen und zu entfernen.</string>
     <string name="tags_private_unlock">Private Tags entsperren</string>
     <string name="tags_private_password_required">Legen Sie ein Datenschutz-Passwort fest, um private Tags zu verwalten</string>
+    <string name="tags_backup_section">Tag-Backup</string>
+    <string name="tags_backup_export">Backup exportieren</string>
+    <string name="tags_backup_export_desc">Eine manuelle Kopie des Backups in einem beliebigen Ordner speichern</string>
+    <string name="tags_backup_import">Backup importieren</string>
+    <string name="tags_backup_import_desc">Das auf dem Gerat gefundene automatische Backup mit den aktuellen Tags zusammenfuhren</string>
+    <string name="tags_backup_auto_status">Automatisches Backup gespeichert am %1$s</string>
+    <string name="tags_backup_auto_status_empty">Noch kein automatisches Backup gespeichert</string>
+    <string name="tags_backup_export_success">Backup erfolgreich exportiert</string>
+    <string name="tags_backup_import_success">Backup importiert: %1$d neue Tags und %2$d wiederhergestellte Verknüpfungen</string>
+    <string name="tags_backup_action_failed">Der Backup-Vorgang konnte nicht abgeschlossen werden</string>
     <string name="tags_create_hint">Neuen Tag erstellen</string>
     <string name="tags_empty_scope">In dieser Kategorie wurden keine Tags erstellt</string>
     <string name="tags_delete">Tag löschen</string>
@@ -287,7 +297,7 @@
     <string name="about_source_code">Quellcode</string>
     <string name="about_source_code_desc">Auf GitHub ansehen</string>
     <string name="about_report_bug">Fehler melden</string>
-    <string name="about_report_bug_desc">Probleme oder Vorschläge melden</string>
+    <string name="about_report_bug_desc">Probleme oder Vorschlage auf GitHub melden; Anmeldung kann erforderlich sein</string>
 
     <!-- Dialogs -->
     <!-- Rename Dialog -->

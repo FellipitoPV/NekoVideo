@@ -222,6 +222,16 @@
     <string name="tags_private_locked_desc">Déverrouillez avec la biométrie ou le mot de passe pour voir, créer et supprimer les tags privées.</string>
     <string name="tags_private_unlock">Déverrouiller les tags privées</string>
     <string name="tags_private_password_required">Définissez un mot de passe de confidentialité pour gérer les tags privées</string>
+    <string name="tags_backup_section">Sauvegarde des tags</string>
+    <string name="tags_backup_export">Exporter la sauvegarde</string>
+    <string name="tags_backup_export_desc">Enregistrer une copie manuelle de la sauvegarde dans nimporte quel dossier</string>
+    <string name="tags_backup_import">Importer la sauvegarde</string>
+    <string name="tags_backup_import_desc">Fusionner la sauvegarde automatique trouvee sur lappareil avec les tags actuels</string>
+    <string name="tags_backup_auto_status">Sauvegarde automatique enregistrée le %1$s</string>
+    <string name="tags_backup_auto_status_empty">Aucune sauvegarde automatique enregistrée pour le moment</string>
+    <string name="tags_backup_export_success">Sauvegarde exportée avec succès</string>
+    <string name="tags_backup_import_success">Sauvegarde importée : %1$d nouveaux tags et %2$d liens restaurés</string>
+    <string name="tags_backup_action_failed">Impossible de terminer lopération de sauvegarde</string>
     <string name="tags_create_hint">Créer un nouveau tag</string>
     <string name="tags_empty_scope">Aucun tag créé dans cette catégorie</string>
     <string name="tags_delete">Supprimer le tag</string>
@@ -287,7 +297,7 @@
     <string name="about_source_code">Code Source</string>
     <string name="about_source_code_desc">Voir sur GitHub</string>
     <string name="about_report_bug">Signaler un Bug</string>
-    <string name="about_report_bug_desc">Signaler des problèmes ou des suggestions</string>
+    <string name="about_report_bug_desc">Signaler des problemes ou des suggestions sur GitHub; une connexion peut etre requise</string>
 
     <!-- Dialogs -->
     <!-- Rename Dialog -->

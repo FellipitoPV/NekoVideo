@@ -225,6 +225,16 @@
     <string name="tags_private_locked_desc">Unlock with biometrics or password to view, create and remove private tags.</string>
     <string name="tags_private_unlock">Unlock private tags</string>
     <string name="tags_private_password_required">Set a privacy password to manage private tags</string>
+    <string name="tags_backup_section">Tag backup</string>
+    <string name="tags_backup_export">Export backup</string>
+    <string name="tags_backup_export_desc">Save a manual copy of the backup anywhere</string>
+    <string name="tags_backup_import">Import backup</string>
+    <string name="tags_backup_import_desc">Merge the automatic backup found on the device with the current tags</string>
+    <string name="tags_backup_auto_status">Automatic backup saved on %1$s</string>
+    <string name="tags_backup_auto_status_empty">No automatic backup saved yet</string>
+    <string name="tags_backup_export_success">Backup exported successfully</string>
+    <string name="tags_backup_import_success">Backup imported: %1$d new tags and %2$d restored links</string>
+    <string name="tags_backup_action_failed">Could not complete the backup operation</string>
     <string name="tags_create_hint">Create new tag</string>
     <string name="tags_empty_scope">No tags created in this category</string>
     <string name="tags_delete">Delete tag</string>
@@ -293,7 +303,7 @@
     <string name="about_source_code">Source Code</string>
     <string name="about_source_code_desc">View on GitHub</string>
     <string name="about_report_bug">Report Bug</string>
-    <string name="about_report_bug_desc">Report issues or suggestions</string>
+    <string name="about_report_bug_desc">Report bugs or suggestions on GitHub; signing in may be required</string>
 
     <!-- Dialogs -->
     <!-- Rename Dialog -->

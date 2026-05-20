@@ -230,6 +230,16 @@
     <string name="tags_private_locked_desc">Desbloqueie com biometria ou senha para ver, criar e remover tags privadas.</string>
     <string name="tags_private_unlock">Desbloquear tags privadas</string>
     <string name="tags_private_password_required">Defina uma senha de privatização para gerenciar tags privadas</string>
+    <string name="tags_backup_section">Backup das tags</string>
+    <string name="tags_backup_export">Exportar backup</string>
+    <string name="tags_backup_export_desc">Salvar uma copia manual do backup em qualquer pasta</string>
+    <string name="tags_backup_import">Importar backup</string>
+    <string name="tags_backup_import_desc">Mesclar o backup automatico encontrado no aparelho com as tags atuais</string>
+    <string name="tags_backup_auto_status">Backup automatico salvo em %1$s</string>
+    <string name="tags_backup_auto_status_empty">Nenhum backup automatico salvo ainda</string>
+    <string name="tags_backup_export_success">Backup exportado com sucesso</string>
+    <string name="tags_backup_import_success">Backup importado: %1$d tags novas e %2$d vinculacoes restauradas</string>
+    <string name="tags_backup_action_failed">Nao foi possivel concluir a operacao de backup</string>
     <string name="tags_create_hint">Criar nova tag</string>
     <string name="tags_empty_scope">Nenhuma tag criada nesta categoria</string>
     <string name="tags_delete">Excluir tag</string>
@@ -297,8 +307,8 @@
     <string name="about_app_version">Versão do App</string>
     <string name="about_source_code">Código Fonte</string>
     <string name="about_source_code_desc">Ver no GitHub</string>
-    <string name="about_report_bug">Reportar Bug</string>
-    <string name="about_report_bug_desc">Relatar problemas ou sugestões</string>
+    <string name="about_report_bug">Relatar Bug</string>
+    <string name="about_report_bug_desc">Relatar problemas ou sugestoes no GitHub; pode ser necessario fazer login</string>
 
     <!-- Dialogs -->
     <!-- Rename Dialog -->

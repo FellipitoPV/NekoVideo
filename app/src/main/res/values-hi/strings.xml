@@ -222,6 +222,16 @@
     <string name="tags_private_locked_desc">निजी टैग्स देखने, बनाने और हटाने के लिए बायोमेट्रिक्स या पासवर्ड से अनलॉक करें।</string>
     <string name="tags_private_unlock">निजी टैग्स अनलॉक करें</string>
     <string name="tags_private_password_required">निजी टैग्स प्रबंधित करने के लिए गोपनीयता पासवर्ड सेट करें</string>
+    <string name="tags_backup_section">टैग बैकअप</string>
+    <string name="tags_backup_export">बैकअप निर्यात करें</string>
+    <string name="tags_backup_export_desc">बैकअप की एक मैनुअल कॉपी किसी भी फोल्डर में सहेजें</string>
+    <string name="tags_backup_import">बैकअप आयात करें</string>
+    <string name="tags_backup_import_desc">डिवाइस पर मिले स्वचालित बैकअप को मौजूदा टैग्स के साथ मर्ज करें</string>
+    <string name="tags_backup_auto_status">स्वचालित बैकअप %1$s को सहेजा गया</string>
+    <string name="tags_backup_auto_status_empty">अभी तक कोई स्वचालित बैकअप सहेजा नहीं गया</string>
+    <string name="tags_backup_export_success">बैकअप सफलतापूर्वक निर्यात किया गया</string>
+    <string name="tags_backup_import_success">बैकअप आयात हुआ: %1$d नई टैग और %2$d पुनर्स्थापित लिंक</string>
+    <string name="tags_backup_action_failed">बैकअप क्रिया पूरी नहीं हो सकी</string>
     <string name="tags_create_hint">नई टैग बनाएं</string>
     <string name="tags_empty_scope">इस श्रेणी में कोई टैग नहीं बनाई गई</string>
     <string name="tags_delete">टैग हटाएं</string>
@@ -287,7 +297,7 @@
     <string name="about_source_code">सोर्स कोड</string>
     <string name="about_source_code_desc">GitHub पर देखें</string>
     <string name="about_report_bug">बग रिपोर्ट करें</string>
-    <string name="about_report_bug_desc">समस्याओं या सुझावों की रिपोर्ट करें</string>
+    <string name="about_report_bug_desc">GitHub पर समस्याओं या सुझावों की रिपोर्ट करें; लॉगिन की आवश्यकता हो सकती है</string>
 
     <!-- Dialogs -->
     <!-- Rename Dialog -->

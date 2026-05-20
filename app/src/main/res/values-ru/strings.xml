@@ -222,6 +222,16 @@
     <string name="tags_private_locked_desc">Разблокируйте с помощью биометрии или пароля, чтобы просматривать, создавать и удалять приватные теги.</string>
     <string name="tags_private_unlock">Разблокировать приватные теги</string>
     <string name="tags_private_password_required">Установите пароль конфиденциальности, чтобы управлять приватными тегами</string>
+    <string name="tags_backup_section">Резервная копия тегов</string>
+    <string name="tags_backup_export">Экспортировать резервную копию</string>
+    <string name="tags_backup_export_desc">Сохранить ручную копию резервной копии в любую папку</string>
+    <string name="tags_backup_import">Импортировать резервную копию</string>
+    <string name="tags_backup_import_desc">Объединить найденную на устройстве автоматическую копию с текущими тегами</string>
+    <string name="tags_backup_auto_status">Автоматическая копия сохранена %1$s</string>
+    <string name="tags_backup_auto_status_empty">Автоматическая копия еще не сохранена</string>
+    <string name="tags_backup_export_success">Резервная копия успешно экспортирована</string>
+    <string name="tags_backup_import_success">Копия импортирована: %1$d новых тегов и %2$d восстановленных связей</string>
+    <string name="tags_backup_action_failed">Не удалось завершить операцию резервного копирования</string>
     <string name="tags_create_hint">Создать новый тег</string>
     <string name="tags_empty_scope">В этой категории нет созданных тегов</string>
     <string name="tags_delete">Удалить тег</string>
@@ -287,7 +297,7 @@
     <string name="about_source_code">Исходный код</string>
     <string name="about_source_code_desc">Посмотреть на GitHub</string>
     <string name="about_report_bug">Сообщить об ошибке</string>
-    <string name="about_report_bug_desc">Сообщить о проблемах или предложениях</string>
+    <string name="about_report_bug_desc">Сообщить о проблемах или предложениях на GitHub; может потребоваться вход</string>
 
     <!-- Dialogs -->
     <!-- Rename Dialog -->

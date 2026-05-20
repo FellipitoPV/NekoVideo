@@ -1,6 +1,10 @@
 package com.nkls.nekovideo.components.helpers
 
+import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
+import android.provider.MediaStore
+import androidx.core.content.edit
 import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
@@ -14,7 +18,12 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
+import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.google.gson.Gson
+import java.io.InputStreamReader
+import java.io.OutputStreamWriter
+import java.util.Locale
 
 enum class TagScope {
     NORMAL,
@@ -93,6 +102,12 @@ interface VideoTagDao {
 
     @Query("SELECT COUNT(*) FROM video_tag_refs WHERE videoPath = :videoPath")
     suspend fun getTagCountForVideoPath(videoPath: String): Int
+
+    @Query("SELECT * FROM video_tags ORDER BY scope ASC, name COLLATE NOCASE ASC")
+    suspend fun getAllTagsAllScopes(): List<TagEntity>
+
+    @Query("SELECT * FROM video_tag_refs")
+    suspend fun getAllVideoTagRefs(): List<VideoTagCrossRef>
 }
 
 @Database(entities = [TagEntity::class, VideoTagCrossRef::class], version = 2, exportSchema = false)
@@ -101,8 +116,45 @@ abstract class VideoTagDatabase : RoomDatabase() {
 }
 
 object VideoTagStore {
+    private data class TagBackupPayload(
+        val version: Int,
+        val exportedAt: Long,
+        val tags: List<TagBackupTag>,
+        val refs: List<TagBackupRef>
+    )
+
+    private data class TagBackupTag(
+        val name: String,
+        val scope: TagScope,
+        val createdAt: Long
+    )
+
+    private data class TagBackupRef(
+        val videoPath: String,
+        val tagName: String,
+        val scope: TagScope
+    )
+
+    private data class AutomaticBackupEntry(
+        val uri: Uri,
+        val updatedAt: Long
+    )
+
+    data class TagBackupImportResult(
+        val createdTags: Int,
+        val restoredRefs: Int
+    )
+
     @Volatile
     private var database: VideoTagDatabase? = null
+
+    private val gson = Gson()
+
+    private const val BACKUP_VERSION = 1
+    private const val SETTINGS_PREFS = "nekovideo_settings"
+    private const val KEY_LAST_AUTO_BACKUP_AT = "tags_last_auto_backup_at"
+    private const val AUTO_BACKUP_FILE_NAME = "tags-backup.json"
+    private const val AUTO_BACKUP_RELATIVE_PATH = "Documents/NekoVideo/Backup/"
 
     private val migration1To2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -132,11 +184,13 @@ object VideoTagStore {
         if (dao.tagExists(name, scope)) return Result.failure(IllegalStateException("exists"))
 
         val id = dao.insertTag(TagEntity(name = name, scope = scope))
+        writeAutomaticBackupSafely(context)
         return Result.success(TagEntity(id = id, name = name, scope = scope))
     }
 
     suspend fun deleteTag(context: Context, tagId: Long) {
         getDatabase(context).videoTagDao().deleteTag(tagId)
+        writeAutomaticBackupSafely(context)
     }
 
     suspend fun renameTag(context: Context, tagId: Long, rawName: String, scope: TagScope): Result<Unit> {
@@ -147,6 +201,7 @@ object VideoTagStore {
         if (dao.tagExistsForOther(tagId, name, scope)) return Result.failure(IllegalStateException("exists"))
 
         dao.updateTagName(tagId, name)
+        writeAutomaticBackupSafely(context)
         return Result.success(Unit)
     }
 
@@ -170,6 +225,7 @@ object VideoTagStore {
         }
 
         getDatabase(context).videoTagDao().insertVideoTagRefs(refs)
+        writeAutomaticBackupSafely(context)
     }
 
     suspend fun syncCommonTagsForVideos(
@@ -199,6 +255,8 @@ object VideoTagStore {
         if (tagsToRemove.isNotEmpty()) {
             dao.deleteVideoTagRefs(distinctPaths, tagsToRemove.toList())
         }
+
+        writeAutomaticBackupSafely(context)
     }
 
     suspend fun getVideoPathsForAnyTagIds(context: Context, tagIds: Set<Long>, scope: TagScope): Set<String> {
@@ -231,14 +289,228 @@ object VideoTagStore {
                 val suffix = taggedPath.removePrefix(oldPath)
                 dao.updateVideoPath(taggedPath, "$newPath$suffix")
             }
+
+        writeAutomaticBackupSafely(context)
     }
 
     suspend fun resetTagsForPathTree(context: Context, path: String) {
         val childPattern = "$path/%"
         getDatabase(context).videoTagDao().deleteVideoTagRefsForTree(path, childPattern)
+        writeAutomaticBackupSafely(context)
     }
 
     suspend fun getTagCountForVideoPath(context: Context, videoPath: String): Int {
         return getDatabase(context).videoTagDao().getTagCountForVideoPath(videoPath)
+    }
+
+    suspend fun getLastAutomaticBackupAt(context: Context): Long {
+        val storedValue = context.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE)
+            .getLong(KEY_LAST_AUTO_BACKUP_AT, 0L)
+        val backupEntry = findAutomaticBackupEntry(context) ?: return 0L
+        return maxOf(storedValue, backupEntry.updatedAt)
+    }
+
+    suspend fun hasAutomaticBackup(context: Context): Boolean {
+        return findAutomaticBackupEntry(context) != null
+    }
+
+    suspend fun shouldOfferAutomaticImport(context: Context): Boolean {
+        val backupEntry = findAutomaticBackupEntry(context) ?: return false
+        val storedSyncAt = getStoredAutomaticBackupSyncAt(context)
+        return backupEntry.updatedAt > storedSyncAt
+    }
+
+    suspend fun exportBackupToUri(context: Context, uri: Uri): Result<Unit> = runCatching {
+        val payload = buildBackupPayload(context)
+        writePayloadToUri(context, uri, payload)
+    }
+
+    suspend fun importBackupFromUri(context: Context, uri: Uri): Result<TagBackupImportResult> = runCatching {
+        val payload = readPayloadFromUri(context, uri)
+        val result = importBackupPayload(context, payload)
+        writeAutomaticBackupSafely(context)
+        result
+    }
+
+    suspend fun importLatestAutomaticBackup(context: Context): Result<TagBackupImportResult> = runCatching {
+        val entry = findAutomaticBackupEntry(context) ?: error("automatic_backup_not_found")
+        val payload = readPayloadFromUri(context, entry.uri)
+        val result = importBackupPayload(context, payload)
+        writeAutomaticBackupSafely(context)
+        result
+    }
+
+    private suspend fun writeAutomaticBackupSafely(context: Context) {
+        runCatching {
+            writeAutomaticBackup(context)
+        }
+    }
+
+    private suspend fun writeAutomaticBackup(context: Context) {
+        val payload = buildBackupPayload(context)
+        val uri = ensureAutomaticBackupUri(context)
+        writePayloadToUri(context, uri, payload)
+        updateStoredAutomaticBackupSyncAt(context, System.currentTimeMillis())
+    }
+
+    private suspend fun buildBackupPayload(context: Context): TagBackupPayload {
+        val dao = getDatabase(context).videoTagDao()
+        val tags = dao.getAllTagsAllScopes()
+        val tagIndex = tags.associateBy { it.id }
+        val refs = dao.getAllVideoTagRefs()
+
+        return TagBackupPayload(
+            version = BACKUP_VERSION,
+            exportedAt = System.currentTimeMillis(),
+            tags = tags.map {
+                TagBackupTag(
+                    name = it.name,
+                    scope = it.scope,
+                    createdAt = it.createdAt
+                )
+            },
+            refs = refs.mapNotNull { ref ->
+                val tag = tagIndex[ref.tagId] ?: return@mapNotNull null
+                TagBackupRef(
+                    videoPath = ref.videoPath,
+                    tagName = tag.name,
+                    scope = tag.scope
+                )
+            }
+        )
+    }
+
+    private suspend fun importBackupPayload(
+        context: Context,
+        payload: TagBackupPayload
+    ): TagBackupImportResult {
+        val database = getDatabase(context)
+        return database.withTransaction {
+            val dao = database.videoTagDao()
+            val tagIdByKey = dao.getAllTagsAllScopes()
+                .associate { backupTagKey(it.name, it.scope) to it.id }
+                .toMutableMap()
+
+            val normalizedTags = buildList {
+                payload.tags.forEach { tag ->
+                    normalizeBackupTag(tag.name, tag.scope, tag.createdAt)?.let(::add)
+                }
+                payload.refs.forEach { ref ->
+                    normalizeBackupTag(ref.tagName, ref.scope, System.currentTimeMillis())?.let(::add)
+                }
+            }.distinctBy { backupTagKey(it.name, it.scope) }
+
+            var createdTags = 0
+            normalizedTags.forEach { tag ->
+                val key = backupTagKey(tag.name, tag.scope)
+                if (key !in tagIdByKey) {
+                    val id = dao.insertTag(
+                        TagEntity(
+                            name = tag.name,
+                            scope = tag.scope,
+                            createdAt = tag.createdAt
+                        )
+                    )
+                    tagIdByKey[key] = id
+                    createdTags++
+                }
+            }
+
+            val refsToInsert = payload.refs.mapNotNull { ref ->
+                val videoPath = ref.videoPath.trim()
+                if (videoPath.isEmpty()) return@mapNotNull null
+
+                val tagId = tagIdByKey[backupTagKey(ref.tagName, ref.scope)] ?: return@mapNotNull null
+                VideoTagCrossRef(videoPath = videoPath, tagId = tagId)
+            }.distinctBy { "${it.videoPath}|${it.tagId}" }
+
+            if (refsToInsert.isNotEmpty()) {
+                dao.insertVideoTagRefs(refsToInsert)
+            }
+
+            TagBackupImportResult(
+                createdTags = createdTags,
+                restoredRefs = refsToInsert.size
+            )
+        }
+    }
+
+    private fun normalizeBackupTag(name: String, scope: TagScope, createdAt: Long): TagBackupTag? {
+        val trimmedName = name.trim()
+        if (trimmedName.isEmpty()) return null
+        return TagBackupTag(trimmedName, scope, createdAt)
+    }
+
+    private fun backupTagKey(name: String, scope: TagScope): String {
+        return "${scope.name}:${name.trim().lowercase(Locale.ROOT)}"
+    }
+
+    private fun writePayloadToUri(context: Context, uri: Uri, payload: TagBackupPayload) {
+        val outputStream = context.contentResolver.openOutputStream(uri)
+            ?: error("backup_output_unavailable")
+
+        outputStream.use { stream ->
+            OutputStreamWriter(stream).use { writer ->
+                gson.toJson(payload, writer)
+            }
+        }
+    }
+
+    private fun readPayloadFromUri(context: Context, uri: Uri): TagBackupPayload {
+        val inputStream = context.contentResolver.openInputStream(uri)
+            ?: error("backup_input_unavailable")
+
+        inputStream.use { stream ->
+            InputStreamReader(stream).use { reader ->
+                return gson.fromJson(reader, TagBackupPayload::class.java)
+                    ?: error("backup_payload_invalid")
+            }
+        }
+    }
+
+    private fun ensureAutomaticBackupUri(context: Context): Uri {
+        findAutomaticBackupEntry(context)?.let { return it.uri }
+
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, AUTO_BACKUP_FILE_NAME)
+            put(MediaStore.MediaColumns.MIME_TYPE, "application/json")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, AUTO_BACKUP_RELATIVE_PATH)
+        }
+
+        return context.contentResolver.insert(
+            MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+            values
+        ) ?: error("automatic_backup_create_failed")
+    }
+
+    private fun findAutomaticBackupEntry(context: Context): AutomaticBackupEntry? {
+        val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val projection = arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DATE_MODIFIED)
+        val selection = "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
+        val args = arrayOf(AUTO_BACKUP_FILE_NAME, AUTO_BACKUP_RELATIVE_PATH)
+
+        context.contentResolver.query(collection, projection, selection, args, null)?.use { cursor ->
+            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+            val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
+            if (cursor.moveToFirst()) {
+                val updatedAt = cursor.getLong(dateModifiedColumn) * 1000L
+                return AutomaticBackupEntry(
+                    uri = Uri.withAppendedPath(collection, cursor.getLong(idColumn).toString()),
+                    updatedAt = updatedAt
+                )
+            }
+        }
+
+        return null
+    }
+
+    private fun getStoredAutomaticBackupSyncAt(context: Context): Long {
+        return context.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE)
+            .getLong(KEY_LAST_AUTO_BACKUP_AT, 0L)
+    }
+
+    private fun updateStoredAutomaticBackupSyncAt(context: Context, timestamp: Long) {
+        context.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE)
+            .edit { putLong(KEY_LAST_AUTO_BACKUP_AT, timestamp) }
     }
 }

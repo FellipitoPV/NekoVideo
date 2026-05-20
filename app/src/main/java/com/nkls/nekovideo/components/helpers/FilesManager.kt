@@ -212,14 +212,14 @@ object FilesManager {
 
         if (confirmDelete) {
             onConfirmRequired {
-                performDelete(selectedItems, onProgress, onError) { message ->
+                performDelete(context, selectedItems, onProgress, onError) { message ->
                     onSuccess(message)
                     // ✅ NOVO: Chama refresh após delete bem-sucedido
                     onRefresh?.invoke()
                 }
             }
         } else {
-            performDelete(selectedItems, onProgress, onError) { message ->
+            performDelete(context, selectedItems, onProgress, onError) { message ->
                 onSuccess(message)
                 // ✅ NOVO: Chama refresh após delete bem-sucedido
                 onRefresh?.invoke()
@@ -228,6 +228,7 @@ object FilesManager {
     }
 
     private fun performDelete(
+        context: Context,
         selectedItems: List<String>,
         onProgress: (current: Int, total: Int) -> Unit,
         onError: (message: String) -> Unit,
@@ -244,6 +245,9 @@ object FilesManager {
             }
 
             try {
+                kotlinx.coroutines.runBlocking {
+                    VideoTagStore.resetTagsForPathTree(context, file.absolutePath)
+                }
                 if (file.deleteRecursively()) {
                     deletedCount++
                 } else {
@@ -289,14 +293,14 @@ object FilesManager {
 
         if (confirmDelete) {
             onConfirmRequired {
-                performSecureDelete(selectedItems, onProgress, onError) { message ->
+                performSecureDelete(context, selectedItems, onProgress, onError) { message ->
                     onSuccess(message)
                     // ✅ NOVO: Chama refresh após delete seguro
                     onRefresh?.invoke()
                 }
             }
         } else {
-            performSecureDelete(selectedItems, onProgress, onError) { message ->
+            performSecureDelete(context, selectedItems, onProgress, onError) { message ->
                 onSuccess(message)
                 // ✅ NOVO: Chama refresh após delete seguro
                 onRefresh?.invoke()
@@ -305,6 +309,7 @@ object FilesManager {
     }
 
     private fun performSecureDelete(
+        context: Context,
         selectedItems: List<String>,
         onProgress: (current: Int, total: Int) -> Unit,
         onError: (message: String) -> Unit,
@@ -321,6 +326,9 @@ object FilesManager {
             }
 
             try {
+                kotlinx.coroutines.runBlocking {
+                    VideoTagStore.resetTagsForPathTree(context, file.absolutePath)
+                }
                 if (file.deleteRecursively()) {
                     deletedCount++
                 } else {

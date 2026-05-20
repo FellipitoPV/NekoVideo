@@ -222,6 +222,16 @@
     <string name="tags_private_locked_desc">Desbloquea con biometría o contraseña para ver, crear y eliminar tags privadas.</string>
     <string name="tags_private_unlock">Desbloquear tags privadas</string>
     <string name="tags_private_password_required">Configura una contraseña de privacidad para administrar tags privadas</string>
+    <string name="tags_backup_section">Copia de seguridad de tags</string>
+    <string name="tags_backup_export">Exportar copia</string>
+    <string name="tags_backup_export_desc">Guardar una copia manual del respaldo en cualquier carpeta</string>
+    <string name="tags_backup_import">Importar copia</string>
+    <string name="tags_backup_import_desc">Fusiona la copia automatica encontrada en el dispositivo con las tags actuales</string>
+    <string name="tags_backup_auto_status">Copia automatica guardada el %1$s</string>
+    <string name="tags_backup_auto_status_empty">Aun no hay copia automatica guardada</string>
+    <string name="tags_backup_export_success">Copia exportada con exito</string>
+    <string name="tags_backup_import_success">Copia importada: %1$d tags nuevas y %2$d vinculaciones restauradas</string>
+    <string name="tags_backup_action_failed">No se pudo completar la operacion de copia</string>
     <string name="tags_create_hint">Crear nueva tag</string>
     <string name="tags_empty_scope">No hay tags creadas en esta categoría</string>
     <string name="tags_delete">Eliminar tag</string>
@@ -287,7 +297,7 @@
     <string name="about_source_code">Código Fuente</string>
     <string name="about_source_code_desc">Ver en GitHub</string>
     <string name="about_report_bug">Reportar Error</string>
-    <string name="about_report_bug_desc">Reportar problemas o sugerencias</string>
+    <string name="about_report_bug_desc">Reportar problemas o sugerencias en GitHub; puede requerir iniciar sesion</string>
 
     <!-- Dialogs -->
     <!-- Rename Dialog -->
