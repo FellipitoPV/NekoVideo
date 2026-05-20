@@ -1,0 +1,4 @@
+Added video tags, secure tag settings and filtered shuffle playback.
+Added continue watching and floating proportional selection preview.
+Improved private folder behavior, preview timing and folder scroll restore.
+Improved DLNA cast controls, notifications and playback flow.
