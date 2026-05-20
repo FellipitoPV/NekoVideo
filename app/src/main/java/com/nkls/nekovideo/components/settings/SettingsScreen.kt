@@ -479,7 +479,7 @@ fun StorageSettingsScreen() {
                         CoroutineScope(Dispatchers.IO).launch {
                             val folderPaths = FolderVideoScanner.cache.value.keys
                             OptimizedThumbnailManager.clearCache()
-                            OptimizedThumbnailManager.clearAllDiskThumbnails(folderPaths)
+                            OptimizedThumbnailManager.clearAllDiskThumbnails(context, folderPaths)
                         }
                         Toast.makeText(
                             context,

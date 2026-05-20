@@ -302,7 +302,7 @@ class MediaPlaybackService : MediaSessionService() {
         }
 
         // 2. Busca do disco
-        val diskBitmap = OptimizedThumbnailManager.loadThumbnailFromDiskSync(videoPath)
+        val diskBitmap = OptimizedThumbnailManager.loadThumbnailFromDiskSync(this, videoPath)
         if (diskBitmap != null) {
             OptimizedThumbnailManager.thumbnailCache.put(key, diskBitmap)
             return diskBitmap

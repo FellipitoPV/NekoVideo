@@ -8,6 +8,7 @@ import android.util.Base64
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import java.io.File
 import java.io.RandomAccessFile
 import java.security.SecureRandom
@@ -162,37 +163,20 @@ object FolderLockManager {
 
     /**
      * Provides a thumbnail for a video file about to be locked.
-     * Priority: reuse existing ThumbnailManager thumbnail (already XOR'd on disk, middle frame).
+     * Priority: reuse existing ThumbnailManager thumbnail from the app cache.
      * Fallback: generate a new thumbnail from the middle frame.
      * Returns the saved thumb File at [thumbsDir]/[obfuscatedName], or null on failure.
-     * [thumbWasRenamed] is set to true if an existing thumbnail was reused.
      */
     private fun saveOrGenerateThumbnailForLock(
+        context: Context,
         videoFile: File,
         obfuscatedName: String,
         thumbsDir: File
     ): Pair<File?, Boolean> {
         val destThumb = File(thumbsDir, obfuscatedName)
 
-        // If ThumbnailManager already saved a thumbnail for this file, reuse it
-        val existingThumb = File(thumbsDir, videoFile.nameWithoutExtension)
-        if (existingThumb.exists()) {
-            return if (existingThumb.renameTo(destThumb)) {
-                Pair(destThumb, true)
-            } else {
-                Pair(null, false)
-            }
-        }
-
-        // No existing thumbnail — generate from the middle frame
         return try {
-            val retriever = MediaMetadataRetriever()
-            retriever.setDataSource(videoFile.absolutePath)
-            val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-                ?.toLongOrNull() ?: 0L
-            val middleTimeUs = (durationMs * 1000L) / 2
-            val bitmap = retriever.getFrameAtTime(middleTimeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-            retriever.release()
+            val bitmap = OptimizedThumbnailManager.getOrGenerateThumbnailSync(context, videoFile.absolutePath)
 
             if (bitmap != null) {
                 val baos = java.io.ByteArrayOutputStream()
@@ -202,7 +186,6 @@ object FolderLockManager {
                     thumbBytes[i] = (thumbBytes[i].toInt() xor THUMB_XOR_KEY[i % THUMB_XOR_KEY.size].toInt()).toByte()
                 }
                 destThumb.writeBytes(thumbBytes)
-                bitmap.recycle()
                 Pair(destThumb, false)
             } else {
                 Pair(null, false)
@@ -376,7 +359,7 @@ object FolderLockManager {
 
                 // Reuse existing ThumbnailManager thumbnail or generate from middle frame
                 // MUST be done BEFORE XOR-ing (video headers must still be intact for MediaMetadataRetriever)
-                val (savedThumbFile, thumbWasRenamed) = saveOrGenerateThumbnailForLock(videoFile, obfuscatedName, thumbsDir)
+                 val (savedThumbFile, thumbWasRenamed) = saveOrGenerateThumbnailForLock(context, videoFile, obfuscatedName, thumbsDir)
 
                 // XOR the first 8KB
                 xorFileHeader(videoFile, xorKey)
@@ -811,7 +794,7 @@ object FolderLockManager {
 
                 // Reuse existing ThumbnailManager thumbnail or generate from middle frame
                 // MUST be done BEFORE XOR-ing (video headers must still be intact for MediaMetadataRetriever)
-                val (savedThumbFile, thumbWasRenamed) = saveOrGenerateThumbnailForLock(videoFile, obfuscatedName, thumbsDir)
+                val (savedThumbFile, thumbWasRenamed) = saveOrGenerateThumbnailForLock(context, videoFile, obfuscatedName, thumbsDir)
 
                 // XOR header
                 xorFileHeader(videoFile, xorKey)

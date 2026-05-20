@@ -21,6 +21,10 @@ import androidx.room.migration.Migration
 import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonToken
+import java.io.StringReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.util.Locale
@@ -116,29 +120,68 @@ abstract class VideoTagDatabase : RoomDatabase() {
 }
 
 object VideoTagStore {
+    private data class AutomaticBackupManifest(
+        @SerializedName(value = "version", alternate = ["a"]) val version: Int,
+        @SerializedName(value = "exportedAt", alternate = ["b"]) val exportedAt: Long,
+        @SerializedName(value = "files", alternate = ["c"]) val files: List<String>
+    )
+
+    private data class AutomaticBackupTagsPayload(
+        @SerializedName(value = "version", alternate = ["a"]) val version: Int,
+        @SerializedName(value = "updatedAt", alternate = ["b"]) val updatedAt: Long,
+        @SerializedName(value = "tags", alternate = ["c"]) val tags: List<AutomaticBackupTag>
+    )
+
+    private data class AutomaticBackupTag(
+        @SerializedName(value = "id", alternate = ["a"]) val id: Long,
+        @SerializedName(value = "name", alternate = ["b"]) val name: String,
+        @SerializedName(value = "scope", alternate = ["c"]) val scope: TagScope,
+        @SerializedName(value = "createdAt", alternate = ["d"]) val createdAt: Long
+    )
+
+    private data class AutomaticBackupRefsPayload(
+        @SerializedName(value = "version", alternate = ["a"]) val version: Int,
+        @SerializedName(value = "updatedAt", alternate = ["b"]) val updatedAt: Long,
+        @SerializedName(value = "refs", alternate = ["c"]) val refs: List<AutomaticBackupVideoRef>
+    )
+
+    private data class AutomaticBackupVideoRef(
+        @SerializedName(value = "videoPath", alternate = ["a"]) val videoPath: String,
+        @SerializedName(value = "tagIds", alternate = ["b"]) val tagIds: List<Long>
+    )
+
     private data class TagBackupPayload(
-        val version: Int,
-        val exportedAt: Long,
-        val tags: List<TagBackupTag>,
-        val refs: List<TagBackupRef>
+        @SerializedName(value = "version", alternate = ["a"]) val version: Int,
+        @SerializedName(value = "exportedAt", alternate = ["b"]) val exportedAt: Long,
+        @SerializedName(value = "tags", alternate = ["c"]) val tags: List<TagBackupTag>,
+        @SerializedName(value = "refs", alternate = ["d"]) val refs: List<TagBackupRef>
     )
 
     private data class TagBackupTag(
-        val name: String,
-        val scope: TagScope,
-        val createdAt: Long
+        @SerializedName(value = "name", alternate = ["a"]) val name: String,
+        @SerializedName(value = "scope", alternate = ["b"]) val scope: TagScope,
+        @SerializedName(value = "createdAt", alternate = ["c"]) val createdAt: Long
     )
 
     private data class TagBackupRef(
-        val videoPath: String,
-        val tagName: String,
-        val scope: TagScope
+        @SerializedName(value = "videoPath", alternate = ["a"]) val videoPath: String,
+        @SerializedName(value = "tagName", alternate = ["b"]) val tagName: String,
+        @SerializedName(value = "scope", alternate = ["c"]) val scope: TagScope
     )
 
     private data class AutomaticBackupEntry(
         val uri: Uri,
         val updatedAt: Long
     )
+
+    private data class AutomaticBackupFiles(
+        val manifest: AutomaticBackupEntry,
+        val tags: AutomaticBackupEntry,
+        val refs: AutomaticBackupEntry
+    ) {
+        val updatedAt: Long
+            get() = listOf(manifest.updatedAt, tags.updatedAt, refs.updatedAt).maxOrNull() ?: 0L
+    }
 
     data class TagBackupImportResult(
         val createdTags: Int,
@@ -153,8 +196,12 @@ object VideoTagStore {
     private const val BACKUP_VERSION = 1
     private const val SETTINGS_PREFS = "nekovideo_settings"
     private const val KEY_LAST_AUTO_BACKUP_AT = "tags_last_auto_backup_at"
-    private const val AUTO_BACKUP_FILE_NAME = "tags-backup.json"
-    private const val AUTO_BACKUP_RELATIVE_PATH = "Documents/NekoVideo/Backup/"
+    private const val AUTO_BACKUP_LEGACY_FILE_NAME = "tags-backup.json"
+    private const val AUTO_BACKUP_MANIFEST_FILE_NAME = "manifest.json"
+    private const val AUTO_BACKUP_TAGS_FILE_NAME = "tags.json"
+    private const val AUTO_BACKUP_REFS_FILE_NAME = "video-tag-refs.json"
+    private const val AUTO_BACKUP_RELATIVE_PATH = "Documents/NekoVideo/Backup/Tags/"
+    private const val AUTO_BACKUP_LEGACY_RELATIVE_PATH = "Documents/NekoVideo/Backup/"
 
     private val migration1To2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -306,16 +353,16 @@ object VideoTagStore {
     suspend fun getLastAutomaticBackupAt(context: Context): Long {
         val storedValue = context.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE)
             .getLong(KEY_LAST_AUTO_BACKUP_AT, 0L)
-        val backupEntry = findAutomaticBackupEntry(context) ?: return 0L
-        return maxOf(storedValue, backupEntry.updatedAt)
+        val backupFiles = findLatestUsableAutomaticBackup(context) ?: return 0L
+        return maxOf(storedValue, backupFiles.updatedAt)
     }
 
     suspend fun hasAutomaticBackup(context: Context): Boolean {
-        return findAutomaticBackupEntry(context) != null
+        return findLatestUsableAutomaticBackup(context) != null
     }
 
     suspend fun shouldOfferAutomaticImport(context: Context): Boolean {
-        val backupEntry = findAutomaticBackupEntry(context) ?: return false
+        val backupEntry = findLatestUsableAutomaticBackup(context) ?: return false
         val storedSyncAt = getStoredAutomaticBackupSyncAt(context)
         return backupEntry.updatedAt > storedSyncAt
     }
@@ -333,8 +380,11 @@ object VideoTagStore {
     }
 
     suspend fun importLatestAutomaticBackup(context: Context): Result<TagBackupImportResult> = runCatching {
-        val entry = findAutomaticBackupEntry(context) ?: error("automatic_backup_not_found")
-        val payload = readPayloadFromUri(context, entry.uri)
+        val entry = findLatestUsableAutomaticBackup(context) ?: error("automatic_backup_not_found")
+        val payload = when (entry) {
+            is AutomaticBackupSource.MultiFile -> readAutomaticBackupPayload(context, entry.files)
+            is AutomaticBackupSource.LegacySingleFile -> readPayloadFromUri(context, entry.entry.uri)
+        }
         val result = importBackupPayload(context, payload)
         writeAutomaticBackupSafely(context)
         result
@@ -348,9 +398,110 @@ object VideoTagStore {
 
     private suspend fun writeAutomaticBackup(context: Context) {
         val payload = buildBackupPayload(context)
-        val uri = ensureAutomaticBackupUri(context)
-        writePayloadToUri(context, uri, payload)
+        val files = ensureAutomaticBackupFiles(context)
+        writeAutomaticBackupPayload(context, files, payload)
         updateStoredAutomaticBackupSyncAt(context, System.currentTimeMillis())
+    }
+
+    private fun buildAutomaticBackupTagsPayload(payload: TagBackupPayload): AutomaticBackupTagsPayload {
+        return AutomaticBackupTagsPayload(
+            version = payload.version,
+            updatedAt = payload.exportedAt,
+            tags = payload.tags.mapIndexed { index, tag ->
+                AutomaticBackupTag(
+                    id = index.toLong() + 1L,
+                    name = tag.name,
+                    scope = tag.scope,
+                    createdAt = tag.createdAt
+                )
+            }
+        )
+    }
+
+    private fun buildAutomaticBackupRefsPayload(
+        payload: TagBackupPayload,
+        tagsPayload: AutomaticBackupTagsPayload
+    ): AutomaticBackupRefsPayload {
+        val tagIdByKey = tagsPayload.tags.associate { backupTagKey(it.name, it.scope) to it.id }
+
+        return AutomaticBackupRefsPayload(
+            version = payload.version,
+            updatedAt = payload.exportedAt,
+            refs = payload.refs
+                .groupBy { it.videoPath }
+                .mapNotNull { (videoPath, refs) ->
+                    val tagIds = refs.mapNotNull { ref ->
+                        tagIdByKey[backupTagKey(ref.tagName, ref.scope)]
+                    }.distinct().sorted()
+
+                    if (videoPath.isBlank() || tagIds.isEmpty()) {
+                        null
+                    } else {
+                        AutomaticBackupVideoRef(videoPath = videoPath, tagIds = tagIds)
+                    }
+                }
+                .sortedBy { it.videoPath.lowercase(Locale.ROOT) }
+        )
+    }
+
+    private fun buildAutomaticBackupManifest(payload: TagBackupPayload): AutomaticBackupManifest {
+        return AutomaticBackupManifest(
+            version = payload.version,
+            exportedAt = payload.exportedAt,
+            files = listOf(AUTO_BACKUP_TAGS_FILE_NAME, AUTO_BACKUP_REFS_FILE_NAME)
+        )
+    }
+
+    private fun writeAutomaticBackupPayload(
+        context: Context,
+        files: AutomaticBackupFiles,
+        payload: TagBackupPayload
+    ) {
+        val tagsPayload = buildAutomaticBackupTagsPayload(payload)
+        val refsPayload = buildAutomaticBackupRefsPayload(payload, tagsPayload)
+        val manifestPayload = buildAutomaticBackupManifest(payload)
+
+        writeJsonToUri(context, files.tags.uri, tagsPayload)
+        writeJsonToUri(context, files.refs.uri, refsPayload)
+        writeJsonToUri(context, files.manifest.uri, manifestPayload)
+    }
+
+    private fun readAutomaticBackupPayload(context: Context, files: AutomaticBackupFiles): TagBackupPayload {
+        val manifest = readJsonFromUri(context, files.manifest.uri, AutomaticBackupManifest::class.java)
+        val tagsPayload = readJsonFromUri(context, files.tags.uri, AutomaticBackupTagsPayload::class.java)
+        val refsPayload = readJsonFromUri(context, files.refs.uri, AutomaticBackupRefsPayload::class.java)
+
+        if (!manifest.files.contains(AUTO_BACKUP_TAGS_FILE_NAME) || !manifest.files.contains(AUTO_BACKUP_REFS_FILE_NAME)) {
+            error("automatic_backup_manifest_invalid")
+        }
+
+        val tagsById = tagsPayload.tags.associateBy { it.id }
+        return TagBackupPayload(
+            version = manifest.version,
+            exportedAt = manifest.exportedAt,
+            tags = tagsPayload.tags.map {
+                TagBackupTag(
+                    name = it.name,
+                    scope = it.scope,
+                    createdAt = it.createdAt
+                )
+            },
+            refs = refsPayload.refs.flatMap { ref ->
+                val videoPath = ref.videoPath.trim()
+                if (videoPath.isEmpty()) {
+                    emptyList()
+                } else {
+                    ref.tagIds.mapNotNull { tagId ->
+                        val tag = tagsById[tagId] ?: return@mapNotNull null
+                        TagBackupRef(
+                            videoPath = videoPath,
+                            tagName = tag.name,
+                            scope = tag.scope
+                        )
+                    }
+                }
+            }
+        )
     }
 
     private suspend fun buildBackupPayload(context: Context): TagBackupPayload {
@@ -446,7 +597,15 @@ object VideoTagStore {
     }
 
     private fun writePayloadToUri(context: Context, uri: Uri, payload: TagBackupPayload) {
-        val outputStream = context.contentResolver.openOutputStream(uri)
+        writeJsonToUri(context, uri, payload)
+    }
+
+    private fun readPayloadFromUri(context: Context, uri: Uri): TagBackupPayload {
+        return parseBackupPayload(readTextFromUri(context, uri))
+    }
+
+    private fun writeJsonToUri(context: Context, uri: Uri, payload: Any) {
+        val outputStream = context.contentResolver.openOutputStream(uri, "wt")
             ?: error("backup_output_unavailable")
 
         outputStream.use { stream ->
@@ -456,23 +615,103 @@ object VideoTagStore {
         }
     }
 
-    private fun readPayloadFromUri(context: Context, uri: Uri): TagBackupPayload {
+    private fun readTextFromUri(context: Context, uri: Uri): String {
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: error("backup_input_unavailable")
 
         inputStream.use { stream ->
             InputStreamReader(stream).use { reader ->
-                return gson.fromJson(reader, TagBackupPayload::class.java)
-                    ?: error("backup_payload_invalid")
+                return reader.readText()
             }
         }
     }
 
-    private fun ensureAutomaticBackupUri(context: Context): Uri {
-        findAutomaticBackupEntry(context)?.let { return it.uri }
+    private fun <T> readJsonFromUri(context: Context, uri: Uri, type: Class<T>): T {
+        val content = readTextFromUri(context, uri).trim()
+        if (content.isEmpty()) error("backup_payload_empty")
+        return gson.fromJson(content, type) ?: error("backup_payload_invalid")
+    }
+
+    private fun parseBackupPayload(rawContent: String): TagBackupPayload {
+        val content = rawContent.trim()
+        if (content.isEmpty()) error("backup_payload_empty")
+
+        return runCatching { parseBackupPayloadStrict(content) }
+            .getOrElse {
+                recoverBackupPayload(content) ?: throw it
+            }
+    }
+
+    private fun parseBackupPayloadStrict(content: String): TagBackupPayload {
+        val reader = JsonReader(StringReader(content)).apply {
+            isLenient = false
+        }
+        val payload = gson.fromJson<TagBackupPayload>(reader, TagBackupPayload::class.java)
+            ?: error("backup_payload_invalid")
+        if (reader.peek() != JsonToken.END_DOCUMENT) {
+            error("backup_payload_extra_data")
+        }
+        return payload
+    }
+
+    private fun recoverBackupPayload(content: String): TagBackupPayload? {
+        val candidates = mutableListOf<TagBackupPayload>()
+        var depth = 0
+        var startIndex = -1
+        var inString = false
+        var escaping = false
+
+        content.forEachIndexed { index, char ->
+            if (inString) {
+                if (escaping) {
+                    escaping = false
+                } else if (char == '\\') {
+                    escaping = true
+                } else if (char == '"') {
+                    inString = false
+                }
+                return@forEachIndexed
+            }
+
+            when (char) {
+                '"' -> inString = true
+                '{' -> {
+                    if (depth == 0) startIndex = index
+                    depth++
+                }
+                '}' -> {
+                    if (depth == 0) return@forEachIndexed
+                    depth--
+                    if (depth == 0 && startIndex >= 0) {
+                        val candidate = content.substring(startIndex, index + 1)
+                        runCatching { parseBackupPayloadStrict(candidate) }
+                            .onSuccess { candidates += it }
+                        startIndex = -1
+                    }
+                }
+            }
+        }
+
+        return candidates.lastOrNull()
+    }
+
+    private fun ensureAutomaticBackupFiles(context: Context): AutomaticBackupFiles {
+        val manifest = ensureAutomaticBackupFileUri(context, AUTO_BACKUP_MANIFEST_FILE_NAME)
+        val tags = ensureAutomaticBackupFileUri(context, AUTO_BACKUP_TAGS_FILE_NAME)
+        val refs = ensureAutomaticBackupFileUri(context, AUTO_BACKUP_REFS_FILE_NAME)
+
+        return AutomaticBackupFiles(
+            manifest = AutomaticBackupEntry(uri = manifest, updatedAt = 0L),
+            tags = AutomaticBackupEntry(uri = tags, updatedAt = 0L),
+            refs = AutomaticBackupEntry(uri = refs, updatedAt = 0L)
+        )
+    }
+
+    private fun ensureAutomaticBackupFileUri(context: Context, fileName: String): Uri {
+        findAutomaticBackupFileEntry(context, fileName, AUTO_BACKUP_RELATIVE_PATH)?.let { return it.uri }
 
         val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, AUTO_BACKUP_FILE_NAME)
+            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
             put(MediaStore.MediaColumns.MIME_TYPE, "application/json")
             put(MediaStore.MediaColumns.RELATIVE_PATH, AUTO_BACKUP_RELATIVE_PATH)
         }
@@ -483,11 +722,15 @@ object VideoTagStore {
         ) ?: error("automatic_backup_create_failed")
     }
 
-    private fun findAutomaticBackupEntry(context: Context): AutomaticBackupEntry? {
+    private fun findAutomaticBackupFileEntry(
+        context: Context,
+        fileName: String,
+        relativePath: String
+    ): AutomaticBackupEntry? {
         val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         val projection = arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DATE_MODIFIED)
         val selection = "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
-        val args = arrayOf(AUTO_BACKUP_FILE_NAME, AUTO_BACKUP_RELATIVE_PATH)
+        val args = arrayOf(fileName, relativePath)
 
         context.contentResolver.query(collection, projection, selection, args, null)?.use { cursor ->
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
@@ -502,6 +745,61 @@ object VideoTagStore {
         }
 
         return null
+    }
+
+    private sealed interface AutomaticBackupSource {
+        val updatedAt: Long
+
+        data class MultiFile(val files: AutomaticBackupFiles) : AutomaticBackupSource {
+            override val updatedAt: Long = files.updatedAt
+        }
+
+        data class LegacySingleFile(val entry: AutomaticBackupEntry) : AutomaticBackupSource {
+            override val updatedAt: Long = entry.updatedAt
+        }
+    }
+
+    private suspend fun findLatestUsableAutomaticBackup(context: Context): AutomaticBackupSource? {
+        val candidates = buildList {
+            findUsableAutomaticBackupFiles(context)?.let {
+                add(AutomaticBackupSource.MultiFile(it))
+            }
+            findUsableLegacyAutomaticBackupEntry(context)?.let {
+                add(AutomaticBackupSource.LegacySingleFile(it))
+            }
+        }
+
+        return candidates.maxByOrNull { it.updatedAt }
+    }
+
+    private suspend fun findUsableAutomaticBackupFiles(context: Context): AutomaticBackupFiles? {
+        val manifest = findAutomaticBackupFileEntry(context, AUTO_BACKUP_MANIFEST_FILE_NAME, AUTO_BACKUP_RELATIVE_PATH)
+            ?: return null
+        val tags = findAutomaticBackupFileEntry(context, AUTO_BACKUP_TAGS_FILE_NAME, AUTO_BACKUP_RELATIVE_PATH)
+            ?: return null
+        val refs = findAutomaticBackupFileEntry(context, AUTO_BACKUP_REFS_FILE_NAME, AUTO_BACKUP_RELATIVE_PATH)
+            ?: return null
+
+        val files = AutomaticBackupFiles(manifest = manifest, tags = tags, refs = refs)
+        return if (runCatching { readAutomaticBackupPayload(context, files) }.isSuccess) {
+            files
+        } else {
+            null
+        }
+    }
+
+    private suspend fun findUsableLegacyAutomaticBackupEntry(context: Context): AutomaticBackupEntry? {
+        val entry = findAutomaticBackupFileEntry(
+            context,
+            AUTO_BACKUP_LEGACY_FILE_NAME,
+            AUTO_BACKUP_LEGACY_RELATIVE_PATH
+        ) ?: return null
+
+        return if (runCatching { readPayloadFromUri(context, entry.uri) }.isSuccess) {
+            entry
+        } else {
+            null
+        }
     }
 
     private fun getStoredAutomaticBackupSyncAt(context: Context): Long {

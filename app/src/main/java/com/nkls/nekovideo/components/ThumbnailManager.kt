@@ -15,6 +15,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.security.MessageDigest
 import java.text.DecimalFormat
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -38,6 +39,7 @@ object OptimizedThumbnailManager {
 
     private val THUMB_XOR_KEY = byteArrayOf(0x4E, 0x45, 0x4B, 0x4F) // "NEKO"
     private const val THUMBS_DIR = ".neko_thumbs"
+    private const val CENTRAL_THUMBS_DIR = "video_thumbnails"
 
     // Cache em memória (RAM)
     private var _thumbnailCache: LruCache<String, Bitmap>? = null
@@ -46,24 +48,29 @@ object OptimizedThumbnailManager {
     val thumbnailCache: LruCache<String, Bitmap>
         get() = _thumbnailCache ?: createDefaultCache().also { _thumbnailCache = it }
 
-    // Retorna .neko_thumbs/{videoFileNameSemExtensao} na pasta do vídeo
-    private fun getThumbnailFile(videoPath: String): File {
+    private fun getCentralThumbsDir(context: Context): File {
+        return File(context.cacheDir, CENTRAL_THUMBS_DIR).apply { mkdirs() }
+    }
+
+    private fun getCentralThumbnailFile(context: Context, videoPath: String): File {
+        val cleanPath = videoPath.removePrefix("file://")
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(cleanPath.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+        return File(getCentralThumbsDir(context), "$digest.thumb")
+    }
+
+    // Legacy: .neko_thumbs/{videoFileNameSemExtensao} na pasta do vídeo
+    private fun getLegacyThumbnailFile(videoPath: String): File {
         val videoFile = File(videoPath)
         val thumbsDir = File(videoFile.parentFile, THUMBS_DIR)
         return File(thumbsDir, videoFile.nameWithoutExtension)
     }
 
-    // Salva thumbnail XOR-encriptada na pasta do vídeo
-    private fun saveThumbnailToDisk(videoPath: String, bitmap: Bitmap): Boolean {
+    // Salva thumbnail XOR-encriptada no cache central do app
+    private fun saveThumbnailToDisk(context: Context, videoPath: String, bitmap: Bitmap): Boolean {
         return try {
-            val thumbFile = getThumbnailFile(videoPath)
-            val thumbsDir = thumbFile.parentFile!!
-
-            if (!thumbsDir.exists()) {
-                thumbsDir.mkdirs()
-                // Cria .nomedia para o Android não indexar
-                File(thumbsDir, ".nomedia").createNewFile()
-            }
+            val thumbFile = getCentralThumbnailFile(context, videoPath)
 
             val baos = ByteArrayOutputStream()
             bitmap.compress(Bitmap.CompressFormat.JPEG, 85, baos)
@@ -82,14 +89,15 @@ object OptimizedThumbnailManager {
         }
     }
 
-    // Carrega thumbnail XOR-decriptada do disco
-    private fun loadThumbnailFromDisk(videoPath: String): Bitmap? {
+    // Carrega thumbnail XOR-decriptada do cache central do app
+    private fun loadThumbnailFromDisk(context: Context, videoPath: String): Bitmap? {
         return try {
-            val thumbFile = getThumbnailFile(videoPath)
-            if (!thumbFile.exists()) return null
+            val cleanPath = videoPath.removePrefix("file://")
+            val thumbFile = getCentralThumbnailFile(context, cleanPath)
+            if (!thumbFile.exists()) return loadLegacyThumbnailFromDisk(cleanPath)
 
             // Verifica se o vídeo ainda existe
-            if (!File(videoPath).exists()) {
+            if (!File(cleanPath).exists()) {
                 thumbFile.delete()
                 return null
             }
@@ -107,9 +115,31 @@ object OptimizedThumbnailManager {
         }
     }
 
+    private fun loadLegacyThumbnailFromDisk(videoPath: String): Bitmap? {
+        return try {
+            val thumbFile = getLegacyThumbnailFile(videoPath)
+            if (!thumbFile.exists()) return null
+
+            if (!File(videoPath).exists()) {
+                thumbFile.delete()
+                return null
+            }
+
+            val thumbBytes = thumbFile.readBytes()
+            for (i in thumbBytes.indices) {
+                thumbBytes[i] = (thumbBytes[i].toInt() xor THUMB_XOR_KEY[i % THUMB_XOR_KEY.size].toInt()).toByte()
+            }
+
+            BitmapFactory.decodeByteArray(thumbBytes, 0, thumbBytes.size)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
     // Função pública síncrona para buscar do disco
-    fun loadThumbnailFromDiskSync(videoPath: String): Bitmap? {
-        return loadThumbnailFromDisk(videoPath)
+    fun loadThumbnailFromDiskSync(context: Context, videoPath: String): Bitmap? {
+        return loadThumbnailFromDisk(context, videoPath)
     }
 
     /**
@@ -159,7 +189,7 @@ object OptimizedThumbnailManager {
         }
 
         // 2. Verifica disco
-        val diskBitmap = loadThumbnailFromDisk(videoPath)
+        val diskBitmap = loadThumbnailFromDisk(context, videoPath)
         if (diskBitmap != null) {
             thumbnailCache.put(key, diskBitmap)
             return diskBitmap
@@ -186,8 +216,8 @@ object OptimizedThumbnailManager {
                 val thumbnailSize = getThumbnailSizeFromSettings(context)
                 val scaledBitmap = createCenterCroppedThumbnail(bitmap, thumbnailSize)
 
-                // Salva no disco (per-folder .neko_thumbs)
-                saveThumbnailToDisk(cleanPath, scaledBitmap)
+                // Salva no cache central do app
+                saveThumbnailToDisk(context, cleanPath, scaledBitmap)
 
                 // Adiciona ao cache RAM
                 thumbnailCache.put(key, scaledBitmap)
@@ -237,35 +267,25 @@ object OptimizedThumbnailManager {
                 val folder = File(folderPath)
                 if (!folder.exists() || !folder.isDirectory) return@launch
 
-                val thumbsDir = File(folder, THUMBS_DIR)
+                 val legacyThumbsDir = File(folder, THUMBS_DIR)
 
-                // 1. Remove thumbnails órfãs
-                if (thumbsDir.exists()) {
-                    val videoNamesWithoutExt = folder.listFiles()
-                        ?.filter { it.isFile && isVideoFile(it.name) }
-                        ?.map { it.nameWithoutExtension }
-                        ?.toSet() ?: emptySet()
+                 // Pré-gera thumbnails faltantes no cache central
+                 val videoFiles = folder.listFiles()
+                     ?.filter { it.isFile && isVideoFile(it.name) }
+                     ?: return@launch
 
-                    thumbsDir.listFiles()?.forEach { thumbFile ->
-                        if (thumbFile.name != ".nomedia" && thumbFile.name !in videoNamesWithoutExt) {
-                            thumbFile.delete()
-                        }
-                    }
-                }
+                 for (videoFile in videoFiles) {
+                     val thumbFile = getCentralThumbnailFile(context, videoFile.absolutePath)
+                     if (!thumbFile.exists()) {
+                         // Gera thumbnail (inclui salvar no cache central)
+                         generateThumbnailSync(context, videoFile.absolutePath)
+                         delay(50) // Pequeno delay entre gerações
+                     }
+                 }
 
-                // 2. Pré-gera thumbnails faltantes
-                val videoFiles = folder.listFiles()
-                    ?.filter { it.isFile && isVideoFile(it.name) }
-                    ?: return@launch
-
-                for (videoFile in videoFiles) {
-                    val thumbFile = File(thumbsDir, videoFile.nameWithoutExtension)
-                    if (!thumbFile.exists()) {
-                        // Gera thumbnail (inclui salvar no disco)
-                        generateThumbnailSync(context, videoFile.absolutePath)
-                        delay(50) // Pequeno delay entre gerações
-                    }
-                }
+                 if (legacyThumbsDir.exists()) {
+                     legacyThumbsDir.deleteRecursively()
+                 }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -284,10 +304,6 @@ object OptimizedThumbnailManager {
     fun clearOldCentralizedCache(context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val oldCacheDir = File(context.cacheDir, "video_thumbnails")
-                if (oldCacheDir.exists()) {
-                    oldCacheDir.deleteRecursively()
-                }
                 val oldIndexFile = File(context.cacheDir, "thumbnail_cache_index.txt")
                 if (oldIndexFile.exists()) {
                     oldIndexFile.delete()
@@ -449,8 +465,8 @@ object OptimizedThumbnailManager {
             if (ramBitmap != null && !ramBitmap.isRecycled) {
                 ramBitmap
             } else {
-                // Busca do disco (per-folder .neko_thumbs)
-                loadThumbnailFromDisk(videoPath)?.also { diskBitmap ->
+                // Busca do disco (cache central, com fallback legado)
+                loadThumbnailFromDisk(context, videoPath)?.also { diskBitmap ->
                     thumbnailCache.put(key, diskBitmap)
                 }
             }
@@ -577,8 +593,13 @@ object OptimizedThumbnailManager {
         lastCacheSize = -1
     }
 
-    // Limpa todas as pastas .neko_thumbs de uma lista de caminhos de pastas
-    fun clearAllDiskThumbnails(folderPaths: Collection<String>) {
+    // Limpa cache central e remove pastas .neko_thumbs legadas de uma lista de pastas
+    fun clearAllDiskThumbnails(context: Context, folderPaths: Collection<String>) {
+        val centralThumbsDir = File(context.cacheDir, CENTRAL_THUMBS_DIR)
+        if (centralThumbsDir.exists()) {
+            centralThumbsDir.deleteRecursively()
+        }
+
         folderPaths.forEach { folderPath ->
             val thumbsDir = File(folderPath, THUMBS_DIR)
             if (thumbsDir.exists()) {
@@ -588,7 +609,7 @@ object OptimizedThumbnailManager {
     }
 
     // Limpa thumbnail de um vídeo específico (RAM + disco)
-    fun clearCacheForPath(videoPath: String) {
+    fun clearCacheForPath(context: Context, videoPath: String) {
         val key = videoPath.hashCode().toString()
 
         // Remove da RAM
@@ -602,11 +623,16 @@ object OptimizedThumbnailManager {
         activeJobs[key]?.cancel()
         activeJobs.remove(key)
 
-        // Remove do disco (.neko_thumbs)
+        // Remove do cache central e do fallback legado
         try {
-            val thumbFile = getThumbnailFile(videoPath)
+            val thumbFile = getCentralThumbnailFile(context, videoPath)
             if (thumbFile.exists()) {
                 thumbFile.delete()
+            }
+
+            val legacyThumbFile = getLegacyThumbnailFile(videoPath)
+            if (legacyThumbFile.exists()) {
+                legacyThumbFile.delete()
             }
         } catch (e: Exception) {
             e.printStackTrace()

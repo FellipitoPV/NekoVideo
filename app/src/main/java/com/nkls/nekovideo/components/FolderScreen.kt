@@ -161,6 +161,7 @@ fun PermissionRequestScreen() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
                         data = Uri.fromParts("package", context.packageName, null)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
                     context.startActivity(intent)
                 }
@@ -1513,7 +1514,7 @@ private fun ContinueWatchingCard(
         thumbnail = withContext(Dispatchers.IO) {
             FolderLockManager.getLockedThumbnail(entry.videoPath)
                 ?: OptimizedThumbnailManager.getCachedThumbnail(entry.videoPath)
-                ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(entry.videoPath)
+                ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(context, entry.videoPath)
                 ?: OptimizedThumbnailManager.getOrGenerateThumbnailSync(context, entry.videoPath)
         }
     }
@@ -1646,7 +1647,7 @@ private fun MediaCard(
     fun regenerateThumbnail() {
         if (retryCount < 2) { // Máximo 2 tentativas
             // Limpa cache do ThumbnailManager
-            OptimizedThumbnailManager.clearCacheForPath(item.path)
+            OptimizedThumbnailManager.clearCacheForPath(context, item.path)
 
             // Limpa estado local
             thumbnail = null

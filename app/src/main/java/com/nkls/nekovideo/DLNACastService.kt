@@ -116,7 +116,7 @@ class DLNACastService : Service() {
             val cleanPath = path.removePrefix("file://")
             val key = cleanPath.hashCode().toString()
             OptimizedThumbnailManager.thumbnailCache.get(key)
-                ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(cleanPath)
+                ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(this, cleanPath)
         }
     }
 

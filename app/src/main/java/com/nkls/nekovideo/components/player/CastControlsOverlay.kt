@@ -75,7 +75,7 @@ fun CastControlsOverlay(
                     val cleanPath = currentVideoPath.removePrefix("locked://")
                     // Locked videos: try cache only (file is encrypted)
                     OptimizedThumbnailManager.getCachedThumbnail(cleanPath)
-                        ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(cleanPath)
+                        ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(context, cleanPath)
                 }
                 else -> {
                     val cleanPath = currentVideoPath.removePrefix("file://")
