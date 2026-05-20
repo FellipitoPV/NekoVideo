@@ -25,11 +25,14 @@ This folder keeps local notes for the F-Droid submission flow.
 
 ## Fields to update in the YAML
 
+When updating an app already present in `fdroiddata`, do not replace old built entries.
+Append a new build block and keep previously built blocks intact.
+
 Update these values together:
 
-- `Builds[0].versionName`
-- `Builds[0].versionCode`
-- `Builds[0].commit`
+- `Builds[n].versionName`
+- `Builds[n].versionCode`
+- `Builds[n].commit`
 - `CurrentVersion`
 - `CurrentVersionCode`
 
@@ -37,12 +40,19 @@ Expected build block format:
 
 ```yml
 Builds:
+  - versionName: 1.1.1
+    versionCode: 20
+    commit: e27ed54f020e11063f682bfcb833cef466f889eb
+    subdir: app
+    gradle:
+      - yes
+
   - versionName: 1.3.1
     versionCode: 23
     commit: v1.3.1
     subdir: app
     gradle:
-      - release
+      - yes
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
@@ -61,6 +71,7 @@ Recommended flow:
 1. Sync fork with upstream `fdroid/fdroiddata`.
 2. Create a branch in the fork.
 3. Edit `metadata/com.nkls.nekovideo.yml`.
+   Add a new build block, do not replace already built ones.
 4. Commit and push branch.
 5. Open/update MR to `fdroid/fdroiddata`.
 
