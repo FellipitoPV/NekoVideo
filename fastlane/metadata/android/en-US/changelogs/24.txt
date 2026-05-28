@@ -1,0 +1,2 @@
+Updated to NekoVideo 1.3.2.
+Fixes the startup issue present in the previous F-Droid build.
