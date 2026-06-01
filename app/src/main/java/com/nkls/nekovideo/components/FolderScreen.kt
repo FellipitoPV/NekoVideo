@@ -1210,7 +1210,6 @@ fun FolderScreen(
                     // Usa os items específicos deste path do cache
                     val pathItems = itemsByPath[targetPath] ?: emptyList()
                     val isPathLoading = targetPath in loadingPaths
-                    val pathEmptyState = pathItems.isEmpty() && !isPathLoading && !isScanning
                     val listState = rememberSaveable(targetPath, saver = LazyListState.Saver) {
                         LazyListState()
                     }
@@ -1249,65 +1248,6 @@ fun FolderScreen(
                     }
 
                     Column(modifier = Modifier.fillMaxSize()) {
-                        // Loading enquanto carrega os items desta pasta
-                        if (isPathLoading && pathItems.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(120.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(32.dp),
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        } else if (pathEmptyState) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center,
-                                    modifier = Modifier.padding(32.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(96.dp)
-                                            .background(
-                                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                                shape = CircleShape
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.VideoLibrary,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(48.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(24.dp))
-                                    Text(
-                                        text = stringResource(R.string.no_videos_found),
-                                        style = MaterialTheme.typography.headlineSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        textAlign = TextAlign.Center
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Text(
-                                        text = stringResource(R.string.pull_down_to_scan),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                            }
-                        }
-
                         val hintPrefs = remember { context.getSharedPreferences("neko_prefs", android.content.Context.MODE_PRIVATE) }
                         var showPrivateFolderHint by remember {
                             mutableStateOf(
@@ -1325,96 +1265,161 @@ fun FolderScreen(
                             }
                         }
 
+                        val hasOverlayContent =
+                            (showPrivateFolderHint && hintAlpha > 0f) ||
+                            (isRootLevel && !hasVisiblePlaybackSession && continueWatchingEntry != null)
+
+                        val shouldShowEmptyState = !isPathLoading && pathItems.isEmpty() && !hasOverlayContent
+
                         Box(modifier = Modifier.fillMaxSize()) {
-                            LazyColumn(
-                                state = listState,
-                                contentPadding = PaddingValues(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                if (showPrivateFolderHint && hintAlpha > 0f) {
-                                    item(key = "private_folder_hint") {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .alpha(hintAlpha)
-                                                .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
-                                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f), RoundedCornerShape(12.dp))
-                                                .padding(horizontal = 16.dp, vertical = 12.dp)
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Lock,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(12.dp))
-                                                Text(
-                                                    text = stringResource(R.string.private_folders_hint),
-                                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    modifier = Modifier.weight(1f)
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                IconButton(
-                                                    onClick = {
-                                                        coroutineScope.launch {
-                                                            for (i in 10 downTo 0) { hintAlpha = i / 10f; delay(20) }
-                                                            showPrivateFolderHint = false
-                                                            hintPrefs.edit().putBoolean("private_folder_hint_shown", true).apply()
-                                                        }
-                                                    },
-                                                    modifier = Modifier.size(24.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Close,
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier.size(16.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
+                            when {
+                                isPathLoading && pathItems.isEmpty() -> {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(32.dp),
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
                                     }
                                 }
 
-                                if (isRootLevel && !hasVisiblePlaybackSession) {
-                                    continueWatchingEntry?.let { entry ->
-                                        item(key = "continue_watching") {
-                                            ContinueWatchingCard(
-                                                entry = entry,
-                                                onClick = { onContinueWatchingClick(entry) }
+                                shouldShowEmptyState -> {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center,
+                                            modifier = Modifier.padding(32.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(96.dp)
+                                                    .background(
+                                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                                        shape = CircleShape
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.FolderOpen,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(48.dp),
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(24.dp))
+                                            Text(
+                                                text = stringResource(R.string.empty_folder_title),
+                                                style = MaterialTheme.typography.headlineSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                textAlign = TextAlign.Center
+                                            )
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Text(
+                                                text = stringResource(R.string.empty_folder_message),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                                textAlign = TextAlign.Center
                                             )
                                         }
                                     }
                                 }
 
-                                items(pathItems.chunked(gridColumns), key = { chunk -> "${targetPath}_${chunk.joinToString { it.path }}" }) { rowItems ->
-                                    MediaRow(
-                                        items = rowItems,
-                                        gridColumns = gridColumns,
-                                        renameTrigger = renameTrigger,
-                                        selectedItems = selectedItems,
-                                        previewingPath = previewingPath,
-                                        showThumbnails = true,
-                                        showDurations = showDurations,
-                                        showFileSizes = showFileSizes,
-                                        isSecureMode = isSecureMode,
-                                        isMoveMode = isMoveMode,
-                                        itemsToMove = itemsToMove,
-                                        onFolderClick = onFolderClick,
-                                        onSelectionChange = onSelectionChange,
-                                        onPreviewToggle = { path ->
-                                            previewingPath = if (previewingPath == path) null else path
-                                        },
-                                        onPreviewFinished = { path ->
-                                            if (previewingPath == path) {
-                                                previewingPath = null
+                                else -> {
+                                    LazyColumn(
+                                        state = listState,
+                                        contentPadding = PaddingValues(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    ) {
+                                        if (showPrivateFolderHint && hintAlpha > 0f) {
+                                            item(key = "private_folder_hint") {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .alpha(hintAlpha)
+                                                        .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                                                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f), RoundedCornerShape(12.dp))
+                                                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                                                ) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Lock,
+                                                            contentDescription = null,
+                                                            tint = MaterialTheme.colorScheme.primary,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(12.dp))
+                                                        Text(
+                                                            text = stringResource(R.string.private_folders_hint),
+                                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                                            color = MaterialTheme.colorScheme.onSurface,
+                                                            modifier = Modifier.weight(1f)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        IconButton(
+                                                            onClick = {
+                                                                coroutineScope.launch {
+                                                                    for (i in 10 downTo 0) { hintAlpha = i / 10f; delay(20) }
+                                                                    showPrivateFolderHint = false
+                                                                    hintPrefs.edit().putBoolean("private_folder_hint_shown", true).apply()
+                                                                }
+                                                            },
+                                                            modifier = Modifier.size(24.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Close,
+                                                                contentDescription = null,
+                                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
-                                    )
-                                }
 
+                                        if (isRootLevel && !hasVisiblePlaybackSession) {
+                                            continueWatchingEntry?.let { entry ->
+                                                item(key = "continue_watching") {
+                                                    ContinueWatchingCard(
+                                                        entry = entry,
+                                                        onClick = { onContinueWatchingClick(entry) }
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        items(pathItems.chunked(gridColumns), key = { chunk -> "${targetPath}_${chunk.joinToString { it.path }}" }) { rowItems ->
+                                            MediaRow(
+                                                items = rowItems,
+                                                gridColumns = gridColumns,
+                                                renameTrigger = renameTrigger,
+                                                selectedItems = selectedItems,
+                                                previewingPath = previewingPath,
+                                                showThumbnails = true,
+                                                showDurations = showDurations,
+                                                showFileSizes = showFileSizes,
+                                                isSecureMode = isSecureMode,
+                                                isMoveMode = isMoveMode,
+                                                itemsToMove = itemsToMove,
+                                                onFolderClick = onFolderClick,
+                                                onSelectionChange = onSelectionChange,
+                                                onPreviewToggle = { path ->
+                                                    previewingPath = if (previewingPath == path) null else path
+                                                },
+                                                onPreviewFinished = { path ->
+                                                    if (previewingPath == path) {
+                                                        previewingPath = null
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
                             }
 
                             val previewItem = pathItems.firstOrNull { it.path == previewingPath && !it.isFolder }

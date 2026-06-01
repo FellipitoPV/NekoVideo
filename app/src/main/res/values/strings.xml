@@ -17,6 +17,8 @@
     <string name="unlocking_progress">Destrancando... %1$d/%2$d arquivos</string>
     <string name="moving_files">Movendo arquivos...</string>
     <string name="moving_progress">Movendo... %1$d/%2$d arquivos</string>
+    <string name="deleting_items">Excluindo itens...</string>
+    <string name="deleting_progress">Excluindo... %1$d/%2$d itens</string>
     <string name="folder_locked_success">Pasta trancada com sucesso</string>
     <string name="folder_unlocked_success">Pasta destrancada com sucesso</string>
     <string name="enter_password_to_lock">Digite uma senha para trancar a pasta</string>
@@ -34,6 +36,8 @@
     <string name="action_create_folder">Nova Pasta</string>
     <string name="action_settings">Configurações</string>
     <string name="no_videos_found">Pasta sem vídeos</string>
+    <string name="empty_folder_title">Pasta vazia</string>
+    <string name="empty_folder_message">Nao ha pastas ou videos visiveis aqui no momento.</string>
     <string name="neko_private_folder_name">Cofre Privado</string>
     <string name="secure_folders_hidden">Pastas seguras ocultadas</string>
     <string name="secure_folders_shown">Pastas seguras exibidas</string>

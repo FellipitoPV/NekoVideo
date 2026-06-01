@@ -16,6 +16,8 @@
     <string name="unlocking_progress">Разблокировка... %1$d/%2$d файлов</string>
     <string name="moving_files">Перемещение файлов...</string>
     <string name="moving_progress">Перемещение... %1$d/%2$d файлов</string>
+    <string name="deleting_items">Удаление элементов...</string>
+    <string name="deleting_progress">Удаление... %1$d/%2$d элементов</string>
     <string name="folder_locked_success">Папка успешно заблокирована</string>
     <string name="folder_unlocked_success">Папка успешно разблокирована</string>
     <string name="enter_password_to_lock">Введите пароль для блокировки папки</string>
@@ -33,6 +35,8 @@
     <string name="action_create_folder">Новая папка</string>
     <string name="action_settings">Настройки</string>
     <string name="no_videos_found">Нет видео в этой папке</string>
+    <string name="empty_folder_title">Папка пуста</string>
+    <string name="empty_folder_message">Сейчас здесь нет видимых папок или видео.</string>
     <string name="neko_private_folder_name">Личное Хранилище</string>
     <string name="secure_folders_hidden">Защищённые папки скрыты</string>
     <string name="secure_folders_shown">Защищённые папки отображены</string>
@@ -124,6 +128,7 @@
     <string name="shuffle_tags_title">Shuffle по тегам</string>
     <string name="shuffle_tags_description">Нажмите на тег, чтобы переключаться между использовать, игнорировать и нейтрально. Если ни один тег не отмечен для использования, shuffle возьмёт все видео и исключит только игнорируемые теги.</string>
     <string name="shuffle_tags_empty">Теги ещё не созданы. Сначала добавьте теги к видео.</string>
+    <string name="shuffle_tags_hint_message">Удерживайте, чтобы открыть фильтр тегов</string>
     <string name="shuffle_tags_confirm">Создать shuffle</string>
     <string name="shuffle_tags_no_match">Видео с выбранными тегами не найдены</string>
     <string name="shuffle_tags_mode_neutral">Нейтрально</string>
@@ -296,6 +301,8 @@
     <string name="about_app_version">Версия приложения</string>
     <string name="about_source_code">Исходный код</string>
     <string name="about_source_code_desc">Посмотреть на GitHub</string>
+    <string name="settings_support_developer">Поддержать разработчика</string>
+    <string name="settings_support_developer_desc">Уберите рекламу с Premium и помогите развитию проекта</string>
     <string name="about_report_bug">Сообщить об ошибке</string>
     <string name="about_report_bug_desc">Сообщить о проблемах или предложениях на GitHub; может потребоваться вход</string>
 

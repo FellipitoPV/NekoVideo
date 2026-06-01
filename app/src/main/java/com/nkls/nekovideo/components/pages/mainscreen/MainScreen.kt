@@ -171,7 +171,9 @@ fun MainScreen(
     var isLocking by remember { mutableStateOf(false) }
     var isUnlocking by remember { mutableStateOf(false) }
     var isMoving by remember { mutableStateOf(false) }
+    var isDeleting by remember { mutableStateOf(false) }
     var moveProgress by remember { mutableStateOf("") }
+    var deleteProgress by remember { mutableStateOf("") }
     var lockProgress by remember { mutableStateOf("") }
     // Senha da sessao atual (armazenada apos triple-tap)
     var sessionPassword by remember { mutableStateOf<String?>(null) }
@@ -892,6 +894,13 @@ fun MainScreen(
         )
     }
 
+    if (isDeleting) {
+        ProcessingDialog(
+            title = context.getString(R.string.deleting_items),
+            message = context.getString(R.string.deleting_progress, deleteProgress.substringBefore("/").toIntOrNull() ?: 0, deleteProgress.substringAfter("/").toIntOrNull() ?: 0)
+        )
+    }
+
     if (showCreateFolderDialog) {
         val isInsideLockedForCreate = FolderLockManager.isLocked(folderPath) &&
                 LockedPlaybackSession.isActive &&
@@ -938,38 +947,59 @@ fun MainScreen(
             onConfirm = {
                 showDeleteConfirmDialog = false
                 coroutineScope.launch {
+                    val itemsToDelete = selectedItems.toList()
+                    val totalItemsToDelete = itemsToDelete.size
+                    if (totalItemsToDelete == 0) return@launch
+
                     val isInsideLocked = FolderLockManager.isLocked(folderPath) &&
                             LockedPlaybackSession.isActive &&
                             LockedPlaybackSession.hasSessionForFolder(folderPath)
+
+                    isDeleting = true
+                    deleteProgress = "0/$totalItemsToDelete"
 
                     if (isInsideLocked) {
                         // Delete files/subfolders from locked folder
                         val pwd = sessionPassword ?: LockedPlaybackSession.sessionPassword
                         if (pwd != null) {
-                            withContext(Dispatchers.IO) {
-                                selectedItems.toList().forEach { itemPath ->
-                                    val file = File(itemPath)
-                                    if (file.isDirectory) {
-                                        // Deleting a locked subfolder: clean up session, registry, then delete recursively
-                                        if (FolderLockManager.isLocked(itemPath)) {
-                                            LockedPlaybackSession.removeSession(itemPath)
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    itemsToDelete.forEachIndexed { index, itemPath ->
+                                        val file = File(itemPath)
+                                        if (file.isDirectory) {
+                                            // Deleting a locked subfolder: clean up session, registry, then delete recursively
+                                            if (FolderLockManager.isLocked(itemPath)) {
+                                                LockedPlaybackSession.removeSession(itemPath)
+                                            }
+                                            file.deleteRecursively()
+                                        } else {
+                                            val obfuscatedName = file.name
+                                            file.delete()
+                                            val updatedManifest = FolderLockManager.removeFileFromManifest(
+                                                context, folderPath, obfuscatedName, pwd
+                                            )
+                                            if (updatedManifest != null) {
+                                                LockedPlaybackSession.updateManifest(folderPath, updatedManifest)
+                                            }
                                         }
-                                        file.deleteRecursively()
-                                    } else {
-                                        val obfuscatedName = file.name
-                                        file.delete()
-                                        val updatedManifest = FolderLockManager.removeFileFromManifest(
-                                            context, folderPath, obfuscatedName, pwd
-                                        )
-                                        if (updatedManifest != null) {
-                                            LockedPlaybackSession.updateManifest(folderPath, updatedManifest)
-                                        }
+
+                                        deleteProgress = "${index + 1}/$totalItemsToDelete"
                                     }
                                 }
+                                launch(Dispatchers.Main) {
+                                    Toast.makeText(context, context.getString(R.string.items_deleted_locked), Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                launch(Dispatchers.Main) {
+                                    Toast.makeText(context, e.message ?: "Error deleting items", Toast.LENGTH_SHORT).show()
+                                }
+                            } finally {
+                                isDeleting = false
+                                deleteProgress = ""
                             }
-                            launch(Dispatchers.Main) {
-                                Toast.makeText(context, context.getString(R.string.items_deleted_locked), Toast.LENGTH_SHORT).show()
-                            }
+                        } else {
+                            isDeleting = false
+                            deleteProgress = ""
                         }
                         selectedItems.clear()
                         showFabMenu = false
@@ -978,15 +1008,22 @@ fun MainScreen(
                     } else if (currentRoute == "secure_folder") {
                         FilesManager.deleteSecureSelectedItems(
                             context = context,
-                            selectedItems = selectedItems.toList(),
+                            selectedItems = itemsToDelete,
                             secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context),
+                            onProgress = { current, total ->
+                                deleteProgress = "$current/$total"
+                            },
                             onError = { message ->
                                 launch(Dispatchers.Main) {
+                                    isDeleting = false
+                                    deleteProgress = ""
                                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                                 }
                             },
                             onSuccess = { message ->
                                 launch(Dispatchers.Main) {
+                                    isDeleting = false
+                                    deleteProgress = ""
                                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                                 }
                                 selectedItems.clear()
@@ -998,14 +1035,21 @@ fun MainScreen(
                     } else {
                         FilesManager.deleteSelectedItems(
                             context = context,
-                            selectedItems = selectedItems.toList(),
+                            selectedItems = itemsToDelete,
+                            onProgress = { current, total ->
+                                deleteProgress = "$current/$total"
+                            },
                             onError = { message ->
                                 launch(Dispatchers.Main) {
+                                    isDeleting = false
+                                    deleteProgress = ""
                                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                                 }
                             },
                             onSuccess = { message ->
                                 launch(Dispatchers.Main) {
+                                    isDeleting = false
+                                    deleteProgress = ""
                                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                                 }
                                 selectedItems.clear()

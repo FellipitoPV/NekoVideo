@@ -16,6 +16,8 @@
     <string name="unlocking_progress">Entsperren... %1$d/%2$d Dateien</string>
     <string name="moving_files">Dateien werden verschoben...</string>
     <string name="moving_progress">Verschieben... %1$d/%2$d Dateien</string>
+    <string name="deleting_items">Elemente werden gelöscht...</string>
+    <string name="deleting_progress">Löschen... %1$d/%2$d Elemente</string>
     <string name="folder_locked_success">Ordner erfolgreich gesperrt</string>
     <string name="folder_unlocked_success">Ordner erfolgreich entsperrt</string>
     <string name="enter_password_to_lock">Passwort zum Sperren des Ordners eingeben</string>
@@ -33,6 +35,8 @@
     <string name="action_create_folder">Neuer Ordner</string>
     <string name="action_settings">Einstellungen</string>
     <string name="no_videos_found">Keine Videos in diesem Ordner</string>
+    <string name="empty_folder_title">Leerer Ordner</string>
+    <string name="empty_folder_message">Derzeit sind hier keine sichtbaren Ordner oder Videos vorhanden.</string>
     <string name="neko_private_folder_name">Privater Tresor</string>
     <string name="secure_folders_hidden">Sichere Ordner ausgeblendet</string>
     <string name="secure_folders_shown">Sichere Ordner angezeigt</string>
@@ -124,6 +128,7 @@
     <string name="shuffle_tags_title">Shuffle nach Tags</string>
     <string name="shuffle_tags_description">Tippen Sie auf einen Tag, um zwischen verwenden, ignorieren und neutral zu wechseln. Wenn kein Tag zum Verwenden markiert ist, berücksichtigt Shuffle alle Videos und schließt nur die ignorierten Tags aus.</string>
     <string name="shuffle_tags_empty">Noch keine Tags erstellt. Fügen Sie zuerst Tags zu Videos hinzu.</string>
+    <string name="shuffle_tags_hint_message">Gedrückt halten, um den Tag-Filter zu öffnen</string>
     <string name="shuffle_tags_confirm">Shuffle erstellen</string>
     <string name="shuffle_tags_no_match">Keine Videos mit den ausgewählten Tags gefunden</string>
     <string name="shuffle_tags_mode_neutral">Neutral</string>
@@ -296,6 +301,8 @@
     <string name="about_app_version">App-Version</string>
     <string name="about_source_code">Quellcode</string>
     <string name="about_source_code_desc">Auf GitHub ansehen</string>
+    <string name="settings_support_developer">Entwickler unterstützen</string>
+    <string name="settings_support_developer_desc">Entfernen Sie Werbung mit Premium und unterstützen Sie die Entwicklung</string>
     <string name="about_report_bug">Fehler melden</string>
     <string name="about_report_bug_desc">Probleme oder Vorschlage auf GitHub melden; Anmeldung kann erforderlich sein</string>
 

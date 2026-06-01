@@ -16,6 +16,8 @@
     <string name="unlocking_progress">Déverrouillage... %1$d/%2$d fichiers</string>
     <string name="moving_files">Déplacement des fichiers...</string>
     <string name="moving_progress">Déplacement... %1$d/%2$d fichiers</string>
+    <string name="deleting_items">Suppression des éléments...</string>
+    <string name="deleting_progress">Suppression... %1$d/%2$d éléments</string>
     <string name="folder_locked_success">Dossier verrouillé avec succès</string>
     <string name="folder_unlocked_success">Dossier déverrouillé avec succès</string>
     <string name="enter_password_to_lock">Entrez un mot de passe pour verrouiller le dossier</string>
@@ -33,6 +35,8 @@
     <string name="action_create_folder">Nouveau Dossier</string>
     <string name="action_settings">Paramètres</string>
     <string name="no_videos_found">Aucune vidéo dans ce dossier</string>
+    <string name="empty_folder_title">Dossier vide</string>
+    <string name="empty_folder_message">Aucun dossier ni aucune vidéo visible ici pour le moment.</string>
     <string name="neko_private_folder_name">Coffre Privé</string>
     <string name="secure_folders_hidden">Dossiers sécurisés masqués</string>
     <string name="secure_folders_shown">Dossiers sécurisés affichés</string>
@@ -124,6 +128,7 @@
     <string name="shuffle_tags_title">Shuffle par tags</string>
     <string name="shuffle_tags_description">Touchez un tag pour alterner entre utiliser, ignorer et neutre. Si aucun tag n\'est marqué comme à utiliser, le shuffle prendra toutes les vidéos et exclura seulement les tags ignorés.</string>
     <string name="shuffle_tags_empty">Aucun tag créé pour le moment. Ajoutez d\'abord des tags aux vidéos.</string>
+    <string name="shuffle_tags_hint_message">Maintenez appuyé pour ouvrir le filtre des tags</string>
     <string name="shuffle_tags_confirm">Créer le shuffle</string>
     <string name="shuffle_tags_no_match">Aucune vidéo avec les tags sélectionnés n\'a été trouvée</string>
     <string name="shuffle_tags_mode_neutral">Neutre</string>
@@ -296,6 +301,8 @@
     <string name="about_app_version">Version de lApp</string>
     <string name="about_source_code">Code Source</string>
     <string name="about_source_code_desc">Voir sur GitHub</string>
+    <string name="settings_support_developer">Soutenir le développeur</string>
+    <string name="settings_support_developer_desc">Supprimez les publicités avec Premium et aidez le développement</string>
     <string name="about_report_bug">Signaler un Bug</string>
     <string name="about_report_bug_desc">Signaler des problemes ou des suggestions sur GitHub; une connexion peut etre requise</string>
 

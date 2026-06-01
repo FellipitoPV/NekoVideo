@@ -16,6 +16,8 @@
     <string name="unlocking_progress">अनलॉक हो रहा है... %1$d/%2$d फ़ाइलें</string>
     <string name="moving_files">फ़ाइलें मूव हो रही हैं...</string>
     <string name="moving_progress">मूव हो रहा है... %1$d/%2$d फ़ाइलें</string>
+    <string name="deleting_items">आइटम हटाए जा रहे हैं...</string>
+    <string name="deleting_progress">हटाया जा रहा है... %1$d/%2$d आइटम</string>
     <string name="folder_locked_success">फ़ोल्डर सफलतापूर्वक लॉक हो गया</string>
     <string name="folder_unlocked_success">फ़ोल्डर सफलतापूर्वक अनलॉक हो गया</string>
     <string name="enter_password_to_lock">फ़ोल्डर लॉक करने के लिए पासवर्ड डालें</string>
@@ -33,6 +35,8 @@
     <string name="action_create_folder">नया फोल्डर</string>
     <string name="action_settings">सेटिंग्स</string>
     <string name="no_videos_found">इस फोल्डर में कोई वीडियो नहीं</string>
+    <string name="empty_folder_title">फोल्डर खाली है</string>
+    <string name="empty_folder_message">अभी यहां कोई दिखने वाली फोल्डर या वीडियो नहीं है।</string>
     <string name="neko_private_folder_name">निजी तिजोरी</string>
     <string name="secure_folders_hidden">सुरक्षित फ़ोल्डर छुपाए गए</string>
     <string name="secure_folders_shown">सुरक्षित फ़ोल्डर प्रदर्शित</string>
@@ -124,6 +128,7 @@
     <string name="shuffle_tags_title">टैग्स के अनुसार शफल</string>
     <string name="shuffle_tags_description">किसी टैग पर टैप करके उपयोग, अनदेखा और न्यूट्रल के बीच बदलें। यदि उपयोग के लिए कोई टैग चिन्हित नहीं है, तो शफल सभी वीडियो मानेगा और केवल अनदेखी टैग्स को बाहर करेगा।</string>
     <string name="shuffle_tags_empty">अभी तक कोई टैग नहीं बनाई गई। पहले वीडियो में टैग जोड़ें।</string>
+    <string name="shuffle_tags_hint_message">टैग फ़िल्टर खोलने के लिए दबाकर रखें</string>
     <string name="shuffle_tags_confirm">शफल बनाएं</string>
     <string name="shuffle_tags_no_match">चुनी गई टैग्स वाले कोई वीडियो नहीं मिले</string>
     <string name="shuffle_tags_mode_neutral">न्यूट्रल</string>
@@ -296,6 +301,8 @@
     <string name="about_app_version">ऐप वर्जन</string>
     <string name="about_source_code">सोर्स कोड</string>
     <string name="about_source_code_desc">GitHub पर देखें</string>
+    <string name="settings_support_developer">डेवलपर को सपोर्ट करें</string>
+    <string name="settings_support_developer_desc">प्रीमियम के साथ विज्ञापन हटाएं और विकास में मदद करें</string>
     <string name="about_report_bug">बग रिपोर्ट करें</string>
     <string name="about_report_bug_desc">GitHub पर समस्याओं या सुझावों की रिपोर्ट करें; लॉगिन की आवश्यकता हो सकती है</string>
 

@@ -16,6 +16,8 @@
     <string name="unlocking_progress">Desbloqueando... %1$d/%2$d archivos</string>
     <string name="moving_files">Moviendo archivos...</string>
     <string name="moving_progress">Moviendo... %1$d/%2$d archivos</string>
+    <string name="deleting_items">Eliminando elementos...</string>
+    <string name="deleting_progress">Eliminando... %1$d/%2$d elementos</string>
     <string name="folder_locked_success">Carpeta bloqueada exitosamente</string>
     <string name="folder_unlocked_success">Carpeta desbloqueada exitosamente</string>
     <string name="enter_password_to_lock">Ingresa una contraseña para bloquear la carpeta</string>
@@ -33,6 +35,8 @@
     <string name="action_create_folder">Nueva Carpeta</string>
     <string name="action_settings">Configuración</string>
     <string name="no_videos_found">Sin videos en esta carpeta</string>
+    <string name="empty_folder_title">Carpeta vacía</string>
+    <string name="empty_folder_message">No hay carpetas ni videos visibles aquí en este momento.</string>
     <string name="neko_private_folder_name">Bóveda Privada</string>
     <string name="secure_folders_hidden">Carpetas seguras ocultas</string>
     <string name="secure_folders_shown">Carpetas seguras mostradas</string>
@@ -124,6 +128,7 @@
     <string name="shuffle_tags_title">Shuffle por tags</string>
     <string name="shuffle_tags_description">Toca una tag para alternar entre usar, ignorar y neutral. Si no se marca ninguna tag para usar, el shuffle considerará todos los videos y excluirá solo las tags ignoradas.</string>
     <string name="shuffle_tags_empty">Aún no hay tags creadas. Primero agrega tags a los videos.</string>
+    <string name="shuffle_tags_hint_message">Mantén pulsado para abrir el filtro de tags</string>
     <string name="shuffle_tags_confirm">Crear shuffle</string>
     <string name="shuffle_tags_no_match">No se encontraron videos con las tags seleccionadas</string>
     <string name="shuffle_tags_mode_neutral">Neutral</string>
@@ -296,6 +301,8 @@
     <string name="about_app_version">Versión de la App</string>
     <string name="about_source_code">Código Fuente</string>
     <string name="about_source_code_desc">Ver en GitHub</string>
+    <string name="settings_support_developer">Apoyar al desarrollador</string>
+    <string name="settings_support_developer_desc">Quita los anuncios con Premium y ayuda al desarrollo</string>
     <string name="about_report_bug">Reportar Error</string>
     <string name="about_report_bug_desc">Reportar problemas o sugerencias en GitHub; puede requerir iniciar sesion</string>
 
