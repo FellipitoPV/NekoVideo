@@ -1,0 +1,4 @@
+Atualizado para o NekoVideo 1.3.3.
+O Continue Assistindo agora preserva o audio e a legenda selecionados ao retomar.
+Videos pausados agora continuam disponiveis no mini player ao minimizar o overlay.
+Melhorado o feedback visual da exclusao em lote com progresso mais claro.

@@ -1,0 +1,4 @@
+Updated to NekoVideo 1.3.3.
+Continue Watching now keeps your selected audio and subtitles when resuming.
+Paused videos now stay available in the mini player after minimizing the overlay.
+Improved bulk deletion feedback with clearer visual progress.
