@@ -389,25 +389,46 @@ fun VideoPlayerOverlay(
         val tracks = controller.currentTracks
         val subtitleGroups = mutableListOf<Tracks.Group>()
         val audioGroups = mutableListOf<Tracks.Group>()
+        var detectedSubtitleTrack: PreferredTrack? = null
+        var detectedAudioTrack: PreferredTrack? = null
+        var detectedSubtitleGroupIndex: Int? = null
+        var detectedAudioGroupIndex: Int? = null
 
 
         for (trackGroup in tracks.groups) {
 
             if (trackGroup.type == C.TRACK_TYPE_TEXT) {
+                val groupIndex = subtitleGroups.size
                 subtitleGroups.add(trackGroup)
                 for (i in 0 until trackGroup.length) {
-                    val format = trackGroup.getTrackFormat(i)
+                    if (trackGroup.isTrackSelected(i)) {
+                        detectedSubtitleTrack = trackGroup.getTrackFormat(i).toPreferredTrack()
+                        detectedSubtitleGroupIndex = groupIndex
+                    }
                 }
             } else if (trackGroup.type == C.TRACK_TYPE_AUDIO) {
+                val groupIndex = audioGroups.size
                 audioGroups.add(trackGroup)
                 for (i in 0 until trackGroup.length) {
-                    val format = trackGroup.getTrackFormat(i)
+                    if (trackGroup.isTrackSelected(i)) {
+                        detectedAudioTrack = trackGroup.getTrackFormat(i).toPreferredTrack()
+                        detectedAudioGroupIndex = groupIndex
+                    }
                 }
             }
         }
 
         availableSubtitles = subtitleGroups
         availableAudioTracks = audioGroups
+        subtitlesExplicitlyDisabled = controller.trackSelectionParameters.disabledTrackTypes.contains(C.TRACK_TYPE_TEXT)
+        selectedSubtitleTrack = detectedSubtitleGroupIndex
+        selectedAudioTrack = detectedAudioGroupIndex
+        if (detectedSubtitleTrack != null) {
+            preferredSubtitleTrack = detectedSubtitleTrack
+        }
+        if (detectedAudioTrack != null) {
+            preferredAudioTrack = detectedAudioTrack
+        }
         reapplyPreferredTracks(controller)
 
     }

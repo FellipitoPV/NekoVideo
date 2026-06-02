@@ -93,7 +93,6 @@ import com.nkls.nekovideo.components.layout.ActionType
 import com.nkls.nekovideo.components.layout.TopBar
 import com.nkls.nekovideo.components.loadFolderContent
 import com.nkls.nekovideo.components.player.MiniPlayerImproved
-import com.nkls.nekovideo.components.player.MediaControllerManager
 import com.nkls.nekovideo.components.player.VideoPlayerOverlay
 import com.nkls.nekovideo.components.settings.AboutSettingsScreen
 import com.nkls.nekovideo.components.settings.StorageSettingsScreen
@@ -425,10 +424,6 @@ fun MainScreen(
     }
 
     fun closePlayerOverlay() {
-        val controller = MediaControllerManager.getCurrentController()
-        if (controller != null && !controller.isPlaying) {
-            MediaPlaybackService.stopService(context)
-        }
         showPlayerOverlay = false
         isInPiPMode = false
     }

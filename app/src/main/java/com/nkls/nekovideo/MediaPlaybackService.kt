@@ -10,6 +10,9 @@ import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.Format
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -30,6 +33,8 @@ import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.PlaylistNavigator
 import com.nkls.nekovideo.components.helpers.ContinueWatchingStore
+import com.nkls.nekovideo.components.helpers.ContinueWatchingEntry
+import com.nkls.nekovideo.components.helpers.ContinueWatchingTrackPreference
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 
 @OptIn(UnstableApi::class)
@@ -50,6 +55,7 @@ class MediaPlaybackService : MediaSessionService() {
     // ✅ NOVO: Timestamp da última atualização de window para ignorar eventos assíncronos
     private var lastWindowUpdateTime = 0L
     private val WINDOW_UPDATE_COOLDOWN_MS = 500L // Ignora eventos por 500ms após atualização
+    private var pendingContinueWatchingRestore: ContinueWatchingEntry? = null
 
     private fun createConfiguredPlayer(): ExoPlayer {
         val audioAttributes = AudioAttributes.Builder()
@@ -220,6 +226,10 @@ class MediaPlaybackService : MediaSessionService() {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             super.onIsPlayingChanged(isPlaying)
         }
+
+        override fun onTracksChanged(tracks: Tracks) {
+            applyPendingContinueWatchingRestore(tracks)
+        }
     }
 
     // MediaPlaybackService.kt
@@ -358,6 +368,11 @@ class MediaPlaybackService : MediaSessionService() {
     private fun updatePlaylist(playlist: List<String>, initialIndex: Int, initialPositionMs: Long = 0L) {
         isUpdatingMetadata = true // ✅ Evita processamento de onMediaItemTransition
         ContinueWatchingStore.setPlaybackActive(playlist.isNotEmpty())
+        pendingContinueWatchingRestore = buildPendingContinueWatchingRestore(
+            playlist = playlist,
+            initialIndex = initialIndex,
+            initialPositionMs = initialPositionMs
+        )
 
         val isLocked = hasLockedUris(playlist)
 
@@ -711,14 +726,147 @@ class MediaPlaybackService : MediaSessionService() {
                 if (currentUri.startsWith("locked://")) currentUri.removePrefix("locked://")
                 else currentUri.removePrefix("file://")
             ).nameWithoutExtension
+        val audioTrack = extractSelectedTrackPreference(currentPlayer.currentTracks, C.TRACK_TYPE_AUDIO)
+        val subtitleTrack = extractSelectedTrackPreference(currentPlayer.currentTracks, C.TRACK_TYPE_TEXT)
+        val subtitlesDisabled = currentPlayer.trackSelectionParameters
+            .disabledTrackTypes
+            .contains(C.TRACK_TYPE_TEXT)
 
         ContinueWatchingStore.save(
             context = this,
             videoPath = currentUri,
             title = title,
             positionMs = currentPosition,
-            durationMs = duration
+            durationMs = duration,
+            audioTrack = audioTrack,
+            subtitleTrack = subtitleTrack,
+            subtitlesDisabled = subtitlesDisabled
         )
+    }
+
+    private fun buildPendingContinueWatchingRestore(
+        playlist: List<String>,
+        initialIndex: Int,
+        initialPositionMs: Long
+    ): ContinueWatchingEntry? {
+        if (initialPositionMs <= 0L) return null
+
+        val targetPath = playlist.getOrNull(initialIndex)?.let(::normalizeUriPath) ?: return null
+        val entry = ContinueWatchingStore.get(this) ?: return null
+
+        return entry.takeIf { it.videoPath == targetPath }
+    }
+
+    private fun applyPendingContinueWatchingRestore(tracks: Tracks) {
+        val restore = pendingContinueWatchingRestore ?: return
+        val currentPath = player?.currentMediaItem
+            ?.localConfiguration
+            ?.uri
+            ?.toString()
+            ?.let(::normalizeUriPath)
+            ?: return
+
+        if (currentPath != restore.videoPath) return
+
+        val currentPlayer = player ?: return
+        var parameters = currentPlayer.trackSelectionParameters
+            .buildUpon()
+
+        if (restore.subtitlesDisabled) {
+            parameters = parameters
+                .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+        } else if (restore.subtitleTrack != null) {
+            findMatchingTrack(tracks, C.TRACK_TYPE_TEXT, restore.subtitleTrack)?.let { (group, trackIndex) ->
+                parameters = parameters
+                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                    .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, trackIndex))
+            }
+        }
+
+        if (restore.audioTrack != null) {
+            findMatchingTrack(tracks, C.TRACK_TYPE_AUDIO, restore.audioTrack)?.let { (group, trackIndex) ->
+                parameters = parameters
+                    .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, trackIndex))
+            }
+        }
+
+        currentPlayer.trackSelectionParameters = parameters.build()
+        pendingContinueWatchingRestore = null
+    }
+
+    private fun findMatchingTrack(
+        tracks: Tracks,
+        trackType: Int,
+        preferredTrack: ContinueWatchingTrackPreference
+    ): Pair<Tracks.Group, Int>? {
+        tracks.groups.forEach { group ->
+            if (group.type != trackType) return@forEach
+
+            for (trackIndex in 0 until group.length) {
+                val format = group.getTrackFormat(trackIndex)
+                if (preferredTrack.matches(format)) {
+                    return group to trackIndex
+                }
+            }
+        }
+
+        return null
+    }
+
+    private fun extractSelectedTrackPreference(
+        tracks: Tracks,
+        trackType: Int
+    ): ContinueWatchingTrackPreference? {
+        tracks.groups.forEach { group ->
+            if (group.type != trackType) return@forEach
+
+            for (trackIndex in 0 until group.length) {
+                if (group.isTrackSelected(trackIndex)) {
+                    return group.getTrackFormat(trackIndex).toContinueWatchingTrackPreference()
+                }
+            }
+        }
+
+        return null
+    }
+
+    private fun ContinueWatchingTrackPreference.matches(format: Format): Boolean {
+        val normalizedLabel = label?.trim()?.lowercase()
+        val normalizedLanguage = language?.trim()?.lowercase()
+        val normalizedMimeType = mimeType?.trim()?.lowercase()
+        val formatLabel = format.label?.trim()?.lowercase()
+        val formatLanguage = format.language?.trim()?.lowercase()
+        val formatMimeType = format.sampleMimeType?.trim()?.lowercase()
+
+        return when {
+            normalizedLabel != null && normalizedLanguage != null -> {
+                formatLabel == normalizedLabel && formatLanguage == normalizedLanguage
+            }
+            normalizedLanguage != null && normalizedMimeType != null -> {
+                formatLanguage == normalizedLanguage && formatMimeType == normalizedMimeType
+            }
+            normalizedLanguage != null -> formatLanguage == normalizedLanguage
+            normalizedLabel != null -> formatLabel == normalizedLabel
+            normalizedMimeType != null -> formatMimeType == normalizedMimeType
+            else -> false
+        }
+    }
+
+    private fun Format.toContinueWatchingTrackPreference(): ContinueWatchingTrackPreference {
+        return ContinueWatchingTrackPreference(
+            label = label?.takeIf { it.isNotBlank() },
+            language = language?.takeIf { it.isNotBlank() },
+            mimeType = sampleMimeType?.takeIf { it.isNotBlank() }
+        )
+    }
+
+    private fun normalizeUriPath(uri: String): String {
+        return when {
+            uri.startsWith("locked://") -> uri.removePrefix("locked://")
+            uri.startsWith("file://") -> uri.removePrefix("file://")
+            else -> uri
+        }
     }
 
     companion object {
