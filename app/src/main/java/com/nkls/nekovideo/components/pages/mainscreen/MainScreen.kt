@@ -424,6 +424,20 @@ fun MainScreen(
         FolderVideoScanner.startScan(context, forceRefresh = true)
     }
 
+    fun refreshAffectedPaths(paths: List<String>) {
+        val affectedPaths = paths
+            .map { File(it).absolutePath }
+            .filter { it.isNotBlank() }
+            .distinct()
+
+        if (affectedPaths.isEmpty()) {
+            quickRefresh()
+            return
+        }
+
+        FolderVideoScanner.refreshPaths(context, affectedPaths)
+    }
+
     fun launchFolderLockAction(folders: List<String>, isUnlock: Boolean, password: String) {
         coroutineScope.launch {
             if (isUnlock) {
@@ -451,7 +465,7 @@ fun MainScreen(
             lockProgress = ""
             selectedItems.clear()
             renameTrigger++
-            quickRefresh()
+            refreshAffectedPaths(if (isAtRootLevel) listOf(folderPath) else folders)
         }
     }
 
@@ -480,7 +494,7 @@ fun MainScreen(
                     Toast.makeText(context, context.getString(R.string.files_secured), Toast.LENGTH_SHORT).show()
                     selectedItems.clear()
                     renameTrigger++
-                    quickRefresh()
+                    refreshAffectedPaths(itemsToSecure.mapNotNull { File(it).parent } + securePath)
                 }
             )
         }
@@ -629,7 +643,7 @@ fun MainScreen(
                         showRenameDialog = false
                         selectedItems.clear()
                         renameTrigger++
-                        quickRefresh()
+                        refreshAffectedPaths(listOf(folderPath))
                     }
                 }
             )
@@ -640,7 +654,9 @@ fun MainScreen(
                 onComplete = {
                     selectedItems.clear()
                     renameTrigger++
-                    quickRefresh()
+                },
+                onRefresh = {
+                    refreshAffectedPaths(listOf(folderPath))
                 }
             )
         }
@@ -843,13 +859,13 @@ fun MainScreen(
                                 Toast.makeText(context, context.getString(R.string.folder_created), Toast.LENGTH_SHORT).show()
                             }
                             renameTrigger++
-                            quickRefresh()
+                            refreshAffectedPaths(listOf(folderPath))
                         }
                     }
                 } else {
                     renameTrigger++
                     Toast.makeText(context, context.getString(R.string.folder_created), Toast.LENGTH_SHORT).show()
-                    quickRefresh()
+                    refreshAffectedPaths(listOf(folderPath))
                 }
             },
         )
@@ -907,7 +923,7 @@ fun MainScreen(
                         selectedItems.clear()
                         showFabMenu = false
                         renameTrigger++
-                        quickRefresh()
+                        refreshAffectedPaths(listOf(folderPath))
                     } else if (currentRoute == "secure_folder") {
                         FilesManager.deleteSecureSelectedItems(
                             context = context,
@@ -928,7 +944,7 @@ fun MainScreen(
                                 selectedItems.clear()
                                 showFabMenu = false
                                 renameTrigger++
-                                quickRefresh()
+                                refreshAffectedPaths(listOf(folderPath))
                             }
                         )
                     } else {
@@ -950,7 +966,7 @@ fun MainScreen(
                                 selectedItems.clear()
                                 showFabMenu = false
                                 renameTrigger++
-                                quickRefresh()
+                                refreshAffectedPaths(listOf(folderPath))
                             }
                         )
                     }
@@ -1243,7 +1259,7 @@ fun MainScreen(
                                     renameTrigger++
 
                                     if (pasted) {
-                                        quickRefresh()
+                                        refreshAffectedPaths(movedItems.mapNotNull { File(it).parent } + folderPath)
                                     }
                                 }
                             }
@@ -1262,7 +1278,7 @@ fun MainScreen(
 
                                     selectedItems.clear()
                                     renameTrigger++
-                                    quickRefresh()
+                                    refreshAffectedPaths(listOf(folderPath, File(folderPath).parent ?: folderPath))
                                 }
                             }
                         }

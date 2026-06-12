@@ -172,6 +172,45 @@ object FolderVideoScanner {
         }
     }
 
+    fun refreshPaths(context: Context, paths: List<String>, scope: CoroutineScope = GlobalScope) {
+        val targetPaths = paths
+            .map { File(it).absolutePath }
+            .distinct()
+            .sortedBy { it.length }
+            .filterIndexed { index, path ->
+                targetPathsFilter(paths = paths, candidate = path, index = index)
+            }
+
+        if (targetPaths.isEmpty()) return
+
+        scanJob = scope.launch(Dispatchers.IO) {
+            try {
+                val updatedCache = _cache.value.toMutableMap()
+
+                targetPaths.forEach { rootPath ->
+                    updatedCache.keys
+                        .filter { cachedPath -> isSameOrDescendant(cachedPath, rootPath) }
+                        .toList()
+                        .forEach { updatedCache.remove(it) }
+
+                    val rootDir = File(rootPath)
+                    if (rootDir.exists() && rootDir.isDirectory) {
+                        val subtreeMap = ConcurrentHashMap<String, FolderInfo>()
+                        scanSecureFoldersRecursive(context, rootDir, subtreeMap)
+                        updatedCache.putAll(subtreeMap)
+                    }
+
+                    recomputeAncestors(context, updatedCache, rootPath)
+                }
+
+                _cache.value = updatedCache.toMap()
+                saveCacheToDisk(context)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     private suspend fun scanDirectFolders(folderMap: ConcurrentHashMap<String, FolderInfo>) {
         val directScanPaths = listOf(
             "/storage/emulated/0/Download",
@@ -452,6 +491,102 @@ object FolderVideoScanner {
             }
             propagateToParents(folderMap, parentPath, lastModified)
         }
+    }
+
+    private fun recomputeAncestors(
+        context: Context,
+        cacheMap: MutableMap<String, FolderInfo>,
+        startPath: String
+    ) {
+        var current = File(startPath).parentFile
+        while (current != null && current.absolutePath != current.parent) {
+            recomputeFolderInfo(context, cacheMap, current)
+            current = current.parentFile
+        }
+    }
+
+    private fun recomputeFolderInfo(
+        context: Context,
+        cacheMap: MutableMap<String, FolderInfo>,
+        directory: File
+    ) {
+        if (!directory.exists() || !directory.isDirectory) {
+            cacheMap.remove(directory.absolutePath)
+            return
+        }
+
+        val isLocked = FolderLockManager.isLocked(directory.absolutePath)
+        val isSecure = File(directory, ".nomedia").exists() || isLocked
+
+        if (isLocked) {
+            val registryEntry = FolderLockManager.getRegistryEntry(context, directory.absolutePath)
+            val fileCount = registryEntry?.fileCount ?: 0
+            cacheMap[directory.absolutePath] = FolderInfo(
+                path = directory.absolutePath,
+                hasVideos = fileCount > 0,
+                videoCount = fileCount,
+                isSecure = true,
+                isLocked = true,
+                lastModified = directory.lastModified(),
+                videos = emptyList()
+            )
+            return
+        }
+
+        val directVideos = directory.listFiles()?.filter { file ->
+            file.isFile && file.extension.lowercase() in videoExtensions
+        } ?: emptyList()
+
+        val videoInfos = directVideos.map { file ->
+            VideoInfo(
+                path = file.absolutePath,
+                uri = Uri.fromFile(file),
+                lastModified = file.lastModified(),
+                sizeInBytes = file.length()
+            )
+        }
+
+        val hasRelevantChildren = directory.listFiles()?.any { child ->
+            child.isDirectory && cacheMap[child.absolutePath]?.let { it.hasVideos || it.isLocked || it.isSecure } == true
+        } == true
+
+        val shouldKeepEntry = videoInfos.isNotEmpty() || isSecure || hasRelevantChildren
+
+        if (!shouldKeepEntry) {
+            cacheMap.remove(directory.absolutePath)
+            return
+        }
+
+        val maxChildModified = directory.listFiles()
+            ?.filter { it.isDirectory }
+            ?.mapNotNull { cacheMap[it.absolutePath]?.lastModified }
+            ?.maxOrNull()
+            ?: 0L
+
+        val maxVideoModified = videoInfos.maxOfOrNull { it.lastModified } ?: 0L
+
+        cacheMap[directory.absolutePath] = FolderInfo(
+            path = directory.absolutePath,
+            hasVideos = videoInfos.isNotEmpty() || hasRelevantChildren,
+            videoCount = videoInfos.size,
+            isSecure = isSecure,
+            isLocked = false,
+            lastModified = maxOf(directory.lastModified(), maxVideoModified, maxChildModified),
+            videos = videoInfos
+        )
+    }
+
+    private fun isSameOrDescendant(path: String, rootPath: String): Boolean {
+        return path == rootPath || path.startsWith("$rootPath${File.separator}")
+    }
+
+    private fun targetPathsFilter(paths: List<String>, candidate: String, index: Int): Boolean {
+        return paths
+            .map { File(it).absolutePath }
+            .distinct()
+            .sortedBy { it.length }
+            .take(index)
+            .none { isSameOrDescendant(candidate, it) }
     }
 
     fun hasFolderVideos(folderPath: String): Boolean {
