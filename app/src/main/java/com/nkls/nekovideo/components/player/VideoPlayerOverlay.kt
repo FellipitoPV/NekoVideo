@@ -1014,36 +1014,37 @@ fun VideoPlayerOverlay(
                             }
 
                             if (touchSlopResult != null) {
+                                if (!controlsVisible) {
+                                    val initialPosition = mediaController?.currentPosition ?: 0L
+                                    val videoDuration = mediaController?.duration?.takeIf { it > 0 } ?: 0L
+                                    val seekSensitivity = screenWidth / 30f
+                                    var totalDragX = touchSlopResult.position.x - downX
 
-                                val initialPosition = mediaController?.currentPosition ?: 0L
-                                val videoDuration = mediaController?.duration?.takeIf { it > 0 } ?: 0L
-                                val seekSensitivity = screenWidth / 30f
-                                var totalDragX = touchSlopResult.position.x - downX
+                                    var lastSeekSeconds = 0
 
-                                var lastSeekSeconds = 0
+                                    do {
+                                        val seekSeconds = (totalDragX / seekSensitivity).toInt()
 
-                                do {
-                                    val seekSeconds = (totalDragX / seekSensitivity).toInt()
+                                        if (seekSeconds != lastSeekSeconds) {
+                                            lastSeekSeconds = seekSeconds
+                                            seekIndicator = if (seekSeconds > 0) "+${seekSeconds}s" else "${seekSeconds}s"
+                                            seekSide = if (seekSeconds > 0) Alignment.CenterEnd else Alignment.CenterStart
+                                        }
 
-                                    if (seekSeconds != lastSeekSeconds) {
-                                        lastSeekSeconds = seekSeconds
-                                        seekIndicator = if (seekSeconds > 0) "+${seekSeconds}s" else "${seekSeconds}s"
-                                        seekSide = if (seekSeconds > 0) Alignment.CenterEnd else Alignment.CenterStart
-                                    }
+                                        val event = awaitPointerEvent()
+                                        val change = event.changes.firstOrNull() ?: break
+                                        totalDragX = change.position.x - downX
+                                        change.consume()
+                                    } while (change.pressed)
 
-                                    val event = awaitPointerEvent()
-                                    val change = event.changes.firstOrNull() ?: break
-                                    totalDragX = change.position.x - downX
-                                    change.consume()
-                                } while (change.pressed)
+                                    val finalSeekSeconds = (totalDragX / seekSensitivity).toInt()
 
-                                val finalSeekSeconds = (totalDragX / seekSensitivity).toInt()
-
-                                if (finalSeekSeconds != 0 && isSeekable) {
-                                    mediaController?.let { controller ->
-                                        val newPosition = (initialPosition + finalSeekSeconds * 1000L)
-                                            .coerceIn(0, videoDuration)
-                                        controller.seekTo(newPosition)
+                                    if (finalSeekSeconds != 0 && isSeekable) {
+                                        mediaController?.let { controller ->
+                                            val newPosition = (initialPosition + finalSeekSeconds * 1000L)
+                                                .coerceIn(0, videoDuration)
+                                            controller.seekTo(newPosition)
+                                        }
                                     }
                                 }
                             } else {
