@@ -80,6 +80,7 @@ import com.nkls.nekovideo.components.RenameDialog
 import com.nkls.nekovideo.components.helpers.VideoRemuxer
 import com.nkls.nekovideo.components.SortType
 import com.nkls.nekovideo.components.FolderScreen
+import com.nkls.nekovideo.components.InlineStatusMessage
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedFolderOperations
@@ -1024,51 +1025,60 @@ fun MainScreen(
     Scaffold(
         topBar = {
             if (currentRoute != "video_player" && !showPlayerOverlay) {
-                TopBar(
-                    currentRoute = currentRoute,
-                    selectedItems = selectedItems.toList(),
-                    folderPath = folderPath,
-                    navController = navController,
-                    onPasswordDialog = {
-                        if (showPrivateFolders) {
-                            togglePrivateFolders()
-                            SortRowMessageCenter.showInfo(context.getString(R.string.secure_folders_hidden))
-                        } else {
-                            showPasswordDialog = true
-                        }
-                    },
-                    onSelectionClear = {
-                        selectedItems.clear()
-                        showFabMenu = false
-                        showRenameDialog = false
-                    },
-                    onSelectAll = {
-                        if (currentRoute == "folder") {
-                            val isSecure = isSecureFolder(folderPath)
-                            val isRoot = isAtRootLevel
-
-                            val allItems = loadFolderContent(
-                                context = context,
-                                folderPath = folderPath,
-                                sortType = SortType.NAME_ASC,
-                                isSecureMode = isSecure,
-                                isRootLevel = isRoot,
-                                showPrivateFolders = showPrivateFolders
-                            )
+                val inlineMessage by SortRowMessageCenter.message.collectAsState()
+                Column {
+                    TopBar(
+                        currentRoute = currentRoute,
+                        selectedItems = selectedItems.toList(),
+                        folderPath = folderPath,
+                        navController = navController,
+                        onPasswordDialog = {
+                            if (showPrivateFolders) {
+                                togglePrivateFolders()
+                                SortRowMessageCenter.showInfo(context.getString(R.string.secure_folders_hidden))
+                            } else {
+                                showPasswordDialog = true
+                            }
+                        },
+                        onSelectionClear = {
                             selectedItems.clear()
-                            selectedItems.addAll(allItems.map { it.path })
+                            showFabMenu = false
+                            showRenameDialog = false
+                        },
+                        onSelectAll = {
+                            if (currentRoute == "folder") {
+                                val isSecure = isSecureFolder(folderPath)
+                                val isRoot = isAtRootLevel
+
+                                val allItems = loadFolderContent(
+                                    context = context,
+                                    folderPath = folderPath,
+                                    sortType = SortType.NAME_ASC,
+                                    isSecureMode = isSecure,
+                                    isRootLevel = isRoot,
+                                    showPrivateFolders = showPrivateFolders
+                                )
+                                selectedItems.clear()
+                                selectedItems.addAll(allItems.map { it.path })
+                            }
+                        },
+                        isAtRootLevel = isAtRootLevel,
+                        onNavigateToPath = { path ->
+                            selectedItems.clear()
+                            folderNavState.navigateToPath(path)
+                        },
+                        onNavigateBack = {
+                            selectedItems.clear()
+                            folderNavState.navigateBack()
                         }
-                    },
-                    isAtRootLevel = isAtRootLevel,
-                    onNavigateToPath = { path ->
-                        selectedItems.clear()
-                        folderNavState.navigateToPath(path)
-                    },
-                    onNavigateBack = {
-                        selectedItems.clear()
-                        folderNavState.navigateBack()
-                    }
-                )
+                    )
+                    InlineStatusMessage(
+                        message = inlineMessage,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
             }
         },
         floatingActionButton = {

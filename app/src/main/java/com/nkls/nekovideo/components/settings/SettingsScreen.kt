@@ -106,6 +106,7 @@ import androidx.core.content.edit
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.TagEntity
 import com.nkls.nekovideo.components.helpers.TagScope
+import com.nkls.nekovideo.components.helpers.SortRowMessageCenter
 import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.services.FolderVideoScanner
 import kotlinx.coroutines.CoroutineScope
@@ -136,7 +137,6 @@ fun SettingsScreen(navController: NavController) {
                 .padding(if (isCompact) 8.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
         ) {
-
             item {
                 SettingsCategoryCard(
                     icon = Icons.Default.PlayArrow,
@@ -240,7 +240,6 @@ fun PlaybackSettingsScreen() {
                 .padding(if (isCompact) 8.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
         ) {
-
             item {
                 SettingsSectionHeader(stringResource(R.string.playback_controls), isCompact)
             }
@@ -332,7 +331,6 @@ fun InterfaceSettingsScreen(themeManager: ThemeManager) {
             verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
         ) {
 
-
             item {
                 SettingsSectionHeader(stringResource(R.string.settings_interface), isCompact)
             }
@@ -397,7 +395,6 @@ fun DisplaySettingsScreen() {
                 .padding(if (isCompact) 8.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
         ) {
-
             item {
                 SettingsSectionHeader(stringResource(R.string.display_video_info), isCompact)
             }
@@ -481,11 +478,7 @@ fun StorageSettingsScreen() {
                             OptimizedThumbnailManager.clearCache()
                             OptimizedThumbnailManager.clearAllDiskThumbnails(context, folderPaths)
                         }
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.storage_clear_thumbnails_success),
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        SortRowMessageCenter.showSuccess(context.getString(R.string.storage_clear_thumbnails_success))
                     },
                     isCompact = isCompact
                 )
@@ -537,15 +530,14 @@ fun TagsSettingsScreen() {
     }
 
     fun showImportSuccessToast(result: VideoTagStore.TagBackupImportResult) {
-        Toast.makeText(
-            context,
+        SortRowMessageCenter.showSuccess(
             context.getString(
                 R.string.tags_backup_import_success,
                 result.createdTags,
                 result.restoredRefs
             ),
-            Toast.LENGTH_LONG
-        ).show()
+            durationMs = 4500L
+        )
     }
 
     LaunchedEffect(refreshToken, privateUnlocked) {
@@ -604,7 +596,7 @@ fun TagsSettingsScreen() {
                                 showImportSuccessToast(result.getOrThrow())
                                 refreshToken++
                             } else {
-                                Toast.makeText(context, R.string.tags_backup_action_failed, Toast.LENGTH_SHORT).show()
+                                SortRowMessageCenter.showError(context.getString(R.string.tags_backup_action_failed))
                             }
                         }
                     },
@@ -721,7 +713,7 @@ fun SecuritySettingsScreen() {
             onDismiss = { showChangePasswordDialog = false },
             onSuccess = {
                 showChangePasswordDialog = false
-                Toast.makeText(context, context.getString(R.string.change_password_success), Toast.LENGTH_SHORT).show()
+                SortRowMessageCenter.showSuccess(context.getString(R.string.change_password_success))
             }
         )
     }
@@ -741,7 +733,7 @@ fun SecuritySettingsScreen() {
                             negativeText = context.getString(R.string.biometric_enable_cancel),
                             onSuccess = {
                                 biometricEnabled = true
-                                Toast.makeText(context, context.getString(R.string.biometric_enabled_success), Toast.LENGTH_SHORT).show()
+                                SortRowMessageCenter.showSuccess(context.getString(R.string.biometric_enabled_success))
                             },
                             onError = { }
                         )
@@ -749,7 +741,7 @@ fun SecuritySettingsScreen() {
                     "disable" -> {
                         BiometricHelper.disable(context)
                         biometricEnabled = false
-                        Toast.makeText(context, context.getString(R.string.biometric_disabled), Toast.LENGTH_SHORT).show()
+                        SortRowMessageCenter.showInfo(context.getString(R.string.biometric_disabled))
                     }
                 }
                 pendingAction = ""
@@ -900,7 +892,7 @@ fun AboutSettingsScreen() {
         runCatching {
             uriHandler.openUri("https://github.com/FellipitoPV/NekoVideo/issues/new/choose")
         }.onFailure {
-            Toast.makeText(context, "Nao foi possivel abrir o link", Toast.LENGTH_SHORT).show()
+            SortRowMessageCenter.showError("Nao foi possivel abrir o link")
         }
     }
 
