@@ -2,16 +2,20 @@ package com.nkls.nekovideo.components.helpers
 
 import android.content.Context
 import android.widget.Toast
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 import android.util.Base64
 import com.nkls.nekovideo.components.videoExtensions
+import kotlin.coroutines.resume
 
 object FilesManager {
 
-    fun renameSelectedItems(
+    suspend fun renameSelectedItems(
         context: Context,
         selectedItems: List<String>,
         baseName: String,
@@ -20,55 +24,55 @@ object FilesManager {
         onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
     ) {
         if (selectedItems.isEmpty()) {
-            Toast.makeText(context, "No items selected", Toast.LENGTH_SHORT).show()
+            showToast(context, "No items selected")
             return
         }
 
-        val parentDir = File(selectedItems.first()).parentFile ?: return
-        val existingFiles = parentDir.listFiles()?.map { it.name }?.toMutableSet() ?: mutableSetOf()
-        var currentNumber = startNumber
-        var renamedCount = 0
-        val totalItems = selectedItems.size
+        withContext(Dispatchers.IO) {
+            val parentDir = File(selectedItems.first()).parentFile ?: return@withContext
+            val existingFiles = parentDir.listFiles()?.map { it.name }?.toMutableSet() ?: mutableSetOf()
+            var currentNumber = startNumber
+            var renamedCount = 0
+            val totalItems = selectedItems.size
 
-        selectedItems.forEachIndexed { index, path ->
-            val file = File(path)
-            if (!file.exists()) return@forEachIndexed
+            selectedItems.forEachIndexed { index, path ->
+                val file = File(path)
+                if (!file.exists()) return@forEachIndexed
 
-            val extension = if (file.isFile) ".${file.extension}" else ""
-            var newName: String
+                val extension = if (file.isFile) ".${file.extension}" else ""
+                var newName: String
 
-            while (true) {
-                newName = if (currentNumber == 0) baseName else "${baseName} $currentNumber"
-                val fullNewName = "$newName$extension"
-                if (fullNewName !in existingFiles && !File(parentDir, fullNewName).exists()) {
-                    break
+                while (true) {
+                    newName = if (currentNumber == 0) baseName else "${baseName} $currentNumber"
+                    val fullNewName = "$newName$extension"
+                    if (fullNewName !in existingFiles && !File(parentDir, fullNewName).exists()) {
+                        break
+                    }
+                    currentNumber++
+                }
+
+                val newFile = File(parentDir, "$newName$extension")
+                if (file.renameTo(newFile)) {
+                    VideoTagStore.moveTagsForPath(context, file.absolutePath, newFile.absolutePath)
+                    existingFiles.add("$newName$extension")
+                    renamedCount++
+                } else {
+                    showToast(context, "Failed to rename ${file.name}")
                 }
                 currentNumber++
+                notifyProgress(onProgress, index + 1, totalItems)
             }
 
-            val newFile = File(parentDir, "$newName$extension")
-            if (file.renameTo(newFile)) {
-                kotlinx.coroutines.runBlocking {
-                    VideoTagStore.moveTagsForPath(context, file.absolutePath, newFile.absolutePath)
-                }
-                existingFiles.add("$newName$extension")
-                renamedCount++
+            if (renamedCount == 0) {
+                showToast(context, "No files were renamed")
             } else {
-                Toast.makeText(context, "Failed to rename ${file.name}", Toast.LENGTH_SHORT).show()
+                // ✅ NOVO: Chama refresh se fornecido
+                notifyRefresh(onRefresh)
             }
-            currentNumber++
-            onProgress(index + 1, totalItems)
-        }
-
-        if (renamedCount == 0) {
-            Toast.makeText(context, "No files were renamed", Toast.LENGTH_SHORT).show()
-        } else {
-            // ✅ NOVO: Chama refresh se fornecido
-            onRefresh?.invoke()
         }
     }
 
-    fun moveSelectedItems(
+    suspend fun moveSelectedItems(
         context: Context,
         selectedItems: List<String>,
         destinationPath: String,
@@ -78,71 +82,69 @@ object FilesManager {
         onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
     ) {
         if (selectedItems.isEmpty()) {
-            onError("No items selected")
+            notifyMessage(onError, "No items selected")
             return
         }
 
-        val destinationDir = File(destinationPath)
-        if (!destinationDir.exists() || !destinationDir.isDirectory) {
-            if (!destinationDir.mkdirs()) {
-                onError("Failed to create destination folder")
-                return
-            }
-        }
-
-        var movedCount = 0
-        val totalItems = selectedItems.size
-
-        selectedItems.forEachIndexed { index, path ->
-            val file = File(path)
-            if (!file.exists()) return@forEachIndexed
-
-            val newFile = File(destinationDir, file.name)
-            val wasLockedFolder = file.isDirectory && FolderLockManager.isLocked(file.absolutePath)
-
-            if (newFile.exists()) {
-                onError("${file.name} already exists in destination")
-                return@forEachIndexed
+        withContext(Dispatchers.IO) {
+            val destinationDir = File(destinationPath)
+            if (!destinationDir.exists() || !destinationDir.isDirectory) {
+                if (!destinationDir.mkdirs()) {
+                    notifyMessage(onError, "Failed to create destination folder")
+                    return@withContext
+                }
             }
 
-            if (file.renameTo(newFile)) {
-                kotlinx.coroutines.runBlocking {
+            var movedCount = 0
+            val totalItems = selectedItems.size
+
+            selectedItems.forEachIndexed { index, path ->
+                val file = File(path)
+                if (!file.exists()) return@forEachIndexed
+
+                val newFile = File(destinationDir, file.name)
+                val wasLockedFolder = file.isDirectory && FolderLockManager.isLocked(file.absolutePath)
+
+                if (newFile.exists()) {
+                    notifyMessage(onError, "${file.name} already exists in destination")
+                    return@forEachIndexed
+                }
+
+                if (file.renameTo(newFile)) {
                     VideoTagStore.moveTagsForPath(context, file.absolutePath, newFile.absolutePath)
-                }
-                if (wasLockedFolder) {
-                    FolderLockManager.onLockedFolderMoved(context, file.absolutePath, newFile.absolutePath)
-                }
-                movedCount++
-            } else {
-                try {
-                    if (file.isDirectory) {
-                        file.copyRecursively(newFile, overwrite = false)
-                        file.deleteRecursively()
-                    } else {
-                        file.copyTo(newFile)
-                        file.delete()
-                    }
-                    kotlinx.coroutines.runBlocking {
-                        VideoTagStore.moveTagsForPath(context, file.absolutePath, newFile.absolutePath)
-                    }
                     if (wasLockedFolder) {
                         FolderLockManager.onLockedFolderMoved(context, file.absolutePath, newFile.absolutePath)
                     }
                     movedCount++
-                } catch (e: Exception) {
-                    onError("Failed to move ${file.name}")
+                } else {
+                    try {
+                        if (file.isDirectory) {
+                            file.copyRecursively(newFile, overwrite = false)
+                            file.deleteRecursively()
+                        } else {
+                            file.copyTo(newFile)
+                            file.delete()
+                        }
+                        VideoTagStore.moveTagsForPath(context, file.absolutePath, newFile.absolutePath)
+                        if (wasLockedFolder) {
+                            FolderLockManager.onLockedFolderMoved(context, file.absolutePath, newFile.absolutePath)
+                        }
+                        movedCount++
+                    } catch (e: Exception) {
+                        notifyMessage(onError, "Failed to move ${file.name}")
+                    }
                 }
+
+                notifyProgress(onProgress, index + 1, totalItems)
             }
 
-            onProgress(index + 1, totalItems)
-        }
-
-        if (movedCount == 0) {
-            onError("No files were moved")
-        } else {
-            onSuccess("Moved $movedCount items")
-            // ✅ NOVO: Chama refresh se fornecido
-            onRefresh?.invoke()
+            if (movedCount == 0) {
+                notifyMessage(onError, "No files were moved")
+            } else {
+                notifyMessage(onSuccess, "Moved $movedCount items")
+                // ✅ NOVO: Chama refresh se fornecido
+                notifyRefresh(onRefresh)
+            }
         }
     }
 
@@ -193,7 +195,7 @@ object FilesManager {
         }
     }
 
-    fun deleteSelectedItems(
+    suspend fun deleteSelectedItems(
         context: Context,
         selectedItems: List<String>,
         onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
@@ -211,63 +213,55 @@ object FilesManager {
         val confirmDelete = prefs.getBoolean("confirm_delete", true)
 
         if (confirmDelete) {
-            onConfirmRequired {
-                performDelete(context, selectedItems, onProgress, onError) { message ->
-                    onSuccess(message)
-                    // ✅ NOVO: Chama refresh após delete bem-sucedido
-                    onRefresh?.invoke()
-                }
-            }
-        } else {
-            performDelete(context, selectedItems, onProgress, onError) { message ->
-                onSuccess(message)
-                // ✅ NOVO: Chama refresh após delete bem-sucedido
-                onRefresh?.invoke()
-            }
+            awaitConfirmation(onConfirmRequired)
+        }
+
+        performDelete(context, selectedItems, onProgress, onError) { message ->
+            notifyMessage(onSuccess, message)
+            // ✅ NOVO: Chama refresh após delete bem-sucedido
+            notifyRefresh(onRefresh)
         }
     }
 
-    private fun performDelete(
+    private suspend fun performDelete(
         context: Context,
         selectedItems: List<String>,
         onProgress: (current: Int, total: Int) -> Unit,
         onError: (message: String) -> Unit,
-        onSuccess: (message: String) -> Unit
-    ) {
+        onSuccess: suspend (message: String) -> Unit
+    ) = withContext(Dispatchers.IO) {
         var deletedCount = 0
         val totalItems = selectedItems.size
 
         selectedItems.forEachIndexed { index, path ->
             val file = File(path)
             if (!file.exists()) {
-                onError("Item not found: ${file.name}")
+                notifyMessage(onError, "Item not found: ${file.name}")
                 return@forEachIndexed
             }
 
             try {
-                kotlinx.coroutines.runBlocking {
-                    VideoTagStore.resetTagsForPathTree(context, file.absolutePath)
-                }
+                VideoTagStore.resetTagsForPathTree(context, file.absolutePath)
                 if (file.deleteRecursively()) {
                     deletedCount++
                 } else {
-                    onError("Failed to delete ${file.name}")
+                    notifyMessage(onError, "Failed to delete ${file.name}")
                 }
             } catch (e: Exception) {
-                onError("Error deleting ${file.name}: ${e.message}")
+                notifyMessage(onError, "Error deleting ${file.name}: ${e.message}")
             }
 
-            onProgress(index + 1, totalItems)
+            notifyProgress(onProgress, index + 1, totalItems)
         }
 
         if (deletedCount == 0) {
-            onError("No items were deleted")
+            notifyMessage(onError, "No items were deleted")
         } else {
             onSuccess("Deleted $deletedCount items")
         }
     }
 
-    fun deleteSecureSelectedItems(
+    suspend fun deleteSecureSelectedItems(
         context: Context,
         selectedItems: List<String>,
         secureFolderPath: String,
@@ -278,13 +272,13 @@ object FilesManager {
         onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
     ) {
         if (selectedItems.isEmpty()) {
-            onError("No items selected")
+            notifyMessage(onError, "No items selected")
             return
         }
 
         val invalidItems = selectedItems.filterNot { it.startsWith(secureFolderPath) }
         if (invalidItems.isNotEmpty()) {
-            onError("Some items are not in the secure folder")
+            notifyMessage(onError, "Some items are not in the secure folder")
             return
         }
 
@@ -292,59 +286,87 @@ object FilesManager {
         val confirmDelete = prefs.getBoolean("confirm_delete", true)
 
         if (confirmDelete) {
-            onConfirmRequired {
-                performSecureDelete(context, selectedItems, onProgress, onError) { message ->
-                    onSuccess(message)
-                    // ✅ NOVO: Chama refresh após delete seguro
-                    onRefresh?.invoke()
-                }
-            }
-        } else {
-            performSecureDelete(context, selectedItems, onProgress, onError) { message ->
-                onSuccess(message)
-                // ✅ NOVO: Chama refresh após delete seguro
-                onRefresh?.invoke()
-            }
+            awaitConfirmation(onConfirmRequired)
+        }
+
+        performSecureDelete(context, selectedItems, onProgress, onError) { message ->
+            notifyMessage(onSuccess, message)
+            // ✅ NOVO: Chama refresh após delete seguro
+            notifyRefresh(onRefresh)
         }
     }
 
-    private fun performSecureDelete(
+    private suspend fun performSecureDelete(
         context: Context,
         selectedItems: List<String>,
         onProgress: (current: Int, total: Int) -> Unit,
         onError: (message: String) -> Unit,
-        onSuccess: (message: String) -> Unit
-    ) {
+        onSuccess: suspend (message: String) -> Unit
+    ) = withContext(Dispatchers.IO) {
         var deletedCount = 0
         val totalItems = selectedItems.size
 
         selectedItems.forEachIndexed { index, path ->
             val file = File(path)
             if (!file.exists()) {
-                onError("Item not found: ${file.name}")
+                notifyMessage(onError, "Item not found: ${file.name}")
                 return@forEachIndexed
             }
 
             try {
-                kotlinx.coroutines.runBlocking {
-                    VideoTagStore.resetTagsForPathTree(context, file.absolutePath)
-                }
+                VideoTagStore.resetTagsForPathTree(context, file.absolutePath)
                 if (file.deleteRecursively()) {
                     deletedCount++
                 } else {
-                    onError("Failed to delete secure item ${file.name}")
+                    notifyMessage(onError, "Failed to delete secure item ${file.name}")
                 }
             } catch (e: Exception) {
-                onError("Error deleting secure item ${file.name}: ${e.message}")
+                notifyMessage(onError, "Error deleting secure item ${file.name}: ${e.message}")
             }
 
-            onProgress(index + 1, totalItems)
+            notifyProgress(onProgress, index + 1, totalItems)
         }
 
         if (deletedCount == 0) {
-            onError("No secure items were deleted")
+            notifyMessage(onError, "No secure items were deleted")
         } else {
             onSuccess("Deleted $deletedCount secure items")
+        }
+    }
+
+    private suspend fun showToast(context: Context, message: String) {
+        withContext(Dispatchers.Main) {
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private suspend fun notifyProgress(onProgress: (current: Int, total: Int) -> Unit, current: Int, total: Int) {
+        withContext(Dispatchers.Main) {
+            onProgress(current, total)
+        }
+    }
+
+    private suspend fun notifyMessage(callback: (message: String) -> Unit, message: String) {
+        withContext(Dispatchers.Main) {
+            callback(message)
+        }
+    }
+
+    private suspend fun notifyRefresh(onRefresh: (() -> Unit)?) {
+        withContext(Dispatchers.Main) {
+            onRefresh?.invoke()
+        }
+    }
+
+    private suspend fun awaitConfirmation(onConfirmRequired: (onConfirm: () -> Unit) -> Unit) {
+        withContext(Dispatchers.Main) {
+            suspendCancellableCoroutine { continuation ->
+                onConfirmRequired {
+                    if (continuation.isActive) {
+                        continuation.resume(Unit)
+                    }
+                }
+            }
         }
     }
 
