@@ -19,7 +19,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1001,8 +1003,53 @@ fun VideoPlayerOverlay(
                     .fillMaxSize()
                     .background(Color.Black)
                     .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = { offset ->
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val downTime = System.currentTimeMillis()
+                            val downX = down.position.x
+                            val screenWidth = size.width.toFloat()
+
+                            val touchSlopResult = awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                                change.consume()
+                            }
+
+                            val isInControlsZone = down.position.y > size.height - 100.dp.toPx()
+
+                            if (touchSlopResult != null) {
+                                if (!isInControlsZone && !controlsVisible) {
+                                    val initialPosition = mediaController?.currentPosition ?: 0L
+                                    val videoDuration = mediaController?.duration?.takeIf { it > 0 } ?: 0L
+                                    val seekSensitivity = screenWidth / 30f
+                                    var totalDragX = touchSlopResult.position.x - downX
+
+                                    var lastSeekSeconds = 0
+
+                                    do {
+                                        val seekSeconds = (totalDragX / seekSensitivity).toInt()
+
+                                        if (seekSeconds != lastSeekSeconds) {
+                                            lastSeekSeconds = seekSeconds
+                                            seekIndicator = if (seekSeconds > 0) "+${seekSeconds}s" else "${seekSeconds}s"
+                                            seekSide = if (seekSeconds > 0) Alignment.CenterEnd else Alignment.CenterStart
+                                        }
+
+                                        val event = awaitPointerEvent()
+                                        val change = event.changes.firstOrNull() ?: break
+                                        totalDragX = change.position.x - downX
+                                        change.consume()
+                                    } while (change.pressed)
+
+                                    val finalSeekSeconds = (totalDragX / seekSensitivity).toInt()
+
+                                    if (finalSeekSeconds != 0 && isSeekable) {
+                                        mediaController?.let { controller ->
+                                            val newPosition = (initialPosition + finalSeekSeconds * 1000L)
+                                                .coerceIn(0, videoDuration)
+                                            controller.seekTo(newPosition)
+                                        }
+                                    }
+                                }
+                            } else {
                                 val currentTime = System.currentTimeMillis()
 
                                 // Se é o primeiro tap ou passou muito tempo desde o último
@@ -1033,14 +1080,13 @@ fun VideoPlayerOverlay(
                                     controlsVisible = false
 
                                     // Executa a lógica de seek
-                                    val screenWidth = size.width
                                     val doubleTapSeek =
                                         SettingsManager.getDoubleTapSeek(context) * 1000L
 
                                     mediaController?.let { controller ->
                                         val currentPos = controller.currentPosition
 
-                                        if (offset.x < screenWidth / 2) {
+                                        if (downX < screenWidth / 2) {
                                             // Lado esquerdo - voltar
                                             val newPosition =
                                                 (currentPos - doubleTapSeek).coerceAtLeast(0)
@@ -1057,7 +1103,7 @@ fun VideoPlayerOverlay(
                                     }
                                 }
                             }
-                        )
+                        }
                     }
             ) {
                 // PlayerView em background
