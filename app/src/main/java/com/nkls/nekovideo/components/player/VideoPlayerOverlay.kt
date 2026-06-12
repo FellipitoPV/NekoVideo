@@ -1013,8 +1013,10 @@ fun VideoPlayerOverlay(
                                 change.consume()
                             }
 
+                            val isInControlsZone = down.position.y > size.height - 100.dp.toPx()
+
                             if (touchSlopResult != null) {
-                                if (!controlsVisible) {
+                                if (!isInControlsZone && !controlsVisible) {
                                     val initialPosition = mediaController?.currentPosition ?: 0L
                                     val videoDuration = mediaController?.duration?.takeIf { it > 0 } ?: 0L
                                     val seekSensitivity = screenWidth / 30f
