@@ -85,6 +85,7 @@ import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedFolderOperations
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
+import com.nkls.nekovideo.components.helpers.SortRowMessageCenter
 import com.nkls.nekovideo.components.helpers.TagEntity
 import com.nkls.nekovideo.components.helpers.TagScope
 import com.nkls.nekovideo.components.helpers.VideoTagStore
@@ -267,7 +268,7 @@ fun MainScreen(
         val videoItems = items.filter { !it.isFolder }
 
         if (videoItems.isEmpty()) {
-            Toast.makeText(context, "Video nao encontrado", Toast.LENGTH_SHORT).show()
+            SortRowMessageCenter.showError("Video nao encontrado")
             return
         }
 
@@ -405,11 +406,9 @@ fun MainScreen(
             }
             selectedItems.clear()
         } else {
-            Toast.makeText(
-                context,
-                context.getString(if (tagFilter == null) R.string.no_videos_found else R.string.shuffle_tags_no_match),
-                Toast.LENGTH_SHORT
-            ).show()
+            SortRowMessageCenter.showInfo(
+                context.getString(if (tagFilter == null) R.string.no_videos_found else R.string.shuffle_tags_no_match)
+            )
         }
     }
 
@@ -447,8 +446,8 @@ fun MainScreen(
                     password = password,
                     onStateChange = { isUnlocking = it },
                     onProgress = { current, total -> lockProgress = "$current/$total" },
-                    onError = { message -> Toast.makeText(context, "Erro: $message", Toast.LENGTH_SHORT).show() },
-                    onFolderUnlocked = { Toast.makeText(context, context.getString(R.string.folder_unlocked_success), Toast.LENGTH_SHORT).show() }
+                    onError = { message -> SortRowMessageCenter.showError("Erro: $message") },
+                    onFolderUnlocked = { SortRowMessageCenter.showSuccess(context.getString(R.string.folder_unlocked_success)) }
                 )
             } else {
                 LockedFolderOperations.lockFolders(
@@ -457,8 +456,8 @@ fun MainScreen(
                     password = password,
                     onStateChange = { isLocking = it },
                     onProgress = { current, total -> lockProgress = "$current/$total" },
-                    onError = { message -> Toast.makeText(context, "Erro: $message", Toast.LENGTH_SHORT).show() },
-                    onFolderLocked = { Toast.makeText(context, context.getString(R.string.folder_locked_success), Toast.LENGTH_SHORT).show() }
+                    onError = { message -> SortRowMessageCenter.showError("Erro: $message") },
+                    onFolderLocked = { SortRowMessageCenter.showSuccess(context.getString(R.string.folder_locked_success)) }
                 )
             }
 
@@ -489,9 +488,9 @@ fun MainScreen(
                     if (!it) lockProgress = ""
                 },
                 onLockProgress = { current, total -> lockProgress = "$current/$total" },
-                onError = { message -> Toast.makeText(context, "Erro: $message", Toast.LENGTH_SHORT).show() },
+                onError = { message -> SortRowMessageCenter.showError("Erro: $message") },
                 onSuccess = {
-                    Toast.makeText(context, context.getString(R.string.files_secured), Toast.LENGTH_SHORT).show()
+                    SortRowMessageCenter.showSuccess(context.getString(R.string.files_secured))
                     selectedItems.clear()
                     renameTrigger++
                     refreshAffectedPaths(itemsToSecure.mapNotNull { File(it).parent } + securePath)
@@ -668,11 +667,7 @@ fun MainScreen(
             onDismiss = { showBiometricOfferDialog = false },
             onEnabled = {
                 showBiometricOfferDialog = false
-                android.widget.Toast.makeText(
-                    context,
-                    context.getString(R.string.biometric_enabled_success),
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+                SortRowMessageCenter.showSuccess(context.getString(R.string.biometric_enabled_success))
             }
         )
     }
@@ -701,7 +696,7 @@ fun MainScreen(
                     }
                     renameTrigger++
                     selectedItems.clear()
-                    Toast.makeText(context, context.getString(R.string.video_tags_add_success), Toast.LENGTH_SHORT).show()
+                    SortRowMessageCenter.showSuccess(context.getString(R.string.video_tags_add_success))
                     Result.success(Unit)
                 }
             }
@@ -739,11 +734,11 @@ fun MainScreen(
                     FilesManager.SecureFoldersVisibility.hideSecureFolders(context)
                     showPrivateFolders = false
                     sessionPassword = null
-                    Toast.makeText(context, context.getString(R.string.secure_folders_hidden), Toast.LENGTH_SHORT).show()
+                    SortRowMessageCenter.showInfo(context.getString(R.string.secure_folders_hidden))
                 } else {
                     FilesManager.SecureFoldersVisibility.showSecureFolders(context)
                     showPrivateFolders = true
-                    Toast.makeText(context, context.getString(R.string.secure_folders_shown), Toast.LENGTH_SHORT).show()
+                    SortRowMessageCenter.showInfo(context.getString(R.string.secure_folders_shown))
                 }
                 renameTrigger++
                 showPasswordDialog = false
@@ -856,7 +851,7 @@ fun MainScreen(
                                 withContext(Dispatchers.IO) {
                                     FolderLockManager.addSubfolderToLockedFolder(context, folderPath, subfolderPath, pwd)
                                 }
-                                Toast.makeText(context, context.getString(R.string.folder_created), Toast.LENGTH_SHORT).show()
+                                SortRowMessageCenter.showSuccess(context.getString(R.string.folder_created))
                             }
                             renameTrigger++
                             refreshAffectedPaths(listOf(folderPath))
@@ -864,7 +859,7 @@ fun MainScreen(
                     }
                 } else {
                     renameTrigger++
-                    Toast.makeText(context, context.getString(R.string.folder_created), Toast.LENGTH_SHORT).show()
+                    SortRowMessageCenter.showSuccess(context.getString(R.string.folder_created))
                     refreshAffectedPaths(listOf(folderPath))
                 }
             },
@@ -904,14 +899,14 @@ fun MainScreen(
                                         deleteProgress = "$current/$total"
                                     },
                                     onError = { message ->
-                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                        SortRowMessageCenter.showError(message)
                                     },
                                     onSuccess = {
-                                        Toast.makeText(context, context.getString(R.string.items_deleted_locked), Toast.LENGTH_SHORT).show()
+                                        SortRowMessageCenter.showSuccess(context.getString(R.string.items_deleted_locked))
                                     }
                                 )
                             } catch (e: Exception) {
-                                Toast.makeText(context, e.message ?: "Error deleting items", Toast.LENGTH_SHORT).show()
+                                SortRowMessageCenter.showError(e.message ?: "Error deleting items")
                             } finally {
                                 isDeleting = false
                                 deleteProgress = ""
@@ -935,12 +930,12 @@ fun MainScreen(
                             onError = { message ->
                                 isDeleting = false
                                 deleteProgress = ""
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                SortRowMessageCenter.showError(message)
                             },
                             onSuccess = { message ->
                                 isDeleting = false
                                 deleteProgress = ""
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                SortRowMessageCenter.showSuccess(message)
                                 selectedItems.clear()
                                 showFabMenu = false
                                 renameTrigger++
@@ -957,12 +952,12 @@ fun MainScreen(
                             onError = { message ->
                                 isDeleting = false
                                 deleteProgress = ""
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                SortRowMessageCenter.showError(message)
                             },
                             onSuccess = { message ->
                                 isDeleting = false
                                 deleteProgress = ""
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                SortRowMessageCenter.showSuccess(message)
                                 selectedItems.clear()
                                 showFabMenu = false
                                 renameTrigger++
@@ -1001,21 +996,13 @@ fun MainScreen(
                             // Atualiza o cache do scanner após fix
                             FolderVideoScanner.startScan(context, coroutineScope, forceRefresh = true)
 
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.fix_video_success),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            SortRowMessageCenter.showSuccess(context.getString(R.string.fix_video_success))
 
                             // Reproduz o vídeo após corrigir
                             pendingVideoPlayback?.invoke()
                         }
                         is VideoRemuxer.RemuxResult.Error -> {
-                            Toast.makeText(
-                                context,
-                                "${context.getString(R.string.fix_video_error)}: ${result.message}",
-                                Toast.LENGTH_LONG
-                            ).show()
+                            SortRowMessageCenter.showError("${context.getString(R.string.fix_video_error)}: ${result.message}")
                         }
                     }
 
@@ -1045,7 +1032,7 @@ fun MainScreen(
                     onPasswordDialog = {
                         if (showPrivateFolders) {
                             togglePrivateFolders()
-                            Toast.makeText(context, context.getString(R.string.secure_folders_hidden), Toast.LENGTH_SHORT).show()
+                            SortRowMessageCenter.showInfo(context.getString(R.string.secure_folders_hidden))
                         } else {
                             showPasswordDialog = true
                         }
@@ -1211,13 +1198,13 @@ fun MainScreen(
                                 itemsToMove = selectedItems.toList()
                                 selectedItems.clear()
                                 isMoveMode = true
-                                Toast.makeText(context, context.getString(R.string.move_mode_activated), Toast.LENGTH_SHORT).show()
+                                SortRowMessageCenter.showPersistentInfo(context.getString(R.string.move_mode_activated))
                             }
                             ActionType.CANCEL_MOVE -> {
                                 isMoveMode = false
                                 itemsToMove = emptyList()
                                 moveSourceLockedFolder = null
-                                Toast.makeText(context, context.getString(R.string.move_operation_cancelled), Toast.LENGTH_SHORT).show()
+                                SortRowMessageCenter.showInfo(context.getString(R.string.move_operation_cancelled))
                             }
                             ActionType.SHUFFLE_PLAY -> {
                                 coroutineScope.launch {
@@ -1249,8 +1236,8 @@ fun MainScreen(
                                             if (!it) lockProgress = ""
                                         },
                                         onLockProgress = { current, total -> lockProgress = "$current/$total" },
-                                        onError = { message -> Toast.makeText(context, message, Toast.LENGTH_SHORT).show() },
-                                        onSuccess = { Toast.makeText(context, context.getString(R.string.items_moved), Toast.LENGTH_SHORT).show() }
+                                        onError = { message -> SortRowMessageCenter.showError(message) },
+                                        onSuccess = { SortRowMessageCenter.showSuccess(context.getString(R.string.items_moved)) }
                                     )
 
                                     itemsToMove = emptyList()
@@ -1268,13 +1255,7 @@ fun MainScreen(
                                     val folderPath = selectedItems.first()
                                     FilesManager.SecureStorage.setCustomSecureFolderPath(context, folderPath)
 
-                                    launch(Dispatchers.Main) {
-                                        Toast.makeText(
-                                            context,
-                                            context.getString(R.string.secure_folder_set),
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
+                                    SortRowMessageCenter.showSuccess(context.getString(R.string.secure_folder_set))
 
                                     selectedItems.clear()
                                     renameTrigger++
@@ -1389,7 +1370,7 @@ fun MainScreen(
                                                     folderNavState.navigateTo(itemPath)
                                                 }
                                             } else {
-                                                Toast.makeText(context, context.getString(R.string.invalid_password_or_corrupted), Toast.LENGTH_SHORT).show()
+                                                SortRowMessageCenter.showError(context.getString(R.string.invalid_password_or_corrupted))
                                             }
                                         }
                                     }

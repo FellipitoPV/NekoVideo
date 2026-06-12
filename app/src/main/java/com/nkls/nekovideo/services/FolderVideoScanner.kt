@@ -183,6 +183,9 @@ object FolderVideoScanner {
 
         if (targetPaths.isEmpty()) return
 
+        scanJob?.cancel()
+        _isScanning.value = true
+
         scanJob = scope.launch(Dispatchers.IO) {
             try {
                 val updatedCache = _cache.value.toMutableMap()
@@ -207,6 +210,8 @@ object FolderVideoScanner {
                 saveCacheToDisk(context)
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                _isScanning.value = false
             }
         }
     }

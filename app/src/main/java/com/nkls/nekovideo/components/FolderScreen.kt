@@ -32,6 +32,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -76,6 +77,9 @@ import com.nkls.nekovideo.components.helpers.ContinueWatchingStore
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
+import com.nkls.nekovideo.components.helpers.SortRowMessage
+import com.nkls.nekovideo.components.helpers.SortRowMessageCenter
+import com.nkls.nekovideo.components.helpers.SortRowMessageType
 import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.services.FolderVideoScanner
 import kotlinx.coroutines.CancellationException
@@ -114,6 +118,9 @@ import com.nkls.nekovideo.components.helpers.HybridDataSourceFactory
 import com.nkls.nekovideo.components.helpers.DLNACastManager
 import com.nkls.nekovideo.components.player.MediaControllerManager
 import java.util.concurrent.TimeUnit
+
+private val SuccessBannerColor = Color(0xFF2E7D32)
+private val SuccessBannerContentColor = Color(0xFFFFFFFF)
 
 enum class SortType { NAME_ASC, NAME_DESC, DATE_NEWEST, DATE_OLDEST, SIZE_LARGEST, SIZE_SMALLEST }
 
@@ -556,6 +563,7 @@ fun SortRow(
     onSortChange: (SortType) -> Unit,
     isRefreshing: Boolean = false,
     onRefresh: () -> Unit = {},
+    inlineMessage: SortRowMessage? = null,
     searchQuery: String = "",
     isSearchExpanded: Boolean = false,
     onSearchQueryChange: (String) -> Unit = {},
@@ -592,6 +600,14 @@ fun SortRow(
     )
 
     val searchFocusRequester = remember { FocusRequester() }
+    var displayedInlineMessage by remember { mutableStateOf<SortRowMessage?>(null) }
+
+    LaunchedEffect(inlineMessage) {
+        if (inlineMessage != null) {
+            displayedInlineMessage = inlineMessage
+        }
+    }
+
     LaunchedEffect(isSearchExpanded) {
         if (isSearchExpanded) {
             delay(250)
@@ -708,6 +724,66 @@ fun SortRow(
                                 modifier = Modifier
                                     .size(20.dp)
                                     .rotate(iconRotation)
+                            )
+                        }
+                    }
+                }
+            }
+
+            val bannerVisibleState = remember { MutableTransitionState(false) }
+            LaunchedEffect(inlineMessage != null) {
+                bannerVisibleState.targetState = inlineMessage != null
+            }
+
+            AnimatedVisibility(
+                visibleState = bannerVisibleState,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                displayedInlineMessage?.let { message ->
+                    val (containerColor, contentColor, icon) = when (message.type) {
+                        SortRowMessageType.INFO -> Triple(
+                            MaterialTheme.colorScheme.primary,
+                            MaterialTheme.colorScheme.onPrimary,
+                            Icons.Default.Info
+                        )
+                        SortRowMessageType.SUCCESS -> Triple(
+                            SuccessBannerColor,
+                            SuccessBannerContentColor,
+                            Icons.Default.CheckCircle
+                        )
+                        SortRowMessageType.ERROR -> Triple(
+                            MaterialTheme.colorScheme.errorContainer,
+                            MaterialTheme.colorScheme.onErrorContainer,
+                            Icons.Default.Error
+                        )
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        color = containerColor,
+                        tonalElevation = 1.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = contentColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = message.text,
+                                color = contentColor,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -1016,6 +1092,7 @@ fun FolderScreen(
 
     val scannerCache by FolderVideoScanner.cache.collectAsState()
     val isScanning by FolderVideoScanner.isScanning.collectAsState()
+    val inlineMessage by SortRowMessageCenter.message.collectAsState()
 
     val displayPrefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
     var showDurations by remember { mutableStateOf(displayPrefs.getBoolean("show_durations", true)) }
@@ -1170,6 +1247,7 @@ fun FolderScreen(
                     onSortChange = { sortType = it },
                     isRefreshing = isScanning,
                     onRefresh = { performRefresh() },
+                    inlineMessage = inlineMessage,
                     searchQuery = searchQuery,
                     isSearchExpanded = isSearchExpanded,
                     onSearchQueryChange = { searchQuery = it },
