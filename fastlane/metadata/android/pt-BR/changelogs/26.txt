@@ -1,0 +1,4 @@
+Atualizado para o NekoVideo 1.3.4.
+Operacoes de arquivos agora rodam em segundo plano de forma mais consistente.
+Refresh apos mover, excluir e outras acoes agora atualiza apenas as pastas afetadas.
+Mensagens inline foram unificadas no cabecalho para feedback visual em pastas e configuracoes.

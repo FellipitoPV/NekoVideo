@@ -1,0 +1,4 @@
+Updated to NekoVideo 1.3.4.
+File operations now run more consistently in the background.
+Refresh after move, delete, and similar actions now updates only affected folders.
+Inline header messages now provide unified visual feedback across folders and settings.
