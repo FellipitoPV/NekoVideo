@@ -1,4 +1,6 @@
 Updated to NekoVideo 1.3.4.
-File operations now run more consistently in the background.
-Refresh after move, delete, and similar actions now updates only affected folders.
-Inline header messages now provide unified visual feedback across folders and settings.
+New playback speed control built into the player.
+Redesigned track and subtitle selection with a cleaner look.
+Video now pauses while you pick audio, subtitles, or speed.
+Frame preview when dragging the seek bar for precise navigation.
+Improved swipe gestures to avoid accidental seeks.

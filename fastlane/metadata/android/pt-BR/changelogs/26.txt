@@ -1,4 +1,6 @@
 Atualizado para o NekoVideo 1.3.4.
-Operacoes de arquivos agora rodam em segundo plano de forma mais consistente.
-Refresh apos mover, excluir e outras acoes agora atualiza apenas as pastas afetadas.
-Mensagens inline foram unificadas no cabecalho para feedback visual em pastas e configuracoes.
+Novo controle de velocidade de reproducao integrado ao player.
+Selecao de faixas e legendas redesenhada com visual mais limpo.
+O video agora pausa enquanto voce escolhe audio, legenda ou velocidade.
+Pre-visualizacao do quadro ao arrastar a barra de progresso.
+Gestos de deslize aprimorados para evitar buscas acidentais.
