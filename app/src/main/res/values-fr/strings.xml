@@ -354,6 +354,17 @@
     <string name="delete_video">Supprimer la Vidéo</string>
     <string name="delete_video_confirmation">Êtes-vous sûr de vouloir supprimer \"%1$s\" ?\n\nCette action ne peut pas être annulée.</string>
 
+    <!-- Player Speed Dialog -->
+    <string name="playback_speed_title">Vitesse de Lecture</string>
+    <string name="close">Fermer</string>
+
+    <!-- Track Selection Dialog -->
+    <string name="tracks_title">Pistes</string>
+    <string name="tab_subtitles">Sous-titres</string>
+    <string name="tab_audio">Audio</string>
+    <string name="subtitles_off">Désactivé</string>
+    <string name="no_tracks_available">Aucune piste disponible</string>
+
     <!-- Fix Video Metadata Dialog -->
     <string name="fix_video_metadata_title">Problème Vidéo</string>
     <string name="fix_video_metadata_description">Des problèmes ont été détectés pouvant affecter la lecture. Corriger maintenant ?</string>

@@ -354,6 +354,17 @@
     <string name="delete_video">Удалить видео</string>
     <string name="delete_video_confirmation">Вы уверены, что хотите удалить \"%1$s\"?\n\nЭто действие нельзя отменить.</string>
 
+    <!-- Player Speed Dialog -->
+    <string name="playback_speed_title">Скорость воспроизведения</string>
+    <string name="close">Закрыть</string>
+
+    <!-- Track Selection Dialog -->
+    <string name="tracks_title">Дорожки</string>
+    <string name="tab_subtitles">Субтитры</string>
+    <string name="tab_audio">Аудио</string>
+    <string name="subtitles_off">Выкл</string>
+    <string name="no_tracks_available">Нет доступных дорожек</string>
+
     <!-- Fix Video Metadata Dialog -->
     <string name="fix_video_metadata_title">Проблема с видео</string>
     <string name="fix_video_metadata_description">Обнаружены проблемы, которые могут повлиять на воспроизведение. Исправить?</string>

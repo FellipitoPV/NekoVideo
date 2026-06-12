@@ -141,6 +141,7 @@ fun VideoPlayerOverlay(
     var currentVideoTitle by remember { mutableStateOf("") }
     var isSeekingActive by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(RepeatMode.NONE) }
+    var playbackSpeed by remember { mutableStateOf(PlaybackSpeed.SPEED_1_00) }
 
     // Estados para fix de metadados
     var showFixMetadataDialog by remember { mutableStateOf(false) }
@@ -561,14 +562,21 @@ fun VideoPlayerOverlay(
         }
     }
 
-    LaunchedEffect(controlsVisible, uiTimer, isPlaying) {
-        if (controlsVisible && isPlaying && uiTimer > 0) {
-            while (uiTimer > 0 && controlsVisible && isPlaying) {
-                delay(1000) // Aguarda 1 segundo
-                uiTimer -= 1
-            }
+    LaunchedEffect(Unit) {
+        val savedSpeed = SettingsManager.getPlaybackSpeed(context)
+        playbackSpeed = PlaybackSpeed.entries.find { it.value == savedSpeed } ?: PlaybackSpeed.SPEED_1_00
+        mediaController?.setPlaybackSpeed(playbackSpeed.value)
+    }
 
-            // Se o timer chegou a 0 e os controles ainda estão visíveis
+    LaunchedEffect(controlsVisible) {
+        if (controlsVisible && isPlaying) {
+            uiTimer = 4
+            while (uiTimer > 0 && controlsVisible && isPlaying) {
+                delay(1000)
+                if (!isSeekingActive) {
+                    uiTimer -= 1
+                }
+            }
             if (uiTimer <= 0 && controlsVisible) {
                 controlsVisible = false
             }
@@ -716,7 +724,14 @@ fun VideoPlayerOverlay(
             onAudioSelected = { groupIndex, trackIndex ->
                 selectAudioTrack(groupIndex, trackIndex)
             },
-            onDismiss = { showTrackSelectionDialog = false }
+            onDismiss = { showTrackSelectionDialog = false },
+            onOpen = {
+                mediaController?.pause()
+                resetUITimer()
+            },
+            onClose = {
+                mediaController?.play()
+            }
         )
     }
 
@@ -833,6 +848,8 @@ fun VideoPlayerOverlay(
                     if (wasPlayerPaused && !mediaController!!.isPlaying) {
                         mediaController!!.play()
                     }
+
+                    mediaController!!.setPlaybackSpeed(playbackSpeed.value)
 
                     // ✅ REMOVIDO: A atualização de window agora é centralizada no MediaPlaybackService
                     // Isso evita duplicação de chamadas e dessincronização
@@ -1004,19 +1021,20 @@ fun VideoPlayerOverlay(
                     .background(Color.Black)
                     .pointerInput(Unit) {
                         awaitEachGesture {
-                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val down = awaitFirstDown(requireUnconsumed = true)
                             val downTime = System.currentTimeMillis()
                             val downX = down.position.x
                             val screenWidth = size.width.toFloat()
 
+                            val edgeMargin = size.width * 0.05f
+                            val isNearEdge = down.position.x < edgeMargin || down.position.x > size.width - edgeMargin || down.position.y > size.height - 100.dp.toPx()
+
                             val touchSlopResult = awaitTouchSlopOrCancellation(down.id) { change, _ ->
-                                change.consume()
+                                if (!isNearEdge) change.consume()
                             }
 
-                            val isInControlsZone = down.position.y > size.height - 100.dp.toPx()
-
                             if (touchSlopResult != null) {
-                                if (!isInControlsZone && !controlsVisible) {
+                                if (!isNearEdge && !controlsVisible) {
                                     val initialPosition = mediaController?.currentPosition ?: 0L
                                     val videoDuration = mediaController?.duration?.takeIf { it > 0 } ?: 0L
                                     val seekSensitivity = screenWidth / 30f
@@ -1153,8 +1171,14 @@ fun VideoPlayerOverlay(
                         duration = duration,
                         isPlaying = isPlaying,
                         videoTitle = currentVideoTitle,
-                        onSeekStart = { isSeekingActive = true },
-                        onSeekEnd = { isSeekingActive = false },
+                        onSeekStart = {
+                            isSeekingActive = true
+                            mediaController?.pause()
+                        },
+                        onSeekEnd = {
+                            isSeekingActive = false
+                            mediaController?.play()
+                        },
                         onDeleteClick = {
                             mediaController?.pause()
                             showDeleteDialog = true
@@ -1186,6 +1210,19 @@ fun VideoPlayerOverlay(
                                     RepeatMode.REPEAT_ONE -> Player.REPEAT_MODE_ONE
                                 }
                             }
+                        },
+                        playbackSpeed = playbackSpeed,
+                        onPlaybackSpeedChange = { newSpeed ->
+                            playbackSpeed = newSpeed
+                            SettingsManager.setPlaybackSpeed(context, newSpeed.value)
+                            mediaController?.setPlaybackSpeed(newSpeed.value)
+                        },
+                        onSpeedDialogOpen = {
+                            mediaController?.pause()
+                            resetUITimer()
+                        },
+                        onSpeedDialogClose = {
+                            mediaController?.play()
                         },
                         isCasting = isCasting,
                         onCastClick = {

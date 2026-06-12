@@ -1714,6 +1714,16 @@ object SettingsManager {
             .getInt("double_tap_seek", 10)
     }
 
+    fun getPlaybackSpeed(context: Context): Float {
+        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            .getFloat("playback_speed", 1.0f)
+    }
+
+    fun setPlaybackSpeed(context: Context, speed: Float) {
+        context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            .edit { putFloat("playback_speed", speed) }
+    }
+
 }
 
 private fun formatBackupTimestamp(timestamp: Long): String {

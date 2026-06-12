@@ -357,6 +357,17 @@
     <string name="delete_video">Delete Video</string>
     <string name="delete_video_confirmation">Are you sure you want to delete \"%1$s\"?\n\nThis action cannot be undone.</string>
 
+    <!-- Player Speed Dialog -->
+    <string name="playback_speed_title">Playback Speed</string>
+    <string name="close">Close</string>
+
+    <!-- Track Selection Dialog -->
+    <string name="tracks_title">Tracks</string>
+    <string name="tab_subtitles">Subtitles</string>
+    <string name="tab_audio">Audio</string>
+    <string name="subtitles_off">Off</string>
+    <string name="no_tracks_available">No tracks available</string>
+
     <!-- Fix Video Metadata Dialog -->
     <string name="fix_video_metadata_title">Video Problem</string>
     <string name="fix_video_metadata_description">Issues found that may affect playback. Fix now?</string>

@@ -354,6 +354,17 @@
     <string name="delete_video">Video löschen</string>
     <string name="delete_video_confirmation">Sind Sie sicher, dass Sie \"%1$s\" löschen möchten?\n\nDiese Aktion kann nicht rückgängig gemacht werden.</string>
 
+    <!-- Player Speed Dialog -->
+    <string name="playback_speed_title">Wiedergabegeschwindigkeit</string>
+    <string name="close">Schließen</string>
+
+    <!-- Track Selection Dialog -->
+    <string name="tracks_title">Spuren</string>
+    <string name="tab_subtitles">Untertitel</string>
+    <string name="tab_audio">Audio</string>
+    <string name="subtitles_off">Aus</string>
+    <string name="no_tracks_available">Keine Spuren verfügbar</string>
+
     <!-- Fix Video Metadata Dialog -->
     <string name="fix_video_metadata_title">Videoproblem</string>
     <string name="fix_video_metadata_description">Es wurden Probleme gefunden, die die Wiedergabe beeinträchtigen können. Jetzt beheben?</string>

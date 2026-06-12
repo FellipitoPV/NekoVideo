@@ -362,6 +362,17 @@
     <string name="delete_video">Excluir Vídeo</string>
     <string name="delete_video_confirmation">Tem certeza que deseja excluir \"%1$s\"?\n\nEsta ação não pode ser desfeita.</string>
 
+    <!-- Player Speed Dialog -->
+    <string name="playback_speed_title">Velocidade de Reprodução</string>
+    <string name="close">Fechar</string>
+
+    <!-- Track Selection Dialog -->
+    <string name="tracks_title">Faixas</string>
+    <string name="tab_subtitles">Legendas</string>
+    <string name="tab_audio">Áudio</string>
+    <string name="subtitles_off">Desativado</string>
+    <string name="no_tracks_available">Nenhuma faixa disponível</string>
+
     <!-- Fix Video Metadata Dialog -->
     <string name="fix_video_metadata_title">Problema no Vídeo</string>
     <string name="fix_video_metadata_description">Foram encontrados problemas que podem afetar a reprodução. Deseja corrigir?</string>

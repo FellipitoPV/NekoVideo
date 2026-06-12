@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -39,11 +40,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -84,6 +87,10 @@ fun CustomVideoControls(
     resetUITimer: () -> Unit,
     repeatMode: RepeatMode,
     onRepeatModeChange: (RepeatMode) -> Unit,
+    playbackSpeed: PlaybackSpeed,
+    onPlaybackSpeedChange: (PlaybackSpeed) -> Unit,
+    onSpeedDialogOpen: () -> Unit,
+    onSpeedDialogClose: () -> Unit,
     isCasting: Boolean,
     onCastClick: () -> Unit,
     rotationMode: RotationMode,
@@ -329,9 +336,9 @@ fun CustomVideoControls(
                             isDragging = true
                             onSeekStart()
                         }
+                        controller.seekTo(newValue.toLong())
                     },
                     onValueChangeFinished = {
-                        controller.seekTo(tempPosition)
                         isDragging = false
                         onSeekEnd()
                     },
@@ -446,6 +453,85 @@ fun CustomVideoControls(
                                 contentDescription = rotDesc,
                                 tint = if (rotActive) CtrlIconOn else CtrlIconOff,
                                 modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        // Velocidade
+                        var showSpeedDialog by remember { mutableStateOf(false) }
+                        val speedActive = playbackSpeed.value != 1.0f
+                        IconButton(
+                            onClick = {
+                                onSpeedDialogOpen()
+                                showSpeedDialog = true
+                            },
+                            modifier = Modifier
+                                .background(if (speedActive) CtrlBtnBgActive else CtrlBtnBg, CircleShape)
+                                .size(38.dp)
+                        ) {
+                            Text(
+                                text = formatSpeedLabel(playbackSpeed),
+                                color = if (speedActive) CtrlIconOn else CtrlIconOff,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                        }
+
+                        if (showSpeedDialog) {
+                            androidx.compose.material3.AlertDialog(
+                                onDismissRequest = { showSpeedDialog = false; onSpeedDialogClose() },
+                                containerColor = Color(0xFF1A1A2E),
+                                titleContentColor = Color.White,
+                                textContentColor = Color.White.copy(alpha = 0.85f),
+                                title = {
+                                    Text(stringResource(R.string.playback_speed_title), fontWeight = FontWeight.SemiBold)
+                                },
+                                text = {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = formatSpeedLabel(playbackSpeed),
+                                            color = Color.White,
+                                            fontSize = 40.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Slider(
+                                            value = playbackSpeed.value,
+                                            onValueChange = {
+                                                val closest = PlaybackSpeed.entries.minByOrNull { speed ->
+                                                    kotlin.math.abs(speed.value - it)
+                                                }
+                                                closest?.let { onPlaybackSpeedChange(it) }
+                                            },
+                                            valueRange = 0.25f..2.0f,
+                                            steps = 6,
+                                            colors = SliderDefaults.colors(
+                                                thumbColor = Color.White,
+                                                activeTrackColor = Color.White.copy(alpha = 0.7f),
+                                                inactiveTrackColor = Color.White.copy(alpha = 0.2f)
+                                            ),
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            PlaybackSpeed.entries.forEach { speed ->
+                                                Text(
+                                                    text = formatSpeedLabel(speed),
+                                                    color = if (speed == playbackSpeed) Color.White
+                                                            else Color.White.copy(alpha = 0.4f),
+                                                    fontSize = 9.sp
+                                                )
+                                            }
+                                        }
+                                    }
+                                },
+                                confirmButton = {}
                             )
                         }
 
@@ -616,3 +702,14 @@ suspend fun deleteSecureFile(context: Context, videoPath: String): Boolean =
             false
         }
     }
+
+private fun formatSpeedLabel(speed: PlaybackSpeed): String = when (speed) {
+    PlaybackSpeed.SPEED_0_25 -> "0.25x"
+    PlaybackSpeed.SPEED_0_50 -> "0.5x"
+    PlaybackSpeed.SPEED_0_75 -> "0.75x"
+    PlaybackSpeed.SPEED_1_00 -> "1x"
+    PlaybackSpeed.SPEED_1_25 -> "1.25x"
+    PlaybackSpeed.SPEED_1_50 -> "1.5x"
+    PlaybackSpeed.SPEED_1_75 -> "1.75x"
+    PlaybackSpeed.SPEED_2_00 -> "2x"
+}
