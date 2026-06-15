@@ -10,6 +10,7 @@ import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 import android.util.Base64
+import com.nkls.nekovideo.R
 import kotlin.coroutines.resume
 
 object FilesManager {
@@ -23,7 +24,7 @@ object FilesManager {
         onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
     ) {
         if (selectedItems.isEmpty()) {
-            showToast(context, "No items selected")
+            showToast(context, context.getString(R.string.no_items_selected))
             return
         }
 
@@ -81,7 +82,7 @@ object FilesManager {
         onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
     ) {
         if (selectedItems.isEmpty()) {
-            notifyMessage(onError, "No items selected")
+            notifyMessage(onError, context.getString(R.string.no_items_selected))
             return
         }
 
@@ -204,7 +205,7 @@ object FilesManager {
         onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
     ) {
         if (selectedItems.isEmpty()) {
-            onError("No items selected")
+            onError(context.getString(R.string.delete_no_items_selected))
             return
         }
 
@@ -235,7 +236,7 @@ object FilesManager {
         selectedItems.forEachIndexed { index, path ->
             val file = File(path)
             if (!file.exists()) {
-                notifyMessage(onError, "Item not found: ${file.name}")
+                notifyMessage(onError, context.getString(R.string.delete_item_not_found, file.name))
                 return@forEachIndexed
             }
 
@@ -244,19 +245,20 @@ object FilesManager {
                 if (file.deleteRecursively()) {
                     deletedCount++
                 } else {
-                    notifyMessage(onError, "Failed to delete ${file.name}")
+                    notifyMessage(onError, context.getString(R.string.delete_item_failed, file.name))
                 }
             } catch (e: Exception) {
-                notifyMessage(onError, "Error deleting ${file.name}: ${e.message}")
+                val errorMessage = e.message ?: context.getString(R.string.delete_items_error_generic)
+                notifyMessage(onError, context.getString(R.string.delete_item_error, file.name, errorMessage))
             }
 
             notifyProgress(onProgress, index + 1, totalItems)
         }
 
         if (deletedCount == 0) {
-            notifyMessage(onError, "No items were deleted")
+            notifyMessage(onError, context.getString(R.string.delete_no_items_deleted))
         } else {
-            onSuccess("Deleted $deletedCount items")
+            onSuccess(context.getString(R.string.delete_items_success, deletedCount))
         }
     }
 
@@ -271,13 +273,13 @@ object FilesManager {
         onRefresh: (() -> Unit)? = null // ✅ NOVO: Callback de refresh
     ) {
         if (selectedItems.isEmpty()) {
-            notifyMessage(onError, "No items selected")
+            notifyMessage(onError, context.getString(R.string.delete_no_items_selected))
             return
         }
 
         val invalidItems = selectedItems.filterNot { it.startsWith(secureFolderPath) }
         if (invalidItems.isNotEmpty()) {
-            notifyMessage(onError, "Some items are not in the secure folder")
+            notifyMessage(onError, context.getString(R.string.delete_secure_items_invalid_folder))
             return
         }
 
@@ -308,7 +310,7 @@ object FilesManager {
         selectedItems.forEachIndexed { index, path ->
             val file = File(path)
             if (!file.exists()) {
-                notifyMessage(onError, "Item not found: ${file.name}")
+                notifyMessage(onError, context.getString(R.string.delete_item_not_found, file.name))
                 return@forEachIndexed
             }
 
@@ -317,19 +319,20 @@ object FilesManager {
                 if (file.deleteRecursively()) {
                     deletedCount++
                 } else {
-                    notifyMessage(onError, "Failed to delete secure item ${file.name}")
+                    notifyMessage(onError, context.getString(R.string.delete_secure_item_failed, file.name))
                 }
             } catch (e: Exception) {
-                notifyMessage(onError, "Error deleting secure item ${file.name}: ${e.message}")
+                val errorMessage = e.message ?: context.getString(R.string.delete_items_error_generic)
+                notifyMessage(onError, context.getString(R.string.delete_secure_item_error, file.name, errorMessage))
             }
 
             notifyProgress(onProgress, index + 1, totalItems)
         }
 
         if (deletedCount == 0) {
-            notifyMessage(onError, "No secure items were deleted")
+            notifyMessage(onError, context.getString(R.string.delete_no_secure_items_deleted))
         } else {
-            onSuccess("Deleted $deletedCount secure items")
+            onSuccess(context.getString(R.string.delete_secure_items_success, deletedCount))
         }
     }
 

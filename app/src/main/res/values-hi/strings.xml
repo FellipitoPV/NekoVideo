@@ -341,6 +341,7 @@
 
     <!-- Common -->
     <string name="cancel">रद्द करें</string>
+    <string name="no_items_selected">कोई आइटम चयनित नहीं है</string>
 
     <!-- Sort Options -->
     <string name="sort_name_asc">नाम A-Z</string>
@@ -353,6 +354,21 @@
     <!-- Player Delete Dialog -->
     <string name="delete_video">वीडियो डिलीट करें</string>
     <string name="delete_video_confirmation">क्या आप वाकई \"%1$s\" को डिलीट करना चाहते हैं?\n\nयह क्रिया पूर्ववत नहीं की जा सकती।</string>
+    <string name="delete_no_items_selected">कोई आइटम चयनित नहीं है</string>
+    <string name="delete_item_not_found">आइटम नहीं मिला: %1$s</string>
+    <string name="delete_item_failed">%1$s को डिलीट नहीं किया जा सका</string>
+    <string name="delete_item_error">%1$s को डिलीट करते समय त्रुटि: %2$s</string>
+    <string name="delete_no_items_deleted">कोई आइटम डिलीट नहीं किया गया</string>
+    <string name="delete_items_success">%1$d आइटम डिलीट किए गए</string>
+    <string name="delete_secure_items_invalid_folder">कुछ आइटम सुरक्षित फोल्डर में नहीं हैं</string>
+    <string name="delete_secure_item_failed">सुरक्षित आइटम %1$s को डिलीट नहीं किया जा सका</string>
+    <string name="delete_secure_item_error">सुरक्षित आइटम %1$s को डिलीट करते समय त्रुटि: %2$s</string>
+    <string name="delete_no_secure_items_deleted">कोई सुरक्षित आइटम डिलीट नहीं किया गया</string>
+    <string name="delete_secure_items_success">%1$d सुरक्षित आइटम डिलीट किए गए</string>
+    <string name="delete_items_error_generic">आइटम डिलीट करते समय त्रुटि</string>
+    <string name="video_delete_success">वीडियो सफलतापूर्वक डिलीट किया गया</string>
+    <string name="video_delete_failed">वीडियो डिलीट नहीं किया जा सका</string>
+    <string name="video_delete_error">वीडियो डिलीट करते समय त्रुटि: %1$s</string>
 
     <!-- Player Speed Dialog -->
     <string name="playback_speed_title">प्लेबैक गति</string>

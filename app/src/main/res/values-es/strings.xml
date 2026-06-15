@@ -341,6 +341,7 @@
 
     <!-- Common -->
     <string name="cancel">Cancelar</string>
+    <string name="no_items_selected">No hay elementos seleccionados</string>
 
     <!-- Sort Options -->
     <string name="sort_name_asc">Nombre A-Z</string>
@@ -353,6 +354,21 @@
     <!-- Player Delete Dialog -->
     <string name="delete_video">Eliminar Video</string>
     <string name="delete_video_confirmation">¿Estás seguro de que quieres eliminar \"%1$s\"?\n\nEsta acción no se puede deshacer.</string>
+    <string name="delete_no_items_selected">No hay elementos seleccionados</string>
+    <string name="delete_item_not_found">Elemento no encontrado: %1$s</string>
+    <string name="delete_item_failed">No se pudo eliminar %1$s</string>
+    <string name="delete_item_error">Error al eliminar %1$s: %2$s</string>
+    <string name="delete_no_items_deleted">No se eliminó ningún elemento</string>
+    <string name="delete_items_success">Se eliminaron %1$d elemento(s)</string>
+    <string name="delete_secure_items_invalid_folder">Algunos elementos no están en la carpeta segura</string>
+    <string name="delete_secure_item_failed">No se pudo eliminar el elemento seguro %1$s</string>
+    <string name="delete_secure_item_error">Error al eliminar el elemento seguro %1$s: %2$s</string>
+    <string name="delete_no_secure_items_deleted">No se eliminó ningún elemento seguro</string>
+    <string name="delete_secure_items_success">Se eliminaron %1$d elemento(s) seguros</string>
+    <string name="delete_items_error_generic">Error al eliminar elementos</string>
+    <string name="video_delete_success">Video eliminado correctamente</string>
+    <string name="video_delete_failed">No se pudo eliminar el video</string>
+    <string name="video_delete_error">Error al eliminar el video: %1$s</string>
 
     <!-- Player Speed Dialog -->
     <string name="playback_speed_title">Velocidad de Reproducción</string>

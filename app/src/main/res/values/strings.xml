@@ -349,6 +349,7 @@
 
     <!-- Common -->
     <string name="cancel">Cancelar</string>
+    <string name="no_items_selected">Nenhum item selecionado</string>
 
     <!-- Sort Options -->
     <string name="sort_name_asc">Nome A-Z</string>
@@ -361,6 +362,21 @@
     <!-- Player Delete Dialog -->
     <string name="delete_video">Excluir Vídeo</string>
     <string name="delete_video_confirmation">Tem certeza que deseja excluir \"%1$s\"?\n\nEsta ação não pode ser desfeita.</string>
+    <string name="delete_no_items_selected">Nenhum item selecionado</string>
+    <string name="delete_item_not_found">Item não encontrado: %1$s</string>
+    <string name="delete_item_failed">Falha ao excluir %1$s</string>
+    <string name="delete_item_error">Erro ao excluir %1$s: %2$s</string>
+    <string name="delete_no_items_deleted">Nenhum item foi excluído</string>
+    <string name="delete_items_success">%1$d item(ns) excluído(s)</string>
+    <string name="delete_secure_items_invalid_folder">Alguns itens não estão na pasta segura</string>
+    <string name="delete_secure_item_failed">Falha ao excluir item seguro %1$s</string>
+    <string name="delete_secure_item_error">Erro ao excluir item seguro %1$s: %2$s</string>
+    <string name="delete_no_secure_items_deleted">Nenhum item seguro foi excluído</string>
+    <string name="delete_secure_items_success">%1$d item(ns) seguros excluído(s)</string>
+    <string name="delete_items_error_generic">Erro ao excluir itens</string>
+    <string name="video_delete_success">Vídeo excluído com sucesso</string>
+    <string name="video_delete_failed">Falha ao excluir vídeo</string>
+    <string name="video_delete_error">Erro ao excluir vídeo: %1$s</string>
 
     <!-- Player Speed Dialog -->
     <string name="playback_speed_title">Velocidade de Reprodução</string>

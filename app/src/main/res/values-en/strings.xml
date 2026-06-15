@@ -344,6 +344,7 @@
 
     <!-- Common -->
     <string name="cancel">Cancel</string>
+    <string name="no_items_selected">No items selected</string>
 
     <!-- Sort Options -->
     <string name="sort_name_asc">Name A-Z</string>
@@ -356,6 +357,21 @@
     <!-- Player Delete Dialog -->
     <string name="delete_video">Delete Video</string>
     <string name="delete_video_confirmation">Are you sure you want to delete \"%1$s\"?\n\nThis action cannot be undone.</string>
+    <string name="delete_no_items_selected">No items selected</string>
+    <string name="delete_item_not_found">Item not found: %1$s</string>
+    <string name="delete_item_failed">Failed to delete %1$s</string>
+    <string name="delete_item_error">Error deleting %1$s: %2$s</string>
+    <string name="delete_no_items_deleted">No items were deleted</string>
+    <string name="delete_items_success">Deleted %1$d item(s)</string>
+    <string name="delete_secure_items_invalid_folder">Some items are not in the secure folder</string>
+    <string name="delete_secure_item_failed">Failed to delete secure item %1$s</string>
+    <string name="delete_secure_item_error">Error deleting secure item %1$s: %2$s</string>
+    <string name="delete_no_secure_items_deleted">No secure items were deleted</string>
+    <string name="delete_secure_items_success">Deleted %1$d secure item(s)</string>
+    <string name="delete_items_error_generic">Error deleting items</string>
+    <string name="video_delete_success">Video deleted successfully</string>
+    <string name="video_delete_failed">Failed to delete video</string>
+    <string name="video_delete_error">Error deleting video: %1$s</string>
 
     <!-- Player Speed Dialog -->
     <string name="playback_speed_title">Playback Speed</string>

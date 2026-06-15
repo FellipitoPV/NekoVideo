@@ -618,7 +618,7 @@ suspend fun deleteCurrentVideo(
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 android.widget.Toast.makeText(
                     context,
-                    "Video deleted successfully",
+                    context.getString(R.string.video_delete_success),
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
             }
@@ -626,7 +626,7 @@ suspend fun deleteCurrentVideo(
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 android.widget.Toast.makeText(
                     context,
-                    "Failed to delete video",
+                    context.getString(R.string.video_delete_failed),
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
                 controller.play()
@@ -638,7 +638,10 @@ suspend fun deleteCurrentVideo(
         withContext(kotlinx.coroutines.Dispatchers.Main) {
             android.widget.Toast.makeText(
                 context,
-                "Error deleting video: ${e.message}",
+                context.getString(
+                    R.string.video_delete_error,
+                    e.message ?: context.getString(R.string.delete_items_error_generic)
+                ),
                 android.widget.Toast.LENGTH_SHORT
             ).show()
             mediaController?.play()

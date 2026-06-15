@@ -135,6 +135,7 @@ fun VideoPlayerOverlay(
 
     // Estados para controles customizados
     var controlsVisible by remember { mutableStateOf(false) }
+    var hasLoadedVideo by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(false) }
     var currentPosition by remember { mutableStateOf(0L) }
     var duration by remember { mutableStateOf(0L) }
@@ -160,6 +161,8 @@ fun VideoPlayerOverlay(
     val resetUITimer: () -> Unit = {
         uiTimer = 4
     }
+
+    val canShowPlaybackControls = hasLoadedVideo && !isFixingVideo
 
     // Estados para controles de gestos (apenas seek - brilho/volume removidos)
     var seekIndicator by remember { mutableStateOf<String?>(null) }
@@ -439,6 +442,7 @@ fun VideoPlayerOverlay(
     fun setupController(controller: MediaController) {
         mediaController = controller
         playerView.player = controller
+        hasLoadedVideo = controller.playbackState == Player.STATE_READY
 
         controller.currentMediaItem?.localConfiguration?.uri?.let { uri ->
             val uriStr = uri.toString()
@@ -807,6 +811,8 @@ fun VideoPlayerOverlay(
             playerView.player = null
             hasRefreshed = false
             overlayActuallyVisible = false
+            hasLoadedVideo = false
+            controlsVisible = false
         }
     }
 
@@ -823,6 +829,9 @@ fun VideoPlayerOverlay(
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     if (!overlayActuallyVisible) return
+
+                    hasLoadedVideo = false
+                    controlsVisible = false
 
                     val wasPlayerPaused = !mediaController!!.isPlaying
 
@@ -856,6 +865,13 @@ fun VideoPlayerOverlay(
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == Player.STATE_READY) {
+                        hasLoadedVideo = true
+                    } else if (playbackState == Player.STATE_IDLE) {
+                        hasLoadedVideo = false
+                        controlsVisible = false
+                    }
+
                     // ✅ SIMPLIFICADO: A navegação automática é feita pelo MediaPlaybackService
                     // Aqui apenas tratamos o REPEAT_ONE (que precisa de seekTo local)
                     if (playbackState == Player.STATE_ENDED) {
@@ -1019,7 +1035,9 @@ fun VideoPlayerOverlay(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black)
-                    .pointerInput(Unit) {
+                    .pointerInput(canShowPlaybackControls) {
+                        if (!canShowPlaybackControls) return@pointerInput
+
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = true)
                             val downTime = System.currentTimeMillis()

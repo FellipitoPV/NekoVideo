@@ -907,7 +907,7 @@ fun MainScreen(
                                     }
                                 )
                             } catch (e: Exception) {
-                                SortRowMessageCenter.showError(e.message ?: "Error deleting items")
+                                SortRowMessageCenter.showError(e.message ?: context.getString(R.string.delete_items_error_generic))
                             } finally {
                                 isDeleting = false
                                 deleteProgress = ""

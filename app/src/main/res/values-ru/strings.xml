@@ -341,6 +341,7 @@
 
     <!-- Common -->
     <string name="cancel">Отмена</string>
+    <string name="no_items_selected">Элементы не выбраны</string>
 
     <!-- Sort Options -->
     <string name="sort_name_asc">Имя А-Я</string>
@@ -353,6 +354,21 @@
     <!-- Player Delete Dialog -->
     <string name="delete_video">Удалить видео</string>
     <string name="delete_video_confirmation">Вы уверены, что хотите удалить \"%1$s\"?\n\nЭто действие нельзя отменить.</string>
+    <string name="delete_no_items_selected">Элементы не выбраны</string>
+    <string name="delete_item_not_found">Элемент не найден: %1$s</string>
+    <string name="delete_item_failed">Не удалось удалить %1$s</string>
+    <string name="delete_item_error">Ошибка при удалении %1$s: %2$s</string>
+    <string name="delete_no_items_deleted">Ни один элемент не был удалён</string>
+    <string name="delete_items_success">Удалено элементов: %1$d</string>
+    <string name="delete_secure_items_invalid_folder">Некоторые элементы находятся вне защищённой папки</string>
+    <string name="delete_secure_item_failed">Не удалось удалить защищённый элемент %1$s</string>
+    <string name="delete_secure_item_error">Ошибка при удалении защищённого элемента %1$s: %2$s</string>
+    <string name="delete_no_secure_items_deleted">Ни один защищённый элемент не был удалён</string>
+    <string name="delete_secure_items_success">Удалено защищённых элементов: %1$d</string>
+    <string name="delete_items_error_generic">Ошибка при удалении элементов</string>
+    <string name="video_delete_success">Видео успешно удалено</string>
+    <string name="video_delete_failed">Не удалось удалить видео</string>
+    <string name="video_delete_error">Ошибка при удалении видео: %1$s</string>
 
     <!-- Player Speed Dialog -->
     <string name="playback_speed_title">Скорость воспроизведения</string>
