@@ -76,6 +76,7 @@ import com.nkls.nekovideo.components.helpers.ContinueWatchingStore
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
+import com.nkls.nekovideo.components.helpers.supportedVideoExtensions
 import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.services.FolderVideoScanner
 import kotlinx.coroutines.CancellationException
@@ -217,8 +218,6 @@ private val colorCache = LruCache<String, Color>(500)
 
 private val defaultAndroidFolders = setOf("DCIM", "Download", "Downloads", "Movies")
 
-val videoExtensions = setOf("mp4", "mkv", "webm", "avi", "mov", "wmv", "m4v", "3gp", "flv")
-
 private fun buildPreviewUri(item: MediaItem, isSecureMode: Boolean): Uri? {
     return when {
         LockedPlaybackSession.getXorKeyForFile(item.path) != null -> Uri.parse("locked://${item.path}")
@@ -319,7 +318,7 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
                         f.isFile && f.name !in setOf(".neko_locked", ".neko_manifest.enc", ".neko_lock_in_progress", ".nomedia", ".nekovideo")
                     } ?: 0
             } else {
-                subChildren?.count { it.isFile && it.extension.lowercase() in videoExtensions } ?: 0
+                subChildren?.count { it.isFile && it.extension.lowercase() in supportedVideoExtensions } ?: 0
             }
             val subFolderCount = subChildren?.count { it.isDirectory && it.name != ".neko_thumbs" } ?: 0
             val subTotalSize = subChildren?.filter { it.isFile && !it.name.startsWith(".") }?.sumOf { it.length() } ?: 0L
@@ -352,7 +351,7 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
                             f.isFile && f.name !in setOf(".neko_locked", ".neko_manifest.enc", ".neko_lock_in_progress", ".nomedia", ".nekovideo")
                         } ?: 0
                     } else {
-                        subChildren?.count { it.isFile && it.extension.lowercase() in videoExtensions } ?: 0
+                        subChildren?.count { it.isFile && it.extension.lowercase() in supportedVideoExtensions } ?: 0
                     }
                     val subFolderCount = subChildren?.count { it.isDirectory && it.name != ".neko_thumbs" } ?: 0
                     val subTotalSize = subChildren?.filter { it.isFile && !it.name.startsWith(".") }?.sumOf { it.length() } ?: 0L
@@ -367,7 +366,7 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
                         isInsidePrivateFolder = true
                     )
                 }
-            file.isFile && file.extension.lowercase() in videoExtensions -> MediaItem(file.absolutePath, null, false, lastModified = file.lastModified(), sizeInBytes = file.length())
+            file.isFile && file.extension.lowercase() in supportedVideoExtensions -> MediaItem(file.absolutePath, null, false, lastModified = file.lastModified(), sizeInBytes = file.length())
             else -> null
         }
     } ?: emptyList()
@@ -466,7 +465,7 @@ private fun loadNormalContentFromCache(
                 isFolderLocked -> FolderLockManager.getRegistryEntry(context, subfolder.absolutePath)?.fileCount ?: 0
                 isSecure -> try {
                     subfolder.listFiles()?.count {
-                        it.isFile && it.extension.lowercase() in videoExtensions
+                        it.isFile && it.extension.lowercase() in supportedVideoExtensions
                     } ?: 0
                 } catch (e: Exception) { folderInfo?.videoCount ?: 0 }
                 else -> folderInfo?.videoCount ?: 0
@@ -495,7 +494,7 @@ private fun loadNormalContentFromCache(
                     subfolder.listFiles()?.filter { it.isFile && !it.name.startsWith(".") }?.sumOf { it.length() } ?: 0L
                 } catch (e: Exception) { 0L }
                 isSecure -> try {
-                    subfolder.listFiles()?.filter { it.isFile && it.extension.lowercase() in videoExtensions }?.sumOf { it.length() } ?: 0L
+                    subfolder.listFiles()?.filter { it.isFile && it.extension.lowercase() in supportedVideoExtensions }?.sumOf { it.length() } ?: 0L
                 } catch (e: Exception) { folderInfo?.videos?.sumOf { it.sizeInBytes } ?: 0L }
                 else -> folderInfo?.videos?.sumOf { it.sizeInBytes } ?: 0L
             }
@@ -2489,7 +2488,7 @@ private fun loadSecureContentRecursive(folderPath: String, allItems: MutableList
             file.isDirectory -> {
                 loadSecureContentRecursive(file.absolutePath, allItems)
             }
-            file.isFile && file.extension.lowercase() in videoExtensions -> {
+            file.isFile && file.extension.lowercase() in supportedVideoExtensions -> {
                 allItems.add(MediaItem(file.absolutePath, null, false))
             }
         }

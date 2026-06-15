@@ -323,17 +323,7 @@ class DLNACastManager(private val context: Context) {
         } else {
             File(videoPath.removePrefix("file://")).name
         }
-        return when (name.substringAfterLast('.').lowercase()) {
-            "mp4", "m4v"  -> "video/mp4"
-            "mkv"          -> "video/x-matroska"
-            "avi"          -> "video/x-msvideo"
-            "mov"          -> "video/quicktime"
-            "webm"         -> "video/webm"
-            "wmv"          -> "video/x-ms-wmv"
-            "3gp"          -> "video/3gpp"
-            "flv"          -> "video/x-flv"
-            else           -> "video/mp4"
-        }
+        return mimeTypeForVideoFileName(name)
     }
 
     private fun buildDIDLMetadata(title: String, url: String, mimeType: String): String {

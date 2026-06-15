@@ -68,8 +68,6 @@ object FolderLockManager {
     private const val AES_TRANSFORMATION = "AES/CBC/PKCS5Padding"
 
     private val gson = Gson()
-    private val videoExtensions = setOf("mp4", "mkv", "webm", "avi", "mov", "wmv", "m4v", "3gp", "flv")
-
     private fun shouldObfuscateLockedFolderName(folderPath: String): Boolean {
         if (folderPath == FilesManager.SecureStorage.getNekoPrivateFolderPath()) {
             return false
@@ -329,7 +327,7 @@ object FolderLockManager {
 
         // Find all video files
         val videoFiles = folder.listFiles()?.filter { file ->
-            file.isFile && file.extension.lowercase() in videoExtensions
+            file.isFile && file.extension.lowercase() in supportedVideoExtensions
         } ?: emptyList()
 
         // Create in-progress marker for crash safety
@@ -769,7 +767,7 @@ object FolderLockManager {
         thumbsDir.mkdirs()
 
         val videoFiles = newFiles.filter { file ->
-            file.isFile && file.extension.lowercase() in videoExtensions && file.parentFile?.absolutePath == folderPath
+            file.isFile && file.extension.lowercase() in supportedVideoExtensions && file.parentFile?.absolutePath == folderPath
         }
 
         if (videoFiles.isEmpty()) {

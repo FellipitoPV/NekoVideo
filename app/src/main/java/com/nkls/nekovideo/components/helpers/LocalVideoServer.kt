@@ -51,7 +51,7 @@ class LocalVideoServer(private val context: Context, port: Int = 8080) : NanoHTT
                 return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Video not found")
             }
 
-            val mimeType = getMimeType(file.name)
+            val mimeType = mimeTypeForVideoFileName(file.name)
             val fileSize = file.length()
 
             val headers = session.headers
@@ -112,16 +112,6 @@ class LocalVideoServer(private val context: Context, port: Int = 8080) : NanoHTT
         } catch (e: Exception) {
             Log.e("LocalVideoServer", "Error serving video", e)
             return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", "Error: ${e.message}")
-        }
-    }
-
-    private fun getMimeType(fileName: String): String {
-        return when {
-            fileName.endsWith(".mp4") -> "video/mp4"
-            fileName.endsWith(".mkv") -> "video/x-matroska"
-            fileName.endsWith(".avi") -> "video/x-msvideo"
-            fileName.endsWith(".webm") -> "video/webm"
-            else -> "video/mp4"
         }
     }
 

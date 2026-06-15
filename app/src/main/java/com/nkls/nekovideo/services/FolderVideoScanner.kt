@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import com.nkls.nekovideo.components.helpers.FolderLockManager
+import com.nkls.nekovideo.components.helpers.supportedVideoExtensions
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
@@ -92,8 +93,6 @@ object FolderVideoScanner {
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
     private var scanJob: Job? = null
-    private val videoExtensions = setOf("mp4", "mkv", "webm", "avi", "mov", "wmv", "m4v", "3gp", "flv")
-
     private const val PREFS_NAME = "nekovideo_cache"
     private const val CACHE_KEY = "folder_cache"
 
@@ -243,7 +242,7 @@ object FolderVideoScanner {
 
         try {
             val videoFiles = directory.listFiles()?.filter { file ->
-                file.isFile && file.extension.lowercase() in videoExtensions
+                file.isFile && file.extension.lowercase() in supportedVideoExtensions
             } ?: emptyList()
 
             videoFiles.forEach { videoFile ->
@@ -355,7 +354,7 @@ object FolderVideoScanner {
             )
         } else if (isSecure) {
             val videoFiles = directory.listFiles()?.filter { file ->
-                file.isFile && file.extension.lowercase() in videoExtensions
+                file.isFile && file.extension.lowercase() in supportedVideoExtensions
             } ?: emptyList()
 
             if (videoFiles.isNotEmpty()) {
@@ -381,7 +380,7 @@ object FolderVideoScanner {
             // Pasta normal não coberta pelo MediaStore ainda (ex: recém destravada).
             // Só age se o MediaStore não a indexou — evita duplicatas.
             val videoFiles = directory.listFiles()?.filter { file ->
-                file.isFile && file.extension.lowercase() in videoExtensions
+                file.isFile && file.extension.lowercase() in supportedVideoExtensions
             } ?: emptyList()
 
             if (videoFiles.isNotEmpty()) {
@@ -539,7 +538,7 @@ object FolderVideoScanner {
         }
 
         val directVideos = directory.listFiles()?.filter { file ->
-            file.isFile && file.extension.lowercase() in videoExtensions
+            file.isFile && file.extension.lowercase() in supportedVideoExtensions
         } ?: emptyList()
 
         val videoInfos = directVideos.map { file ->
