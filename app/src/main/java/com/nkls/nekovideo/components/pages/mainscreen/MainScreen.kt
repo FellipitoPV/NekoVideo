@@ -174,6 +174,7 @@ fun MainScreen(
     var isUnlocking by remember { mutableStateOf(false) }
     var isMoving by remember { mutableStateOf(false) }
     var isDeleting by remember { mutableStateOf(false) }
+    var isShuffling by remember { mutableStateOf(false) }
     var moveProgress by remember { mutableStateOf("") }
     var deleteProgress by remember { mutableStateOf("") }
     var lockProgress by remember { mutableStateOf("") }
@@ -405,6 +406,17 @@ fun MainScreen(
             SortRowMessageCenter.showInfo(
                 context.getString(if (tagFilter == null) R.string.no_videos_found else R.string.shuffle_tags_no_match)
             )
+        }
+    }
+
+    fun launchShufflePlayback(tagFilter: ShuffleTagFilter? = null) {
+        coroutineScope.launch {
+            isShuffling = true
+            try {
+                playShuffledVideos(tagFilter)
+            } finally {
+                isShuffling = false
+            }
         }
     }
 
@@ -705,9 +717,7 @@ fun MainScreen(
             onDismiss = { showShuffleTagsDialog = false },
             onConfirm = { filter ->
                 showShuffleTagsDialog = false
-                coroutineScope.launch {
-                    playShuffledVideos(filter)
-                }
+                launchShufflePlayback(filter)
             }
         )
     }
@@ -821,6 +831,13 @@ fun MainScreen(
         ProcessingDialog(
             title = context.getString(R.string.deleting_items),
             message = context.getString(R.string.deleting_progress, deleteProgress.substringBefore("/").toIntOrNull() ?: 0, deleteProgress.substringAfter("/").toIntOrNull() ?: 0)
+        )
+    }
+
+    if (isShuffling) {
+        ProcessingDialog(
+            title = context.getString(R.string.action_shuffle_play),
+            message = context.getString(R.string.indexing_videos)
         )
     }
 
@@ -1212,9 +1229,7 @@ fun MainScreen(
                                 SortRowMessageCenter.showInfo(context.getString(R.string.move_operation_cancelled))
                             }
                             ActionType.SHUFFLE_PLAY -> {
-                                coroutineScope.launch {
-                                    playShuffledVideos()
-                                }
+                                launchShufflePlayback()
                             }
                             ActionType.CREATE_FOLDER -> showCreateFolderDialog = true
                             ActionType.PASTE -> {

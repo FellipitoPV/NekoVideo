@@ -51,6 +51,7 @@ class MediaPlaybackService : MediaSessionService() {
 
     // Flag para evitar recursão na atualização de metadados
     private var isUpdatingMetadata = false
+    private var lastAppliedArtworkKey: String? = null
 
     // ✅ NOVO: Timestamp da última atualização de window para ignorar eventos assíncronos
     private var lastWindowUpdateTime = 0L
@@ -438,65 +439,104 @@ class MediaPlaybackService : MediaSessionService() {
 
             // Atualiza a notificação com as novas thumbnails
             if (generatedCount > 0) {
-                withContext(Dispatchers.Main) {
-                    refreshCurrentMediaItemMetadata()
-                }
+                refreshCurrentMediaItemMetadata()
             }
         }
     }
 
+    private data class ArtworkUpdate(
+        val mediaUri: String,
+        val title: String,
+        val artworkData: ByteArray
+    )
+
+    private data class CurrentArtworkTarget(
+        val mediaUri: String,
+        val videoPath: String,
+        val title: String,
+        val isLocked: Boolean
+    )
+
     /**
      * Atualiza os metadados do MediaItem atual para refletir thumbnails recém-geradas
      */
-    private fun refreshCurrentMediaItemMetadata() {
+    private suspend fun refreshCurrentMediaItemMetadata() {
         if (isUpdatingMetadata) return // ✅ Evita recursão
 
-        player?.let { currentPlayer ->
-            isUpdatingMetadata = true // ✅ Marca que está atualizando
+        val artworkTarget = withContext(Dispatchers.Main) { getCurrentArtworkTarget() } ?: return
+        val artworkUpdate = buildCurrentArtworkUpdate(artworkTarget) ?: return
+        val artworkKey = "${artworkUpdate.mediaUri}:${artworkUpdate.artworkData.size}:${artworkUpdate.artworkData.contentHashCode()}"
 
-            try {
+        if (lastAppliedArtworkKey == artworkKey) {
+            return
+        }
+
+        withContext(Dispatchers.Main) {
+            player?.let { currentPlayer ->
                 val currentIndex = currentPlayer.currentMediaItemIndex
-                val currentItem = currentPlayer.currentMediaItem ?: return
+                val currentItem = currentPlayer.currentMediaItem ?: return@let
+                val currentUri = currentItem.localConfiguration?.uri?.toString() ?: return@let
 
-                val uri = currentItem.localConfiguration?.uri?.toString() ?: return
-                val isLocked = uri.startsWith("locked://")
-                val videoPath = if (isLocked) uri.removePrefix("locked://") else uri.removePrefix("file://")
-
-                // Busca thumbnail atualizada - locked usa .neko_thumbs, normal usa cache padrão
-                val thumbnail = if (isLocked) {
-                    FolderLockManager.getLockedThumbnail(videoPath)
-                } else {
-                    loadThumbnailWithContext(videoPath)
+                if (currentUri != artworkUpdate.mediaUri) {
+                    return@let
                 }
 
-                if (thumbnail != null) {
-                    val file = File(videoPath)
-                    val title = if (isLocked) {
-                        LockedPlaybackSession.getOriginalName(file.name)?.substringBeforeLast(".") ?: file.nameWithoutExtension
-                    } else {
-                        file.nameWithoutExtension
-                    }
+                isUpdatingMetadata = true
 
+                try {
                     val newMetadata = MediaMetadata.Builder()
-                        .setTitle(title)
-                        .setDisplayTitle(title)
+                        .setTitle(artworkUpdate.title)
+                        .setDisplayTitle(artworkUpdate.title)
                         .setArtist("NekoVideo")
-                        .setArtworkData(bitmapToByteArray(thumbnail), MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                        .setArtworkData(artworkUpdate.artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
                         .build()
 
                     val newMediaItem = currentItem.buildUpon()
                         .setMediaMetadata(newMetadata)
                         .build()
 
-                    // ✅ Apenas substitui o item - NÃO faz seekTo (já mantém a posição)
                     currentPlayer.replaceMediaItem(currentIndex, newMediaItem)
-
+                    lastAppliedArtworkKey = artworkKey
                     Log.d("MediaPlaybackService", "Notificação atualizada com thumbnail")
+                } finally {
+                    isUpdatingMetadata = false
                 }
-            } finally {
-                isUpdatingMetadata = false // ✅ Libera a flag
             }
         }
+    }
+
+    private fun getCurrentArtworkTarget(): CurrentArtworkTarget? {
+        val currentItem = player?.currentMediaItem ?: return null
+        val uri = currentItem.localConfiguration?.uri?.toString() ?: return null
+        val isLocked = uri.startsWith("locked://")
+        val videoPath = if (isLocked) uri.removePrefix("locked://") else uri.removePrefix("file://")
+        val file = File(videoPath)
+        val title = if (isLocked) {
+            LockedPlaybackSession.getOriginalName(file.name)?.substringBeforeLast(".") ?: file.nameWithoutExtension
+        } else {
+            file.nameWithoutExtension
+        }
+
+        return CurrentArtworkTarget(
+            mediaUri = uri,
+            videoPath = videoPath,
+            title = title,
+            isLocked = isLocked
+        )
+    }
+
+    private suspend fun buildCurrentArtworkUpdate(target: CurrentArtworkTarget): ArtworkUpdate? = withContext(Dispatchers.IO) {
+        val thumbnail = if (target.isLocked) {
+            FolderLockManager.getLockedThumbnail(target.videoPath)
+        } else {
+            loadThumbnailWithContext(target.videoPath)
+        } ?: return@withContext null
+
+        ArtworkUpdate(
+            mediaUri = target.mediaUri,
+            title = target.title,
+            artworkData = bitmapToByteArray(thumbnail)
+        )
     }
 
     private fun updateWindow(window: List<String>, currentIndexInWindow: Int) {
