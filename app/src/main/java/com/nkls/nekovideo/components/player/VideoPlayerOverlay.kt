@@ -119,6 +119,7 @@ fun VideoPlayerOverlay(
     var overlayActuallyVisible by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showVideoTagsDialog by remember { mutableStateOf(false) }
+    var shouldResumeAfterTagsDialog by remember { mutableStateOf(false) }
     var currentVideoPath by remember { mutableStateOf("") }
     var availableTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
     var commonSelectedTagIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
@@ -483,14 +484,25 @@ fun VideoPlayerOverlay(
         }
     }
 
+    fun resumePlaybackAfterTagsDialog() {
+        if (shouldResumeAfterTagsDialog) {
+            mediaController?.play()
+            shouldResumeAfterTagsDialog = false
+        }
+    }
+
     if (showVideoTagsDialog && currentVideoPath.isNotEmpty()) {
         VideoTagsDialog(
             selectedVideoCount = 1,
             tags = availableTags,
             initialSelectedTagIds = commonSelectedTagIds,
-            onDismiss = { showVideoTagsDialog = false },
+            onDismiss = {
+                showVideoTagsDialog = false
+                resumePlaybackAfterTagsDialog()
+            },
             onManageTags = {
                 showVideoTagsDialog = false
+                shouldResumeAfterTagsDialog = false
                 onManageTags()
             },
             onSave = { selectedTagIds ->
@@ -831,8 +843,8 @@ fun VideoPlayerOverlay(
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     if (!overlayActuallyVisible) return
 
+                    val wasControlsVisible = controlsVisible
                     hasLoadedVideo = mediaController!!.currentMediaItem != null && mediaController!!.playbackState == Player.STATE_READY
-                    controlsVisible = false
 
                     val wasPlayerPaused = !mediaController!!.isPlaying
 
@@ -851,7 +863,9 @@ fun VideoPlayerOverlay(
 
                     applyRotation(mediaController!!.videoSize)
 
-                    if (controlsVisible) {
+                    controlsVisible = wasControlsVisible
+
+                    if (wasControlsVisible) {
                         resetUITimer()
                     }
 
@@ -1204,6 +1218,8 @@ fun VideoPlayerOverlay(
                         },
                         onTagsClick = {
                             if (currentVideoPath.isNotEmpty()) {
+                                shouldResumeAfterTagsDialog = mediaController?.isPlaying == true
+                                mediaController?.pause()
                                 coroutineScope.launch {
                                     val scope = getTagScopeForPath(currentVideoPath)
                                     availableTags = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
