@@ -442,7 +442,7 @@ fun VideoPlayerOverlay(
     fun setupController(controller: MediaController) {
         mediaController = controller
         playerView.player = controller
-        hasLoadedVideo = controller.playbackState == Player.STATE_READY
+        hasLoadedVideo = controller.currentMediaItem != null && controller.playbackState == Player.STATE_READY
 
         controller.currentMediaItem?.localConfiguration?.uri?.let { uri ->
             val uriStr = uri.toString()
@@ -557,6 +557,7 @@ fun VideoPlayerOverlay(
     LaunchedEffect(mediaController, isSeekingActive) {
         if (mediaController != null && !isSeekingActive) {
             while (overlayActuallyVisible) {
+                hasLoadedVideo = mediaController!!.currentMediaItem != null && mediaController!!.playbackState == Player.STATE_READY
                 currentPosition = mediaController!!.currentPosition
                 duration = mediaController!!.duration.takeIf { it > 0 } ?: 0L
                 isPlaying = mediaController!!.isPlaying
@@ -830,7 +831,7 @@ fun VideoPlayerOverlay(
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     if (!overlayActuallyVisible) return
 
-                    hasLoadedVideo = false
+                    hasLoadedVideo = mediaController!!.currentMediaItem != null && mediaController!!.playbackState == Player.STATE_READY
                     controlsVisible = false
 
                     val wasPlayerPaused = !mediaController!!.isPlaying
@@ -866,7 +867,7 @@ fun VideoPlayerOverlay(
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_READY) {
-                        hasLoadedVideo = true
+                        hasLoadedVideo = mediaController!!.currentMediaItem != null
                     } else if (playbackState == Player.STATE_IDLE) {
                         hasLoadedVideo = false
                         controlsVisible = false
