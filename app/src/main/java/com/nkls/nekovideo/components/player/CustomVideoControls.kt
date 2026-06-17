@@ -105,9 +105,7 @@ fun CustomVideoControls(
     val controller = mediaController ?: return
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    // ✅ CENTRALIZADO: Calcular índice global baseado no player + PlaylistManager
-    // índice_global = windowStartIndex + currentMediaItemIndex_do_player
-    val currentGlobalIndex = PlaylistManager.getWindowStartIndex() + controller.currentMediaItemIndex
+    val currentGlobalIndex = controller.currentMediaItemIndex
     val totalPlaylistSize = PlaylistManager.getTotalSize()
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -379,7 +377,6 @@ fun CustomVideoControls(
                         fontWeight = FontWeight.Light
                     )
 
-                    // ✅ CENTRALIZADO: Indicador calculado diretamente do player + PlaylistManager
                     if (totalPlaylistSize > 1) {
                         Text(
                             text = "${currentGlobalIndex + 1} / $totalPlaylistSize",
@@ -598,16 +595,11 @@ suspend fun deleteCurrentVideo(
             when (val result = PlaylistManager.removeCurrent()) {
                 is PlaylistManager.RemovalResult.Success -> {
                     // SEMPRE atualizar o player após exclusão usando a função correta
-                    val newWindow = PlaylistManager.getCurrentWindow()
-                    val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-
-                    MediaPlaybackService.updatePlaylistAfterDeletion(
+                    MediaPlaybackService.removePlaylistItem(
                         context,
-                        newWindow,
-                        currentInWindow
+                        removeIndex = controller.currentMediaItemIndex,
+                        nextIndex = PlaylistManager.getCurrentIndex()
                     )
-                    // Não precisa de delay/prepare/play manual -
-                    // updatePlaylistAfterDeletion já faz prepare() e playWhenReady = true
                 }
                 PlaylistManager.RemovalResult.PlaylistEmpty -> {
                     MediaPlaybackService.stopService(context)

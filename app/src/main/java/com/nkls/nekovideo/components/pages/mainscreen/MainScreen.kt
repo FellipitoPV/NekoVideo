@@ -312,9 +312,7 @@ fun MainScreen(
             val clickedVideoIndex = videos.indexOf("locked://$itemPath")
             if (clickedVideoIndex >= 0) {
                 PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
-                val window = PlaylistManager.getCurrentWindow()
-                val windowIndex = PlaylistManager.getCurrentIndexInWindow()
-                MediaPlaybackService.startWithPlaylist(context, window, windowIndex, resumePositionMs)
+                MediaPlaybackService.startWithPlaylist(context, videos, clickedVideoIndex, resumePositionMs)
                 showPlayerOverlay = true
             }
         } else {
@@ -322,9 +320,7 @@ fun MainScreen(
             val clickedVideoIndex = videos.indexOf("file://$itemPath")
             if (clickedVideoIndex >= 0) {
                 PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
-                val window = PlaylistManager.getCurrentWindow()
-                val windowIndex = PlaylistManager.getCurrentIndexInWindow()
-                MediaPlaybackService.startWithPlaylist(context, window, windowIndex, resumePositionMs)
+                MediaPlaybackService.startWithPlaylist(context, videos, clickedVideoIndex, resumePositionMs)
                 showPlayerOverlay = true
             } else {
                 val videoUri = "file://$itemPath"
@@ -401,8 +397,7 @@ fun MainScreen(
                 castManager.castPlaylist(shuffled, titles, 0)
             } else {
                 PlaylistManager.setPlaylist(filteredVideos, startIndex = 0, shuffle = true)
-                val window = PlaylistManager.getCurrentWindow()
-                MediaPlaybackService.startWithPlaylist(context, window, 0)
+                MediaPlaybackService.startWithPlaylist(context, PlaylistManager.getFullPlaylist(), 0)
                 showPlayerOverlay = true
             }
             selectedItems.clear()

@@ -709,9 +709,11 @@ fun VideoPlayerOverlay(
                             // Aguarda e reinicia com a playlist atual
                             delay(300)
 
-                            val window = PlaylistManager.getCurrentWindow()
-                            val currentIndexInWindow = PlaylistManager.getCurrentIndexInWindow()
-                            MediaPlaybackService.startWithPlaylist(context, window, currentIndexInWindow)
+                            MediaPlaybackService.startWithPlaylist(
+                                context,
+                                PlaylistManager.getFullPlaylist(),
+                                PlaylistManager.getCurrentIndex()
+                            )
                         }
                         is VideoRemuxer.RemuxResult.Error -> {
                             Toast.makeText(

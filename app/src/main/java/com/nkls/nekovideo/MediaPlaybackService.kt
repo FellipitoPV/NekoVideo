@@ -152,44 +152,18 @@ class MediaPlaybackService : MediaSessionService() {
             Log.e("MediaPlaybackService", "Player error: ${error.message}")
         }
 
-        // ✅ ATUALIZADO: Sincronizar PlaylistManager quando vídeo avança automaticamente
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            // ✅ Ignora transições causadas por SEEK ou atualização de metadados
-            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK || isUpdatingMetadata) {
-                Log.d("MediaPlaybackService", "onMediaItemTransition ignorado (reason=$reason, isUpdating=$isUpdatingMetadata)")
-                return
-            }
-
-            // ✅ NOVO: Ignora eventos que chegam logo após uma atualização de window
-            // Isso evita dessincronização causada por eventos assíncronos do ExoPlayer
-            val timeSinceLastUpdate = System.currentTimeMillis() - lastWindowUpdateTime
-            if (timeSinceLastUpdate < WINDOW_UPDATE_COOLDOWN_MS) {
-                Log.d("MediaPlaybackService", "onMediaItemTransition ignorado (cooldown: ${timeSinceLastUpdate}ms)")
+            if (isUpdatingMetadata) {
                 return
             }
 
             player?.let { currentPlayer ->
-                val currentIndexInWindow = currentPlayer.currentMediaItemIndex
-                val windowSize = currentPlayer.mediaItemCount
-
-                // ✅ SIMPLIFICADO: Quando vídeo avança AUTOMATICAMENTE (AUTO), sincronizar PlaylistManager
-                // Isso acontece quando o vídeo termina e o ExoPlayer passa para o próximo na window
-                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-                    val globalIndex = PlaylistManager.getWindowStartIndex() + currentIndexInWindow
-                    if (globalIndex != PlaylistManager.getCurrentIndex()) {
-                        // Apenas sincroniza o índice, não chama updateWindow para evitar loops
-                        PlaylistManager.jumpTo(globalIndex)
-                        Log.d("MediaPlaybackService", "PlaylistManager sincronizado (AUTO): índice $globalIndex")
-                    }
-
-                    // Se está nos últimos 3 vídeos da window, atualizar preventivamente
-                    if (currentIndexInWindow >= windowSize - 3 && PlaylistManager.hasNext()) {
-                        val newWindow = PlaylistManager.getCurrentWindow()
-                        val adjustedIndex = PlaylistManager.getCurrentIndexInWindow()
-                        updateWindow(newWindow, adjustedIndex)
-                        Log.d("MediaPlaybackService", "Window atualizada preventivamente")
-                    }
+                val currentPlaylistIndex = currentPlayer.currentMediaItemIndex
+                if (currentPlaylistIndex != PlaylistManager.getCurrentIndex()) {
+                    PlaylistManager.jumpTo(currentPlaylistIndex)
                 }
+
+                val upcomingPaths = collectUpcomingPaths(currentPlayer, currentPlaylistIndex)
 
                 // Gera thumbnail do vídeo atual se não existir
                 mediaItem?.localConfiguration?.uri?.let { uri ->
@@ -207,6 +181,8 @@ class MediaPlaybackService : MediaSessionService() {
                                 videoPath
                             )
                         }
+
+                        preloadThumbnailsForWindow(upcomingPaths)
                     }
                 }
             }
@@ -265,8 +241,8 @@ class MediaPlaybackService : MediaSessionService() {
         return playlist.any { it.startsWith("locked://") }
     }
 
-    // ✅ SIMPLIFICADO: Apenas usa thumbnail do cache, não gera
-    // MediaPlaybackService.kt
+    // Keep playlist creation cheap for large queues. Artwork is refreshed only
+    // for the current item after thumbnail generation completes.
     private fun createMediaItemWithMetadata(uri: String): MediaItem {
         val isLocked = uri.startsWith("locked://")
         val filePath = if (isLocked) uri.removePrefix("locked://") else uri.removePrefix("file://")
@@ -282,17 +258,6 @@ class MediaPlaybackService : MediaSessionService() {
             .setTitle(title)
             .setDisplayTitle(title)
             .setArtist("NekoVideo")
-
-        // ✅ CORRIGIDO: Para locked, busca thumbnail da .neko_thumbs; para normal, busca do cache
-        val cachedThumbnail = if (isLocked) {
-            FolderLockManager.getLockedThumbnail(filePath)
-        } else {
-            loadThumbnailWithContext(filePath)
-        }
-        if (cachedThumbnail != null) {
-            val artworkData = bitmapToByteArray(cachedThumbnail)
-            metadataBuilder.setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-        }
 
         // Keep locked:// URI so HybridDataSource can detect and handle it
         return MediaItem.Builder()
@@ -336,6 +301,15 @@ class MediaPlaybackService : MediaSessionService() {
                 val currentIndexInWindow = intent.getIntExtra("CURRENT_INDEX_IN_WINDOW", 0)
                 updateWindow(window, currentIndexInWindow)
             }
+            "SEEK_TO_PLAYLIST_INDEX" -> {
+                val playlistIndex = intent.getIntExtra("PLAYLIST_INDEX", 0)
+                seekToPlaylistIndex(playlistIndex)
+            }
+            "REMOVE_PLAYLIST_ITEM" -> {
+                val removeIndex = intent.getIntExtra("REMOVE_INDEX", -1)
+                val nextIndex = intent.getIntExtra("NEXT_INDEX", 0)
+                removePlaylistItem(removeIndex, nextIndex)
+            }
             "REFRESH_PLAYER" -> {
                 refreshPlayerWithCurrentState()
             }
@@ -374,8 +348,6 @@ class MediaPlaybackService : MediaSessionService() {
             initialPositionMs = initialPositionMs
         )
 
-        val isLocked = hasLockedUris(playlist)
-
         player?.run {
             clearMediaItems()
             setMediaItems(
@@ -387,13 +359,14 @@ class MediaPlaybackService : MediaSessionService() {
             playWhenReady = true
         }
 
+        PlaylistManager.syncLoadedWindow(initialIndex)
+
         isUpdatingMetadata = false
 
         updateNotificationIntent()
 
-        // ✅ Gera/carrega thumbnails em background (normal + locked)
         if (playlist.isNotEmpty()) {
-            preloadThumbnailsForWindow(playlist)
+            preloadThumbnailsNearIndex(playlist, initialIndex)
         }
     }
 
@@ -421,9 +394,15 @@ class MediaPlaybackService : MediaSessionService() {
             playWhenReady = true
         }
 
+        PlaylistManager.syncLoadedWindow(nextIndex)
+
         isUpdatingMetadata = false
 
         updateNotificationIntent()
+
+        if (playlist.isNotEmpty()) {
+            preloadThumbnailsNearIndex(playlist, nextIndex)
+        }
     }
 
     private fun preloadThumbnailsForWindow(videoPaths: List<String>) {
@@ -521,41 +500,57 @@ class MediaPlaybackService : MediaSessionService() {
     }
 
     private fun updateWindow(window: List<String>, currentIndexInWindow: Int) {
-        isUpdatingMetadata = true // ✅ Evita que onMediaItemTransition processe durante update
-        lastWindowUpdateTime = System.currentTimeMillis() // ✅ Marca timestamp para cooldown
+        updatePlaylist(window, currentIndexInWindow)
+    }
 
-        Log.d("MediaPlaybackService", "updateWindow: windowSize=${window.size}, index=$currentIndexInWindow")
-
-        player?.run {
-            if (window.isEmpty()) {
-                pause()
-                clearMediaItems()
-                abandonAudioFocus()
-                isUpdatingMetadata = false
+    private fun seekToPlaylistIndex(playlistIndex: Int) {
+        player?.let { currentPlayer ->
+            if (playlistIndex !in 0 until currentPlayer.mediaItemCount) {
+                Log.w("MediaPlaybackService", "seekToPlaylistIndex ignorado: índice inválido $playlistIndex/${currentPlayer.mediaItemCount}")
                 return
             }
 
-            val wasPlaying = isPlaying
-
-            clearMediaItems()
-            setMediaItems(
-                window.map { createMediaItemWithMetadata(it) },
-                currentIndexInWindow,
-                0L
-            )
-            prepare()
-
-            if (wasPlaying) {
-                playWhenReady = true
-            }
+            currentPlayer.seekToDefaultPosition(playlistIndex)
         }
+    }
 
-        isUpdatingMetadata = false // ✅ Libera após configurar
+    private fun preloadThumbnailsNearIndex(playlist: List<String>, centerIndex: Int, radius: Int = 2) {
+        if (playlist.isEmpty()) return
 
-        updateNotificationIntent()
+        val safeCenter = centerIndex.coerceIn(0, playlist.lastIndex)
+        val start = (safeCenter - 1).coerceAtLeast(0)
+        val end = (safeCenter + radius).coerceAtMost(playlist.lastIndex)
+        preloadThumbnailsForWindow(playlist.subList(start, end + 1))
+    }
 
-        // ✅ Gera thumbnails em background
-        preloadThumbnailsForWindow(window)
+    private fun removePlaylistItem(removeIndex: Int, nextIndex: Int) {
+        player?.let { currentPlayer ->
+            if (removeIndex !in 0 until currentPlayer.mediaItemCount) {
+                Log.w("MediaPlaybackService", "removePlaylistItem ignorado: índice inválido $removeIndex/${currentPlayer.mediaItemCount}")
+                return
+            }
+
+            currentPlayer.removeMediaItem(removeIndex)
+
+            if (currentPlayer.mediaItemCount == 0) {
+                persistContinueWatchingState()
+                ContinueWatchingStore.setPlaybackActive(false)
+                stopSelf()
+                return
+            }
+
+            val targetIndex = nextIndex.coerceIn(0, currentPlayer.mediaItemCount - 1)
+            PlaylistManager.syncLoadedWindow(targetIndex)
+            preloadThumbnailsForWindow(collectUpcomingPaths(currentPlayer, targetIndex))
+        }
+    }
+
+    private fun collectUpcomingPaths(currentPlayer: Player, currentIndex: Int, lookAhead: Int = 2): List<String> {
+        if (currentPlayer.mediaItemCount == 0) return emptyList()
+
+        val endIndex = (currentIndex + lookAhead).coerceAtMost(currentPlayer.mediaItemCount - 1)
+        return (currentIndex..endIndex)
+            .mapNotNull { index -> currentPlayer.getMediaItemAt(index).localConfiguration?.uri?.toString() }
     }
 
     private fun refreshPlayerWithCurrentState() {
@@ -892,12 +887,28 @@ class MediaPlaybackService : MediaSessionService() {
             context.startService(intent)
         }
 
-        // ✅ NOVO: Atualizar apenas a window
         fun updatePlayerWindow(context: Context, window: List<String>, currentIndexInWindow: Int) {
             val intent = Intent(context, MediaPlaybackService::class.java).apply {
                 action = "UPDATE_WINDOW"
                 putStringArrayListExtra("WINDOW", ArrayList(window))
                 putExtra("CURRENT_INDEX_IN_WINDOW", currentIndexInWindow)
+            }
+            context.startService(intent)
+        }
+
+        fun seekToPlaylistIndex(context: Context, playlistIndex: Int) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = "SEEK_TO_PLAYLIST_INDEX"
+                putExtra("PLAYLIST_INDEX", playlistIndex)
+            }
+            context.startService(intent)
+        }
+
+        fun removePlaylistItem(context: Context, removeIndex: Int, nextIndex: Int) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = "REMOVE_PLAYLIST_ITEM"
+                putExtra("REMOVE_INDEX", removeIndex)
+                putExtra("NEXT_INDEX", nextIndex)
             }
             context.startService(intent)
         }

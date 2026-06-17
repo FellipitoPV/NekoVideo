@@ -6,10 +6,6 @@ object PlaylistManager {
     private var fullPlaylist: MutableList<String> = mutableListOf()
     private var currentIndex = 0
 
-
-    private const val WINDOW_SIZE = 15
-    private const val PRELOAD_THRESHOLD = 3
-
     // Estado
     var isShuffleEnabled = false
         private set
@@ -44,22 +40,15 @@ object PlaylistManager {
     }
 
     fun getCurrentWindow(): List<String> {
-        if (fullPlaylist.isEmpty()) return emptyList()
-
-        val halfWindow = WINDOW_SIZE / 2
-        val start = (currentIndex - halfWindow).coerceAtLeast(0)
-        val end = (currentIndex + halfWindow + 1).coerceAtMost(fullPlaylist.size)
-
-        return fullPlaylist.subList(start, end)
+        return fullPlaylist.toList()
     }
 
     fun getWindowStartIndex(): Int {
-        val halfWindow = WINDOW_SIZE / 2
-        return (currentIndex - halfWindow).coerceAtLeast(0)
+        return 0
     }
 
     fun getCurrentIndexInWindow(): Int {
-        return currentIndex - getWindowStartIndex()
+        return currentIndex
     }
 
     fun next(): NavigationResult {
@@ -100,10 +89,11 @@ object PlaylistManager {
     }
 
     private fun needsWindowUpdate(): Boolean {
-        val distanceFromStart = currentIndex - getWindowStartIndex()
-        val distanceFromEnd = (getWindowStartIndex() + WINDOW_SIZE) - currentIndex
+        return false
+    }
 
-        return distanceFromStart <= PRELOAD_THRESHOLD || distanceFromEnd <= PRELOAD_THRESHOLD
+    fun syncLoadedWindow(currentIndexInWindow: Int) {
+        currentIndex = currentIndexInWindow.coerceIn(0, (fullPlaylist.size - 1).coerceAtLeast(0))
     }
 
     fun removeCurrent(): RemovalResult {

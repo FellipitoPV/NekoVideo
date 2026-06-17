@@ -77,13 +77,10 @@ object PlaylistNavigator {
 
             return when (val result = PlaylistManager.next()) {
                 is PlaylistManager.NavigationResult.Success -> {
-                    val newWindow = PlaylistManager.getCurrentWindow()
-                    val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
                     val indexAfter = PlaylistManager.getCurrentIndex()
 
-                    Log.d(TAG, "Next: $indexBefore → $indexAfter (window idx: $currentInWindow)")
-
-                    MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
+                    Log.d(TAG, "Next: $indexBefore → $indexAfter")
+                    MediaPlaybackService.seekToPlaylistIndex(context, indexAfter)
                     true
                 }
                 PlaylistManager.NavigationResult.EndOfPlaylist -> {
@@ -118,13 +115,10 @@ object PlaylistNavigator {
 
             return when (val result = PlaylistManager.previous()) {
                 is PlaylistManager.NavigationResult.Success -> {
-                    val newWindow = PlaylistManager.getCurrentWindow()
-                    val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
                     val indexAfter = PlaylistManager.getCurrentIndex()
 
-                    Log.d(TAG, "Previous: $indexBefore → $indexAfter (window idx: $currentInWindow)")
-
-                    MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
+                    Log.d(TAG, "Previous: $indexBefore → $indexAfter")
+                    MediaPlaybackService.seekToPlaylistIndex(context, indexAfter)
                     true
                 }
                 PlaylistManager.NavigationResult.StartOfPlaylist -> {
@@ -159,12 +153,8 @@ object PlaylistNavigator {
 
             return when (val result = PlaylistManager.jumpTo(index)) {
                 is PlaylistManager.NavigationResult.Success -> {
-                    val newWindow = PlaylistManager.getCurrentWindow()
-                    val currentInWindow = PlaylistManager.getCurrentIndexInWindow()
-
-                    Log.d(TAG, "JumpTo: $indexBefore → $index (window idx: $currentInWindow)")
-
-                    MediaPlaybackService.updatePlayerWindow(context, newWindow, currentInWindow)
+                    Log.d(TAG, "JumpTo: $indexBefore → $index")
+                    MediaPlaybackService.seekToPlaylistIndex(context, index)
                     true
                 }
                 else -> {
