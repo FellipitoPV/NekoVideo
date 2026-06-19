@@ -48,10 +48,12 @@ class MediaPlaybackService : MediaSessionService() {
     private var hasAudioFocus = false
 
     private val preloadScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var currentPlaybackProcessingJob: Job? = null
 
     // Flag para evitar recursão na atualização de metadados
     private var isUpdatingMetadata = false
     private var lastAppliedArtworkKey: String? = null
+    private val artworkUpdateDelayMs = 500L
 
     // ✅ NOVO: Timestamp da última atualização de window para ignorar eventos assíncronos
     private var lastWindowUpdateTime = 0L
@@ -158,33 +160,12 @@ class MediaPlaybackService : MediaSessionService() {
                 return
             }
 
+            currentPlaybackProcessingJob?.cancel()
+
             player?.let { currentPlayer ->
                 val currentPlaylistIndex = currentPlayer.currentMediaItemIndex
                 if (currentPlaylistIndex != PlaylistManager.getCurrentIndex()) {
                     PlaylistManager.jumpTo(currentPlaylistIndex)
-                }
-
-                val upcomingPaths = collectUpcomingPaths(currentPlayer, currentPlaylistIndex)
-
-                // Gera thumbnail do vídeo atual se não existir
-                mediaItem?.localConfiguration?.uri?.let { uri ->
-                    val uriStr = uri.toString()
-                    preloadScope.launch {
-                        if (uriStr.startsWith("locked://")) {
-                            val cleanPath = uriStr.removePrefix("locked://")
-                            if (FolderLockManager.getLockedThumbnail(cleanPath) == null) {
-                                FolderLockManager.generateAndSaveLockedThumbnail(cleanPath)
-                            }
-                        } else {
-                            val videoPath = uri.path ?: return@launch
-                            OptimizedThumbnailManager.getOrGenerateThumbnailSync(
-                                this@MediaPlaybackService,
-                                videoPath
-                            )
-                        }
-
-                        preloadThumbnailsForWindow(upcomingPaths)
-                    }
                 }
             }
         }
@@ -194,6 +175,12 @@ class MediaPlaybackService : MediaSessionService() {
             val intent = Intent("PLAYBACK_STATE_CHANGED")
             intent.putExtra("IS_PLAYING", isPlaying)
             sendBroadcast(intent)
+
+            if (playbackState == Player.STATE_READY) {
+                scheduleCurrentPlaybackProcessing()
+            } else {
+                currentPlaybackProcessingJob?.cancel()
+            }
 
             // ✅ REMOVIDO: handleNext() não é mais necessário aqui
             // O ExoPlayer já navega automaticamente dentro da window
@@ -366,9 +353,6 @@ class MediaPlaybackService : MediaSessionService() {
 
         updateNotificationIntent()
 
-        if (playlist.isNotEmpty()) {
-            preloadThumbnailsNearIndex(playlist, initialIndex)
-        }
     }
 
     private fun updatePlaylistAfterDeletion(playlist: List<String>, nextIndex: Int) {
@@ -401,12 +385,11 @@ class MediaPlaybackService : MediaSessionService() {
 
         updateNotificationIntent()
 
-        if (playlist.isNotEmpty()) {
-            preloadThumbnailsNearIndex(playlist, nextIndex)
-        }
     }
 
     private fun preloadThumbnailsForWindow(videoPaths: List<String>) {
+        if (videoPaths.isEmpty()) return
+
         preloadScope.launch {
             var generatedCount = 0
 
@@ -416,12 +399,8 @@ class MediaPlaybackService : MediaSessionService() {
 
                 val thumbnail = if (isLocked) {
                     FolderLockManager.getLockedThumbnail(cleanPath)
-                        ?: FolderLockManager.generateAndSaveLockedThumbnail(cleanPath)
                 } else {
-                    OptimizedThumbnailManager.getOrGenerateThumbnailSync(
-                        this@MediaPlaybackService,
-                        cleanPath
-                    )
+                    loadThumbnailWithContext(cleanPath)
                 }
 
                 if (thumbnail != null) {
@@ -437,10 +416,16 @@ class MediaPlaybackService : MediaSessionService() {
 
             Log.d("MediaPlaybackService", "Preload concluído: $generatedCount/${videoPaths.size} thumbnails")
 
-            // Atualiza a notificação com as novas thumbnails
-            if (generatedCount > 0) {
-                refreshCurrentMediaItemMetadata()
-            }
+            // Artwork/metadata refresh temporariamente desabilitado para isolar
+            // o custo de decode/atualização durante playback contínuo.
+        }
+    }
+
+    private fun scheduleCurrentPlaybackProcessing() {
+        currentPlaybackProcessingJob?.cancel()
+        currentPlaybackProcessingJob = preloadScope.launch {
+            delay(artworkUpdateDelayMs)
+            refreshCurrentMediaItemMetadata()
         }
     }
 
@@ -554,15 +539,6 @@ class MediaPlaybackService : MediaSessionService() {
         }
     }
 
-    private fun preloadThumbnailsNearIndex(playlist: List<String>, centerIndex: Int, radius: Int = 2) {
-        if (playlist.isEmpty()) return
-
-        val safeCenter = centerIndex.coerceIn(0, playlist.lastIndex)
-        val start = (safeCenter - 1).coerceAtLeast(0)
-        val end = (safeCenter + radius).coerceAtMost(playlist.lastIndex)
-        preloadThumbnailsForWindow(playlist.subList(start, end + 1))
-    }
-
     private fun removePlaylistItem(removeIndex: Int, nextIndex: Int) {
         player?.let { currentPlayer ->
             if (removeIndex !in 0 until currentPlayer.mediaItemCount) {
@@ -581,16 +557,7 @@ class MediaPlaybackService : MediaSessionService() {
 
             val targetIndex = nextIndex.coerceIn(0, currentPlayer.mediaItemCount - 1)
             PlaylistManager.syncLoadedWindow(targetIndex)
-            preloadThumbnailsForWindow(collectUpcomingPaths(currentPlayer, targetIndex))
         }
-    }
-
-    private fun collectUpcomingPaths(currentPlayer: Player, currentIndex: Int, lookAhead: Int = 2): List<String> {
-        if (currentPlayer.mediaItemCount == 0) return emptyList()
-
-        val endIndex = (currentIndex + lookAhead).coerceAtMost(currentPlayer.mediaItemCount - 1)
-        return (currentIndex..endIndex)
-            .mapNotNull { index -> currentPlayer.getMediaItemAt(index).localConfiguration?.uri?.toString() }
     }
 
     private fun refreshPlayerWithCurrentState() {
@@ -656,6 +623,7 @@ class MediaPlaybackService : MediaSessionService() {
         if (player?.isPlaying == false) {
             PlaylistManager.clear()
         }
+        currentPlaybackProcessingJob?.cancel()
         preloadScope.cancel() // Cancela thumbnails em progresso
         abandonAudioFocus()
         mediaSession?.run {

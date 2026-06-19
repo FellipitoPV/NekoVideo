@@ -120,6 +120,8 @@ fun VideoPlayerOverlay(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showVideoTagsDialog by remember { mutableStateOf(false) }
     var shouldResumeAfterTagsDialog by remember { mutableStateOf(false) }
+    var shouldResumeAfterOverlayDialog by remember { mutableStateOf(false) }
+    var isSpeedDialogOpen by remember { mutableStateOf(false) }
     var currentVideoPath by remember { mutableStateOf("") }
     var availableTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
     var commonSelectedTagIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
@@ -271,11 +273,18 @@ fun VideoPlayerOverlay(
             }
         }
 
-        // Só aplicar se mudou e atualizar cache
-        if (targetOrientation != ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED) {
+        // Evita reaplicar a mesma orientação e disparar trabalho extra no Activity.
+        if (
+            targetOrientation != ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED &&
+            localActivity.requestedOrientation != targetOrientation
+        ) {
             lastValidOrientation = targetOrientation
             localActivity.requestedOrientation = targetOrientation
         }
+    }
+
+    fun applyRotationForCurrentMode(videoSize: VideoSize? = null) {
+        applyRotation(if (rotationMode == RotationMode.AUTO) videoSize else null)
     }
 
     fun selectSubtitleTrack(groupIndex: Int, trackIndex: Int) {
@@ -461,7 +470,7 @@ fun VideoPlayerOverlay(
         checkAvailableTracks(controller)
 
         if (overlayActuallyVisible) {
-            applyRotation(mediaController!!.videoSize)
+            applyRotationForCurrentMode(mediaController!!.videoSize)
         }
 
     }
@@ -489,6 +498,27 @@ fun VideoPlayerOverlay(
             mediaController?.play()
             shouldResumeAfterTagsDialog = false
         }
+    }
+
+    fun pausePlaybackForOverlayDialog() {
+        shouldResumeAfterOverlayDialog = mediaController?.isPlaying == true
+        mediaController?.pause()
+    }
+
+    fun resumePlaybackAfterOverlayDialog() {
+        if (shouldResumeAfterOverlayDialog) {
+            mediaController?.play()
+            shouldResumeAfterOverlayDialog = false
+        }
+    }
+
+    fun isPlaybackBlockedByDialog(): Boolean {
+        return showDeleteDialog ||
+            showVideoTagsDialog ||
+            showCastDevicePicker ||
+            showTrackSelectionDialog ||
+            showFixMetadataDialog ||
+            isSpeedDialogOpen
     }
 
     if (showVideoTagsDialog && currentVideoPath.isNotEmpty()) {
@@ -561,7 +591,7 @@ fun VideoPlayerOverlay(
             // Pequeno delay para garantir que saiu do CastControlsOverlay
             delay(100)
 
-            applyRotation(mediaController!!.videoSize)
+            applyRotationForCurrentMode(mediaController!!.videoSize)
         }
     }
 
@@ -656,10 +686,11 @@ fun VideoPlayerOverlay(
             videoPath = currentVideoPath,
             onDismiss = {
                 showDeleteDialog = false
-                mediaController?.play()
+                resumePlaybackAfterOverlayDialog()
             },
             onConfirm = {
                 showDeleteDialog = false
+                shouldResumeAfterOverlayDialog = false
                 coroutineScope.launch {
                     deleteCurrentVideo(
                         context = context,
@@ -743,13 +774,16 @@ fun VideoPlayerOverlay(
             onAudioSelected = { groupIndex, trackIndex ->
                 selectAudioTrack(groupIndex, trackIndex)
             },
-            onDismiss = { showTrackSelectionDialog = false },
+            onDismiss = {
+                showTrackSelectionDialog = false
+                resumePlaybackAfterOverlayDialog()
+            },
             onOpen = {
-                mediaController?.pause()
+                pausePlaybackForOverlayDialog()
                 resetUITimer()
             },
             onClose = {
-                mediaController?.play()
+                resumePlaybackAfterOverlayDialog()
             }
         )
     }
@@ -839,7 +873,9 @@ fun VideoPlayerOverlay(
             listener = object : Player.Listener {
                 override fun onVideoSizeChanged(videoSize: VideoSize) {
                     if (!overlayActuallyVisible) return
-                    applyRotation(videoSize)
+                    if (rotationMode == RotationMode.AUTO) {
+                        applyRotation(videoSize)
+                    }
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -863,7 +899,7 @@ fun VideoPlayerOverlay(
                         }
                     }
 
-                    applyRotation(mediaController!!.videoSize)
+                    applyRotationForCurrentMode(mediaController!!.videoSize)
 
                     controlsVisible = wasControlsVisible
 
@@ -871,7 +907,9 @@ fun VideoPlayerOverlay(
                         resetUITimer()
                     }
 
-                    if (wasPlayerPaused && !mediaController!!.isPlaying) {
+                    if (isPlaybackBlockedByDialog() && mediaController!!.isPlaying) {
+                        mediaController!!.pause()
+                    } else if (wasPlayerPaused && !mediaController!!.isPlaying && !isPlaybackBlockedByDialog()) {
                         mediaController!!.play()
                     }
 
@@ -884,6 +922,9 @@ fun VideoPlayerOverlay(
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_READY) {
                         hasLoadedVideo = mediaController!!.currentMediaItem != null
+                        if (isPlaybackBlockedByDialog() && mediaController!!.isPlaying) {
+                            mediaController!!.pause()
+                        }
                     } else if (playbackState == Player.STATE_IDLE) {
                         hasLoadedVideo = false
                         controlsVisible = false
@@ -916,7 +957,7 @@ fun VideoPlayerOverlay(
 
             // Apply rotation immediately — onVideoSizeChanged may have fired before
             // this listener was registered (race between recomposition and ExoPlayer decode)
-            applyRotation(mediaController!!.videoSize)
+            applyRotationForCurrentMode(mediaController!!.videoSize)
         }
 
         onDispose {
@@ -999,6 +1040,7 @@ fun VideoPlayerOverlay(
             isDiscovering = isDiscovering,
             onDeviceSelected = { device ->
                 showCastDevicePicker = false
+                shouldResumeAfterOverlayDialog = false
                 connectedDeviceName = device.name
                 castManager.connectToDevice(device)
 
@@ -1017,7 +1059,10 @@ fun VideoPlayerOverlay(
                 castManager.castPlaylist(playlist, titles, currentIndex)
                 activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             },
-            onDismiss = { showCastDevicePicker = false }
+            onDismiss = {
+                showCastDevicePicker = false
+                resumePlaybackAfterOverlayDialog()
+            }
         )
     }
 
@@ -1215,7 +1260,7 @@ fun VideoPlayerOverlay(
                             mediaController?.play()
                         },
                         onDeleteClick = {
-                            mediaController?.pause()
+                            pausePlaybackForOverlayDialog()
                             showDeleteDialog = true
                         },
                         onTagsClick = {
@@ -1255,14 +1300,17 @@ fun VideoPlayerOverlay(
                             mediaController?.setPlaybackSpeed(newSpeed.value)
                         },
                         onSpeedDialogOpen = {
-                            mediaController?.pause()
+                            isSpeedDialogOpen = true
+                            pausePlaybackForOverlayDialog()
                             resetUITimer()
                         },
                         onSpeedDialogClose = {
-                            mediaController?.play()
+                            isSpeedDialogOpen = false
+                            resumePlaybackAfterOverlayDialog()
                         },
                         isCasting = isCasting,
                         onCastClick = {
+                            pausePlaybackForOverlayDialog()
                             discoveredDevices = emptyList()
                             isDiscovering = true
                             showCastDevicePicker = true
@@ -1276,12 +1324,15 @@ fun VideoPlayerOverlay(
                         rotationMode = rotationMode,
                         onRotationModeChange = { newMode ->
                             rotationMode = newMode
-                            applyRotation(mediaController?.videoSize)
+                            applyRotationForCurrentMode(mediaController?.videoSize)
                         },
                         // Legendas
                         hasSubtitles = availableSubtitles.isNotEmpty(),
                         subtitlesEnabled = selectedSubtitleTrack != null,
-                        onSubtitlesClick = { showTrackSelectionDialog = true },
+                        onSubtitlesClick = {
+                            pausePlaybackForOverlayDialog()
+                            showTrackSelectionDialog = true
+                        },
                         onPiPClick = {
                             controlsVisible = false
                             (activity as? MainActivity)?.enterPiPMode()
