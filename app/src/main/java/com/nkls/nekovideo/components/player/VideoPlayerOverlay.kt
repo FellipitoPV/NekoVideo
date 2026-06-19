@@ -127,6 +127,7 @@ fun VideoPlayerOverlay(
     var currentVideoPath by remember { mutableStateOf("") }
     var availableTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
     var commonSelectedTagIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var availableTagsScope by remember { mutableStateOf<TagScope?>(null) }
     val castManager = remember { DLNACastManager.getInstance(context) }
     var isCasting by remember { mutableStateOf(castManager.isConnected) }
     var connectedDeviceName by remember { mutableStateOf(if (castManager.isConnected) castManager.connectedDeviceName else "") }
@@ -535,6 +536,7 @@ fun VideoPlayerOverlay(
             onManageTags = {
                 showVideoTagsDialog = false
                 shouldResumeAfterTagsDialog = false
+                availableTagsScope = null
                 onManageTags()
             },
             onSave = { selectedTagIds ->
@@ -547,6 +549,7 @@ fun VideoPlayerOverlay(
                         selectedTagIds = selectedTagIds
                     )
                 }
+                commonSelectedTagIds = selectedTagIds
                 Toast.makeText(context, context.getString(R.string.video_tags_add_success), Toast.LENGTH_SHORT).show()
                 Result.success(Unit)
             }
@@ -1272,13 +1275,15 @@ fun VideoPlayerOverlay(
                                 coroutineScope.launch {
                                     val scope = getTagScopeForPath(currentVideoPath)
                                     coroutineScope {
-                                        val tagsDeferred = async(kotlinx.coroutines.Dispatchers.IO) {
-                                            VideoTagStore.getAllTags(context, scope)
-                                        }
                                         val commonTagsDeferred = async(kotlinx.coroutines.Dispatchers.IO) {
                                             VideoTagStore.getCommonTagIds(context, listOf(currentVideoPath), scope)
                                         }
-                                        availableTags = tagsDeferred.await()
+                                        if (availableTagsScope != scope || availableTags.isEmpty()) {
+                                            availableTags = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                VideoTagStore.getAllTags(context, scope)
+                                            }
+                                            availableTagsScope = scope
+                                        }
                                         commonSelectedTagIds = commonTagsDeferred.await()
                                     }
                                     showVideoTagsDialog = true

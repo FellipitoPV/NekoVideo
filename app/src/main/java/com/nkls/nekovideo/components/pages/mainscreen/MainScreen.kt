@@ -197,7 +197,31 @@ fun MainScreen(
     var showShuffleTagsDialog by remember { mutableStateOf(false) }
     var availableTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
     var commonSelectedTagIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var cachedNormalTags by remember { mutableStateOf<List<TagEntity>?>(null) }
+    var cachedPrivateTags by remember { mutableStateOf<List<TagEntity>?>(null) }
     var showShuffleLongPressHint by remember { mutableStateOf(false) }
+
+    fun invalidateTagCaches() {
+        cachedNormalTags = null
+        cachedPrivateTags = null
+    }
+
+    suspend fun getCachedTags(scope: TagScope): List<TagEntity> {
+        val cachedTags = when (scope) {
+            TagScope.NORMAL -> cachedNormalTags
+            TagScope.PRIVATE -> cachedPrivateTags
+        }
+        if (cachedTags != null) return cachedTags
+
+        val loadedTags = withContext(Dispatchers.IO) {
+            VideoTagStore.getAllTags(context, scope)
+        }
+        when (scope) {
+            TagScope.NORMAL -> cachedNormalTags = loadedTags
+            TagScope.PRIVATE -> cachedPrivateTags = loadedTags
+        }
+        return loadedTags
+    }
 
     fun isSecureFolder(folderPath: String): Boolean {
         val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
@@ -238,10 +262,8 @@ fun MainScreen(
         val hintAlreadyShown = prefs.getBoolean("shuffle_tags_hint_shown", false)
 
         if (!hintAlreadyShown) {
-            val hasAnyTags = withContext(Dispatchers.IO) {
-                VideoTagStore.getAllTags(context, TagScope.NORMAL).isNotEmpty() ||
-                    VideoTagStore.getAllTags(context, TagScope.PRIVATE).isNotEmpty()
-            }
+            val hasAnyTags = getCachedTags(TagScope.NORMAL).isNotEmpty() ||
+                getCachedTags(TagScope.PRIVATE).isNotEmpty()
             showShuffleLongPressHint = hasAnyTags
         } else {
             showShuffleLongPressHint = false
@@ -687,6 +709,7 @@ fun MainScreen(
             initialSelectedTagIds = commonSelectedTagIds,
             onDismiss = { showVideoTagsDialog = false },
             onManageTags = {
+                invalidateTagCaches()
                 navController.navigate("settings/tags")
             },
             onSave = { selectedTagIds ->
@@ -1201,11 +1224,10 @@ fun MainScreen(
                             ActionType.TAGS -> {
                                 coroutineScope.launch {
                                     val targetVideos = selectedItems.filter { File(it).isFile }
-                                    availableTags = withContext(Dispatchers.IO) {
-                                        VideoTagStore.getAllTags(context, currentTagScope())
-                                    }
+                                    val tagScope = currentTagScope()
+                                    availableTags = getCachedTags(tagScope)
                                     commonSelectedTagIds = withContext(Dispatchers.IO) {
-                                        VideoTagStore.getCommonTagIds(context, targetVideos, currentTagScope())
+                                        VideoTagStore.getCommonTagIds(context, targetVideos, tagScope)
                                     }
                                     showVideoTagsDialog = true
                                 }
@@ -1287,9 +1309,7 @@ fun MainScreen(
                     onActionLongClick = { action ->
                         if (action == ActionType.SHUFFLE_PLAY) {
                             coroutineScope.launch {
-                                availableTags = withContext(Dispatchers.IO) {
-                                    VideoTagStore.getAllTags(context, currentTagScope())
-                                }
+                                availableTags = getCachedTags(currentTagScope())
                                 showShuffleTagsDialog = true
                             }
                         }

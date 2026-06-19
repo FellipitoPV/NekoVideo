@@ -296,10 +296,13 @@ object VideoTagStore {
     ) {
         val distinctPaths = videoPaths.distinct()
         if (distinctPaths.isEmpty()) return
+        if (initiallyCommonTagIds == selectedTagIds) return
 
         val dao = getDatabase(context).videoTagDao()
         val tagsToAdd = selectedTagIds - initiallyCommonTagIds
         val tagsToRemove = initiallyCommonTagIds - selectedTagIds
+
+        if (tagsToAdd.isEmpty() && tagsToRemove.isEmpty()) return
 
         if (tagsToAdd.isNotEmpty()) {
             val refs = buildList {

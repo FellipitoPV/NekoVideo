@@ -58,7 +58,7 @@ fun VideoTagsDialog(
     val selectedCountText = pluralStringResource(R.plurals.video_tags_selected_count, selectedVideoCount, selectedVideoCount)
     val manageTagsText = stringResource(R.string.settings_tags)
     val dialogTags = remember(tags) { mutableStateListOf<TagEntity>().apply { addAll(tags) } }
-    val selectedTagIds = remember(initialSelectedTagIds) { mutableStateListOf<Long>().apply { addAll(initialSelectedTagIds) } }
+    var selectedTagIds by remember(initialSelectedTagIds) { mutableStateOf(initialSelectedTagIds) }
     var isSaving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -135,15 +135,15 @@ fun VideoTagsDialog(
                 ) {
                     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
                         dialogTags.forEach { tag ->
-                            val isSelected = selectedTagIds.contains(tag.id)
+                            val isSelected = tag.id in selectedTagIds
                             val containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
                             val labelColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                             AssistChip(
                                 onClick = {
                                     if (isSelected) {
-                                        selectedTagIds.remove(tag.id)
+                                        selectedTagIds = selectedTagIds - tag.id
                                     } else {
-                                        selectedTagIds.add(tag.id)
+                                        selectedTagIds = selectedTagIds + tag.id
                                     }
                                 },
                                 modifier = Modifier.heightIn(min = 24.dp),
@@ -196,7 +196,7 @@ fun VideoTagsDialog(
                             isSaving = true
                             errorMessage = null
                             coroutineScope.launch {
-                                val result = onSave(selectedTagIds.toSet())
+                                val result = onSave(selectedTagIds)
                                 result.onSuccess {
                                     onDismiss()
                                 }.onFailure { error ->
