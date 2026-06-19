@@ -82,6 +82,8 @@ import com.nkls.nekovideo.components.helpers.VideoRemuxer
 import com.nkls.nekovideo.services.FolderVideoScanner
 import android.widget.Toast
 import com.nkls.nekovideo.R
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
@@ -1269,11 +1271,15 @@ fun VideoPlayerOverlay(
                                 mediaController?.pause()
                                 coroutineScope.launch {
                                     val scope = getTagScopeForPath(currentVideoPath)
-                                    availableTags = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                        VideoTagStore.getAllTags(context, scope)
-                                    }
-                                    commonSelectedTagIds = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                        VideoTagStore.getCommonTagIds(context, listOf(currentVideoPath), scope)
+                                    coroutineScope {
+                                        val tagsDeferred = async(kotlinx.coroutines.Dispatchers.IO) {
+                                            VideoTagStore.getAllTags(context, scope)
+                                        }
+                                        val commonTagsDeferred = async(kotlinx.coroutines.Dispatchers.IO) {
+                                            VideoTagStore.getCommonTagIds(context, listOf(currentVideoPath), scope)
+                                        }
+                                        availableTags = tagsDeferred.await()
+                                        commonSelectedTagIds = commonTagsDeferred.await()
                                     }
                                     showVideoTagsDialog = true
                                 }

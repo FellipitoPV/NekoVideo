@@ -24,6 +24,13 @@ import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.io.StringReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
@@ -191,6 +198,11 @@ object VideoTagStore {
     @Volatile
     private var database: VideoTagDatabase? = null
 
+    private val automaticBackupScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var automaticBackupJob: Job? = null
+    private var automaticBackupPending = false
+    private var lastAutomaticBackupWriteAt = 0L
+
     private val gson = Gson()
 
     private const val BACKUP_VERSION = 1
@@ -202,6 +214,7 @@ object VideoTagStore {
     private const val AUTO_BACKUP_REFS_FILE_NAME = "video-tag-refs.json"
     private const val AUTO_BACKUP_RELATIVE_PATH = "Documents/NekoVideo/Backup/Tags/"
     private const val AUTO_BACKUP_LEGACY_RELATIVE_PATH = "Documents/NekoVideo/Backup/"
+    private const val AUTO_BACKUP_INTERVAL_MS = 5 * 60 * 1000L
 
     private val migration1To2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -391,8 +404,49 @@ object VideoTagStore {
     }
 
     private suspend fun writeAutomaticBackupSafely(context: Context) {
-        runCatching {
-            writeAutomaticBackup(context)
+        val appContext = context.applicationContext
+        automaticBackupPending = true
+
+        if (automaticBackupJob != null) {
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        val elapsed = now - lastAutomaticBackupWriteAt
+        val delayMs = if (lastAutomaticBackupWriteAt == 0L || elapsed >= AUTO_BACKUP_INTERVAL_MS) {
+            0L
+        } else {
+            AUTO_BACKUP_INTERVAL_MS - elapsed
+        }
+
+        automaticBackupJob = automaticBackupScope.launch {
+            delay(delayMs)
+            runCatching {
+                writeAutomaticBackup(appContext)
+                lastAutomaticBackupWriteAt = System.currentTimeMillis()
+                automaticBackupPending = false
+            }.also {
+                automaticBackupJob = null
+                if (automaticBackupPending) {
+                    launch { writeAutomaticBackupSafely(appContext) }
+                }
+            }
+        }
+    }
+
+    fun flushAutomaticBackupNow(context: Context) {
+        if (!automaticBackupPending) return
+
+        val appContext = context.applicationContext
+        automaticBackupJob?.cancel()
+        automaticBackupJob = null
+
+        runBlocking(Dispatchers.IO) {
+            runCatching {
+                writeAutomaticBackup(appContext)
+                lastAutomaticBackupWriteAt = System.currentTimeMillis()
+                automaticBackupPending = false
+            }
         }
     }
 

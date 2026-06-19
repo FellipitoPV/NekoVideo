@@ -35,6 +35,7 @@ import androidx.lifecycle.lifecycleScope
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.PlaylistManager
+import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.components.pages.mainscreen.MainScreen
 import com.nkls.nekovideo.components.player.MediaControllerManager
 import com.nkls.nekovideo.language.LanguageManager
@@ -334,6 +335,7 @@ class MainActivity : AppCompatActivity() {
             PlaylistManager.clear()
             MediaPlaybackService.stopService(this)
         }
+        VideoTagStore.flushAutomaticBackupNow(this)
         super.onDestroy()
         MediaControllerManager.disconnect()
         OptimizedThumbnailManager.stopPeriodicCleanup()
