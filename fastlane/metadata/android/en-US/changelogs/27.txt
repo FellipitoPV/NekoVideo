@@ -1,0 +1,5 @@
+Updated to NekoVideo 1.3.5.
+Playlist handling and video-to-video transitions were optimized.
+Player controls are now more stable and consistent during loading and transitions.
+General improvements to the player experience and control behavior.
+Better compatibility with video formats and general localization improvements.
