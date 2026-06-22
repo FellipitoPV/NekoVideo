@@ -1,0 +1,5 @@
+Aktualisiert auf NekoVideo 1.3.5.
+Das Playlist-System und die Ubergange zwischen Videos wurden optimiert.
+Die Player-Steuerung ist jetzt stabiler und konsistenter wahrend des Ladens und bei Ubergangen.
+Allgemeine Verbesserungen der Player-Erfahrung und des Steuerungsverhaltens.
+Bessere Kompatibilitat mit Videoformaten und allgemeine Verbesserungen der Lokalisierung.
