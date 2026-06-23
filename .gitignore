@@ -30,3 +30,4 @@
 .cxx
 local.properties
 /changelog-notes
+/.idea/appInsightsSettings.xml
