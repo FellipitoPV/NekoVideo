@@ -206,6 +206,11 @@ fun MainScreen(
         cachedPrivateTags = null
     }
 
+    val tagChangeEvent by VideoTagStore.tagChangeEvent.collectAsState()
+    LaunchedEffect(tagChangeEvent) {
+        invalidateTagCaches()
+    }
+
     suspend fun getCachedTags(scope: TagScope): List<TagEntity> {
         val cachedTags = when (scope) {
             TagScope.NORMAL -> cachedNormalTags

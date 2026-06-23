@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -128,6 +129,11 @@ fun VideoPlayerOverlay(
     var availableTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
     var commonSelectedTagIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var availableTagsScope by remember { mutableStateOf<TagScope?>(null) }
+    val tagChangeEvent by VideoTagStore.tagChangeEvent.collectAsState()
+    LaunchedEffect(tagChangeEvent) {
+        availableTagsScope = null
+        availableTags = emptyList()
+    }
     val castManager = remember { DLNACastManager.getInstance(context) }
     var isCasting by remember { mutableStateOf(castManager.isConnected) }
     var connectedDeviceName by remember { mutableStateOf(if (castManager.isConnected) castManager.connectedDeviceName else "") }
