@@ -382,12 +382,6 @@
     <string name="no_tracks_available">कोई ट्रैक उपलब्ध नहीं</string>
 
     <!-- Fix Video Metadata Dialog -->
-    <string name="fix_video_metadata_title">वीडियो में समस्या</string>
-    <string name="fix_video_metadata_description">समस्याएं मिलीं जो प्लेबैक को प्रभावित कर सकती हैं। अभी ठीक करें?</string>
-    <string name="fix_video_button">ठीक करें</string>
-    <string name="fixing_video">वीडियो ठीक हो रहा है…</string>
-    <string name="fix_video_success">वीडियो ठीक हो गया!</string>
-    <string name="fix_video_error">ठीक करने में त्रुटि</string>
 
     <!-- ADICIONAR plurals corretos -->
     <plurals name="items_selected">

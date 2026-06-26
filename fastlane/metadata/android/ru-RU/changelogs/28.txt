@@ -1,0 +1,5 @@
+Obnovleno do NekoVideo 1.3.6.
+Optimizirovana sinkhronizatsiya pleylisov i navigatsiya mezhdu video.
+Umensheno nakoplenie obrabotki v bolshikh pleylisakh i pri bystrom propuske.
+Uluchsheno obnaruzhenie video vo vneshnikh papkakh s bolshim kolichestvom podpapok.
+Uluchsheny vizualnaya chast i stabilnost elementov upravleniya pleerom i indikatorov zagruzki.

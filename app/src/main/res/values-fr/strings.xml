@@ -382,12 +382,6 @@
     <string name="no_tracks_available">Aucune piste disponible</string>
 
     <!-- Fix Video Metadata Dialog -->
-    <string name="fix_video_metadata_title">Problème Vidéo</string>
-    <string name="fix_video_metadata_description">Des problèmes ont été détectés pouvant affecter la lecture. Corriger maintenant ?</string>
-    <string name="fix_video_button">Corriger</string>
-    <string name="fixing_video">Correction en cours…</string>
-    <string name="fix_video_success">Vidéo corrigée !</string>
-    <string name="fix_video_error">Erreur de correction</string>
 
     <!-- ADICIONAR plurals corretos -->
     <plurals name="items_selected">

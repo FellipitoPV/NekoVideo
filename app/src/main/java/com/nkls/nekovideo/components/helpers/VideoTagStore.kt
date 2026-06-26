@@ -29,6 +29,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.StringReader
@@ -127,6 +130,9 @@ abstract class VideoTagDatabase : RoomDatabase() {
 }
 
 object VideoTagStore {
+    private val _tagChangeEvent = MutableStateFlow(0L)
+    val tagChangeEvent: StateFlow<Long> = _tagChangeEvent.asStateFlow()
+
     private data class AutomaticBackupManifest(
         @SerializedName(value = "version", alternate = ["a"]) val version: Int,
         @SerializedName(value = "exportedAt", alternate = ["b"]) val exportedAt: Long,
@@ -245,12 +251,14 @@ object VideoTagStore {
 
         val id = dao.insertTag(TagEntity(name = name, scope = scope))
         writeAutomaticBackupSafely(context)
+        _tagChangeEvent.value++
         return Result.success(TagEntity(id = id, name = name, scope = scope))
     }
 
     suspend fun deleteTag(context: Context, tagId: Long) {
         getDatabase(context).videoTagDao().deleteTag(tagId)
         writeAutomaticBackupSafely(context)
+        _tagChangeEvent.value++
     }
 
     suspend fun renameTag(context: Context, tagId: Long, rawName: String, scope: TagScope): Result<Unit> {
@@ -262,6 +270,7 @@ object VideoTagStore {
 
         dao.updateTagName(tagId, name)
         writeAutomaticBackupSafely(context)
+        _tagChangeEvent.value++
         return Result.success(Unit)
     }
 

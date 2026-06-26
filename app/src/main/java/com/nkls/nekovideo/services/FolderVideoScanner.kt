@@ -352,6 +352,7 @@ object FolderVideoScanner {
                 lastModified = directory.lastModified(),
                 videos = emptyList() // Locked videos are not scannable
             )
+            propagateToParents(folderMap, directory.absolutePath, directory.lastModified())
         } else if (isSecure) {
             val videoFiles = directory.listFiles()?.filter { file ->
                 file.isFile && file.extension.lowercase() in supportedVideoExtensions
@@ -375,6 +376,7 @@ object FolderVideoScanner {
                     lastModified = directory.lastModified(),
                     videos = videos
                 )
+                propagateToParents(folderMap, directory.absolutePath, directory.lastModified())
             }
         } else if (!folderMap.containsKey(directory.absolutePath)) {
             // Pasta normal não coberta pelo MediaStore ainda (ex: recém destravada).
@@ -401,6 +403,7 @@ object FolderVideoScanner {
                     lastModified = directory.lastModified(),
                     videos = videos
                 )
+                propagateToParents(folderMap, directory.absolutePath, directory.lastModified())
             }
         }
 

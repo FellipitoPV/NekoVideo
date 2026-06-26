@@ -67,7 +67,6 @@ import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.CreateFolderDialog
 import com.nkls.nekovideo.components.DeleteConfirmationDialog
-import com.nkls.nekovideo.components.FixVideoMetadataDialog
 import com.nkls.nekovideo.components.EnableBiometricDialog
 import com.nkls.nekovideo.components.PasswordDialog
 import com.nkls.nekovideo.components.ProcessingDialog
@@ -77,7 +76,6 @@ import com.nkls.nekovideo.components.VideoTagsDialog
 import com.nkls.nekovideo.components.helpers.BiometricHelper
 import com.nkls.nekovideo.components.LockedRenameDialog
 import com.nkls.nekovideo.components.RenameDialog
-import com.nkls.nekovideo.components.helpers.VideoRemuxer
 import com.nkls.nekovideo.components.SortType
 import com.nkls.nekovideo.components.FolderScreen
 import com.nkls.nekovideo.components.InlineStatusMessage
@@ -188,11 +186,6 @@ fun MainScreen(
     var showBiometricOfferDialog by remember { mutableStateOf(false) }
     var biometricOfferPassword by remember { mutableStateOf("") }
 
-    // Estados para correção de metadados de vídeo
-    var showFixMetadataDialog by remember { mutableStateOf(false) }
-    var videoToFix by remember { mutableStateOf<String?>(null) }
-    var isFixingVideo by remember { mutableStateOf(false) }
-    var pendingVideoPlayback: (() -> Unit)? by remember { mutableStateOf(null) }
     var showVideoTagsDialog by remember { mutableStateOf(false) }
     var showShuffleTagsDialog by remember { mutableStateOf(false) }
     var availableTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
@@ -204,6 +197,11 @@ fun MainScreen(
     fun invalidateTagCaches() {
         cachedNormalTags = null
         cachedPrivateTags = null
+    }
+
+    val tagChangeEvent by VideoTagStore.tagChangeEvent.collectAsState()
+    LaunchedEffect(tagChangeEvent) {
+        invalidateTagCaches()
     }
 
     suspend fun getCachedTags(scope: TagScope): List<TagEntity> {
@@ -1003,57 +1001,6 @@ fun MainScreen(
                     }
                 }
             }
-        )
-    }
-
-    // Diálogo para corrigir metadados do vídeo
-    if (showFixMetadataDialog && videoToFix != null) {
-        FixVideoMetadataDialog(
-            videoPath = videoToFix!!,
-            onDismiss = {
-                showFixMetadataDialog = false
-                videoToFix = null
-                pendingVideoPlayback = null
-            },
-            onConfirm = {
-                showFixMetadataDialog = false
-                isFixingVideo = true
-
-                coroutineScope.launch {
-                    val result = VideoRemuxer.remuxVideo(
-                        context = context,
-                        inputPath = videoToFix!!
-                    )
-
-                    isFixingVideo = false
-
-                    when (result) {
-                        is VideoRemuxer.RemuxResult.Success -> {
-                            // Atualiza o cache do scanner após fix
-                            FolderVideoScanner.startScan(context, coroutineScope, forceRefresh = true)
-
-                            SortRowMessageCenter.showSuccess(context.getString(R.string.fix_video_success))
-
-                            // Reproduz o vídeo após corrigir
-                            pendingVideoPlayback?.invoke()
-                        }
-                        is VideoRemuxer.RemuxResult.Error -> {
-                            SortRowMessageCenter.showError("${context.getString(R.string.fix_video_error)}: ${result.message}")
-                        }
-                    }
-
-                    videoToFix = null
-                    pendingVideoPlayback = null
-                }
-            }
-        )
-    }
-
-    // Diálogo de loading durante correção do vídeo
-    if (isFixingVideo) {
-        ProcessingDialog(
-            title = context.getString(R.string.fix_video_metadata_title),
-            message = context.getString(R.string.fixing_video)
         )
     }
 

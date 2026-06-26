@@ -1,0 +1,5 @@
+NekoVideo 1.3.6 par update kiya gaya.
+Playlist synchronization aur videos ke beech navigation ko optimize kiya gaya.
+Badi playlists aur rapid skipping ke dauran processing buildup kam kiya gaya.
+Kai subfolders wale external folders me videos ki pahchan behtar hui.
+Player controls aur loading indicators me visual aur stability improvements kiye gaye.

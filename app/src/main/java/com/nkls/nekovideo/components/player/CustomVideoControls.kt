@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.StayCurrentLandscape
 import androidx.compose.material.icons.filled.StayCurrentPortrait
 import androidx.compose.material.icons.filled.Subtitles
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -98,9 +97,7 @@ fun CustomVideoControls(
     hasSubtitles: Boolean,
     subtitlesEnabled: Boolean,
     onSubtitlesClick: () -> Unit,
-    onPiPClick: () -> Unit,
-    needsMetadataFix: Boolean = false,
-    onFixMetadataClick: () -> Unit = {}
+    onPiPClick: () -> Unit
 ) {
     val controller = mediaController ?: return
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -155,26 +152,6 @@ fun CustomVideoControls(
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    // Botão de aviso para vídeos com metadados corrompidos
-                    if (needsMetadataFix) {
-                        IconButton(
-                            onClick = {
-                                onFixMetadataClick()
-                                resetUITimer()
-                            },
-                            modifier = Modifier
-                                .background(Color(0xFFFF5722).copy(alpha = 0.85f), CircleShape)
-                                .size(44.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = "Fix video metadata",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
                     // Botão PIP
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         IconButton(
@@ -247,7 +224,6 @@ fun CustomVideoControls(
             horizontalArrangement = Arrangement.spacedBy(28.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // ✅ BOTÃO PREVIOUS - Usa PlaylistNavigator centralizado
             IconButton(
                 onClick = {
                     resetUITimer()
@@ -265,7 +241,6 @@ fun CustomVideoControls(
                 )
             }
 
-            // Botão Play/Pause — destaque principal
             IconButton(
                 onClick = {
                     if (isPlaying) {
@@ -287,7 +262,6 @@ fun CustomVideoControls(
                 )
             }
 
-            // ✅ BOTÃO NEXT - Usa PlaylistNavigator centralizado
             IconButton(
                 onClick = {
                     resetUITimer()
@@ -588,6 +562,8 @@ suspend fun deleteCurrentVideo(
         }
 
         if (success) {
+            val removedPlaylistIndex = PlaylistManager.getCurrentIndex()
+
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 onVideoDeleted(videoPath)
             }
@@ -597,7 +573,7 @@ suspend fun deleteCurrentVideo(
                     // SEMPRE atualizar o player após exclusão usando a função correta
                     MediaPlaybackService.removePlaylistItem(
                         context,
-                        removeIndex = controller.currentMediaItemIndex,
+                        removeIndex = removedPlaylistIndex,
                         nextIndex = PlaylistManager.getCurrentIndex()
                     )
                 }
