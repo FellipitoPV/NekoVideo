@@ -73,11 +73,11 @@ object PlaylistNavigator {
         startNavigation()
 
         try {
-            val indexBefore = PlaylistManager.getCurrentIndex()
+            val indexBefore = PlaylistManager.getRequestedIndex()
 
             return when (val result = PlaylistManager.next()) {
                 is PlaylistManager.NavigationResult.Success -> {
-                    val indexAfter = PlaylistManager.getCurrentIndex()
+                    val indexAfter = PlaylistManager.getRequestedIndex()
 
                     Log.d(TAG, "Next: $indexBefore → $indexAfter")
                     MediaPlaybackService.seekToPlaylistIndex(context, indexAfter)
@@ -111,11 +111,11 @@ object PlaylistNavigator {
         startNavigation()
 
         try {
-            val indexBefore = PlaylistManager.getCurrentIndex()
+            val indexBefore = PlaylistManager.getRequestedIndex()
 
             return when (val result = PlaylistManager.previous()) {
                 is PlaylistManager.NavigationResult.Success -> {
-                    val indexAfter = PlaylistManager.getCurrentIndex()
+                    val indexAfter = PlaylistManager.getRequestedIndex()
 
                     Log.d(TAG, "Previous: $indexBefore → $indexAfter")
                     MediaPlaybackService.seekToPlaylistIndex(context, indexAfter)
@@ -149,7 +149,7 @@ object PlaylistNavigator {
         startNavigation()
 
         try {
-            val indexBefore = PlaylistManager.getCurrentIndex()
+            val indexBefore = PlaylistManager.getRequestedIndex()
 
             return when (val result = PlaylistManager.jumpTo(index)) {
                 is PlaylistManager.NavigationResult.Success -> {
@@ -173,5 +173,6 @@ object PlaylistNavigator {
     fun hasNext(): Boolean = PlaylistManager.hasNext()
     fun hasPrevious(): Boolean = PlaylistManager.hasPrevious()
     fun getCurrentIndex(): Int = PlaylistManager.getCurrentIndex()
+    fun getRequestedIndex(): Int = PlaylistManager.getRequestedIndex()
     fun getTotalSize(): Int = PlaylistManager.getTotalSize()
 }

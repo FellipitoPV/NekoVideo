@@ -1,0 +1,5 @@
+Actualizado a NekoVideo 1.3.5.
+Se optimizo el sistema de listas de reproduccion y la transicion entre videos.
+Los controles del reproductor ahora son mas estables y consistentes durante la carga y las transiciones.
+Mejoras generales en la experiencia del reproductor y en el comportamiento de los controles.
+Mejor compatibilidad con formatos de video y mejoras generales de localizacion.

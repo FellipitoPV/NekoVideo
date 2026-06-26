@@ -382,12 +382,6 @@
     <string name="no_tracks_available">Нет доступных дорожек</string>
 
     <!-- Fix Video Metadata Dialog -->
-    <string name="fix_video_metadata_title">Проблема с видео</string>
-    <string name="fix_video_metadata_description">Обнаружены проблемы, которые могут повлиять на воспроизведение. Исправить?</string>
-    <string name="fix_video_button">Исправить</string>
-    <string name="fixing_video">Исправление видео…</string>
-    <string name="fix_video_success">Видео исправлено!</string>
-    <string name="fix_video_error">Ошибка исправления</string>
 
     <!-- ADICIONAR plurals corretos -->
     <plurals name="items_selected">

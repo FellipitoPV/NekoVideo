@@ -20,6 +20,11 @@ import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -38,6 +43,14 @@ fun GestureIndicators(
     seekInfo: String?,
     seekAlignment: Alignment = Alignment.Center
 ) {
+    var displayedSeekInfo by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(seekInfo) {
+        if (seekInfo != null) {
+            displayedSeekInfo = seekInfo
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         // Indicador de seek (posição dinâmica)
         AnimatedVisibility(
@@ -46,18 +59,20 @@ fun GestureIndicators(
             exit = fadeOut(animationSpec = tween(200)) + scaleOut(animationSpec = tween(200)),
             modifier = Modifier.align(seekAlignment)
         ) {
+            val currentSeekInfo = displayedSeekInfo ?: seekInfo ?: return@AnimatedVisibility
+
             Box(
                 modifier = Modifier.padding(32.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val isAdvancing = seekInfo?.startsWith("+") == true
+                    val isAdvancing = currentSeekInfo.startsWith("+")
                     val seekIcon = if (isAdvancing) Icons.Default.FastForward else Icons.Default.FastRewind
 
                     if (isAdvancing) {
                         Text(
-                            text = seekInfo ?: "",
+                            text = currentSeekInfo,
                             color = Color.White,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
@@ -85,7 +100,7 @@ fun GestureIndicators(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = seekInfo ?: "",
+                            text = currentSeekInfo,
                             color = Color.White,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,

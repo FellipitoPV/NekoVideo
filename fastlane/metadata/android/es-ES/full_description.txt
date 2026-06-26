@@ -1,0 +1,14 @@
+NekoVideo es un reproductor de video local y de codigo abierto para Android, centrado en la privacidad y la organizacion por carpetas.
+
+Funciones:
+
+* Navegacion por carpetas y subcarpetas
+* Compatibilidad con formatos comunes como MP4, MKV, AVI, MOV, WMV, M4V, 3GP y FLV
+* Carpetas privadas con proteccion por contrasena y soporte de desbloqueo biometrico
+* Reproduccion en segundo plano, notificacion multimedia y mini reproductor
+* Doble toque para avanzar, seleccion de subtitulos y seleccion de pista de audio
+* Reproduccion aleatoria por carpeta y compatibilidad con "Abrir con"
+* Picture-in-Picture (PiP)
+* Transmision DLNA/UPnP en la red local
+* Reparacion de metadatos MP4 mediante remux sin recodificacion
+* Sin anuncios y sin rastreo

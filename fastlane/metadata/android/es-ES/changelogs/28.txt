@@ -1,0 +1,5 @@
+Actualizado a NekoVideo 1.3.6.
+Optimizacion de la sincronizacion de listas de reproduccion y de la navegacion entre videos.
+Menor acumulacion de procesamiento en listas grandes y durante saltos rapidos.
+Mejor deteccion de videos en carpetas externas con muchas subcarpetas.
+Mejoras visuales y de estabilidad en los controles del reproductor y en los indicadores de carga.

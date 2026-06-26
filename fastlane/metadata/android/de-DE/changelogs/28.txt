@@ -1,0 +1,5 @@
+Aktualisiert auf NekoVideo 1.3.6.
+Optimierte Playlist-Synchronisierung und Navigation zwischen Videos.
+Weniger Verarbeitungsaufwand bei grossen Playlists und schnellem Uberspringen.
+Verbesserte Erkennung von Videos in externen Ordnern mit vielen Unterordnern.
+Visuelle und Stabilitatsverbesserungen bei den Player-Steuerungen und Ladeanzeigen.

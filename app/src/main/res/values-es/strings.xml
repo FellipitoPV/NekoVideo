@@ -382,12 +382,6 @@
     <string name="no_tracks_available">No hay pistas disponibles</string>
 
     <!-- Fix Video Metadata Dialog -->
-    <string name="fix_video_metadata_title">Problema en el Video</string>
-    <string name="fix_video_metadata_description">Se encontraron problemas que pueden afectar la reproducción. ¿Corregir ahora?</string>
-    <string name="fix_video_button">Corregir</string>
-    <string name="fixing_video">Corrigiendo video…</string>
-    <string name="fix_video_success">¡Video corregido!</string>
-    <string name="fix_video_error">Error al corregir</string>
 
     <!-- ADICIONAR plurals corretos -->
     <plurals name="items_selected">

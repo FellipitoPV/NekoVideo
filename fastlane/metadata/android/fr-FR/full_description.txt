@@ -1,0 +1,14 @@
+NekoVideo est un lecteur video local open source pour Android, axe sur la confidentialite et l'organisation par dossiers.
+
+Fonctionnalites :
+
+* Navigation dans les dossiers et sous-dossiers
+* Prise en charge des formats courants comme MP4, MKV, AVI, MOV, WMV, M4V, 3GP et FLV
+* Dossiers prives avec protection par mot de passe et prise en charge du deverrouillage biométrique
+* Lecture en arriere-plan, notification multimedia et mini lecteur
+* Double appui pour avancer, selection des sous-titres et selection de la piste audio
+* Lecture aleatoire par dossier et prise en charge de "Ouvrir avec"
+* Picture-in-Picture (PiP)
+* Diffusion DLNA/UPnP sur le reseau local
+* Reparation des metadonnees MP4 par remux sans reencodage
+* Sans publicites et sans suivi

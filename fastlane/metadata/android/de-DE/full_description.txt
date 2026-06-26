@@ -1,0 +1,14 @@
+NekoVideo ist ein lokaler Open-Source-Videoplayer fur Android mit Fokus auf Datenschutz und ordnerbasierte Organisation.
+
+Funktionen:
+
+* Durchsuchen von Videos nach Ordnern und Unterordnern
+* Unterstutzung fur gängige Formate wie MP4, MKV, AVI, MOV, WMV, M4V, 3GP und FLV
+* Private Ordner mit Passwortschutz und biometrischer Entsperrung
+* Hintergrundwiedergabe, Medienbenachrichtigung und Mini-Player
+* Doppeltippen zum Spulen, Untertitelauswahl und Auswahl der Audiospur
+* Zufallswiedergabe pro Ordner und Unterstutzung fur "Offnen mit"
+* Picture-in-Picture (PiP)
+* DLNA/UPnP-Casting im lokalen Netzwerk
+* Reparatur von MP4-Metadaten per Remux ohne Neukodierung
+* Keine Werbung und kein Tracking

@@ -1,0 +1,5 @@
+Mise a jour vers NekoVideo 1.3.5.
+Le systeme de playlists et les transitions entre les videos ont ete optimises.
+Les controles du lecteur sont desormais plus stables et plus coherents pendant le chargement et les transitions.
+Ameliorations generales de l'experience du lecteur et du comportement des controles.
+Meilleure compatibilite avec les formats video et ameliorations generales de la localisation.

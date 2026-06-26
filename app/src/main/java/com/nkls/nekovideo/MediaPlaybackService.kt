@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Build
+import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
@@ -54,11 +55,15 @@ class MediaPlaybackService : MediaSessionService() {
     private var isUpdatingMetadata = false
     private var lastAppliedArtworkKey: String? = null
     private val artworkUpdateDelayMs = 500L
+    private val rapidNavigationSettleMs = 700L
 
     // ✅ NOVO: Timestamp da última atualização de window para ignorar eventos assíncronos
     private var lastWindowUpdateTime = 0L
     private val WINDOW_UPDATE_COOLDOWN_MS = 500L // Ignora eventos por 500ms após atualização
     private var pendingContinueWatchingRestore: ContinueWatchingEntry? = null
+    private var pendingSeekIndex: Int? = null
+    private var activeSeekIndex: Int? = null
+    private var lastNavigationCommandUptimeMs = 0L
 
     private fun createConfiguredPlayer(): ExoPlayer {
         val audioAttributes = AudioAttributes.Builder()
@@ -165,8 +170,14 @@ class MediaPlaybackService : MediaSessionService() {
             player?.let { currentPlayer ->
                 val currentPlaylistIndex = currentPlayer.currentMediaItemIndex
                 if (currentPlaylistIndex != PlaylistManager.getCurrentIndex()) {
-                    PlaylistManager.jumpTo(currentPlaylistIndex)
+                    PlaylistManager.confirmCurrentIndex(currentPlaylistIndex)
                 }
+
+                if (activeSeekIndex == currentPlaylistIndex) {
+                    activeSeekIndex = null
+                }
+
+                processPendingSeekIfNeeded(currentPlayer)
             }
         }
 
@@ -180,6 +191,10 @@ class MediaPlaybackService : MediaSessionService() {
                 scheduleCurrentPlaybackProcessing()
             } else {
                 currentPlaybackProcessingJob?.cancel()
+            }
+
+            if (playbackState == Player.STATE_READY || playbackState == Player.STATE_IDLE) {
+                player?.let(::processPendingSeekIfNeeded)
             }
 
             // ✅ REMOVIDO: handleNext() não é mais necessário aqui
@@ -310,6 +325,8 @@ class MediaPlaybackService : MediaSessionService() {
                 resumeLocalPlayback()
             }
             "STOP_SERVICE" -> {
+                pendingSeekIndex = null
+                activeSeekIndex = null
                 persistContinueWatchingState()
                 ContinueWatchingStore.setPlaybackActive(false)
                 player?.run {
@@ -329,6 +346,8 @@ class MediaPlaybackService : MediaSessionService() {
 
     private fun updatePlaylist(playlist: List<String>, initialIndex: Int, initialPositionMs: Long = 0L) {
         isUpdatingMetadata = true // ✅ Evita processamento de onMediaItemTransition
+        pendingSeekIndex = null
+        activeSeekIndex = null
         ContinueWatchingStore.setPlaybackActive(playlist.isNotEmpty())
         pendingContinueWatchingRestore = buildPendingContinueWatchingRestore(
             playlist = playlist,
@@ -357,6 +376,8 @@ class MediaPlaybackService : MediaSessionService() {
 
     private fun updatePlaylistAfterDeletion(playlist: List<String>, nextIndex: Int) {
         isUpdatingMetadata = true // ✅ Evita processamento de onMediaItemTransition
+        pendingSeekIndex = null
+        activeSeekIndex = null
         ContinueWatchingStore.setPlaybackActive(playlist.isNotEmpty())
 
         player?.run {
@@ -424,7 +445,17 @@ class MediaPlaybackService : MediaSessionService() {
     private fun scheduleCurrentPlaybackProcessing() {
         currentPlaybackProcessingJob?.cancel()
         currentPlaybackProcessingJob = preloadScope.launch {
-            delay(artworkUpdateDelayMs)
+            val navigationDelayMs = when {
+                activeSeekIndex != null || pendingSeekIndex != null -> rapidNavigationSettleMs
+                else -> (rapidNavigationSettleMs - (SystemClock.uptimeMillis() - lastNavigationCommandUptimeMs)).coerceAtLeast(0L)
+            }
+
+            delay(maxOf(artworkUpdateDelayMs, navigationDelayMs))
+
+            if (activeSeekIndex != null || pendingSeekIndex != null) {
+                return@launch
+            }
+
             refreshCurrentMediaItemMetadata()
         }
     }
@@ -535,8 +566,36 @@ class MediaPlaybackService : MediaSessionService() {
                 return
             }
 
-            currentPlayer.seekToDefaultPosition(playlistIndex)
+            pendingSeekIndex = playlistIndex
+            lastNavigationCommandUptimeMs = SystemClock.uptimeMillis()
+            processPendingSeekIfNeeded(currentPlayer)
         }
+    }
+
+    private fun processPendingSeekIfNeeded(currentPlayer: ExoPlayer) {
+        val targetIndex = pendingSeekIndex ?: return
+
+        if (activeSeekIndex != null) {
+            return
+        }
+
+        if (targetIndex !in 0 until currentPlayer.mediaItemCount) {
+            pendingSeekIndex = null
+            Log.w("MediaPlaybackService", "processPendingSeekIfNeeded ignorado: índice inválido $targetIndex/${currentPlayer.mediaItemCount}")
+            return
+        }
+
+        if (currentPlayer.currentMediaItemIndex == targetIndex) {
+            pendingSeekIndex = null
+            PlaylistManager.confirmCurrentIndex(targetIndex)
+            scheduleCurrentPlaybackProcessing()
+            return
+        }
+
+        pendingSeekIndex = null
+        activeSeekIndex = targetIndex
+        currentPlaybackProcessingJob?.cancel()
+        currentPlayer.seekToDefaultPosition(targetIndex)
     }
 
     private fun removePlaylistItem(removeIndex: Int, nextIndex: Int) {
@@ -549,6 +608,8 @@ class MediaPlaybackService : MediaSessionService() {
             currentPlayer.removeMediaItem(removeIndex)
 
             if (currentPlayer.mediaItemCount == 0) {
+                pendingSeekIndex = null
+                activeSeekIndex = null
                 persistContinueWatchingState()
                 ContinueWatchingStore.setPlaybackActive(false)
                 stopSelf()
@@ -565,9 +626,14 @@ class MediaPlaybackService : MediaSessionService() {
         val currentSession = mediaSession ?: return
 
         isUpdatingMetadata = true // ✅ Evita processamento de onMediaItemTransition
+        pendingSeekIndex = null
+        activeSeekIndex = null
 
         val currentPosition = currentPlayer.currentPosition
         val currentMediaIndex = currentPlayer.currentMediaItemIndex
+        val currentRepeatMode = currentPlayer.repeatMode
+        val currentPlaybackSpeed = currentPlayer.playbackParameters.speed
+        val shouldPlayWhenReady = currentPlayer.playWhenReady
         val currentPlaylist = (0 until currentPlayer.mediaItemCount).map { index ->
             currentPlayer.getMediaItemAt(index).localConfiguration?.uri.toString()
         }
@@ -575,7 +641,7 @@ class MediaPlaybackService : MediaSessionService() {
         currentPlayer.release()
 
         player = createConfiguredPlayer().apply {
-            repeatMode = Player.REPEAT_MODE_OFF
+            repeatMode = currentRepeatMode
         }
 
         currentSession.player = player!!
@@ -587,8 +653,9 @@ class MediaPlaybackService : MediaSessionService() {
                     currentMediaIndex,
                     currentPosition
                 )
+                setPlaybackSpeed(currentPlaybackSpeed)
                 prepare()
-                playWhenReady = true
+                playWhenReady = shouldPlayWhenReady
             }
         }
 
@@ -619,6 +686,8 @@ class MediaPlaybackService : MediaSessionService() {
     override fun onDestroy() {
         persistContinueWatchingState()
         ContinueWatchingStore.setPlaybackActive(false)
+        pendingSeekIndex = null
+        activeSeekIndex = null
         // Serviço destruído com vídeo pausado (ex: notificação arrastada enquanto pausado)
         if (player?.isPlaying == false) {
             PlaylistManager.clear()

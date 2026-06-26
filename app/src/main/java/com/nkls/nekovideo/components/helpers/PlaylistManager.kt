@@ -5,6 +5,7 @@ import android.util.Log
 object PlaylistManager {
     private var fullPlaylist: MutableList<String> = mutableListOf()
     private var currentIndex = 0
+    private var requestedIndex = 0
 
     // Estado
     var isShuffleEnabled = false
@@ -26,8 +27,10 @@ object PlaylistManager {
             isShuffleEnabled = true
             fullPlaylist.shuffle()
             currentIndex = 0
+            requestedIndex = 0
         } else {
             currentIndex = startIndex.coerceIn(0, fullPlaylist.size - 1)
+            requestedIndex = currentIndex
         }
 
     }
@@ -36,6 +39,7 @@ object PlaylistManager {
         fullPlaylist.clear()
         originalPlaylist = emptyList()
         currentIndex = 0
+        requestedIndex = 0
         isShuffleEnabled = false
     }
 
@@ -54,38 +58,40 @@ object PlaylistManager {
     fun next(): NavigationResult {
         if (fullPlaylist.isEmpty()) return NavigationResult.Empty
 
-        currentIndex++
+        val targetIndex = requestedIndex + 1
 
-        if (currentIndex >= fullPlaylist.size) {
-            currentIndex = fullPlaylist.size - 1
+        if (targetIndex >= fullPlaylist.size) {
+            requestedIndex = fullPlaylist.size - 1
             return NavigationResult.EndOfPlaylist
         }
 
-        Log.d("PlaylistManager", "Next: index $currentIndex/${fullPlaylist.size}")
-        return NavigationResult.Success(fullPlaylist[currentIndex], needsWindowUpdate())
+        requestedIndex = targetIndex
+        Log.d("PlaylistManager", "Next requested: index $requestedIndex/${fullPlaylist.size} (confirmed=$currentIndex)")
+        return NavigationResult.Success(fullPlaylist[requestedIndex], needsWindowUpdate())
     }
 
     fun previous(): NavigationResult {
         if (fullPlaylist.isEmpty()) return NavigationResult.Empty
 
-        currentIndex--
+        val targetIndex = requestedIndex - 1
 
-        if (currentIndex < 0) {
-            currentIndex = 0
+        if (targetIndex < 0) {
+            requestedIndex = 0
             return NavigationResult.StartOfPlaylist
         }
 
-        Log.d("PlaylistManager", "Previous: index $currentIndex/${fullPlaylist.size}")
-        return NavigationResult.Success(fullPlaylist[currentIndex], needsWindowUpdate())
+        requestedIndex = targetIndex
+        Log.d("PlaylistManager", "Previous requested: index $requestedIndex/${fullPlaylist.size} (confirmed=$currentIndex)")
+        return NavigationResult.Success(fullPlaylist[requestedIndex], needsWindowUpdate())
     }
 
     fun jumpTo(index: Int): NavigationResult {
         if (fullPlaylist.isEmpty()) return NavigationResult.Empty
         if (index !in fullPlaylist.indices) return NavigationResult.InvalidIndex
 
-        currentIndex = index
-        Log.d("PlaylistManager", "Jump to: index $currentIndex/${fullPlaylist.size}")
-        return NavigationResult.Success(fullPlaylist[currentIndex], true)
+        requestedIndex = index
+        Log.d("PlaylistManager", "Jump requested: index $requestedIndex/${fullPlaylist.size} (confirmed=$currentIndex)")
+        return NavigationResult.Success(fullPlaylist[requestedIndex], true)
     }
 
     private fun needsWindowUpdate(): Boolean {
@@ -94,6 +100,12 @@ object PlaylistManager {
 
     fun syncLoadedWindow(currentIndexInWindow: Int) {
         currentIndex = currentIndexInWindow.coerceIn(0, (fullPlaylist.size - 1).coerceAtLeast(0))
+        requestedIndex = currentIndex
+    }
+
+    fun confirmCurrentIndex(index: Int) {
+        currentIndex = index.coerceIn(0, (fullPlaylist.size - 1).coerceAtLeast(0))
+        requestedIndex = requestedIndex.coerceIn(0, (fullPlaylist.size - 1).coerceAtLeast(0))
     }
 
     fun removeCurrent(): RemovalResult {
@@ -106,12 +118,15 @@ object PlaylistManager {
 
         if (fullPlaylist.isEmpty()) {
             currentIndex = 0
+            requestedIndex = 0
             return RemovalResult.PlaylistEmpty
         }
 
         if (currentIndex >= fullPlaylist.size) {
             currentIndex = fullPlaylist.size - 1
         }
+
+        requestedIndex = currentIndex
 
         val nextVideo = fullPlaylist.getOrNull(currentIndex)
 
@@ -126,9 +141,11 @@ object PlaylistManager {
 
     fun getCurrentIndex(): Int = currentIndex
 
-    fun hasNext(): Boolean = currentIndex < fullPlaylist.size - 1
+    fun getRequestedIndex(): Int = requestedIndex
 
-    fun hasPrevious(): Boolean = currentIndex > 0
+    fun hasNext(): Boolean = requestedIndex < fullPlaylist.size - 1
+
+    fun hasPrevious(): Boolean = requestedIndex > 0
 
     fun getFullPlaylist(): List<String> = fullPlaylist.toList()
 

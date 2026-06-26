@@ -23,8 +23,11 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -40,9 +43,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.activity.ComponentActivity
 import androidx.core.content.ContextCompat
@@ -78,9 +83,6 @@ import com.nkls.nekovideo.components.helpers.TagScope
 import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.components.player.PlayerUtils.findActivity
 import com.nkls.nekovideo.components.settings.SettingsManager
-import com.nkls.nekovideo.components.FixVideoMetadataDialog
-import com.nkls.nekovideo.components.helpers.VideoRemuxer
-import com.nkls.nekovideo.services.FolderVideoScanner
 import android.widget.Toast
 import com.nkls.nekovideo.R
 import kotlinx.coroutines.async
@@ -155,11 +157,7 @@ fun VideoPlayerOverlay(
     var isSeekingActive by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(RepeatMode.NONE) }
     var playbackSpeed by remember { mutableStateOf(PlaybackSpeed.SPEED_1_00) }
-
-    // Estados para fix de metadados
-    var showFixMetadataDialog by remember { mutableStateOf(false) }
-    var isFixingVideo by remember { mutableStateOf(false) }
-    var isSeekable by remember { mutableStateOf(true) }
+    var currentPlaybackState by remember { mutableStateOf(Player.STATE_IDLE) }
 
     //Controle de rotação
     var rotationMode by remember { mutableStateOf(RotationMode.AUTO) }
@@ -173,8 +171,6 @@ fun VideoPlayerOverlay(
     val resetUITimer: () -> Unit = {
         uiTimer = 4
     }
-
-    val canShowPlaybackControls = hasLoadedVideo && !isFixingVideo
 
     // Estados para controles de gestos (apenas seek - brilho/volume removidos)
     var seekIndicator by remember { mutableStateOf<String?>(null) }
@@ -215,7 +211,7 @@ fun VideoPlayerOverlay(
     val playerView = remember {
         PlayerView(context).apply {
             useController = false
-            setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+            setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
             resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
 
             subtitleView?.apply {
@@ -461,7 +457,14 @@ fun VideoPlayerOverlay(
     fun setupController(controller: MediaController) {
         mediaController = controller
         playerView.player = controller
-        hasLoadedVideo = controller.currentMediaItem != null && controller.playbackState == Player.STATE_READY
+        currentPlaybackState = controller.playbackState
+        hasLoadedVideo = controller.currentMediaItem != null
+        repeatMode = when (controller.repeatMode) {
+            Player.REPEAT_MODE_ALL -> RepeatMode.REPEAT_ALL
+            Player.REPEAT_MODE_ONE -> RepeatMode.REPEAT_ONE
+            else -> RepeatMode.NONE
+        }
+        controller.setPlaybackSpeed(playbackSpeed.value)
 
         controller.currentMediaItem?.localConfiguration?.uri?.let { uri ->
             val uriStr = uri.toString()
@@ -526,7 +529,6 @@ fun VideoPlayerOverlay(
             showVideoTagsDialog ||
             showCastDevicePicker ||
             showTrackSelectionDialog ||
-            showFixMetadataDialog ||
             isSpeedDialogOpen
     }
 
@@ -610,11 +612,11 @@ fun VideoPlayerOverlay(
     LaunchedEffect(mediaController, isSeekingActive) {
         if (mediaController != null && !isSeekingActive) {
             while (overlayActuallyVisible) {
-                hasLoadedVideo = mediaController!!.currentMediaItem != null && mediaController!!.playbackState == Player.STATE_READY
+                currentPlaybackState = mediaController!!.playbackState
+                hasLoadedVideo = mediaController!!.currentMediaItem != null
                 currentPosition = mediaController!!.currentPosition
                 duration = mediaController!!.duration.takeIf { it > 0 } ?: 0L
                 isPlaying = mediaController!!.isPlaying
-                isSeekable = mediaController!!.isCurrentMediaItemSeekable
                 delay(100)
             }
         }
@@ -709,63 +711,6 @@ fun VideoPlayerOverlay(
                         mediaController = mediaController,
                         onVideoDeleted = onVideoDeleted
                     )
-                }
-            }
-        )
-    }
-
-    // Dialog para corrigir metadados do vídeo (moov atom)
-    if (showFixMetadataDialog && currentVideoPath.isNotEmpty()) {
-        FixVideoMetadataDialog(
-            videoPath = currentVideoPath,
-            onDismiss = {
-                showFixMetadataDialog = false
-                mediaController?.play()
-            },
-            onConfirm = {
-                showFixMetadataDialog = false
-                isFixingVideo = true
-
-                coroutineScope.launch {
-                    val result = VideoRemuxer.remuxVideo(
-                        context = context,
-                        inputPath = currentVideoPath
-                    )
-
-                    isFixingVideo = false
-
-                    when (result) {
-                        is VideoRemuxer.RemuxResult.Success -> {
-                            // Atualiza o cache do scanner
-                            FolderVideoScanner.startScan(context, coroutineScope, forceRefresh = true)
-
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.fix_video_success),
-                                Toast.LENGTH_SHORT
-                            ).show()
-
-                            // Para o serviço completamente para limpar cache
-                            MediaPlaybackService.stopService(context)
-
-                            // Aguarda e reinicia com a playlist atual
-                            delay(300)
-
-                            MediaPlaybackService.startWithPlaylist(
-                                context,
-                                PlaylistManager.getFullPlaylist(),
-                                PlaylistManager.getCurrentIndex()
-                            )
-                        }
-                        is VideoRemuxer.RemuxResult.Error -> {
-                            Toast.makeText(
-                                context,
-                                "${context.getString(R.string.fix_video_error)}: ${result.message}",
-                                Toast.LENGTH_LONG
-                            ).show()
-                            mediaController?.play()
-                        }
-                    }
                 }
             }
         )
@@ -893,9 +838,8 @@ fun VideoPlayerOverlay(
                     if (!overlayActuallyVisible) return
 
                     val wasControlsVisible = controlsVisible
-                    hasLoadedVideo = mediaController!!.currentMediaItem != null && mediaController!!.playbackState == Player.STATE_READY
-
-                    val wasPlayerPaused = !mediaController!!.isPlaying
+                    currentPlaybackState = mediaController!!.playbackState
+                    hasLoadedVideo = mediaController!!.currentMediaItem != null
 
                     mediaItem?.localConfiguration?.uri?.let { uri ->
                         val uriStr = uri.toString()
@@ -920,8 +864,6 @@ fun VideoPlayerOverlay(
 
                     if (isPlaybackBlockedByDialog() && mediaController!!.isPlaying) {
                         mediaController!!.pause()
-                    } else if (wasPlayerPaused && !mediaController!!.isPlaying && !isPlaybackBlockedByDialog()) {
-                        mediaController!!.play()
                     }
 
                     mediaController!!.setPlaybackSpeed(playbackSpeed.value)
@@ -931,14 +873,14 @@ fun VideoPlayerOverlay(
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
+                    currentPlaybackState = playbackState
                     if (playbackState == Player.STATE_READY) {
                         hasLoadedVideo = mediaController!!.currentMediaItem != null
                         if (isPlaybackBlockedByDialog() && mediaController!!.isPlaying) {
                             mediaController!!.pause()
                         }
                     } else if (playbackState == Player.STATE_IDLE) {
-                        hasLoadedVideo = false
-                        controlsVisible = false
+                        hasLoadedVideo = mediaController!!.currentMediaItem != null
                     }
 
                     // ✅ SIMPLIFICADO: A navegação automática é feita pelo MediaPlaybackService
@@ -1108,9 +1050,7 @@ fun VideoPlayerOverlay(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black)
-                    .pointerInput(canShowPlaybackControls) {
-                        if (!canShowPlaybackControls) return@pointerInput
-
+                    .pointerInput(hasLoadedVideo, currentPlaybackState) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = true)
                             val downTime = System.currentTimeMillis()
@@ -1150,7 +1090,7 @@ fun VideoPlayerOverlay(
 
                                     val finalSeekSeconds = (totalDragX / seekSensitivity).toInt()
 
-                                    if (finalSeekSeconds != 0 && isSeekable) {
+                                    if (finalSeekSeconds != 0 && duration > 0) {
                                         mediaController?.let { controller ->
                                             val newPosition = (initialPosition + finalSeekSeconds * 1000L)
                                                 .coerceIn(0, videoDuration)
@@ -1227,32 +1167,22 @@ fun VideoPlayerOverlay(
                     seekAlignment = seekSide
                 )
 
-                // Overlay de loading enquanto corrige o vídeo
-                if (isFixingVideo) {
+                if (hasLoadedVideo && currentPlaybackState != Player.STATE_READY) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.7f)),
+                        modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        androidx.compose.foundation.layout.Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)
-                        ) {
-                            androidx.compose.material3.CircularProgressIndicator(
-                                color = Color.White
-                            )
-                            androidx.compose.material3.Text(
-                                text = context.getString(R.string.fixing_video),
-                                color = Color.White
-                            )
-                        }
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(42.dp)
+                        )
                     }
                 }
 
                 // Interface customizada com ícones de volume e brilho
                 AnimatedVisibility(
-                    visible = controlsVisible && !isInPiPMode, // ✅ MANTER ASSIM
+                    visible = controlsVisible && !isInPiPMode && currentPlaybackState == Player.STATE_READY,
                     enter = fadeIn(animationSpec = tween(300)),
                     exit = fadeOut(animationSpec = tween(300))
                 ) {
@@ -1353,11 +1283,6 @@ fun VideoPlayerOverlay(
                         onPiPClick = {
                             controlsVisible = false
                             (activity as? MainActivity)?.enterPiPMode()
-                        },
-                        needsMetadataFix = !isSeekable,
-                        onFixMetadataClick = {
-                            mediaController?.pause()
-                            showFixMetadataDialog = true
                         }
                     )
                 }
