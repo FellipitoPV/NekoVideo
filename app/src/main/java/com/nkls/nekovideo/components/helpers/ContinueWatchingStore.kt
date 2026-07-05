@@ -28,6 +28,7 @@ object ContinueWatchingStore {
     private const val KEY_FOLDER_PATH = "folder_path"
     private const val KEY_TITLE = "title"
     private const val KEY_POSITION_MS = "position_ms"
+    private const val KEY_DURATION_MS = "duration_ms"
     private const val KEY_AUDIO_TRACK_LABEL = "audio_track_label"
     private const val KEY_AUDIO_TRACK_LANGUAGE = "audio_track_language"
     private const val KEY_AUDIO_TRACK_MIME_TYPE = "audio_track_mime_type"
@@ -36,8 +37,8 @@ object ContinueWatchingStore {
     private const val KEY_SUBTITLE_TRACK_MIME_TYPE = "subtitle_track_mime_type"
     private const val KEY_SUBTITLES_DISABLED = "subtitles_disabled"
 
-    private const val MIN_POSITION_TO_KEEP_MS = 5_000L
-    private const val END_TOLERANCE_MS = 10_000L
+    private const val MIN_DURATION_TO_KEEP_MS = 5 * 60_000L
+    private const val COMPLETION_THRESHOLD = 0.95
 
     private val _entry = MutableStateFlow<ContinueWatchingEntry?>(null)
     val entry: StateFlow<ContinueWatchingEntry?> = _entry.asStateFlow()
@@ -54,6 +55,7 @@ object ContinueWatchingStore {
         val title = prefs.getString(KEY_TITLE, null)?.takeIf { it.isNotBlank() }
             ?: File(videoPath).nameWithoutExtension
         val positionMs = prefs.getLong(KEY_POSITION_MS, 0L)
+        val durationMs = prefs.getLong(KEY_DURATION_MS, 0L)
         val audioTrack = readTrackPreference(
             prefs.getString(KEY_AUDIO_TRACK_LABEL, null),
             prefs.getString(KEY_AUDIO_TRACK_LANGUAGE, null),
@@ -66,7 +68,7 @@ object ContinueWatchingStore {
         )
         val subtitlesDisabled = prefs.getBoolean(KEY_SUBTITLES_DISABLED, false)
 
-        if (positionMs < MIN_POSITION_TO_KEEP_MS || !File(videoPath).exists()) {
+        if (durationMs < MIN_DURATION_TO_KEEP_MS || !File(videoPath).exists()) {
             clear(context)
             return null
         }
@@ -110,6 +112,7 @@ object ContinueWatchingStore {
             .putString(KEY_FOLDER_PATH, folderPath)
             .putString(KEY_TITLE, title.ifBlank { File(normalizedPath).nameWithoutExtension })
             .putLong(KEY_POSITION_MS, positionMs)
+            .putLong(KEY_DURATION_MS, durationMs)
             .putString(KEY_AUDIO_TRACK_LABEL, audioTrack?.label)
             .putString(KEY_AUDIO_TRACK_LANGUAGE, audioTrack?.language)
             .putString(KEY_AUDIO_TRACK_MIME_TYPE, audioTrack?.mimeType)
@@ -170,9 +173,9 @@ object ContinueWatchingStore {
     }
 
     private fun shouldClear(positionMs: Long, durationMs: Long): Boolean {
-        if (positionMs < MIN_POSITION_TO_KEEP_MS) return true
-        if (durationMs <= 0L) return false
-        return durationMs - positionMs <= END_TOLERANCE_MS
+        if (positionMs < 0L) return true
+        if (durationMs < MIN_DURATION_TO_KEEP_MS) return true
+        return positionMs >= (durationMs * COMPLETION_THRESHOLD).toLong()
     }
 
     private fun readTrackPreference(

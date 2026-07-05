@@ -105,7 +105,7 @@ object PlaylistManager {
 
     fun confirmCurrentIndex(index: Int) {
         currentIndex = index.coerceIn(0, (fullPlaylist.size - 1).coerceAtLeast(0))
-        requestedIndex = requestedIndex.coerceIn(0, (fullPlaylist.size - 1).coerceAtLeast(0))
+        requestedIndex = currentIndex
     }
 
     fun removeCurrent(): RemovalResult {

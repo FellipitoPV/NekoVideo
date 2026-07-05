@@ -1,0 +1,9 @@
+Problem mit der Synchronisierung der Steuerelemente in der Wiedergabeliste behoben.
+
+Die Reihenfolge der Wiedergabeliste folgt jetzt der gewahlten Sortierung im Ordner.
+
+Das Verhalten am Ende des letzten Videos der Wiedergabeliste wurde verbessert.
+
+Der Player behalt die Steuerelemente jetzt sichtbar, wahrend die Zeitleiste verwendet wird.
+
+Weiter ansehen wurde verbessert, damit kurze oder bereits beendete Videos nicht angezeigt werden.

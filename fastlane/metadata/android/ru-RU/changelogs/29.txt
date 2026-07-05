@@ -1,0 +1,9 @@
+Ispravlena problema sinkhronizatsii elementov upravleniya v pleiliste.
+
+Teper poriadok pleilista sootvetstvuet vybrannoi sortirovke v papke.
+
+Uluchsheno povedenie pri dostizhenii poslednego video v pleiliste.
+
+Pleier teper sokhranyaet vidimost elementov upravleniya pri ispolzovanii taimlaina.
+
+Razdel Continue Watching uluchshen, chtoby ne pokazivat korotkie ili uzhe dosmotrennye video.

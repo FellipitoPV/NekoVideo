@@ -1,0 +1,9 @@
+Fixed playlist control synchronization issues.
+
+The playlist order now follows the sorting selected in the folder.
+
+Improved behavior when reaching the last video in the playlist.
+
+Adjusted the player to keep controls visible while using the timeline.
+
+Improved Continue Watching to avoid short or already finished videos.

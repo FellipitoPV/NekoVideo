@@ -187,6 +187,10 @@ class MediaPlaybackService : MediaSessionService() {
             intent.putExtra("IS_PLAYING", isPlaying)
             sendBroadcast(intent)
 
+            if (playbackState == Player.STATE_ENDED) {
+                player?.let(::handleEndOfPlaylistIfNeeded)
+            }
+
             if (playbackState == Player.STATE_READY) {
                 scheduleCurrentPlaybackProcessing()
             } else {
@@ -596,6 +600,25 @@ class MediaPlaybackService : MediaSessionService() {
         activeSeekIndex = targetIndex
         currentPlaybackProcessingJob?.cancel()
         currentPlayer.seekToDefaultPosition(targetIndex)
+    }
+
+    private fun handleEndOfPlaylistIfNeeded(currentPlayer: ExoPlayer) {
+        if (currentPlayer.repeatMode == Player.REPEAT_MODE_ONE) {
+            return
+        }
+
+        val currentIndex = currentPlayer.currentMediaItemIndex
+        val isLastItem = currentIndex >= currentPlayer.mediaItemCount - 1
+
+        if (!isLastItem || PlaylistManager.hasNext()) {
+            return
+        }
+
+        pendingSeekIndex = null
+        activeSeekIndex = null
+        currentPlayer.playWhenReady = false
+        currentPlayer.pause()
+        PlaylistManager.confirmCurrentIndex(currentIndex)
     }
 
     private fun removePlaylistItem(removeIndex: Int, nextIndex: Int) {

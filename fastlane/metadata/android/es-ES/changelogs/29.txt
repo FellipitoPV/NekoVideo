@@ -1,0 +1,9 @@
+Corregido el problema de sincronizacion de los controles en la lista de reproduccion.
+
+Ahora el orden de la lista respeta la clasificacion elegida en la carpeta.
+
+Mejorado el comportamiento al llegar al ultimo video de la lista.
+
+Se ajusto el reproductor para mantener los controles visibles al usar la linea de tiempo.
+
+Mejorada la seccion Continuar viendo para evitar videos cortos o ya finalizados.

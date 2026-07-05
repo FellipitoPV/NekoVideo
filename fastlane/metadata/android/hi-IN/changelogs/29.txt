@@ -1,0 +1,9 @@
+Playlist controls ke synchronization issue ko theek kiya gaya.
+
+Ab playlist ka order folder me chuni gayi sorting ko follow karta hai.
+
+Playlist ke aakhri video par pahunchne par behavior ko behtar banaya gaya.
+
+Timeline use karte waqt player controls ko visible rakhne ke liye adjustment kiya gaya.
+
+Continue Watching ko behtar banaya gaya hai taki chhote ya pehle se khatam video na dikhen.

@@ -964,7 +964,7 @@ fun SortRow(
 @Composable
 fun FolderScreen(
     folderPath: String,
-    onFolderClick: (String) -> Unit,
+    onFolderClick: (String, SortType) -> Unit,
     onContinueWatchingClick: (ContinueWatchingEntry) -> Unit = {},
     selectedItems: MutableList<String>,
     onSelectionChange: (List<String>) -> Unit,
@@ -1394,6 +1394,7 @@ fun FolderScreen(
                                         items(pathItems.chunked(gridColumns), key = { chunk -> "${targetPath}_${chunk.joinToString { it.path }}" }) { rowItems ->
                                             MediaRow(
                                                 items = rowItems,
+                                                sortType = sortType,
                                                 gridColumns = gridColumns,
                                                 renameTrigger = renameTrigger,
                                                 selectedItems = selectedItems,
@@ -1451,6 +1452,7 @@ fun FolderScreen(
 @Composable
 private fun MediaRow(
     items: List<MediaItem>,
+    sortType: SortType,
     gridColumns: Int,
     renameTrigger: Int,
     selectedItems: MutableList<String>,
@@ -1461,7 +1463,7 @@ private fun MediaRow(
     isSecureMode: Boolean,
     isMoveMode: Boolean,
     itemsToMove: List<String>,
-    onFolderClick: (String) -> Unit,
+    onFolderClick: (String, SortType) -> Unit,
     onSelectionChange: (List<String>) -> Unit,
     onPreviewToggle: (String) -> Unit,
     onPreviewFinished: (String) -> Unit,
@@ -1485,9 +1487,9 @@ private fun MediaRow(
                     if (selectedItems.isNotEmpty()) {
                         if (item.path in selectedItems) selectedItems.remove(item.path) else selectedItems.add(item.path)
                         onSelectionChange(selectedItems.toList())
-                    } else {
-                        onFolderClick(item.path)
-                    }
+                        } else {
+                            onFolderClick(item.path, sortType)
+                        }
                 },
                 onLongPress = {
                     if (item.path in selectedItems) selectedItems.remove(item.path) else selectedItems.add(item.path)

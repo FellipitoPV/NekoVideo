@@ -1167,7 +1167,7 @@ fun VideoPlayerOverlay(
                     seekAlignment = seekSide
                 )
 
-                if (hasLoadedVideo && currentPlaybackState != Player.STATE_READY) {
+                if (hasLoadedVideo && currentPlaybackState == Player.STATE_BUFFERING && !isSeekingActive) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -1182,7 +1182,7 @@ fun VideoPlayerOverlay(
 
                 // Interface customizada com ícones de volume e brilho
                 AnimatedVisibility(
-                    visible = controlsVisible && !isInPiPMode && currentPlaybackState == Player.STATE_READY,
+                    visible = (controlsVisible || isSeekingActive) && !isInPiPMode && hasLoadedVideo && (currentPlaybackState != Player.STATE_BUFFERING || isSeekingActive),
                     enter = fadeIn(animationSpec = tween(300)),
                     exit = fadeOut(animationSpec = tween(300))
                 ) {
@@ -1194,10 +1194,14 @@ fun VideoPlayerOverlay(
                         videoTitle = currentVideoTitle,
                         onSeekStart = {
                             isSeekingActive = true
+                            controlsVisible = true
+                            resetUITimer()
                             mediaController?.pause()
                         },
                         onSeekEnd = {
                             isSeekingActive = false
+                            controlsVisible = true
+                            resetUITimer()
                             mediaController?.play()
                         },
                         onDeleteClick = {

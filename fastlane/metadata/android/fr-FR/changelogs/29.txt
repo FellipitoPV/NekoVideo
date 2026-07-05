@@ -1,0 +1,9 @@
+Correction du probleme de synchronisation des controles dans la playlist.
+
+L'ordre de la playlist respecte maintenant le tri choisi dans le dossier.
+
+Amelioration du comportement a la fin du dernier video de la playlist.
+
+Le lecteur garde maintenant les controles visibles pendant l'utilisation de la timeline.
+
+Amelioration de Continuer a regarder pour eviter les videos courtes ou deja terminees.

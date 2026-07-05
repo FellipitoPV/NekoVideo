@@ -275,6 +275,7 @@ fun MainScreen(
     fun openVideoFromFolder(
         targetFolderPath: String,
         itemPath: String,
+        sortType: SortType = SortType.NAME_ASC,
         resumePositionMs: Long = 0L
     ) {
         val targetIsSecure = isSecureFolder(targetFolderPath)
@@ -282,7 +283,7 @@ fun MainScreen(
         val items = loadFolderContent(
             context = context,
             folderPath = targetFolderPath,
-            sortType = SortType.NAME_ASC,
+            sortType = sortType,
             isSecureMode = targetIsSecure,
             isRootLevel = targetIsRootLevel,
             showPrivateFolders = showPrivateFolders
@@ -1326,11 +1327,11 @@ fun MainScreen(
                                 resumePositionMs = entry.positionMs
                             )
                         },
-                        onFolderClick = { itemPath ->
+                        onFolderClick = { itemPath, currentSortType ->
                             val items = loadFolderContent(
                                 context = context,
                                 folderPath = folderPath,
-                                sortType = SortType.NAME_ASC,
+                                sortType = currentSortType,
                                 isSecureMode = isSecure,
                                 isRootLevel = isAtRootLevel,
                                 showPrivateFolders = showPrivateFolders
@@ -1365,7 +1366,7 @@ fun MainScreen(
                                     folderNavState.navigateTo(itemPath)
                                 }
                             } else {
-                                openVideoFromFolder(folderPath, itemPath)
+                                openVideoFromFolder(folderPath, itemPath, currentSortType)
                             }
                         },
                         selectedItems = selectedItems,
