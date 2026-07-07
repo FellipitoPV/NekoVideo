@@ -162,6 +162,9 @@ fun VideoPlayerOverlay(
     //Controle de rotação
     var rotationMode by remember { mutableStateOf(RotationMode.AUTO) }
     var lastValidOrientation by remember { mutableStateOf<Int?>(null) }
+    var isWaitingForRotationGate by remember { mutableStateOf(false) }
+    var resumeAfterRotationGate by remember { mutableStateOf(false) }
+    var gatedMediaUri by remember { mutableStateOf<String?>(null) }
 
 
     // Timer regressivo para UI (em segundos)
@@ -290,6 +293,83 @@ fun VideoPlayerOverlay(
 
     fun applyRotationForCurrentMode(videoSize: VideoSize? = null) {
         applyRotation(if (rotationMode == RotationMode.AUTO) videoSize else null)
+    }
+
+    fun currentMediaUri(controller: MediaController): String? {
+        return controller.currentMediaItem?.localConfiguration?.uri?.toString()
+    }
+
+    fun shouldGatePlaybackForRotation(controller: MediaController): Boolean {
+        return overlayActuallyVisible &&
+            rotationMode == RotationMode.AUTO &&
+            canControlRotation &&
+            !isCasting &&
+            currentMediaUri(controller) != null
+    }
+
+    fun finishRotationGateIfReady(controller: MediaController, videoSize: VideoSize? = controller.videoSize) {
+        if (!isWaitingForRotationGate) return
+
+        val mediaUri = currentMediaUri(controller)
+        if (mediaUri == null || mediaUri != gatedMediaUri) {
+            isWaitingForRotationGate = false
+            resumeAfterRotationGate = false
+            gatedMediaUri = null
+            return
+        }
+
+        if (videoSize == null || videoSize.width <= 0 || videoSize.height <= 0) {
+            return
+        }
+
+        applyRotation(videoSize)
+        val shouldResume = resumeAfterRotationGate
+        isWaitingForRotationGate = false
+        resumeAfterRotationGate = false
+        gatedMediaUri = null
+
+        coroutineScope.launch {
+            delay(120)
+            if (
+                shouldResume &&
+                mediaController === controller &&
+                currentMediaUri(controller) == mediaUri &&
+                !showDeleteDialog &&
+                !showVideoTagsDialog &&
+                !showCastDevicePicker &&
+                !showTrackSelectionDialog &&
+                !isSpeedDialogOpen
+            ) {
+                controller.play()
+            }
+        }
+    }
+
+    fun beginRotationGateIfNeeded(controller: MediaController) {
+        if (!shouldGatePlaybackForRotation(controller)) {
+            isWaitingForRotationGate = false
+            resumeAfterRotationGate = false
+            gatedMediaUri = null
+            applyRotationForCurrentMode(controller.videoSize)
+            return
+        }
+
+        val mediaUri = currentMediaUri(controller) ?: return
+        val videoSize = controller.videoSize
+        if (videoSize.width > 0 && videoSize.height > 0) {
+            isWaitingForRotationGate = false
+            resumeAfterRotationGate = false
+            gatedMediaUri = null
+            applyRotation(videoSize)
+            return
+        }
+
+        gatedMediaUri = mediaUri
+        isWaitingForRotationGate = true
+        resumeAfterRotationGate = controller.isPlaying
+        if (controller.isPlaying) {
+            controller.pause()
+        }
     }
 
     fun selectSubtitleTrack(groupIndex: Int, trackIndex: Int) {
@@ -482,7 +562,7 @@ fun VideoPlayerOverlay(
         checkAvailableTracks(controller)
 
         if (overlayActuallyVisible) {
-            applyRotationForCurrentMode(mediaController!!.videoSize)
+            beginRotationGateIfNeeded(controller)
         }
 
     }
@@ -816,6 +896,9 @@ fun VideoPlayerOverlay(
             playerView.player = null
             hasRefreshed = false
             overlayActuallyVisible = false
+            isWaitingForRotationGate = false
+            resumeAfterRotationGate = false
+            gatedMediaUri = null
             hasLoadedVideo = false
             controlsVisible = false
         }
@@ -829,7 +912,9 @@ fun VideoPlayerOverlay(
             listener = object : Player.Listener {
                 override fun onVideoSizeChanged(videoSize: VideoSize) {
                     if (!overlayActuallyVisible) return
-                    if (rotationMode == RotationMode.AUTO) {
+                    if (isWaitingForRotationGate) {
+                        finishRotationGateIfReady(mediaController!!, videoSize)
+                    } else if (rotationMode == RotationMode.AUTO) {
                         applyRotation(videoSize)
                     }
                 }
@@ -854,7 +939,7 @@ fun VideoPlayerOverlay(
                         }
                     }
 
-                    applyRotationForCurrentMode(mediaController!!.videoSize)
+                    beginRotationGateIfNeeded(mediaController!!)
 
                     controlsVisible = wasControlsVisible
 
@@ -876,6 +961,7 @@ fun VideoPlayerOverlay(
                     currentPlaybackState = playbackState
                     if (playbackState == Player.STATE_READY) {
                         hasLoadedVideo = mediaController!!.currentMediaItem != null
+                        finishRotationGateIfReady(mediaController!!)
                         if (isPlaybackBlockedByDialog() && mediaController!!.isPlaying) {
                             mediaController!!.pause()
                         }
@@ -910,7 +996,7 @@ fun VideoPlayerOverlay(
 
             // Apply rotation immediately — onVideoSizeChanged may have fired before
             // this listener was registered (race between recomposition and ExoPlayer decode)
-            applyRotationForCurrentMode(mediaController!!.videoSize)
+            beginRotationGateIfNeeded(mediaController!!)
         }
 
         onDispose {
@@ -1160,6 +1246,14 @@ fun VideoPlayerOverlay(
                     factory = { playerView },
                     modifier = Modifier.fillMaxSize()
                 )
+
+                if (isWaitingForRotationGate) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black)
+                    )
+                }
 
                 // Indicadores visuais (apenas seek - brilho/volume removidos)
                 GestureIndicators(

@@ -40,6 +40,81 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 
 @OptIn(UnstableApi::class)
 class MediaPlaybackService : MediaSessionService() {
+    companion object {
+        private const val DISABLE_PLAYBACK_ARTWORK_REFRESH_FOR_DEBUG = false
+
+        fun startWithPlaylist(
+            context: Context,
+            playlist: List<String>,
+            initialIndex: Int = 0,
+            initialPositionMs: Long = 0L
+        ) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = "UPDATE_PLAYLIST"
+                putStringArrayListExtra("PLAYLIST", ArrayList(playlist))
+                putExtra("INITIAL_INDEX", initialIndex)
+                putExtra("INITIAL_POSITION_MS", initialPositionMs)
+            }
+            context.startService(intent)
+        }
+
+        fun refreshPlayer(context: Context) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = "REFRESH_PLAYER"
+            }
+            context.startService(intent)
+        }
+
+        fun updatePlayerWindow(context: Context, window: List<String>, currentIndexInWindow: Int) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = "UPDATE_WINDOW"
+                putStringArrayListExtra("WINDOW", ArrayList(window))
+                putExtra("CURRENT_INDEX_IN_WINDOW", currentIndexInWindow)
+            }
+            context.startService(intent)
+        }
+
+        fun seekToPlaylistIndex(context: Context, playlistIndex: Int) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = "SEEK_TO_PLAYLIST_INDEX"
+                putExtra("PLAYLIST_INDEX", playlistIndex)
+            }
+            context.startService(intent)
+        }
+
+        fun removePlaylistItem(context: Context, removeIndex: Int, nextIndex: Int) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = "REMOVE_PLAYLIST_ITEM"
+                putExtra("REMOVE_INDEX", removeIndex)
+                putExtra("NEXT_INDEX", nextIndex)
+            }
+            context.startService(intent)
+        }
+
+        fun resumeLocalPlayback(context: Context) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = "RESUME_LOCAL_PLAYBACK"
+            }
+            context.startService(intent)
+        }
+
+        fun updatePlaylistAfterDeletion(context: Context, playlist: List<String>, nextIndex: Int) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = "UPDATE_PLAYLIST_AFTER_DELETION"
+                putStringArrayListExtra("PLAYLIST", ArrayList(playlist))
+                putExtra("NEXT_INDEX", nextIndex)
+            }
+            context.startService(intent)
+        }
+
+        fun stopService(context: Context) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = "STOP_SERVICE"
+            }
+            context.startService(intent)
+        }
+    }
+
     private var mediaSession: MediaSession? = null
     private var player: ExoPlayer? = null
 
@@ -54,7 +129,7 @@ class MediaPlaybackService : MediaSessionService() {
     // Flag para evitar recursão na atualização de metadados
     private var isUpdatingMetadata = false
     private var lastAppliedArtworkKey: String? = null
-    private val artworkUpdateDelayMs = 500L
+    private val artworkUpdateDelayMs = 5000L
     private val rapidNavigationSettleMs = 700L
 
     // ✅ NOVO: Timestamp da última atualização de window para ignorar eventos assíncronos
@@ -448,6 +523,11 @@ class MediaPlaybackService : MediaSessionService() {
 
     private fun scheduleCurrentPlaybackProcessing() {
         currentPlaybackProcessingJob?.cancel()
+
+        if (DISABLE_PLAYBACK_ARTWORK_REFRESH_FOR_DEBUG) {
+            return
+        }
+
         currentPlaybackProcessingJob = preloadScope.launch {
             val navigationDelayMs = when {
                 activeSeekIndex != null || pendingSeekIndex != null -> rapidNavigationSettleMs
@@ -964,76 +1044,4 @@ class MediaPlaybackService : MediaSessionService() {
         }
     }
 
-    companion object {
-        fun startWithPlaylist(
-            context: Context,
-            playlist: List<String>,
-            initialIndex: Int = 0,
-            initialPositionMs: Long = 0L
-        ) {
-            val intent = Intent(context, MediaPlaybackService::class.java).apply {
-                action = "UPDATE_PLAYLIST"
-                putStringArrayListExtra("PLAYLIST", ArrayList(playlist))
-                putExtra("INITIAL_INDEX", initialIndex)
-                putExtra("INITIAL_POSITION_MS", initialPositionMs)
-            }
-            context.startService(intent)
-        }
-
-        fun refreshPlayer(context: Context) {
-            val intent = Intent(context, MediaPlaybackService::class.java).apply {
-                action = "REFRESH_PLAYER"
-            }
-            context.startService(intent)
-        }
-
-        fun updatePlayerWindow(context: Context, window: List<String>, currentIndexInWindow: Int) {
-            val intent = Intent(context, MediaPlaybackService::class.java).apply {
-                action = "UPDATE_WINDOW"
-                putStringArrayListExtra("WINDOW", ArrayList(window))
-                putExtra("CURRENT_INDEX_IN_WINDOW", currentIndexInWindow)
-            }
-            context.startService(intent)
-        }
-
-        fun seekToPlaylistIndex(context: Context, playlistIndex: Int) {
-            val intent = Intent(context, MediaPlaybackService::class.java).apply {
-                action = "SEEK_TO_PLAYLIST_INDEX"
-                putExtra("PLAYLIST_INDEX", playlistIndex)
-            }
-            context.startService(intent)
-        }
-
-        fun removePlaylistItem(context: Context, removeIndex: Int, nextIndex: Int) {
-            val intent = Intent(context, MediaPlaybackService::class.java).apply {
-                action = "REMOVE_PLAYLIST_ITEM"
-                putExtra("REMOVE_INDEX", removeIndex)
-                putExtra("NEXT_INDEX", nextIndex)
-            }
-            context.startService(intent)
-        }
-
-        fun resumeLocalPlayback(context: Context) {
-            val intent = Intent(context, MediaPlaybackService::class.java).apply {
-                action = "RESUME_LOCAL_PLAYBACK"
-            }
-            context.startService(intent)
-        }
-
-        fun updatePlaylistAfterDeletion(context: Context, playlist: List<String>, nextIndex: Int) {
-            val intent = Intent(context, MediaPlaybackService::class.java).apply {
-                action = "UPDATE_PLAYLIST_AFTER_DELETION"
-                putStringArrayListExtra("PLAYLIST", ArrayList(playlist))
-                putExtra("NEXT_INDEX", nextIndex)
-            }
-            context.startService(intent)
-        }
-
-        fun stopService(context: Context) {
-            val intent = Intent(context, MediaPlaybackService::class.java).apply {
-                action = "STOP_SERVICE"
-            }
-            context.startService(intent)
-        }
-    }
 }
