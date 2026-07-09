@@ -32,6 +32,7 @@ import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.HybridDataSourceFactory
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
+import com.nkls.nekovideo.components.helpers.VideoProgressStore
 import com.nkls.nekovideo.components.helpers.PlaylistNavigator
 import com.nkls.nekovideo.components.helpers.ContinueWatchingStore
 import com.nkls.nekovideo.components.helpers.ContinueWatchingEntry
@@ -129,7 +130,7 @@ class MediaPlaybackService : MediaSessionService() {
     // Flag para evitar recursão na atualização de metadados
     private var isUpdatingMetadata = false
     private var lastAppliedArtworkKey: String? = null
-    private val artworkUpdateDelayMs = 5000L
+    private val artworkUpdateDelayMs = 1000L
     private val rapidNavigationSettleMs = 700L
 
     // ✅ NOVO: Timestamp da última atualização de window para ignorar eventos assíncronos
@@ -917,6 +918,14 @@ class MediaPlaybackService : MediaSessionService() {
             subtitleTrack = subtitleTrack,
             subtitlesDisabled = subtitlesDisabled
         )
+
+        VideoProgressStore.save(
+            context = this,
+            videoPath = currentUri,
+            title = title,
+            positionMs = currentPosition,
+            durationMs = duration
+        )
     }
 
     private fun buildPendingContinueWatchingRestore(
@@ -1013,8 +1022,10 @@ class MediaPlaybackService : MediaSessionService() {
         val formatLabel = format.label?.trim()?.lowercase()
         val formatLanguage = format.language?.trim()?.lowercase()
         val formatMimeType = format.sampleMimeType?.trim()?.lowercase()
+        val flagsMatch = selectionFlags == null || selectionFlags == format.selectionFlags
+        val rolesMatch = roleFlags == null || roleFlags == format.roleFlags
 
-        return when {
+        val baseMatch = when {
             normalizedLabel != null && normalizedLanguage != null -> {
                 formatLabel == normalizedLabel && formatLanguage == normalizedLanguage
             }
@@ -1026,13 +1037,17 @@ class MediaPlaybackService : MediaSessionService() {
             normalizedMimeType != null -> formatMimeType == normalizedMimeType
             else -> false
         }
+
+        return baseMatch && flagsMatch && rolesMatch
     }
 
     private fun Format.toContinueWatchingTrackPreference(): ContinueWatchingTrackPreference {
         return ContinueWatchingTrackPreference(
             label = label?.takeIf { it.isNotBlank() },
             language = language?.takeIf { it.isNotBlank() },
-            mimeType = sampleMimeType?.takeIf { it.isNotBlank() }
+            mimeType = sampleMimeType?.takeIf { it.isNotBlank() },
+            selectionFlags = selectionFlags,
+            roleFlags = roleFlags
         )
     }
 

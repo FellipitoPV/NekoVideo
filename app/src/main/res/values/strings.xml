@@ -227,6 +227,9 @@
     <string name="storage_clear_thumbnails">Limpar cache de thumbnails</string>
     <string name="storage_clear_thumbnails_desc">Remove todas as thumbnails salvas em disco. Serão regeradas ao navegar nas pastas</string>
     <string name="storage_clear_thumbnails_success">Cache de thumbnails limpo com sucesso</string>
+    <string name="storage_clear_continue_watching">Limpar histórico de continuar assistindo</string>
+    <string name="storage_clear_continue_watching_desc">Remove o card do root e os pontos salvos de retomada dos vídeos</string>
+    <string name="storage_clear_continue_watching_success">Histórico de continuar assistindo limpo com sucesso</string>
     <string name="tags_title">Tags</string>
     <string name="tags_normal_section">Tags de vídeos normais</string>
     <string name="tags_private_section">Tags de vídeos privados</string>
@@ -269,6 +272,13 @@
     <string name="playback_keep_screen_on_desc">Não desligar tela durante reprodução</string>
     <string name="playback_pip">PIP automático</string>
     <string name="playback_pip_desc">Entrar em picture-in-picture ao sair do app durante a reprodução</string>
+    <string name="playback_continue_watching">Continuar Assistindo</string>
+    <string name="playback_continue_watching_enabled">Ativar continuar assistindo</string>
+    <string name="playback_continue_watching_enabled_desc">Salvar onde você parou e permitir retomar depois</string>
+    <string name="playback_continue_watching_min_duration">Duração mínima do vídeo</string>
+    <string name="playback_continue_watching_min_duration_desc">Só salvar progresso para vídeos com pelo menos esse tempo</string>
+    <string name="playback_continue_watching_private">Incluir vídeos privados</string>
+    <string name="playback_continue_watching_private_desc">Também salvar progresso de vídeos em pastas privadas</string>
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Informações dos Vídeos</string>

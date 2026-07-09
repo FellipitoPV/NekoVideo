@@ -76,6 +76,8 @@ import com.nkls.nekovideo.components.helpers.ContinueWatchingStore
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
+import com.nkls.nekovideo.components.helpers.VideoProgressEntry
+import com.nkls.nekovideo.components.helpers.VideoProgressStore
 import com.nkls.nekovideo.components.helpers.supportedVideoExtensions
 import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.services.FolderVideoScanner
@@ -994,6 +996,7 @@ fun FolderScreen(
     val coroutineScope = rememberCoroutineScope()
     val continueWatchingEntry by ContinueWatchingStore.entry.collectAsStateWithLifecycle()
     val hasActivePlayback by ContinueWatchingStore.hasActivePlayback.collectAsStateWithLifecycle()
+    val videoProgressVersion by VideoProgressStore.changeVersion.collectAsStateWithLifecycle()
     val castManager = remember { DLNACastManager.getInstance(context) }
     var hasActiveCastPlayback by remember {
         mutableStateOf(castManager.isConnected && castManager.currentTitle.isNotBlank())
@@ -1246,6 +1249,22 @@ fun FolderScreen(
                     }
 
                     Column(modifier = Modifier.fillMaxSize()) {
+                        var progressByPath by remember(targetPath) {
+                            mutableStateOf<Map<String, VideoProgressEntry>>(emptyMap())
+                        }
+
+                        LaunchedEffect(targetPath, pathItems, videoProgressVersion) {
+                            progressByPath = withContext(Dispatchers.IO) {
+                                pathItems
+                                    .asSequence()
+                                    .filterNot { it.isFolder }
+                                    .mapNotNull { item ->
+                                        VideoProgressStore.get(context, item.path)?.let { item.path to it }
+                                    }
+                                    .toMap()
+                            }
+                        }
+
                         val hintPrefs = remember { context.getSharedPreferences("neko_prefs", android.content.Context.MODE_PRIVATE) }
                         var showPrivateFolderHint by remember {
                             mutableStateOf(
@@ -1405,6 +1424,7 @@ fun FolderScreen(
                                                 isSecureMode = isSecureMode,
                                                 isMoveMode = isMoveMode,
                                                 itemsToMove = itemsToMove,
+                                                progressByPath = progressByPath,
                                                 onFolderClick = onFolderClick,
                                                 onSelectionChange = onSelectionChange,
                                                 onPreviewToggle = { path ->
@@ -1463,6 +1483,7 @@ private fun MediaRow(
     isSecureMode: Boolean,
     isMoveMode: Boolean,
     itemsToMove: List<String>,
+    progressByPath: Map<String, VideoProgressEntry>,
     onFolderClick: (String, SortType) -> Unit,
     onSelectionChange: (List<String>) -> Unit,
     onPreviewToggle: (String) -> Unit,
@@ -1482,6 +1503,7 @@ private fun MediaRow(
                 showFileSizes = showFileSizes,
                 gridColumns = gridColumns,
                 isSecureMode = isSecureMode,
+                progressEntry = progressByPath[item.path],
                 modifier = Modifier.weight(1f),
                 onTap = {
                     if (selectedItems.isNotEmpty()) {
@@ -1625,6 +1647,7 @@ private fun MediaCard(
     showFileSizes: Boolean,
     gridColumns: Int,
     isSecureMode: Boolean,
+    progressEntry: VideoProgressEntry?,
     modifier: Modifier = Modifier,
     onTap: () -> Unit,
     onLongPress: () -> Unit,
@@ -1801,6 +1824,7 @@ private fun MediaCard(
                     duration = duration,
                     fileSize = fileSize,
                     tagCount = tagCount,
+                    progressEntry = progressEntry,
                     isLoading = isLoading,
                     isSelected = isSelected,
                     isPreviewing = isPreviewing,
@@ -1944,6 +1968,7 @@ private fun VideoContent(
     duration: String?,
     fileSize: String?,
     tagCount: Int,
+    progressEntry: VideoProgressEntry?,
     isLoading: Boolean,
     isSelected: Boolean,
     isPreviewing: Boolean,
@@ -2059,6 +2084,14 @@ private fun VideoContent(
         }
 
         if (!isSelected) {
+            val progressFraction = progressEntry?.let {
+                if (it.durationMs > 0L) {
+                    (it.positionMs.toFloat() / it.durationMs.toFloat()).coerceIn(0f, 1f)
+                } else {
+                    null
+                }
+            }
+
             // Play button - só mostra se tem thumbnail válido
             if (!isPreviewing && thumbnail != null && !thumbnail.isRecycled && showThumbnails) {
                 Box(
@@ -2075,6 +2108,25 @@ private fun VideoContent(
                         modifier = Modifier
                             .size(16.dp)
                             .align(Alignment.Center)
+                    )
+                }
+            }
+
+            progressFraction?.let { fraction ->
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(start = 6.dp, end = 6.dp, bottom = 26.dp)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color.Black.copy(alpha = 0.35f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(fraction)
+                            .background(MaterialTheme.colorScheme.primary)
                     )
                 }
             }

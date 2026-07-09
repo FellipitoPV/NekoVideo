@@ -220,6 +220,9 @@
     <string name="storage_clear_thumbnails">Очистить кэш миниатюр</string>
     <string name="storage_clear_thumbnails_desc">Удаляет все сохранённые миниатюры. Они будут созданы заново при просмотре папок</string>
     <string name="storage_clear_thumbnails_success">Кэш миниатюр успешно очищен</string>
+    <string name="storage_clear_continue_watching">Очистить историю продолжения просмотра</string>
+    <string name="storage_clear_continue_watching_desc">Удаляет карточку в корне и все сохранённые точки продолжения для видео</string>
+    <string name="storage_clear_continue_watching_success">История продолжения просмотра успешно очищена</string>
     <string name="tags_title">Теги</string>
     <string name="tags_normal_section">Теги обычных видео</string>
     <string name="tags_private_section">Теги приватных видео</string>
@@ -262,6 +265,13 @@
     <string name="playback_keep_screen_on_desc">Не выключать экран во время воспроизведения</string>
     <string name="playback_pip">Картинка в картинке</string>
     <string name="playback_pip_desc">Продолжить воспроизведение в плавающем окне</string>
+    <string name="playback_continue_watching">Продолжить просмотр</string>
+    <string name="playback_continue_watching_enabled">Включить продолжение просмотра</string>
+    <string name="playback_continue_watching_enabled_desc">Сохранять место остановки и позволять продолжить позже</string>
+    <string name="playback_continue_watching_min_duration">Минимальная длительность видео</string>
+    <string name="playback_continue_watching_min_duration_desc">Сохранять прогресс только для видео не короче этого времени</string>
+    <string name="playback_continue_watching_private">Включать приватные видео</string>
+    <string name="playback_continue_watching_private_desc">Также сохранять прогресс видео в приватных папках</string>
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Информация о видео</string>

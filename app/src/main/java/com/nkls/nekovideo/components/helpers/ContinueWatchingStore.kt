@@ -19,7 +19,9 @@ data class ContinueWatchingEntry(
 data class ContinueWatchingTrackPreference(
     val label: String?,
     val language: String?,
-    val mimeType: String?
+    val mimeType: String?,
+    val selectionFlags: Int? = null,
+    val roleFlags: Int? = null
 )
 
 object ContinueWatchingStore {
@@ -32,12 +34,15 @@ object ContinueWatchingStore {
     private const val KEY_AUDIO_TRACK_LABEL = "audio_track_label"
     private const val KEY_AUDIO_TRACK_LANGUAGE = "audio_track_language"
     private const val KEY_AUDIO_TRACK_MIME_TYPE = "audio_track_mime_type"
+    private const val KEY_AUDIO_TRACK_SELECTION_FLAGS = "audio_track_selection_flags"
+    private const val KEY_AUDIO_TRACK_ROLE_FLAGS = "audio_track_role_flags"
     private const val KEY_SUBTITLE_TRACK_LABEL = "subtitle_track_label"
     private const val KEY_SUBTITLE_TRACK_LANGUAGE = "subtitle_track_language"
     private const val KEY_SUBTITLE_TRACK_MIME_TYPE = "subtitle_track_mime_type"
+    private const val KEY_SUBTITLE_TRACK_SELECTION_FLAGS = "subtitle_track_selection_flags"
+    private const val KEY_SUBTITLE_TRACK_ROLE_FLAGS = "subtitle_track_role_flags"
     private const val KEY_SUBTITLES_DISABLED = "subtitles_disabled"
 
-    private const val MIN_DURATION_TO_KEEP_MS = 5 * 60_000L
     private const val COMPLETION_THRESHOLD = 0.95
 
     private val _entry = MutableStateFlow<ContinueWatchingEntry?>(null)
@@ -59,16 +64,21 @@ object ContinueWatchingStore {
         val audioTrack = readTrackPreference(
             prefs.getString(KEY_AUDIO_TRACK_LABEL, null),
             prefs.getString(KEY_AUDIO_TRACK_LANGUAGE, null),
-            prefs.getString(KEY_AUDIO_TRACK_MIME_TYPE, null)
+            prefs.getString(KEY_AUDIO_TRACK_MIME_TYPE, null),
+            prefs.getInt(KEY_AUDIO_TRACK_SELECTION_FLAGS, Int.MIN_VALUE),
+            prefs.getInt(KEY_AUDIO_TRACK_ROLE_FLAGS, Int.MIN_VALUE)
         )
         val subtitleTrack = readTrackPreference(
             prefs.getString(KEY_SUBTITLE_TRACK_LABEL, null),
             prefs.getString(KEY_SUBTITLE_TRACK_LANGUAGE, null),
-            prefs.getString(KEY_SUBTITLE_TRACK_MIME_TYPE, null)
+            prefs.getString(KEY_SUBTITLE_TRACK_MIME_TYPE, null),
+            prefs.getInt(KEY_SUBTITLE_TRACK_SELECTION_FLAGS, Int.MIN_VALUE),
+            prefs.getInt(KEY_SUBTITLE_TRACK_ROLE_FLAGS, Int.MIN_VALUE)
         )
         val subtitlesDisabled = prefs.getBoolean(KEY_SUBTITLES_DISABLED, false)
+        val normalizedPath = normalizePath(videoPath)
 
-        if (durationMs < MIN_DURATION_TO_KEEP_MS || !File(videoPath).exists()) {
+        if (!ContinueWatchingSettings.isEligibleForRootCard(context, videoPath, normalizedPath, durationMs) || !File(videoPath).exists()) {
             clear(context)
             return null
         }
@@ -97,11 +107,9 @@ object ContinueWatchingStore {
         subtitlesDisabled: Boolean = false
     ) {
         val normalizedPath = normalizePath(videoPath).takeIf { it.isNotBlank() } ?: return
-        if (isPrivateVideoPath(context, videoPath, normalizedPath)) return
-
         val folderPath = File(normalizedPath).parent?.takeIf { it.isNotBlank() } ?: return
 
-        if (shouldClear(positionMs, durationMs) || !File(normalizedPath).exists()) {
+        if (shouldClear(context, videoPath, normalizedPath, positionMs, durationMs) || !File(normalizedPath).exists()) {
             clear(context)
             return
         }
@@ -116,9 +124,13 @@ object ContinueWatchingStore {
             .putString(KEY_AUDIO_TRACK_LABEL, audioTrack?.label)
             .putString(KEY_AUDIO_TRACK_LANGUAGE, audioTrack?.language)
             .putString(KEY_AUDIO_TRACK_MIME_TYPE, audioTrack?.mimeType)
+            .putInt(KEY_AUDIO_TRACK_SELECTION_FLAGS, audioTrack?.selectionFlags ?: Int.MIN_VALUE)
+            .putInt(KEY_AUDIO_TRACK_ROLE_FLAGS, audioTrack?.roleFlags ?: Int.MIN_VALUE)
             .putString(KEY_SUBTITLE_TRACK_LABEL, subtitleTrack?.label)
             .putString(KEY_SUBTITLE_TRACK_LANGUAGE, subtitleTrack?.language)
             .putString(KEY_SUBTITLE_TRACK_MIME_TYPE, subtitleTrack?.mimeType)
+            .putInt(KEY_SUBTITLE_TRACK_SELECTION_FLAGS, subtitleTrack?.selectionFlags ?: Int.MIN_VALUE)
+            .putInt(KEY_SUBTITLE_TRACK_ROLE_FLAGS, subtitleTrack?.roleFlags ?: Int.MIN_VALUE)
             .putBoolean(KEY_SUBTITLES_DISABLED, subtitlesDisabled)
             .apply()
 
@@ -154,47 +166,41 @@ object ContinueWatchingStore {
         }
     }
 
-    private fun isPrivateVideoPath(context: Context, originalPath: String, normalizedPath: String): Boolean {
-        if (originalPath.startsWith("locked://")) return true
-
-        val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
-        val nekoPrivatePath = FilesManager.SecureStorage.getNekoPrivateFolderPath()
-        val file = File(normalizedPath)
-        val parentPath = file.parent ?: return false
-
-        return normalizedPath.startsWith(secureFolderPath) ||
-            normalizedPath.startsWith(nekoPrivatePath) ||
-            normalizedPath.contains("/.private/") ||
-            normalizedPath.contains("/secure/") ||
-            normalizedPath.contains(".secure_videos") ||
-            parentPath.endsWith(".secure_videos") ||
-            FolderLockManager.isLocked(parentPath) ||
-            File(parentPath, ".secure").exists()
-    }
-
-    private fun shouldClear(positionMs: Long, durationMs: Long): Boolean {
+    private fun shouldClear(
+        context: Context,
+        originalPath: String,
+        normalizedPath: String,
+        positionMs: Long,
+        durationMs: Long
+    ): Boolean {
         if (positionMs < 0L) return true
-        if (durationMs < MIN_DURATION_TO_KEEP_MS) return true
+        if (!ContinueWatchingSettings.isEligibleForRootCard(context, originalPath, normalizedPath, durationMs)) return true
         return positionMs >= (durationMs * COMPLETION_THRESHOLD).toLong()
     }
 
     private fun readTrackPreference(
         label: String?,
         language: String?,
-        mimeType: String?
+        mimeType: String?,
+        selectionFlags: Int,
+        roleFlags: Int
     ): ContinueWatchingTrackPreference? {
         val cleanLabel = label?.takeIf { it.isNotBlank() }
         val cleanLanguage = language?.takeIf { it.isNotBlank() }
         val cleanMimeType = mimeType?.takeIf { it.isNotBlank() }
+        val cleanSelectionFlags = selectionFlags.takeUnless { it == Int.MIN_VALUE }
+        val cleanRoleFlags = roleFlags.takeUnless { it == Int.MIN_VALUE }
 
-        if (cleanLabel == null && cleanLanguage == null && cleanMimeType == null) {
+        if (cleanLabel == null && cleanLanguage == null && cleanMimeType == null && cleanSelectionFlags == null && cleanRoleFlags == null) {
             return null
         }
 
         return ContinueWatchingTrackPreference(
             label = cleanLabel,
             language = cleanLanguage,
-            mimeType = cleanMimeType
+            mimeType = cleanMimeType,
+            selectionFlags = cleanSelectionFlags,
+            roleFlags = cleanRoleFlags
         )
     }
 }

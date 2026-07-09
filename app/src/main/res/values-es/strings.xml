@@ -220,6 +220,9 @@
     <string name="storage_clear_thumbnails">Limpiar caché de miniaturas</string>
     <string name="storage_clear_thumbnails_desc">Elimina todas las miniaturas guardadas en disco. Se regenerarán al navegar por las carpetas</string>
     <string name="storage_clear_thumbnails_success">Caché de miniaturas limpiado correctamente</string>
+    <string name="storage_clear_continue_watching">Limpiar historial de continuar viendo</string>
+    <string name="storage_clear_continue_watching_desc">Elimina la tarjeta de la raíz y todos los puntos de reanudación guardados de los videos</string>
+    <string name="storage_clear_continue_watching_success">Historial de continuar viendo limpiado correctamente</string>
     <string name="tags_title">Tags</string>
     <string name="tags_normal_section">Tags de videos normales</string>
     <string name="tags_private_section">Tags de videos privados</string>
@@ -262,6 +265,13 @@
     <string name="playback_keep_screen_on_desc">No apagar la pantalla durante la reproducción</string>
     <string name="playback_pip">Imagen en Imagen</string>
     <string name="playback_pip_desc">Continuar reproducción en ventana flotante</string>
+    <string name="playback_continue_watching">Continuar viendo</string>
+    <string name="playback_continue_watching_enabled">Activar continuar viendo</string>
+    <string name="playback_continue_watching_enabled_desc">Guardar dónde lo dejaste y permitir reanudar después</string>
+    <string name="playback_continue_watching_min_duration">Duración mínima del video</string>
+    <string name="playback_continue_watching_min_duration_desc">Guardar el progreso solo para videos con al menos esta duración</string>
+    <string name="playback_continue_watching_private">Incluir videos privados</string>
+    <string name="playback_continue_watching_private_desc">También guardar el progreso de videos dentro de carpetas privadas</string>
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Información del Video</string>

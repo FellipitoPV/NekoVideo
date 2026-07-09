@@ -220,6 +220,9 @@
     <string name="storage_clear_thumbnails">Thumbnail-Cache leeren</string>
     <string name="storage_clear_thumbnails_desc">Entfernt alle gespeicherten Thumbnails. Sie werden beim Durchsuchen der Ordner neu erstellt</string>
     <string name="storage_clear_thumbnails_success">Thumbnail-Cache erfolgreich geleert</string>
+    <string name="storage_clear_continue_watching">Verlauf von Weiterschauen löschen</string>
+    <string name="storage_clear_continue_watching_desc">Entfernt die Root-Karte und alle gespeicherten Fortsetzungspunkte der Videos</string>
+    <string name="storage_clear_continue_watching_success">Verlauf von Weiterschauen erfolgreich gelöscht</string>
     <string name="tags_title">Tags</string>
     <string name="tags_normal_section">Tags für normale Videos</string>
     <string name="tags_private_section">Tags für private Videos</string>
@@ -262,6 +265,13 @@
     <string name="playback_keep_screen_on_desc">Bildschirm während Wiedergabe nicht ausschalten</string>
     <string name="playback_pip">Bild-in-Bild</string>
     <string name="playback_pip_desc">Wiedergabe in schwebendem Fenster fortsetzen</string>
+    <string name="playback_continue_watching">Weiterschauen</string>
+    <string name="playback_continue_watching_enabled">Weiterschauen aktivieren</string>
+    <string name="playback_continue_watching_enabled_desc">Speichert, wo du aufgehört hast, und ermöglicht späteres Fortsetzen</string>
+    <string name="playback_continue_watching_min_duration">Minimale Videodauer</string>
+    <string name="playback_continue_watching_min_duration_desc">Fortschritt nur für Videos ab dieser Dauer speichern</string>
+    <string name="playback_continue_watching_private">Private Videos einschließen</string>
+    <string name="playback_continue_watching_private_desc">Fortschritt auch für Videos in privaten Ordnern speichern</string>
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Video-Informationen</string>

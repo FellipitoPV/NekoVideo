@@ -87,6 +87,7 @@ import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.SortRowMessageCenter
 import com.nkls.nekovideo.components.helpers.TagEntity
 import com.nkls.nekovideo.components.helpers.TagScope
+import com.nkls.nekovideo.components.helpers.VideoProgressStore
 import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.components.helpers.rememberFolderNavigationState
 import com.nkls.nekovideo.components.layout.ActionFAB
@@ -278,6 +279,12 @@ fun MainScreen(
         sortType: SortType = SortType.NAME_ASC,
         resumePositionMs: Long = 0L
     ) {
+        val effectiveResumePositionMs = if (resumePositionMs > 0L) {
+            resumePositionMs
+        } else {
+            VideoProgressStore.get(context, itemPath)?.positionMs ?: 0L
+        }
+
         val targetIsSecure = isSecureFolder(targetFolderPath)
         val targetIsRootLevel = targetFolderPath == FolderNavigationState.ROOT_PATH
         val items = loadFolderContent(
@@ -303,10 +310,10 @@ fun MainScreen(
                 val clickedVideoIndex = videos.indexOf("locked://$itemPath")
                 if (clickedVideoIndex >= 0) {
                     castManager.castPlaylist(videos, titles, clickedVideoIndex)
-                    if (resumePositionMs > 0L) {
+                    if (effectiveResumePositionMs > 0L) {
                         coroutineScope.launch {
                             delay(1500)
-                            castManager.seekTo(resumePositionMs)
+                            castManager.seekTo(effectiveResumePositionMs)
                         }
                     }
                 }
@@ -316,10 +323,10 @@ fun MainScreen(
                 val clickedVideoIndex = videos.indexOf("file://$itemPath")
                 if (clickedVideoIndex >= 0) {
                     castManager.castPlaylist(videos, titles, clickedVideoIndex)
-                    if (resumePositionMs > 0L) {
+                    if (effectiveResumePositionMs > 0L) {
                         coroutineScope.launch {
                             delay(1500)
-                            castManager.seekTo(resumePositionMs)
+                            castManager.seekTo(effectiveResumePositionMs)
                         }
                     }
                 } else {
@@ -334,7 +341,7 @@ fun MainScreen(
             val clickedVideoIndex = videos.indexOf("locked://$itemPath")
             if (clickedVideoIndex >= 0) {
                 PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
-                MediaPlaybackService.startWithPlaylist(context, videos, clickedVideoIndex, resumePositionMs)
+                MediaPlaybackService.startWithPlaylist(context, videos, clickedVideoIndex, effectiveResumePositionMs)
                 showPlayerOverlay = true
             }
         } else {
@@ -342,12 +349,12 @@ fun MainScreen(
             val clickedVideoIndex = videos.indexOf("file://$itemPath")
             if (clickedVideoIndex >= 0) {
                 PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
-                MediaPlaybackService.startWithPlaylist(context, videos, clickedVideoIndex, resumePositionMs)
+                MediaPlaybackService.startWithPlaylist(context, videos, clickedVideoIndex, effectiveResumePositionMs)
                 showPlayerOverlay = true
             } else {
                 val videoUri = "file://$itemPath"
                 PlaylistManager.setPlaylist(listOf(videoUri), startIndex = 0, shuffle = false)
-                MediaPlaybackService.startWithPlaylist(context, listOf(videoUri), 0, resumePositionMs)
+                MediaPlaybackService.startWithPlaylist(context, listOf(videoUri), 0, effectiveResumePositionMs)
                 showPlayerOverlay = true
             }
         }

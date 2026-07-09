@@ -90,6 +90,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -107,6 +108,9 @@ import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.TagEntity
 import com.nkls.nekovideo.components.helpers.TagScope
 import com.nkls.nekovideo.components.helpers.SortRowMessageCenter
+import com.nkls.nekovideo.components.helpers.ContinueWatchingSettings
+import com.nkls.nekovideo.components.helpers.ContinueWatchingStore
+import com.nkls.nekovideo.components.helpers.VideoProgressStore
 import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.services.FolderVideoScanner
 import kotlinx.coroutines.CoroutineScope
@@ -229,6 +233,15 @@ fun PlaybackSettingsScreen() {
     var autoHideControls by remember { mutableStateOf(prefs.getBoolean("auto_hide_controls", true)) }
     var autoPip by remember { mutableStateOf(prefs.getBoolean("auto_pip", true)) }
     var doubleTapSeek by remember { mutableIntStateOf(prefs.getInt("double_tap_seek", 10)) }
+    var continueWatchingEnabled by remember {
+        mutableStateOf(ContinueWatchingSettings.isEnabled(context))
+    }
+    var continueWatchingMinMinutes by remember {
+        mutableIntStateOf((ContinueWatchingSettings.getMinDurationMs(context) / 60_000L).toInt())
+    }
+    var continueWatchingIncludePrivate by remember {
+        mutableStateOf(ContinueWatchingSettings.shouldIncludePrivateVideos(context))
+    }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         @Suppress("UnusedBoxWithConstraintsScope")
@@ -284,6 +297,57 @@ fun PlaybackSettingsScreen() {
                         doubleTapSeek = it
                         prefs.edit { putInt("double_tap_seek", it) }
                     },
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsSectionHeader(stringResource(R.string.playback_continue_watching), isCompact)
+            }
+
+            item {
+                SettingsSwitchItem(
+                    icon = Icons.Default.PlayArrow,
+                    title = stringResource(R.string.playback_continue_watching_enabled),
+                    subtitle = stringResource(R.string.playback_continue_watching_enabled_desc),
+                    checked = continueWatchingEnabled,
+                    onCheckedChange = {
+                        continueWatchingEnabled = it
+                        prefs.edit { putBoolean("continue_watching_enabled", it) }
+                    },
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsSliderItem(
+                    icon = Icons.Default.Schedule,
+                    title = stringResource(R.string.playback_continue_watching_min_duration),
+                    subtitle = stringResource(R.string.playback_continue_watching_min_duration_desc),
+                    value = continueWatchingMinMinutes,
+                    range = 1..30,
+                    step = 1,
+                    onValueChange = {
+                        continueWatchingMinMinutes = it
+                        prefs.edit { putInt("continue_watching_min_duration_minutes", it) }
+                    },
+                    valueFormatter = { "$it min" },
+                    enabled = continueWatchingEnabled,
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsSwitchItem(
+                    icon = Icons.Default.Lock,
+                    title = stringResource(R.string.playback_continue_watching_private),
+                    subtitle = stringResource(R.string.playback_continue_watching_private_desc),
+                    checked = continueWatchingIncludePrivate,
+                    onCheckedChange = {
+                        continueWatchingIncludePrivate = it
+                        prefs.edit { putBoolean("continue_watching_include_private", it) }
+                    },
+                    enabled = continueWatchingEnabled,
                     isCompact = isCompact
                 )
             }
@@ -479,6 +543,22 @@ fun StorageSettingsScreen() {
                             OptimizedThumbnailManager.clearAllDiskThumbnails(context, folderPaths)
                         }
                         SortRowMessageCenter.showSuccess(context.getString(R.string.storage_clear_thumbnails_success))
+                    },
+                    isCompact = isCompact
+                )
+            }
+
+            item {
+                SettingsClickableItem(
+                    icon = Icons.Default.Schedule,
+                    title = stringResource(R.string.storage_clear_continue_watching),
+                    subtitle = stringResource(R.string.storage_clear_continue_watching_desc),
+                    onClick = {
+                        ContinueWatchingStore.clear(context)
+                        VideoProgressStore.clearAll(context)
+                        SortRowMessageCenter.showSuccess(
+                            context.getString(R.string.storage_clear_continue_watching_success)
+                        )
                     },
                     isCompact = isCompact
                 )
@@ -1441,10 +1521,13 @@ private fun SettingsSwitchItem(
     subtitle: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
     isCompact: Boolean = false
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.6f),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(8.dp)
@@ -1452,7 +1535,7 @@ private fun SettingsSwitchItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onCheckedChange(!checked) }
+                .clickable(enabled = enabled) { onCheckedChange(!checked) }
                 .padding(if (isCompact) 10.dp else 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1482,7 +1565,7 @@ private fun SettingsSwitchItem(
 
             Switch(
                 checked = checked,
-                onCheckedChange = onCheckedChange,
+                onCheckedChange = if (enabled) onCheckedChange else null,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = MaterialTheme.colorScheme.primary,
                     checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
@@ -1584,12 +1667,18 @@ private fun SettingsSliderItem(
     range: IntRange,
     step: Int = 1,
     onValueChange: (Int) -> Unit,
+    valueFormatter: (Int) -> String = { currentValue ->
+        if (title.contains("Cache")) "${currentValue}MB" else currentValue.toString()
+    },
+    enabled: Boolean = true,
     isCompact: Boolean = false
 ) {
     var sliderValue by remember(value) { mutableIntStateOf(value) }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.6f),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(8.dp)
@@ -1625,7 +1714,7 @@ private fun SettingsSliderItem(
                 }
 
                 Text(
-                    text = if (title.contains("Cache")) "${sliderValue}MB" else sliderValue.toString(),
+                    text = valueFormatter(sliderValue),
                     style = if (isCompact) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
@@ -1636,6 +1725,7 @@ private fun SettingsSliderItem(
 
             Slider(
                 value = sliderValue.toFloat(),
+                enabled = enabled,
                 onValueChange = {
                     val newValue = (it.toInt() / step) * step
                     sliderValue = newValue

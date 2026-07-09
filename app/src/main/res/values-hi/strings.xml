@@ -220,6 +220,9 @@
     <string name="storage_clear_thumbnails">थंबनेल कैश साफ़ करें</string>
     <string name="storage_clear_thumbnails_desc">डिस्क पर सहेजे गए सभी थंबनेल हटाता है। फ़ोल्डर ब्राउज़ करने पर पुनः बनाए जाएंगे</string>
     <string name="storage_clear_thumbnails_success">थंबनेल कैश सफलतापूर्वक साफ़ किया गया</string>
+    <string name="storage_clear_continue_watching">देखना जारी रखें इतिहास साफ़ करें</string>
+    <string name="storage_clear_continue_watching_desc">रूट कार्ड और वीडियो के सभी सहेजे गए रिज्यूम पॉइंट हटाता है</string>
+    <string name="storage_clear_continue_watching_success">देखना जारी रखें इतिहास सफलतापूर्वक साफ़ किया गया</string>
     <string name="tags_title">टैग्स</string>
     <string name="tags_normal_section">सामान्य वीडियो टैग्स</string>
     <string name="tags_private_section">निजी वीडियो टैग्स</string>
@@ -262,6 +265,13 @@
     <string name="playback_keep_screen_on_desc">प्लेबैक के दौरान स्क्रीन बंद न करें</string>
     <string name="playback_pip">पिक्चर इन पिक्चर</string>
     <string name="playback_pip_desc">फ्लोटिंग विंडो में प्लेबैक जारी रखें</string>
+    <string name="playback_continue_watching">देखना जारी रखें</string>
+    <string name="playback_continue_watching_enabled">देखना जारी रखें सक्षम करें</string>
+    <string name="playback_continue_watching_enabled_desc">जहाँ आपने छोड़ा था उसे सहेजें और बाद में फिर से शुरू करें</string>
+    <string name="playback_continue_watching_min_duration">वीडियो की न्यूनतम अवधि</string>
+    <string name="playback_continue_watching_min_duration_desc">केवल उन वीडियो के लिए प्रगति सहेजें जिनकी अवधि कम से कम इतनी हो</string>
+    <string name="playback_continue_watching_private">निजी वीडियो शामिल करें</string>
+    <string name="playback_continue_watching_private_desc">निजी फ़ोल्डरों के वीडियो की प्रगति भी सहेजें</string>
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">वीडियो जानकारी</string>

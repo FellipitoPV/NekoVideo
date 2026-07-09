@@ -222,6 +222,9 @@
     <string name="storage_clear_thumbnails">Clear thumbnail cache</string>
     <string name="storage_clear_thumbnails_desc">Removes all thumbnails saved on disk. They will be regenerated when browsing folders</string>
     <string name="storage_clear_thumbnails_success">Thumbnail cache cleared successfully</string>
+    <string name="storage_clear_continue_watching">Clear continue watching history</string>
+    <string name="storage_clear_continue_watching_desc">Removes the root card and all saved resume points for videos</string>
+    <string name="storage_clear_continue_watching_success">Continue watching history cleared successfully</string>
     <string name="tags_title">Tags</string>
     <string name="tags_normal_section">Regular video tags</string>
     <string name="tags_private_section">Private video tags</string>
@@ -264,6 +267,13 @@
     <string name="playback_keep_screen_on_desc">Dont turn off screen during playback</string>
     <string name="playback_pip">Auto PIP</string>
     <string name="playback_pip_desc">Enter picture-in-picture when leaving the app during playback</string>
+    <string name="playback_continue_watching">Continue Watching</string>
+    <string name="playback_continue_watching_enabled">Enable continue watching</string>
+    <string name="playback_continue_watching_enabled_desc">Save where you stopped and resume later</string>
+    <string name="playback_continue_watching_min_duration">Minimum video duration</string>
+    <string name="playback_continue_watching_min_duration_desc">Only save progress for videos at least this long</string>
+    <string name="playback_continue_watching_private">Include private videos</string>
+    <string name="playback_continue_watching_private_desc">Also save progress for videos inside private folders</string>
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Video Information</string>

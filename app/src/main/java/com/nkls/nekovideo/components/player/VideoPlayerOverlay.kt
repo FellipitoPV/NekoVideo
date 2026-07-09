@@ -94,14 +94,18 @@ import java.io.File
 private data class PreferredTrack(
     val label: String?,
     val language: String?,
-    val mimeType: String?
+    val mimeType: String?,
+    val selectionFlags: Int,
+    val roleFlags: Int
 )
 
 private fun Format.toPreferredTrack(): PreferredTrack {
     return PreferredTrack(
         label = label?.takeIf { it.isNotBlank() },
         language = language?.takeIf { it.isNotBlank() },
-        mimeType = sampleMimeType?.takeIf { it.isNotBlank() }
+        mimeType = sampleMimeType?.takeIf { it.isNotBlank() },
+        selectionFlags = selectionFlags,
+        roleFlags = roleFlags
     )
 }
 
@@ -413,8 +417,10 @@ fun VideoPlayerOverlay(
         val formatLabel = format.label?.trim()?.lowercase()
         val formatLanguage = format.language?.trim()?.lowercase()
         val formatMimeType = format.sampleMimeType?.trim()?.lowercase()
+        val flagsMatch = selectionFlags == format.selectionFlags
+        val rolesMatch = roleFlags == format.roleFlags
 
-        return when {
+        val baseMatch = when {
             normalizedLabel != null && normalizedLanguage != null -> {
                 formatLabel == normalizedLabel && formatLanguage == normalizedLanguage
             }
@@ -426,6 +432,8 @@ fun VideoPlayerOverlay(
             normalizedMimeType != null -> formatMimeType == normalizedMimeType
             else -> false
         }
+
+        return baseMatch && flagsMatch && rolesMatch
     }
 
     fun findMatchingTrack(groups: List<Tracks.Group>, preferredTrack: PreferredTrack?): Pair<Int, Int>? {
