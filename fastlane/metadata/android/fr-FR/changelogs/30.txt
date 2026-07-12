@@ -1,0 +1,9 @@
+Fix
+
+Petites corrections de bugs et d'incoherences.
+
+Features
+
+Nouveau systeme pour continuer les videos longs apres avoir quitte la lecture et reprendre exactement ou vous vous etiez arrete.
+
+Vous pouvez aussi configurer les limites de cette fonctionnalite dans les Parametres.

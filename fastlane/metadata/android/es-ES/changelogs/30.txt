@@ -1,0 +1,9 @@
+Fix
+
+Pequenas correcciones de errores e incoherencias.
+
+Features
+
+Nuevo sistema para continuar viendo al salir de videos largos y volver despues desde el punto donde te quedaste.
+
+Ahora tambien puedes configurar los limites de esta funcion en Configuracion.

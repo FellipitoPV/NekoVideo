@@ -2112,25 +2112,6 @@ private fun VideoContent(
                 }
             }
 
-            progressFraction?.let { fraction ->
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .padding(start = 6.dp, end = 6.dp, bottom = 26.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(Color.Black.copy(alpha = 0.35f))
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(fraction)
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                }
-            }
-
             // Título
             Text(
                 text = item.name,
@@ -2143,6 +2124,23 @@ private fun VideoContent(
                 style = LocalTextStyle.current.copy(shadow = Shadow(Color.Black.copy(alpha = 0.5f), Offset(1f, 1f), 2f)),
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color.Black.copy(alpha = 0.4f)).padding(6.dp, 2.dp)
             )
+
+            progressFraction?.let { fraction ->
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .background(Color.Black.copy(alpha = 0.45f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(fraction)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
+            }
 
             // Duração
             duration?.let {

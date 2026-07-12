@@ -1,0 +1,9 @@
+Fix
+
+Ne bolshie ispravleniia oshibok i nesootvetstvii.
+
+Features
+
+Novaia sistema Continue Watching pozvoliaet prodolzhit prosmotr dlinnykh video posle vykhoda s togo mesta, gde vy ostanovilis.
+
+Teper limity etoi funktsii takzhe mozhno nastroit v Settings.

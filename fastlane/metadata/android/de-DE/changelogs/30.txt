@@ -1,0 +1,9 @@
+Fix
+
+Kleine Fehlerbehebungen und Korrekturen von Unstimmigkeiten.
+
+Features
+
+Neues Weiter ansehen System, um lange Videos nach dem Verlassen wieder genau an der letzten Stelle fortzusetzen.
+
+Die Grenzen dieser Funktion konnen jetzt auch in den Einstellungen konfiguriert werden.

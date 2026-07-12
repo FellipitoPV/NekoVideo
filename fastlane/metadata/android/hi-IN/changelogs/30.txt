@@ -1,0 +1,9 @@
+Fix
+
+Chhote bugs aur inconsistencies ko theek kiya gaya.
+
+Features
+
+Ab ek naya Continue Watching system hai jo lambi videos ko band karne ke baad wahi se dobara chalane deta hai jahan aap ruke the.
+
+Ab aap is feature ki limits ko Settings me configure bhi kar sakte hain.

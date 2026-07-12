@@ -1,0 +1,9 @@
+Fix
+
+Small bug fixes and inconsistency improvements.
+
+Features
+
+New Continue Watching system to resume long videos after leaving and come back right where you stopped.
+
+You can now also configure the limits for this feature in Settings.
