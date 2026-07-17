@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Build
-import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
@@ -130,8 +129,6 @@ class MediaPlaybackService : MediaSessionService() {
     // Flag para evitar recursão na atualização de metadados
     private var isUpdatingMetadata = false
     private var lastAppliedArtworkKey: String? = null
-    private val artworkUpdateDelayMs = 1000L
-    private val rapidNavigationSettleMs = 700L
 
     // ✅ NOVO: Timestamp da última atualização de window para ignorar eventos assíncronos
     private var lastWindowUpdateTime = 0L
@@ -139,7 +136,7 @@ class MediaPlaybackService : MediaSessionService() {
     private var pendingContinueWatchingRestore: ContinueWatchingEntry? = null
     private var pendingSeekIndex: Int? = null
     private var activeSeekIndex: Int? = null
-    private var lastNavigationCommandUptimeMs = 0L
+    private var trackedMediaItemUri: String? = null
 
     private fun createConfiguredPlayer(): ExoPlayer {
         val audioAttributes = AudioAttributes.Builder()
@@ -243,6 +240,17 @@ class MediaPlaybackService : MediaSessionService() {
 
             currentPlaybackProcessingJob?.cancel()
 
+            val currentUri = mediaItem?.localConfiguration?.uri?.toString()
+            val previousUri = trackedMediaItemUri
+            if (
+                reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO &&
+                previousUri != null &&
+                previousUri != currentUri
+            ) {
+                clearSavedProgressForUri(previousUri)
+            }
+            trackedMediaItemUri = currentUri
+
             player?.let { currentPlayer ->
                 val currentPlaylistIndex = currentPlayer.currentMediaItemIndex
                 if (currentPlaylistIndex != PlaylistManager.getCurrentIndex()) {
@@ -264,7 +272,12 @@ class MediaPlaybackService : MediaSessionService() {
             sendBroadcast(intent)
 
             if (playbackState == Player.STATE_ENDED) {
-                player?.let(::handleEndOfPlaylistIfNeeded)
+                player?.let { currentPlayer ->
+                    if (currentPlayer.repeatMode != Player.REPEAT_MODE_ONE) {
+                        clearSavedProgressForCurrentItem(currentPlayer)
+                    }
+                    handleEndOfPlaylistIfNeeded(currentPlayer)
+                }
             }
 
             if (playbackState == Player.STATE_READY) {
@@ -349,7 +362,7 @@ class MediaPlaybackService : MediaSessionService() {
             .build()
     }
 
-    // ✅ ATUALIZADO: Carrega ou gera thumbnail
+    // Busca somente thumbnails já existentes em RAM/disco.
     private fun loadThumbnailWithContext(videoPath: String): Bitmap? {
         val key = videoPath.hashCode().toString()
 
@@ -412,6 +425,7 @@ class MediaPlaybackService : MediaSessionService() {
                 player?.run {
                     pause()
                     clearMediaItems()
+                    trackedMediaItemUri = null
                     stop()
                 }
 
@@ -442,6 +456,7 @@ class MediaPlaybackService : MediaSessionService() {
                 initialIndex,
                 initialPositionMs.coerceAtLeast(0L)
             )
+            trackedMediaItemUri = currentMediaItem?.localConfiguration?.uri?.toString()
             prepare()
             playWhenReady = true
         }
@@ -488,40 +503,6 @@ class MediaPlaybackService : MediaSessionService() {
 
     }
 
-    private fun preloadThumbnailsForWindow(videoPaths: List<String>) {
-        if (videoPaths.isEmpty()) return
-
-        preloadScope.launch {
-            var generatedCount = 0
-
-            videoPaths.forEach { videoPath ->
-                val isLocked = videoPath.startsWith("locked://")
-                val cleanPath = if (isLocked) videoPath.removePrefix("locked://") else videoPath.removePrefix("file://")
-
-                val thumbnail = if (isLocked) {
-                    FolderLockManager.getLockedThumbnail(cleanPath)
-                } else {
-                    loadThumbnailWithContext(cleanPath)
-                }
-
-                if (thumbnail != null) {
-                    generatedCount++
-                    Log.d("MediaPlaybackService", "Thumbnail OK: ${cleanPath.substringAfterLast("/")}")
-                } else {
-                    Log.w("MediaPlaybackService", "Thumbnail falhou: ${cleanPath.substringAfterLast("/")}")
-                }
-
-                // Pequeno delay entre gerações para não sobrecarregar
-                delay(100)
-            }
-
-            Log.d("MediaPlaybackService", "Preload concluído: $generatedCount/${videoPaths.size} thumbnails")
-
-            // Artwork/metadata refresh temporariamente desabilitado para isolar
-            // o custo de decode/atualização durante playback contínuo.
-        }
-    }
-
     private fun scheduleCurrentPlaybackProcessing() {
         currentPlaybackProcessingJob?.cancel()
 
@@ -530,13 +511,6 @@ class MediaPlaybackService : MediaSessionService() {
         }
 
         currentPlaybackProcessingJob = preloadScope.launch {
-            val navigationDelayMs = when {
-                activeSeekIndex != null || pendingSeekIndex != null -> rapidNavigationSettleMs
-                else -> (rapidNavigationSettleMs - (SystemClock.uptimeMillis() - lastNavigationCommandUptimeMs)).coerceAtLeast(0L)
-            }
-
-            delay(maxOf(artworkUpdateDelayMs, navigationDelayMs))
-
             if (activeSeekIndex != null || pendingSeekIndex != null) {
                 return@launch
             }
@@ -651,8 +625,11 @@ class MediaPlaybackService : MediaSessionService() {
                 return
             }
 
+            if (currentPlayer.currentMediaItemIndex != playlistIndex) {
+                clearSavedProgressForCurrentItem(currentPlayer)
+            }
+
             pendingSeekIndex = playlistIndex
-            lastNavigationCommandUptimeMs = SystemClock.uptimeMillis()
             processPendingSeekIfNeeded(currentPlayer)
         }
     }
@@ -778,6 +755,7 @@ class MediaPlaybackService : MediaSessionService() {
             currentPlayer?.run {
                 pause()
                 clearMediaItems()
+                trackedMediaItemUri = null
                 stop()
             }
             stopSelf()
@@ -796,6 +774,7 @@ class MediaPlaybackService : MediaSessionService() {
         if (player?.isPlaying == false) {
             PlaylistManager.clear()
         }
+        trackedMediaItemUri = null
         currentPlaybackProcessingJob?.cancel()
         preloadScope.cancel() // Cancela thumbnails em progresso
         abandonAudioFocus()
@@ -926,6 +905,28 @@ class MediaPlaybackService : MediaSessionService() {
             positionMs = currentPosition,
             durationMs = duration
         )
+    }
+
+    private fun clearSavedProgressForCurrentItem(currentPlayer: ExoPlayer) {
+        val currentUri = currentPlayer.currentMediaItem
+            ?.localConfiguration
+            ?.uri
+            ?.toString()
+            ?: return
+
+        clearSavedProgressForUri(currentUri)
+    }
+
+    private fun clearSavedProgressForUri(uri: String) {
+        val normalizedPath = normalizeUriPath(uri)
+        if (normalizedPath.isBlank()) return
+
+        VideoProgressStore.clear(this, normalizedPath)
+
+        val continueWatchingEntry = ContinueWatchingStore.get(this)
+        if (continueWatchingEntry?.videoPath == normalizedPath) {
+            ContinueWatchingStore.clear(this)
+        }
     }
 
     private fun buildPendingContinueWatchingRestore(

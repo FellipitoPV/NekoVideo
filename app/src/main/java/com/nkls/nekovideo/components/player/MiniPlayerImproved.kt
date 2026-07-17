@@ -126,7 +126,7 @@ fun MiniPlayerImproved(
     LaunchedEffect(castVideoPath) {
         if (castVideoPath.isEmpty()) return@LaunchedEffect
         castThumbnail = withContext(Dispatchers.IO) {
-            generateThumbnail(context, castVideoPath)
+            loadExistingThumbnail(context, castVideoPath)
         }
     }
 
@@ -169,7 +169,7 @@ fun MiniPlayerImproved(
                         if (currentUri.isNotEmpty()) {
                             coroutineScope.launch {
                                 thumbnail = withContext(Dispatchers.IO) {
-                                    generateThumbnail(context, currentUri)
+                                    loadExistingThumbnail(context, currentUri)
                                 }
                             }
                         }
@@ -192,7 +192,7 @@ fun MiniPlayerImproved(
                 if (currentUri.isNotEmpty()) {
                     coroutineScope.launch {
                         thumbnail = withContext(Dispatchers.IO) {
-                            generateThumbnail(context, currentUri)
+                            loadExistingThumbnail(context, currentUri)
                         }
                     }
                 }
@@ -435,14 +435,16 @@ private fun formatTime(timeMs: Long): String {
     return String.format("%02d:%02d", minutes, seconds)
 }
 
-private suspend fun generateThumbnail(context: android.content.Context, videoUri: String): Bitmap? =
+private suspend fun loadExistingThumbnail(context: android.content.Context, videoUri: String): Bitmap? =
     withContext(Dispatchers.IO) {
         try {
             if (videoUri.startsWith("locked://")) {
                 val path = videoUri.removePrefix("locked://")
                 FolderLockManager.getLockedThumbnail(path)
             } else {
-                OptimizedThumbnailManager.getOrGenerateThumbnailSync(context, videoUri)
+                val cleanPath = videoUri.removePrefix("file://")
+                OptimizedThumbnailManager.getCachedThumbnail(cleanPath)
+                    ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(context, cleanPath)
             }
         } catch (e: Exception) {
             null

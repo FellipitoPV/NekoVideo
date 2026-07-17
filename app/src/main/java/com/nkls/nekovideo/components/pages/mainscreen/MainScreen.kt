@@ -95,6 +95,7 @@ import com.nkls.nekovideo.components.layout.ActionType
 import com.nkls.nekovideo.components.layout.TopBar
 import com.nkls.nekovideo.components.loadFolderContent
 import com.nkls.nekovideo.components.player.MiniPlayerImproved
+import com.nkls.nekovideo.components.player.PlaybackThumbnailCoordinator
 import com.nkls.nekovideo.components.player.VideoPlayerOverlay
 import com.nkls.nekovideo.components.settings.AboutSettingsScreen
 import com.nkls.nekovideo.components.settings.StorageSettingsScreen
@@ -128,6 +129,8 @@ fun MainScreen(
     openFolderPath: String? = null,
     onFolderPathConsumed: () -> Unit = {}
 ) {
+    PlaybackThumbnailCoordinator()
+
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route?.substringBefore("/{folderPath}")?.substringBefore("/{playlist}")
