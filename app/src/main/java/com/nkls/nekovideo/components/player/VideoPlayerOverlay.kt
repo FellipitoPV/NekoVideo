@@ -370,7 +370,7 @@ fun VideoPlayerOverlay(
 
         gatedMediaUri = mediaUri
         isWaitingForRotationGate = true
-        resumeAfterRotationGate = controller.isPlaying
+        resumeAfterRotationGate = controller.playWhenReady
         if (controller.isPlaying) {
             controller.pause()
         }
