@@ -274,6 +274,7 @@
     <string name="playback_continue_watching_min_duration_desc">Only save progress for videos at least this long</string>
     <string name="playback_continue_watching_private">Include private videos</string>
     <string name="playback_continue_watching_private_desc">Also save progress for videos inside private folders</string>
+    <string name="playback_continue_watching_stopped_at">Stopped at %1$s</string>
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Video Information</string>

@@ -1600,7 +1600,10 @@ private fun ContinueWatchingCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "Parou em ${formatContinueWatchingTime(entry.positionMs)}",
+                    text = stringResource(
+                        R.string.playback_continue_watching_stopped_at,
+                        formatContinueWatchingTime(entry.positionMs)
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,

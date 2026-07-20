@@ -272,6 +272,7 @@
     <string name="playback_continue_watching_min_duration_desc">केवल उन वीडियो के लिए प्रगति सहेजें जिनकी अवधि कम से कम इतनी हो</string>
     <string name="playback_continue_watching_private">निजी वीडियो शामिल करें</string>
     <string name="playback_continue_watching_private_desc">निजी फ़ोल्डरों के वीडियो की प्रगति भी सहेजें</string>
+    <string name="playback_continue_watching_stopped_at">%1$s पर रुका</string>
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">वीडियो जानकारी</string>

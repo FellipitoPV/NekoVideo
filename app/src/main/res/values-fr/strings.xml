@@ -272,6 +272,7 @@
     <string name="playback_continue_watching_min_duration_desc">Enregistrer la progression uniquement pour les vidéos d\'au moins cette durée</string>
     <string name="playback_continue_watching_private">Inclure les vidéos privées</string>
     <string name="playback_continue_watching_private_desc">Enregistrer aussi la progression des vidéos dans les dossiers privés</string>
+    <string name="playback_continue_watching_stopped_at">Arrêté à %1$s</string>
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Informations Vidéo</string>

@@ -119,6 +119,8 @@ fun VideoPlayerOverlay(
     onManageTags: () -> Unit = {},
     onVideoDeleted: (String) -> Unit = {}
 ) {
+    val autoplayDebugTag = "AutoplayDebug"
+
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val activity = lifecycleOwner as? ComponentActivity
@@ -329,6 +331,10 @@ fun VideoPlayerOverlay(
 
         applyRotation(videoSize)
         val shouldResume = resumeAfterRotationGate
+        Log.d(
+            autoplayDebugTag,
+            "Overlay.finishRotationGateIfReady uri=$mediaUri shouldResume=$shouldResume playWhenReady=${controller.playWhenReady} isPlaying=${controller.isPlaying} state=${controller.playbackState}"
+        )
         isWaitingForRotationGate = false
         resumeAfterRotationGate = false
         gatedMediaUri = null
@@ -346,6 +352,7 @@ fun VideoPlayerOverlay(
                 !showTrackSelectionDialog &&
                 !isSpeedDialogOpen
             ) {
+                Log.d(autoplayDebugTag, "Overlay.finishRotationGateIfReady calling play uri=$mediaUri")
                 controller.play()
             }
         }
@@ -353,6 +360,10 @@ fun VideoPlayerOverlay(
 
     fun beginRotationGateIfNeeded(controller: MediaController) {
         if (!shouldGatePlaybackForRotation(controller)) {
+            Log.d(
+                autoplayDebugTag,
+                "Overlay.beginRotationGateIfNeeded skipped uri=${currentMediaUri(controller)} playWhenReady=${controller.playWhenReady} isPlaying=${controller.isPlaying} state=${controller.playbackState}"
+            )
             isWaitingForRotationGate = false
             resumeAfterRotationGate = false
             gatedMediaUri = null
@@ -363,6 +374,10 @@ fun VideoPlayerOverlay(
         val mediaUri = currentMediaUri(controller) ?: return
         val videoSize = controller.videoSize
         if (videoSize.width > 0 && videoSize.height > 0) {
+            Log.d(
+                autoplayDebugTag,
+                "Overlay.beginRotationGateIfNeeded immediateRotation uri=$mediaUri playWhenReady=${controller.playWhenReady} isPlaying=${controller.isPlaying}"
+            )
             isWaitingForRotationGate = false
             resumeAfterRotationGate = false
             gatedMediaUri = null
@@ -373,9 +388,10 @@ fun VideoPlayerOverlay(
         gatedMediaUri = mediaUri
         isWaitingForRotationGate = true
         resumeAfterRotationGate = controller.playWhenReady
-        if (controller.isPlaying) {
-            controller.pause()
-        }
+        Log.d(
+            autoplayDebugTag,
+            "Overlay.beginRotationGateIfNeeded gating uri=$mediaUri resumeAfter=$resumeAfterRotationGate playWhenReady=${controller.playWhenReady} isPlaying=${controller.isPlaying} state=${controller.playbackState}"
+        )
     }
 
     fun selectSubtitleTrack(groupIndex: Int, trackIndex: Int) {
@@ -550,6 +566,10 @@ fun VideoPlayerOverlay(
         currentPlaybackState = controller.playbackState
         hasLoadedVideo = controller.currentMediaItem != null
         pendingAutoPlayOnReady = controller.playWhenReady && controller.playbackState != Player.STATE_READY
+        Log.d(
+            autoplayDebugTag,
+            "Overlay.setupController uri=${currentMediaUri(controller)} pendingAutoPlay=$pendingAutoPlayOnReady playWhenReady=${controller.playWhenReady} isPlaying=${controller.isPlaying} state=${controller.playbackState}"
+        )
         repeatMode = when (controller.repeatMode) {
             Player.REPEAT_MODE_ALL -> RepeatMode.REPEAT_ALL
             Player.REPEAT_MODE_ONE -> RepeatMode.REPEAT_ONE
@@ -571,10 +591,6 @@ fun VideoPlayerOverlay(
         }
 
         checkAvailableTracks(controller)
-
-        if (overlayActuallyVisible) {
-            beginRotationGateIfNeeded(controller)
-        }
 
     }
 
@@ -940,6 +956,10 @@ fun VideoPlayerOverlay(
                     mediaItem?.localConfiguration?.uri?.let { uri ->
                         val uriStr = uri.toString()
                         pendingAutoPlayOnReady = mediaController!!.playWhenReady
+                        Log.d(
+                            autoplayDebugTag,
+                            "Overlay.onMediaItemTransition reason=$reason uri=$uriStr pendingAutoPlay=$pendingAutoPlayOnReady playWhenReady=${mediaController!!.playWhenReady} isPlaying=${mediaController!!.isPlaying} state=${mediaController!!.playbackState}"
+                        )
                         if (uriStr.startsWith("locked://")) {
                             currentVideoPath = uriStr.removePrefix("locked://")
                             val obfuscatedName = File(currentVideoPath).name
@@ -960,6 +980,7 @@ fun VideoPlayerOverlay(
                     }
 
                     if (isPlaybackBlockedByDialog() && mediaController!!.isPlaying) {
+                        Log.d(autoplayDebugTag, "Overlay.onMediaItemTransition pausingBecauseDialog")
                         mediaController!!.pause()
                     }
 
@@ -971,14 +992,20 @@ fun VideoPlayerOverlay(
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     currentPlaybackState = playbackState
+                    Log.d(
+                        autoplayDebugTag,
+                        "Overlay.onPlaybackStateChanged state=$playbackState pendingAutoPlay=$pendingAutoPlayOnReady waitingRotation=$isWaitingForRotationGate playWhenReady=${mediaController!!.playWhenReady} isPlaying=${mediaController!!.isPlaying} blocked=${isPlaybackBlockedByDialog()} uri=${currentMediaUri(mediaController!!)}"
+                    )
                     if (playbackState == Player.STATE_READY) {
                         hasLoadedVideo = mediaController!!.currentMediaItem != null
                         finishRotationGateIfReady(mediaController!!)
                         if (pendingAutoPlayOnReady && !isWaitingForRotationGate && !isPlaybackBlockedByDialog()) {
                             pendingAutoPlayOnReady = false
+                            Log.d(autoplayDebugTag, "Overlay.onPlaybackStateChanged calling play on READY")
                             mediaController!!.play()
                         }
                         if (isPlaybackBlockedByDialog() && mediaController!!.isPlaying) {
+                            Log.d(autoplayDebugTag, "Overlay.onPlaybackStateChanged pausingBecauseDialogOnReady")
                             mediaController!!.pause()
                         }
                     } else if (playbackState == Player.STATE_IDLE) {

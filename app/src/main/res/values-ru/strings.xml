@@ -272,6 +272,7 @@
     <string name="playback_continue_watching_min_duration_desc">Сохранять прогресс только для видео не короче этого времени</string>
     <string name="playback_continue_watching_private">Включать приватные видео</string>
     <string name="playback_continue_watching_private_desc">Также сохранять прогресс видео в приватных папках</string>
+    <string name="playback_continue_watching_stopped_at">Остановлено на %1$s</string>
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Информация о видео</string>

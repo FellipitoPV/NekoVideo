@@ -129,6 +129,8 @@ fun MainScreen(
     openFolderPath: String? = null,
     onFolderPathConsumed: () -> Unit = {}
 ) {
+    val autoplayDebugTag = "AutoplayDebug"
+
     PlaybackThumbnailCoordinator()
 
     val navController = rememberNavController()
@@ -343,6 +345,10 @@ fun MainScreen(
             val videos = videoItems.map { "locked://${it.path}" }
             val clickedVideoIndex = videos.indexOf("locked://$itemPath")
             if (clickedVideoIndex >= 0) {
+                Log.d(
+                    autoplayDebugTag,
+                    "MainScreen.openVideoFromFolder locked start clickedIndex=$clickedVideoIndex resumeMs=$effectiveResumePositionMs overlayVisible=$showPlayerOverlay"
+                )
                 PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
                 MediaPlaybackService.startWithPlaylist(context, videos, clickedVideoIndex, effectiveResumePositionMs)
                 showPlayerOverlay = true
@@ -351,11 +357,19 @@ fun MainScreen(
             val videos = videoItems.map { "file://${it.path}" }
             val clickedVideoIndex = videos.indexOf("file://$itemPath")
             if (clickedVideoIndex >= 0) {
+                Log.d(
+                    autoplayDebugTag,
+                    "MainScreen.openVideoFromFolder file start clickedIndex=$clickedVideoIndex resumeMs=$effectiveResumePositionMs overlayVisible=$showPlayerOverlay"
+                )
                 PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
                 MediaPlaybackService.startWithPlaylist(context, videos, clickedVideoIndex, effectiveResumePositionMs)
                 showPlayerOverlay = true
             } else {
                 val videoUri = "file://$itemPath"
+                Log.d(
+                    autoplayDebugTag,
+                    "MainScreen.openVideoFromFolder fallback single resumeMs=$effectiveResumePositionMs overlayVisible=$showPlayerOverlay"
+                )
                 PlaylistManager.setPlaylist(listOf(videoUri), startIndex = 0, shuffle = false)
                 MediaPlaybackService.startWithPlaylist(context, listOf(videoUri), 0, effectiveResumePositionMs)
                 showPlayerOverlay = true

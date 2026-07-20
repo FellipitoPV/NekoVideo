@@ -42,6 +42,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 class MediaPlaybackService : MediaSessionService() {
     companion object {
         private const val DISABLE_PLAYBACK_ARTWORK_REFRESH_FOR_DEBUG = false
+        private const val AUTOPLAY_DEBUG_TAG = "AutoplayDebug"
 
         fun startWithPlaylist(
             context: Context,
@@ -250,6 +251,10 @@ class MediaPlaybackService : MediaSessionService() {
                 clearSavedProgressForUri(previousUri)
             }
             trackedMediaItemUri = currentUri
+            Log.d(
+                AUTOPLAY_DEBUG_TAG,
+                "Service.onMediaItemTransition reason=$reason currentUri=$currentUri playWhenReady=${player?.playWhenReady} isPlaying=${player?.isPlaying} state=${player?.playbackState}"
+            )
 
             player?.let { currentPlayer ->
                 val currentPlaylistIndex = currentPlayer.currentMediaItemIndex
@@ -267,6 +272,10 @@ class MediaPlaybackService : MediaSessionService() {
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             val isPlaying = player?.isPlaying ?: false
+            Log.d(
+                AUTOPLAY_DEBUG_TAG,
+                "Service.onPlaybackStateChanged state=$playbackState playWhenReady=${player?.playWhenReady} isPlaying=$isPlaying currentIndex=${player?.currentMediaItemIndex}"
+            )
             val intent = Intent("PLAYBACK_STATE_CHANGED")
             intent.putExtra("IS_PLAYING", isPlaying)
             sendBroadcast(intent)
@@ -390,6 +399,10 @@ class MediaPlaybackService : MediaSessionService() {
                 val playlist = intent.getStringArrayListExtra("PLAYLIST") ?: emptyList()
                 val initialIndex = intent.getIntExtra("INITIAL_INDEX", 0)
                 val initialPositionMs = intent.getLongExtra("INITIAL_POSITION_MS", 0L)
+                Log.d(
+                    AUTOPLAY_DEBUG_TAG,
+                    "Service.onStartCommand UPDATE_PLAYLIST size=${playlist.size} index=$initialIndex resumeMs=$initialPositionMs playerExists=${player != null}"
+                )
                 updatePlaylist(playlist, initialIndex, initialPositionMs)
             }
             "UPDATE_WINDOW" -> {
@@ -442,6 +455,10 @@ class MediaPlaybackService : MediaSessionService() {
         isUpdatingMetadata = true // ✅ Evita processamento de onMediaItemTransition
         pendingSeekIndex = null
         activeSeekIndex = null
+        Log.d(
+            AUTOPLAY_DEBUG_TAG,
+            "Service.updatePlaylist start size=${playlist.size} index=$initialIndex resumeMs=$initialPositionMs wasPlaying=${player?.isPlaying}"
+        )
         ContinueWatchingStore.setPlaybackActive(playlist.isNotEmpty())
         pendingContinueWatchingRestore = buildPendingContinueWatchingRestore(
             playlist = playlist,
@@ -459,6 +476,10 @@ class MediaPlaybackService : MediaSessionService() {
             trackedMediaItemUri = currentMediaItem?.localConfiguration?.uri?.toString()
             prepare()
             playWhenReady = true
+            Log.d(
+                AUTOPLAY_DEBUG_TAG,
+                "Service.updatePlaylist after prepare currentIndex=$currentMediaItemIndex playWhenReady=$playWhenReady playbackState=$playbackState trackedUri=$trackedMediaItemUri"
+            )
         }
 
         PlaylistManager.syncLoadedWindow(initialIndex)
@@ -789,9 +810,17 @@ class MediaPlaybackService : MediaSessionService() {
 
     private fun resumeLocalPlayback() {
         player?.let {
+            Log.d(
+                AUTOPLAY_DEBUG_TAG,
+                "Service.resumeLocalPlayback before playWhenReady=${it.playWhenReady} isPlaying=${it.isPlaying} state=${it.playbackState}"
+            )
             if (!it.isPlaying) {
                 it.play()
             }
+            Log.d(
+                AUTOPLAY_DEBUG_TAG,
+                "Service.resumeLocalPlayback after playWhenReady=${it.playWhenReady} isPlaying=${it.isPlaying} state=${it.playbackState}"
+            )
         }
     }
 

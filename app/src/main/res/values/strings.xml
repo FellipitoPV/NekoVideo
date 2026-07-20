@@ -279,6 +279,7 @@
     <string name="playback_continue_watching_min_duration_desc">Só salvar progresso para vídeos com pelo menos esse tempo</string>
     <string name="playback_continue_watching_private">Incluir vídeos privados</string>
     <string name="playback_continue_watching_private_desc">Também salvar progresso de vídeos em pastas privadas</string>
+    <string name="playback_continue_watching_stopped_at">Parou em %1$s</string>
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Informações dos Vídeos</string>

@@ -272,6 +272,7 @@
     <string name="playback_continue_watching_min_duration_desc">Fortschritt nur für Videos ab dieser Dauer speichern</string>
     <string name="playback_continue_watching_private">Private Videos einschließen</string>
     <string name="playback_continue_watching_private_desc">Fortschritt auch für Videos in privaten Ordnern speichern</string>
+    <string name="playback_continue_watching_stopped_at">Gestoppt bei %1$s</string>
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Video-Informationen</string>
