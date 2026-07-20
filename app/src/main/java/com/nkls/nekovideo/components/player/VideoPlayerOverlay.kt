@@ -169,6 +169,7 @@ fun VideoPlayerOverlay(
     var isWaitingForRotationGate by remember { mutableStateOf(false) }
     var resumeAfterRotationGate by remember { mutableStateOf(false) }
     var gatedMediaUri by remember { mutableStateOf<String?>(null) }
+    var pendingAutoPlayOnReady by remember { mutableStateOf(false) }
 
 
     // Timer regressivo para UI (em segundos)
@@ -331,6 +332,7 @@ fun VideoPlayerOverlay(
         isWaitingForRotationGate = false
         resumeAfterRotationGate = false
         gatedMediaUri = null
+        pendingAutoPlayOnReady = false
 
         coroutineScope.launch {
             delay(120)
@@ -547,6 +549,7 @@ fun VideoPlayerOverlay(
         playerView.player = controller
         currentPlaybackState = controller.playbackState
         hasLoadedVideo = controller.currentMediaItem != null
+        pendingAutoPlayOnReady = controller.playWhenReady && controller.playbackState != Player.STATE_READY
         repeatMode = when (controller.repeatMode) {
             Player.REPEAT_MODE_ALL -> RepeatMode.REPEAT_ALL
             Player.REPEAT_MODE_ONE -> RepeatMode.REPEAT_ONE
@@ -936,6 +939,7 @@ fun VideoPlayerOverlay(
 
                     mediaItem?.localConfiguration?.uri?.let { uri ->
                         val uriStr = uri.toString()
+                        pendingAutoPlayOnReady = mediaController!!.playWhenReady
                         if (uriStr.startsWith("locked://")) {
                             currentVideoPath = uriStr.removePrefix("locked://")
                             val obfuscatedName = File(currentVideoPath).name
@@ -970,6 +974,10 @@ fun VideoPlayerOverlay(
                     if (playbackState == Player.STATE_READY) {
                         hasLoadedVideo = mediaController!!.currentMediaItem != null
                         finishRotationGateIfReady(mediaController!!)
+                        if (pendingAutoPlayOnReady && !isWaitingForRotationGate && !isPlaybackBlockedByDialog()) {
+                            pendingAutoPlayOnReady = false
+                            mediaController!!.play()
+                        }
                         if (isPlaybackBlockedByDialog() && mediaController!!.isPlaying) {
                             mediaController!!.pause()
                         }
