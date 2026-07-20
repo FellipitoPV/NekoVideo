@@ -339,7 +339,11 @@ fun MainScreen(
             return
         }
 
-        if (LockedPlaybackSession.isActive && LockedPlaybackSession.hasSessionForFolder(targetFolderPath)) {
+        if (
+            LockedPlaybackSession.isActive &&
+            FolderLockManager.isLocked(targetFolderPath) &&
+            LockedPlaybackSession.hasSessionForFolder(targetFolderPath)
+        ) {
             val videos = videoItems.map { "locked://${it.path}" }
             val clickedVideoIndex = videos.indexOf("locked://$itemPath")
             if (clickedVideoIndex >= 0) {
@@ -478,8 +482,9 @@ fun MainScreen(
 
     fun launchFolderLockAction(folders: List<String>, isUnlock: Boolean, password: String) {
         coroutineScope.launch {
+            var unlockedPaths: List<String> = emptyList()
             if (isUnlock) {
-                LockedFolderOperations.unlockFolders(
+                unlockedPaths = LockedFolderOperations.unlockFolders(
                     context = context,
                     folderPaths = folders,
                     password = password,
@@ -503,7 +508,15 @@ fun MainScreen(
             lockProgress = ""
             selectedItems.clear()
             renameTrigger++
-            refreshAffectedPaths(if (isAtRootLevel) listOf(folderPath) else folders)
+            refreshAffectedPaths(
+                if (isUnlock && unlockedPaths.isNotEmpty()) {
+                    unlockedPaths
+                } else if (isAtRootLevel) {
+                    listOf(folderPath)
+                } else {
+                    folders
+                }
+            )
         }
     }
 

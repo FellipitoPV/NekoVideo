@@ -50,8 +50,9 @@ object LockedFolderOperations {
         onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
         onError: (String) -> Unit = {},
         onFolderUnlocked: () -> Unit = {}
-    ) {
+    ): List<String> {
         notifyState(onStateChange, true)
+        val unlockedPaths = mutableListOf<String>()
         try {
             withContext(Dispatchers.IO) {
                 folderPaths.forEach { folderPath ->
@@ -65,7 +66,8 @@ object LockedFolderOperations {
                         onError = { message ->
                             runBlocking { notifyError(onError, message) }
                         },
-                        onSuccess = {
+                        onSuccess = { restoredPath ->
+                            unlockedPaths += restoredPath
                             runBlocking { notifySuccess(onFolderUnlocked) }
                         }
                     )
@@ -74,6 +76,8 @@ object LockedFolderOperations {
         } finally {
             notifyState(onStateChange, false)
         }
+
+        return unlockedPaths.distinct()
     }
 
     suspend fun secureItems(

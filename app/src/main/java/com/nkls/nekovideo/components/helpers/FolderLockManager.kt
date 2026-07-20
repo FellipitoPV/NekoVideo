@@ -441,7 +441,7 @@ object FolderLockManager {
         password: String,
         onProgress: (current: Int, total: Int, fileName: String) -> Unit = { _, _, _ -> },
         onError: (String) -> Unit = {},
-        onSuccess: () -> Unit = {}
+        onSuccess: (String) -> Unit = {}
     ) {
         val folder = File(folderPath)
         if (!folder.exists() || !folder.isDirectory) {
@@ -527,9 +527,9 @@ object FolderLockManager {
             // Remove from registry
             removeFromRegistry(context, folderPath)
 
-            LockedPlaybackSession.renameSessionsUnderPath(folderPath, restoredFolderPath)
+            LockedPlaybackSession.removeSession(folderPath)
 
-            onSuccess()
+            onSuccess(restoredFolderPath)
 
         } catch (e: Exception) {
             Log.e(TAG, "Error unlocking folder: ${e.message}", e)
@@ -956,7 +956,7 @@ object FolderLockManager {
             password = password,
             onProgress = onProgress,
             onError = { msg -> didError = true; onError(msg) },
-            onSuccess = {}
+            onSuccess = { _ -> }
         )
         if (didError) return
 
