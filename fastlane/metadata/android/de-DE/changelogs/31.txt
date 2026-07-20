@@ -1,0 +1,11 @@
+Fix
+
+Fehlerbehebungen beim automatischen Abspielen beim Videowechsel und konsistenteres Wiedergabeverhalten.
+
+Features
+
+Das Vorschaubild des aktuellen Videos kann jetzt auch bei geschlossenem Overlay im Hintergrund erzeugt werden.
+
+Die Weiterschauen-Karte verwendet jetzt korrekte Ubersetzungen fur alle unterstutzten Sprachen.
+
+Entsperrte private Ordner werden jetzt automatisch aktualisiert und spielen Videos wieder normal ab.

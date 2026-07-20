@@ -1,0 +1,11 @@
+Fix
+
+Correcciones en la reproduccion automatica al cambiar de video y mejoras de consistencia en la reproduccion.
+
+Features
+
+La miniatura del video actual ahora puede generarse en segundo plano incluso con la superposicion cerrada.
+
+La tarjeta de Continuar viendo ahora usa traducciones correctas en los idiomas compatibles.
+
+Las carpetas privadas desbloqueadas ahora se actualizan automaticamente y vuelven a reproducir los videos con normalidad.

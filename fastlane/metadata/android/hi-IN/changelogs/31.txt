@@ -1,0 +1,11 @@
+Fix
+
+Video badalne par autoplay se judi samasyaon ko thik kiya gaya hai aur playback ko aur zyada consistent banaya gaya hai.
+
+Features
+
+Ab current video ka thumbnail overlay band hone par bhi background me generate ho sakta hai.
+
+Continue Watching card ab supported languages me sahi translations ka upyog karta hai.
+
+Unlock ki gayi private folders ab automatically refresh hoti hain aur videos dobara normal tarike se chalti hain.

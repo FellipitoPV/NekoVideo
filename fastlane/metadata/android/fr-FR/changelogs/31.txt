@@ -1,0 +1,11 @@
+Fix
+
+Corrections de la lecture automatique lors du changement de video et ameliorations de coherence de la lecture.
+
+Features
+
+La miniature de la video en cours peut maintenant etre generee en arriere-plan meme lorsque la surcouche est fermee.
+
+La carte Continuer a regarder utilise maintenant des traductions correctes dans les langues prises en charge.
+
+Les dossiers prives deverrouilles se mettent maintenant a jour automatiquement et relisent les videos normalement.

@@ -1,0 +1,11 @@
+Fix
+
+Autoplay fixes when switching videos and more consistent playback behavior.
+
+Features
+
+The current video thumbnail can now be generated in the background even with the overlay closed.
+
+The Continue Watching card now uses proper translations across supported languages.
+
+Unlocked private folders now refresh automatically and play videos normally again.

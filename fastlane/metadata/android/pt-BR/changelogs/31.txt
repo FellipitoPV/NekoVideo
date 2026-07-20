@@ -1,0 +1,11 @@
+Fix
+
+Correcoes no autoplay ao trocar de video e melhorias de consistencia na reproducao.
+
+Features
+
+Thumbnails do video atual agora podem ser geradas em segundo plano mesmo com o overlay fechado.
+
+O card de Continuar assistindo agora usa traducoes corretas nos idiomas suportados.
+
+Pastas desprivadas agora atualizam automaticamente e voltam a reproduzir os videos normalmente.
