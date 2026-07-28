@@ -278,7 +278,7 @@ fun ActionFAB(
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Bottom
                 ) {
                     FloatingActionButton(
                         onClick = { onActionClick(ActionType.CANCEL_MOVE) },
@@ -293,17 +293,35 @@ fun ActionFAB(
                         )
                     }
 
-                    FloatingActionButton(
-                        onClick = { onActionClick(ActionType.PASTE) },
-                        modifier = Modifier.size(56.dp),
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.ContentPaste,
-                            contentDescription = pasteHereDescription,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        FloatingActionButton(
+                            onClick = { onActionClick(ActionType.CREATE_FOLDER) },
+                            modifier = Modifier.size(48.dp),
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CreateNewFolder,
+                                contentDescription = createFolderText,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        FloatingActionButton(
+                            onClick = { onActionClick(ActionType.PASTE) },
+                            modifier = Modifier.size(56.dp),
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentPaste,
+                                contentDescription = pasteHereDescription,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
             }
