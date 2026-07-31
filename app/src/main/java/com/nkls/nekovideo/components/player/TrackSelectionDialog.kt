@@ -157,9 +157,8 @@ fun TrackSelectionDialog(
                     ) {
                         item {
                             TrackOptionRow(
-                                title = selectedExternalSubtitleName
-                                    ?: stringResource(R.string.subtitle_file_select),
-                                selected = isExternalSubtitleSelected,
+                                title = stringResource(R.string.subtitle_file_select),
+                                selected = false,
                                 onClick = {
                                     onExternalSubtitleClick()
                                     dismissAndClose()

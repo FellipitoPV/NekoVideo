@@ -10,7 +10,6 @@ import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
 import android.os.Build
-import android.text.Layout
 import android.util.Log
 import android.util.TypedValue
 import android.view.WindowManager
@@ -223,6 +222,7 @@ fun VideoPlayerOverlay(
     var showTrackSelectionDialog by remember { mutableStateOf(false) }
     var isExternalSubtitleSelected by remember { mutableStateOf(false) }
     var appliedExternalSubtitleUri by remember { mutableStateOf<String?>(null) }
+    var externalSubtitleVideoUri by remember { mutableStateOf<String?>(null) }
 
     // PlayerView sem controles nativos
 
@@ -233,8 +233,7 @@ fun VideoPlayerOverlay(
             resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
 
             subtitleView?.apply {
-                // Renderização via WebView para melhor suporte a estilos
-                setViewType(SubtitleView.VIEW_TYPE_WEB)
+                setViewType(SubtitleView.VIEW_TYPE_CANVAS)
 
                 // Define tamanho fixo da fonte
                 setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
@@ -247,17 +246,13 @@ fun VideoPlayerOverlay(
                 setBottomPaddingFraction(0.08f)
             }
 
-            // Listener para interceptar e ajustar os Cues (legendas)
+            // Ajuste leve da largura das cues sem sobrescrever o posicionamento padrão.
             player?.addListener(object : Player.Listener {
                 override fun onCues(cues: MutableList<Cue>) {
                     val adjustedCues = cues.map { cue ->
                         cue.buildUpon()
                             // Aumenta largura para 95% da tela
                             .setSize(0.95f)
-                            // Mantém a legenda centralizada na tela
-                            .setTextAlignment(Layout.Alignment.ALIGN_CENTER)
-                            .setPosition(0.5f)
-                            .setPositionAnchor(Cue.ANCHOR_TYPE_MIDDLE)
                             .build()
                     }
                     subtitleView?.setCues(adjustedCues)
@@ -427,6 +422,7 @@ fun VideoPlayerOverlay(
                 )
 
                 appliedExternalSubtitleUri = null
+                externalSubtitleVideoUri = null
                 onExternalSubtitleCleared()
             }
         }
@@ -444,7 +440,8 @@ fun VideoPlayerOverlay(
 
     fun applyExternalSubtitle(controller: MediaController, subtitleUri: Uri, displayName: String?) {
         val currentIndex = controller.currentMediaItemIndex
-        if (currentIndex == -1 || controller.currentMediaItem == null) {
+        val currentItemUri = controller.currentMediaItem?.localConfiguration?.uri?.toString()
+        if (currentIndex == -1 || currentItemUri == null || controller.currentMediaItem == null) {
             return
         }
 
@@ -468,6 +465,18 @@ fun VideoPlayerOverlay(
         subtitlesExplicitlyDisabled = false
         isExternalSubtitleSelected = true
         appliedExternalSubtitleUri = subtitleUri.toString()
+        externalSubtitleVideoUri = currentItemUri
+    }
+
+    fun clearExternalSubtitleSelectionForNewVideo(currentItemUri: String?) {
+        if (selectedExternalSubtitleUri == null) return
+        val previousVideoUri = externalSubtitleVideoUri ?: return
+        if (currentItemUri == null || currentItemUri == previousVideoUri) return
+
+        appliedExternalSubtitleUri = null
+        externalSubtitleVideoUri = null
+        isExternalSubtitleSelected = false
+        onExternalSubtitleCleared()
     }
 
     fun PreferredTrack.matches(format: Format): Boolean {
@@ -568,24 +577,6 @@ fun VideoPlayerOverlay(
         for (trackGroup in tracks.groups) {
 
             if (trackGroup.type == C.TRACK_TYPE_TEXT) {
-                val firstFormat = trackGroup.getTrackFormat(0)
-                val isSelectedExternalGroup = selectedExternalSubtitleUri != null &&
-                    selectedExternalSubtitleName != null &&
-                    firstFormat.label == selectedExternalSubtitleName &&
-                    firstFormat.sampleMimeType == subtitleMimeType(
-                        selectedExternalSubtitleUri,
-                        selectedExternalSubtitleName
-                    )
-
-                if (isSelectedExternalGroup) {
-                    for (i in 0 until trackGroup.length) {
-                        if (trackGroup.isTrackSelected(i)) {
-                            isExternalSubtitleSelected = true
-                        }
-                    }
-                    continue
-                }
-
                 val groupIndex = subtitleGroups.size
                 subtitleGroups.add(trackGroup)
                 for (i in 0 until trackGroup.length) {
@@ -613,6 +604,8 @@ fun VideoPlayerOverlay(
         selectedAudioTrack = detectedAudioGroupIndex
         if (selectedSubtitleTrack != null) {
             isExternalSubtitleSelected = false
+        } else if (selectedExternalSubtitleUri != null && !subtitlesExplicitlyDisabled) {
+            isExternalSubtitleSelected = true
         }
         if (detectedSubtitleTrack != null) {
             preferredSubtitleTrack = detectedSubtitleTrack
@@ -639,6 +632,7 @@ fun VideoPlayerOverlay(
 
         controller.currentMediaItem?.localConfiguration?.uri?.let { uri ->
             val uriStr = uri.toString()
+            clearExternalSubtitleSelectionForNewVideo(uriStr)
             if (uriStr.startsWith("locked://")) {
                 currentVideoPath = uriStr.removePrefix("locked://")
                 val obfuscatedName = File(currentVideoPath).name
