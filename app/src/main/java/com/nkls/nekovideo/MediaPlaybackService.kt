@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.os.Bundle
 import android.os.Build
 import android.util.Log
 import androidx.annotation.OptIn
@@ -22,10 +23,13 @@ import android.media.AudioManager
 import java.io.File
 import androidx.media3.common.C
 import androidx.media3.common.AudioAttributes
+import androidx.media3.common.MimeTypes
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.Futures
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import kotlinx.coroutines.*
 import android.net.Uri
+import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.HybridDataSourceFactory
@@ -42,6 +46,10 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 class MediaPlaybackService : MediaSessionService() {
     companion object {
         private const val DISABLE_PLAYBACK_ARTWORK_REFRESH_FOR_DEBUG = false
+        const val COMMAND_APPLY_EXTERNAL_SUBTITLE = "nekovideo.apply_external_subtitle"
+        const val COMMAND_CLEAR_EXTERNAL_SUBTITLE = "nekovideo.clear_external_subtitle"
+        const val EXTRA_SUBTITLE_URI = "subtitle_uri"
+        const val EXTRA_SUBTITLE_NAME = "subtitle_name"
 
         fun startWithPlaylist(
             context: Context,
@@ -178,7 +186,13 @@ class MediaPlaybackService : MediaSessionService() {
                 .build()
 
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
-                .setAvailableSessionCommands(MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS)
+                .setAvailableSessionCommands(
+                    MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
+                        .buildUpon()
+                        .add(SessionCommand(COMMAND_APPLY_EXTERNAL_SUBTITLE, Bundle.EMPTY))
+                        .add(SessionCommand(COMMAND_CLEAR_EXTERNAL_SUBTITLE, Bundle.EMPTY))
+                        .build()
+                )
                 .setAvailablePlayerCommands(availableCommands)
                 .build()
         }
@@ -223,6 +237,36 @@ class MediaPlaybackService : MediaSessionService() {
             } catch (e: Exception) {
                 Log.e("MediaPlaybackService", "Erro ao configurar intent: ${e.message}")
             }
+        }
+
+        override fun onCustomCommand(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            customCommand: SessionCommand,
+            args: Bundle
+        ): ListenableFuture<SessionResult> {
+            when (customCommand.customAction) {
+                COMMAND_APPLY_EXTERNAL_SUBTITLE -> {
+                    val subtitleUri = args.getString(EXTRA_SUBTITLE_URI)?.let(Uri::parse)
+                    val subtitleName = args.getString(EXTRA_SUBTITLE_NAME)
+
+                    return if (subtitleUri != null && applyExternalSubtitleToCurrentItem(subtitleUri, subtitleName)) {
+                        Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                    } else {
+                        Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_BAD_VALUE))
+                    }
+                }
+
+                COMMAND_CLEAR_EXTERNAL_SUBTITLE -> {
+                    return if (clearExternalSubtitleFromCurrentItem()) {
+                        Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                    } else {
+                        Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_INVALID_STATE))
+                    }
+                }
+            }
+
+            return super.onCustomCommand(session, controller, customCommand, args)
         }
     }
 
@@ -360,6 +404,85 @@ class MediaPlaybackService : MediaSessionService() {
             .setUri(uri)
             .setMediaMetadata(metadataBuilder.build())
             .build()
+    }
+
+    private fun subtitleMimeType(uri: Uri, displayName: String?): String? {
+        val source = (displayName ?: uri.lastPathSegment).orEmpty().lowercase()
+        return when {
+            source.endsWith(".srt") -> MimeTypes.APPLICATION_SUBRIP
+            source.endsWith(".vtt") -> MimeTypes.TEXT_VTT
+            source.endsWith(".ssa") || source.endsWith(".ass") -> MimeTypes.TEXT_SSA
+            else -> null
+        }
+    }
+
+    private fun applyExternalSubtitleToCurrentItem(subtitleUri: Uri, displayName: String?): Boolean {
+        val currentPlayer = player ?: return false
+        val currentIndex = currentPlayer.currentMediaItemIndex
+        val currentItem = currentPlayer.currentMediaItem ?: return false
+        if (currentIndex == -1) return false
+
+        val mimeType = subtitleMimeType(subtitleUri, displayName)
+        if (mimeType == null) {
+            return false
+        }
+
+        val currentPosition = currentPlayer.currentPosition
+        val playWhenReady = currentPlayer.playWhenReady
+        val updatedItem = currentItem.buildUpon()
+            .setSubtitleConfigurations(
+                listOf(
+                    MediaItem.SubtitleConfiguration.Builder(subtitleUri)
+                        .setMimeType(mimeType)
+                        .setLanguage("und")
+                        .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                        .setRoleFlags(C.ROLE_FLAG_SUBTITLE)
+                        .setLabel(displayName ?: "External Subtitle")
+                        .build()
+                )
+            )
+            .build()
+
+        val updatedItems = List(currentPlayer.mediaItemCount) { index ->
+            if (index == currentIndex) updatedItem else currentPlayer.getMediaItemAt(index)
+        }
+
+        currentPlayer.setMediaItems(updatedItems, currentIndex, currentPosition)
+        currentPlayer.prepare()
+        currentPlayer.trackSelectionParameters = currentPlayer.trackSelectionParameters
+            .buildUpon()
+            .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            .build()
+        if (playWhenReady) currentPlayer.play()
+        return true
+    }
+
+    private fun clearExternalSubtitleFromCurrentItem(): Boolean {
+        val currentPlayer = player ?: return false
+        val currentIndex = currentPlayer.currentMediaItemIndex
+        val currentItem = currentPlayer.currentMediaItem ?: return false
+        if (currentIndex == -1) return false
+
+        val currentPosition = currentPlayer.currentPosition
+        val playWhenReady = currentPlayer.playWhenReady
+        val updatedItem = currentItem.buildUpon()
+            .setSubtitleConfigurations(emptyList())
+            .build()
+
+        val updatedItems = List(currentPlayer.mediaItemCount) { index ->
+            if (index == currentIndex) updatedItem else currentPlayer.getMediaItemAt(index)
+        }
+
+        currentPlayer.setMediaItems(updatedItems, currentIndex, currentPosition)
+        currentPlayer.prepare()
+        currentPlayer.trackSelectionParameters = currentPlayer.trackSelectionParameters
+            .buildUpon()
+            .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+            .build()
+        if (playWhenReady) currentPlayer.play()
+        return true
     }
 
     // Busca somente thumbnails já existentes em RAM/disco.

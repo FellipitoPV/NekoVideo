@@ -379,24 +379,22 @@ fun CustomVideoControls(
                         )
 
                         // Legendas
-                        if (hasSubtitles) {
-                            val subtitleBg = if (subtitlesEnabled) CtrlBtnBgActive else CtrlBtnBg
-                            IconButton(
-                                onClick = {
-                                    onSubtitlesClick()
-                                    resetUITimer()
-                                },
-                                modifier = Modifier
-                                    .background(subtitleBg, CircleShape)
-                                    .size(38.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Subtitles,
-                                    contentDescription = "Legendas",
-                                    tint = if (subtitlesEnabled) CtrlIconOn else CtrlIconOff,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                        val subtitleBg = if (subtitlesEnabled) CtrlBtnBgActive else CtrlBtnBg
+                        IconButton(
+                            onClick = {
+                                onSubtitlesClick()
+                                resetUITimer()
+                            },
+                            modifier = Modifier
+                                .background(subtitleBg, CircleShape)
+                                .size(38.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Subtitles,
+                                contentDescription = "Legendas",
+                                tint = if (subtitlesEnabled) CtrlIconOn else CtrlIconOff,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
 
                         // Rotação

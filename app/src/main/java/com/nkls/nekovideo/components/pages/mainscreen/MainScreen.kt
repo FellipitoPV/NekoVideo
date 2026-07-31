@@ -7,8 +7,11 @@ import android.util.Log
 import android.widget.Toast
 import android.app.Activity
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -46,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -55,7 +59,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.navigation.compose.NavHost
@@ -116,9 +119,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.UUID
 
 @Composable
 fun MainScreen(
+    hostActivity: ComponentActivity,
     intent: Intent?,
     themeManager: ThemeManager,
     notificationReceived: Boolean = false,
@@ -158,6 +163,37 @@ fun MainScreen(
     var showPlayerOverlay by remember { mutableStateOf(false) }
     var deletedVideoPath by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var selectedExternalSubtitleUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedExternalSubtitleName by remember { mutableStateOf<String?>(null) }
+
+    val subtitlePickerKey = remember { "subtitle_picker_${UUID.randomUUID()}" }
+    var subtitleFilePicker by remember { mutableStateOf<ActivityResultLauncher<Array<String>>?>(null) }
+
+    DisposableEffect(hostActivity) {
+        val launcher = hostActivity.activityResultRegistry.register(
+            subtitlePickerKey,
+            ActivityResultContracts.OpenDocument()
+        ) { uri ->
+            if (uri == null) return@register
+
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+
+            selectedExternalSubtitleUri = uri
+            selectedExternalSubtitleName = context.resolveDisplayName(uri) ?: uri.lastPathSegment
+        }
+
+        subtitleFilePicker = launcher
+
+        onDispose {
+            subtitleFilePicker = null
+            launcher.unregister()
+        }
+    }
 
     // Back press centralizado no BackHandler abaixo
 
@@ -1484,7 +1520,35 @@ fun MainScreen(
                     deletedVideoPath = null
                 }
             },
+            selectedExternalSubtitleUri = selectedExternalSubtitleUri,
+            selectedExternalSubtitleName = selectedExternalSubtitleName,
+            onExternalSubtitleCleared = {
+                selectedExternalSubtitleUri = null
+                selectedExternalSubtitleName = null
+            },
+            onExternalSubtitleClick = {
+                subtitleFilePicker?.launch(
+                    arrayOf(
+                        "application/x-subrip",
+                        "text/vtt",
+                        "text/plain",
+                        "application/octet-stream"
+                    )
+                )
+            }
         )
 
     }
+}
+
+private fun Context.resolveDisplayName(uri: Uri): String? {
+    return contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+        ?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (nameIndex >= 0 && cursor.moveToFirst()) {
+                cursor.getString(nameIndex)
+            } else {
+                null
+            }
+        }
 }

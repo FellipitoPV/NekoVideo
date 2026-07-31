@@ -279,6 +279,7 @@ class MainActivity : AppCompatActivity() {
                         color = MaterialTheme.colorScheme.background
                     ) {
                         MainScreen(
+                            hostActivity = this@MainActivity,
                             intent = intent,
                             themeManager = themeManager,
                             notificationReceived = notificationState,

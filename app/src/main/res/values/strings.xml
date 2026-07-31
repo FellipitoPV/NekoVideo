@@ -397,6 +397,8 @@
     <string name="tracks_title">Faixas</string>
     <string name="tab_subtitles">Legendas</string>
     <string name="tab_audio">Áudio</string>
+    <string name="subtitle_file_select">Selecionar arquivo de legenda</string>
+    <string name="subtitle_file_video_section">Legendas no video</string>
     <string name="subtitles_off">Desativado</string>
     <string name="no_tracks_available">Nenhuma faixa disponível</string>
 

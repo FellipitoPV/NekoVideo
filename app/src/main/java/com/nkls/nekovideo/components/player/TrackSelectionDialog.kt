@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -57,7 +58,10 @@ fun TrackSelectionDialog(
     availableAudioTracks: List<Tracks.Group>,
     selectedSubtitleTrack: Int?,
     selectedAudioTrack: Int?,
+    selectedExternalSubtitleName: String?,
+    isExternalSubtitleSelected: Boolean,
     onSubtitleSelected: (groupIndex: Int, trackIndex: Int) -> Unit,
+    onExternalSubtitleClick: () -> Unit,
     onSubtitlesDisabled: () -> Unit,
     onAudioSelected: (groupIndex: Int, trackIndex: Int) -> Unit,
     onDismiss: () -> Unit,
@@ -153,8 +157,28 @@ fun TrackSelectionDialog(
                     ) {
                         item {
                             TrackOptionRow(
+                                title = selectedExternalSubtitleName
+                                    ?: stringResource(R.string.subtitle_file_select),
+                                selected = isExternalSubtitleSelected,
+                                onClick = {
+                                    onExternalSubtitleClick()
+                                    dismissAndClose()
+                                }
+                            )
+                        }
+
+                        item {
+                            Spacer(modifier = Modifier.size(2.dp))
+                        }
+
+                        item {
+                            SectionLabel(title = stringResource(R.string.subtitle_file_video_section))
+                        }
+
+                        item {
+                            TrackOptionRow(
                                 title = stringResource(R.string.subtitles_off),
-                                selected = selectedSubtitleTrack == null,
+                                selected = selectedSubtitleTrack == null && !isExternalSubtitleSelected,
                                 onClick = {
                                     onSubtitlesDisabled()
                                     dismissAndClose()
@@ -204,6 +228,17 @@ fun TrackSelectionDialog(
             }
         },
         confirmButton = {}
+    )
+}
+
+@Composable
+private fun SectionLabel(title: String) {
+    Text(
+        text = title,
+        color = TextMuted,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 2.dp)
     )
 }
 
