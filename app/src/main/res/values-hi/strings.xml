@@ -389,6 +389,12 @@
     <string name="tracks_title">ट्रैक्स</string>
     <string name="tab_subtitles">उपशीर्षक</string>
     <string name="tab_audio">ऑडियो</string>
+    <string name="subtitle_file_select">उपशीर्षक फ़ाइल चुनें</string>
+    <string name="subtitle_file_video_section">वीडियो में उपशीर्षक</string>
+    <string name="subtitle_size_title">उपशीर्षक का आकार</string>
+    <string name="subtitle_size_small">छोटा</string>
+    <string name="subtitle_size_medium">मध्यम</string>
+    <string name="subtitle_size_large">बड़ा</string>
     <string name="subtitles_off">बंद</string>
     <string name="no_tracks_available">कोई ट्रैक उपलब्ध नहीं</string>
 

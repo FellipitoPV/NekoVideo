@@ -1445,19 +1445,21 @@ fun FolderScreen(
                             val previewUri = previewItem?.let { buildPreviewUri(it, isSecureMode) }
 
                             if (previewItem != null && previewUri != null) {
-                                FloatingVideoPreview(
-                                    title = previewItem.displayName,
-                                    videoUri = previewUri,
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(top = 12.dp, end = 12.dp),
-                                    onClose = { previewingPath = null },
-                                    onPreviewFinished = {
-                                        if (previewingPath == previewItem.path) {
-                                            previewingPath = null
+                                key(previewItem.path) {
+                                    FloatingVideoPreview(
+                                        title = previewItem.displayName,
+                                        videoUri = previewUri,
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(top = 12.dp, end = 12.dp),
+                                        onClose = { previewingPath = null },
+                                        onPreviewFinished = {
+                                            if (previewingPath == previewItem.path) {
+                                                previewingPath = null
+                                            }
                                         }
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
                     }

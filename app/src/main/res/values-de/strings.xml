@@ -389,6 +389,12 @@
     <string name="tracks_title">Spuren</string>
     <string name="tab_subtitles">Untertitel</string>
     <string name="tab_audio">Audio</string>
+    <string name="subtitle_file_select">Untertiteldatei auswählen</string>
+    <string name="subtitle_file_video_section">Untertitel im Video</string>
+    <string name="subtitle_size_title">Untertitelgröße</string>
+    <string name="subtitle_size_small">Klein</string>
+    <string name="subtitle_size_medium">Mittel</string>
+    <string name="subtitle_size_large">Groß</string>
     <string name="subtitles_off">Aus</string>
     <string name="no_tracks_available">Keine Spuren verfügbar</string>
 

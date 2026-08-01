@@ -389,6 +389,12 @@
     <string name="tracks_title">Дорожки</string>
     <string name="tab_subtitles">Субтитры</string>
     <string name="tab_audio">Аудио</string>
+    <string name="subtitle_file_select">Выбрать файл субтитров</string>
+    <string name="subtitle_file_video_section">Субтитры в видео</string>
+    <string name="subtitle_size_title">Размер субтитров</string>
+    <string name="subtitle_size_small">Маленький</string>
+    <string name="subtitle_size_medium">Средний</string>
+    <string name="subtitle_size_large">Большой</string>
     <string name="subtitles_off">Выкл</string>
     <string name="no_tracks_available">Нет доступных дорожек</string>
 

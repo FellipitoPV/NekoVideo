@@ -389,6 +389,12 @@
     <string name="tracks_title">Pistes</string>
     <string name="tab_subtitles">Sous-titres</string>
     <string name="tab_audio">Audio</string>
+    <string name="subtitle_file_select">Sélectionner un fichier de sous-titres</string>
+    <string name="subtitle_file_video_section">Sous-titres dans la vidéo</string>
+    <string name="subtitle_size_title">Taille des sous-titres</string>
+    <string name="subtitle_size_small">Petite</string>
+    <string name="subtitle_size_medium">Moyenne</string>
+    <string name="subtitle_size_large">Grande</string>
     <string name="subtitles_off">Désactivé</string>
     <string name="no_tracks_available">Aucune piste disponible</string>
 
