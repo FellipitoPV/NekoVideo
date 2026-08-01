@@ -34,6 +34,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -110,6 +111,14 @@ private fun Format.toPreferredTrack(): PreferredTrack {
         selectionFlags = selectionFlags,
         roleFlags = roleFlags
     )
+}
+
+private fun subtitleSizeSp(level: Int): Float {
+    return when (level.coerceIn(0, 2)) {
+        0 -> 18f
+        2 -> 30f
+        else -> 24f
+    }
 }
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -223,6 +232,7 @@ fun VideoPlayerOverlay(
     var isExternalSubtitleSelected by remember { mutableStateOf(false) }
     var appliedExternalSubtitleUri by remember { mutableStateOf<String?>(null) }
     var externalSubtitleVideoUri by remember { mutableStateOf<String?>(null) }
+    var subtitleSizeLevel by remember { mutableIntStateOf(1) }
 
     // PlayerView sem controles nativos
 
@@ -235,8 +245,7 @@ fun VideoPlayerOverlay(
             subtitleView?.apply {
                 setViewType(SubtitleView.VIEW_TYPE_CANVAS)
 
-                // Define tamanho fixo da fonte
-                setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
+                setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, subtitleSizeSp(subtitleSizeLevel))
 
                 // Remove estilos e tamanhos embutidos para ter controle total
                 setApplyEmbeddedStyles(false)
@@ -260,7 +269,6 @@ fun VideoPlayerOverlay(
             })
         }
     }
-
 
     fun applyRotation(videoSize: VideoSize? = null) {
         val localActivity = activity ?: return
@@ -648,6 +656,17 @@ fun VideoPlayerOverlay(
 
     }
 
+    LaunchedEffect(Unit) {
+        subtitleSizeLevel = SettingsManager.getSubtitleSizeLevel(context)
+    }
+
+    LaunchedEffect(subtitleSizeLevel) {
+        playerView.subtitleView?.setFixedTextSize(
+            TypedValue.COMPLEX_UNIT_SP,
+            subtitleSizeSp(subtitleSizeLevel)
+        )
+    }
+
     fun getTagScopeForPath(videoPath: String): TagScope {
         val secureFolderPath = FilesManager.SecureStorage.getSecureFolderPath(context)
         val nekoPrivatePath = FilesManager.SecureStorage.getNekoPrivateFolderPath()
@@ -886,10 +905,15 @@ fun VideoPlayerOverlay(
             selectedAudioTrack = selectedAudioTrack,
             selectedExternalSubtitleName = selectedExternalSubtitleName,
             isExternalSubtitleSelected = isExternalSubtitleSelected,
+            subtitleSizeLevel = subtitleSizeLevel,
             onSubtitleSelected = { groupIndex, trackIndex ->
                 selectSubtitleTrack(groupIndex, trackIndex)
             },
             onExternalSubtitleClick = onExternalSubtitleClick,
+            onSubtitleSizeLevelChanged = { newLevel ->
+                subtitleSizeLevel = newLevel
+                SettingsManager.setSubtitleSizeLevel(context, newLevel)
+            },
             onSubtitlesDisabled = { disableSubtitles() },
             onAudioSelected = { groupIndex, trackIndex ->
                 selectAudioTrack(groupIndex, trackIndex)

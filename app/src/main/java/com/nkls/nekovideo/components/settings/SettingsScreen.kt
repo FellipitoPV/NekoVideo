@@ -1799,6 +1799,17 @@ private fun SettingsClickableItem(
 
 object SettingsManager {
 
+    fun getSubtitleSizeLevel(context: Context): Int {
+        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            .getInt("subtitle_size_level", 1)
+            .coerceIn(0, 2)
+    }
+
+    fun setSubtitleSizeLevel(context: Context, level: Int) {
+        context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            .edit { putInt("subtitle_size_level", level.coerceIn(0, 2)) }
+    }
+
     fun getDoubleTapSeek(context: Context): Int {
         return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
             .getInt("double_tap_seek", 10)

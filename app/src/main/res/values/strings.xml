@@ -399,6 +399,10 @@
     <string name="tab_audio">Áudio</string>
     <string name="subtitle_file_select">Selecionar arquivo de legenda</string>
     <string name="subtitle_file_video_section">Legendas no video</string>
+    <string name="subtitle_size_title">Tamanho da legenda</string>
+    <string name="subtitle_size_small">Pequeno</string>
+    <string name="subtitle_size_medium">Medio</string>
+    <string name="subtitle_size_large">Grande</string>
     <string name="subtitles_off">Desativado</string>
     <string name="no_tracks_available">Nenhuma faixa disponível</string>
 
