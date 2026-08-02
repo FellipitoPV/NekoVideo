@@ -21,15 +21,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
@@ -222,23 +219,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun attachBaseContext(newBase: Context?) {
-        super.attachBaseContext(newBase?.let { context ->
-            val languageCode = LanguageManager.getCurrentLanguage(context)
-            LanguageManager.setLocale(context, languageCode)
-        })
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         themeManager = ThemeManager(this)
-
-        val currentLanguage = LanguageManager.getCurrentLanguage(this)
-        LanguageManager.initialize(this)
-        if (currentLanguage != "system") {
-            LanguageManager.setLocale(this, currentLanguage)
-        }
+        LanguageManager.initialize()
 
         applySystemBarsForTheme(themeManager.themeMode.value)
         FilesManager.SecureFoldersVisibility.resetOnAppStart(this)
@@ -254,7 +239,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContent {
-            val currentLanguage by LanguageManager.currentLanguage.collectAsState()
             val currentTheme by themeManager.themeMode.collectAsState()
             val configuration = LocalConfiguration.current
 
@@ -268,28 +252,22 @@ class MainActivity : AppCompatActivity() {
                 applySystemBarsForTheme(currentTheme)
             }
 
-            val localizedContext = remember(currentLanguage) {
-                LanguageManager.getLocalizedContext(this@MainActivity, currentLanguage)
-            }
-
-            CompositionLocalProvider(LocalContext provides localizedContext) {
-                NekoVideoTheme(themeManager = themeManager) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        MainScreen(
-                            hostActivity = this@MainActivity,
-                            intent = intent,
-                            themeManager = themeManager,
-                            notificationReceived = notificationState,
-                            lastAction = actionState,
-                            lastTime = timeState,
-                            openFolderPath = folderPathState,
-                            externalVideoReceived = externalVideoState,
-                            onFolderPathConsumed = { _openFolderPath.value = null }
-                        )
-                    }
+            NekoVideoTheme(themeManager = themeManager) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    MainScreen(
+                        hostActivity = this@MainActivity,
+                        intent = intent,
+                        themeManager = themeManager,
+                        notificationReceived = notificationState,
+                        lastAction = actionState,
+                        lastTime = timeState,
+                        openFolderPath = folderPathState,
+                        externalVideoReceived = externalVideoState,
+                        onFolderPathConsumed = { _openFolderPath.value = null }
+                    )
                 }
             }
         }

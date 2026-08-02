@@ -26,7 +26,9 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.helpers.DLNACastManager
 
 @Composable
@@ -59,7 +61,7 @@ fun DLNADevicePickerDialog(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Transmitir para...",
+                text = stringResource(R.string.select_cast_device),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -76,7 +78,7 @@ fun DLNADevicePickerDialog(
                         strokeWidth = 2.dp
                     )
                     Text(
-                        text = "Procurando dispositivos DLNA...",
+                        text = stringResource(R.string.searching_cast_devices),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -85,7 +87,7 @@ fun DLNADevicePickerDialog(
 
             if (devices.isEmpty() && !isDiscovering) {
                 Text(
-                    text = "Nenhum dispositivo DLNA encontrado na rede.",
+                    text = stringResource(R.string.no_cast_devices_found),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -133,7 +135,7 @@ fun DLNADevicePickerDialog(
                 horizontalArrangement = Arrangement.End
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         }

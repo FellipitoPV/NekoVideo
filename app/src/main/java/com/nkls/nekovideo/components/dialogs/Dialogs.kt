@@ -96,7 +96,7 @@ fun SingleRenameDialog(
     }
     var isRenaming by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
-    val context = LanguageManager.getLocalizedContext(LocalContext.current)
+    val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -234,7 +234,7 @@ fun LockedRenameDialog(
     val nameWithoutExtension = currentName.substringBeforeLast(".")
     val extension = if (currentName.contains(".")) ".${currentName.substringAfterLast(".")}" else ""
     var newName by remember { mutableStateOf(nameWithoutExtension) }
-    val context = LanguageManager.getLocalizedContext(LocalContext.current)
+    val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -333,7 +333,7 @@ fun MultipleRenameDialog(
     var currentProgress by remember { mutableStateOf(0) }
     var totalItems by remember { mutableStateOf(selectedItems.size) }
     val coroutineScope = rememberCoroutineScope()
-    val context = LanguageManager.getLocalizedContext(LocalContext.current)
+    val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -508,7 +508,7 @@ fun CreateFolderDialog(
     var isCreating by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
-    val context = LanguageManager.getLocalizedContext(LocalContext.current)
+    val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -662,7 +662,7 @@ fun PasswordDialog(
     var isProcessing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
-    val context = LanguageManager.getLocalizedContext(LocalContext.current)
+    val context = LocalContext.current
     val view = LocalView.current
     val activity = remember(view) {
         var ctx: android.content.Context = view.context

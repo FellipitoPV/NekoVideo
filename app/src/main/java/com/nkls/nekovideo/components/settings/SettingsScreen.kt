@@ -358,14 +358,8 @@ fun PlaybackSettingsScreen() {
 
 @Composable
 fun InterfaceSettingsScreen(themeManager: ThemeManager) {
-    val context = LocalContext.current
     val currentTheme by themeManager.themeMode.collectAsState()
-
-    val languageStateFlow by LanguageManager.currentLanguage.collectAsState()
-
-    var currentLanguage by remember(languageStateFlow) {
-        mutableStateOf(LanguageManager.getCurrentLanguage(context))
-    }
+    val currentLanguage by LanguageManager.currentLanguage.collectAsState()
 
     val darkModeOptions = listOf(
         "light" to stringResource(R.string.theme_light),
@@ -425,7 +419,7 @@ fun InterfaceSettingsScreen(themeManager: ThemeManager) {
                     options = languageOptions,
                     selectedValue = currentLanguage,
                     onValueChange = { newLanguage ->
-                        LanguageManager.updateLanguage(context, newLanguage)
+                        LanguageManager.updateLanguage(newLanguage)
                     },
                     isCompact = isCompact
                 )

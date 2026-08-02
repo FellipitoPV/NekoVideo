@@ -149,7 +149,7 @@ fun CastControlsOverlay(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(R.string.back),
                         tint = Color.White
                     )
                 }
@@ -162,7 +162,7 @@ fun CastControlsOverlay(
                 ) {
                     Icon(
                         imageVector = Icons.Default.CastConnected,
-                        contentDescription = "Disconnect",
+                        contentDescription = stringResource(R.string.cast_disconnect_confirm),
                         tint = Color(0xFF4CAF50)
                     )
                 }
@@ -180,7 +180,7 @@ fun CastControlsOverlay(
         ) {
             Icon(
                 imageVector = Icons.Default.Cast,
-                contentDescription = "Casting",
+                contentDescription = null,
                 tint = Color(0xFF4CAF50),
                 modifier = Modifier.size(80.dp)
             )
@@ -232,7 +232,7 @@ fun CastControlsOverlay(
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipPrevious,
-                        contentDescription = "Previous",
+                        contentDescription = stringResource(R.string.previous),
                         tint = Color.White,
                         modifier = Modifier.size(32.dp)
                     )
@@ -248,7 +248,7 @@ fun CastControlsOverlay(
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        contentDescription = if (isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
                         tint = Color.Black,
                         modifier = Modifier.size(44.dp)
                     )
@@ -262,7 +262,7 @@ fun CastControlsOverlay(
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
-                        contentDescription = "Next",
+                        contentDescription = stringResource(R.string.next),
                         tint = Color.White,
                         modifier = Modifier.size(32.dp)
                     )
