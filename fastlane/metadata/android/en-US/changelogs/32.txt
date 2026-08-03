@@ -1,0 +1,11 @@
+Fix
+
+Improved player stability with fixes for previews, subtitles, and playback resume behavior.
+
+Features
+
+The player now offers better support for external subtitles, including size adjustment and more consistent restoration when returning to a video.
+
+The interface has been refined with better adaptation to different languages, clearer subtitle options, and controls that better respect screen safe areas.
+
+There have also been improvements to the app's internal organization and the file moving flow, including the option to create a folder while choosing the destination.

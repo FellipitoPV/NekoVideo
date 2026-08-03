@@ -1,0 +1,11 @@
+Fix
+
+Amelioration de la stabilite du lecteur, avec des corrections pour les apercus, les sous-titres et la reprise de lecture.
+
+Features
+
+Le lecteur offre maintenant une meilleure prise en charge des sous-titres externes, avec ajustement de la taille et restauration plus coherente lors du retour a une video.
+
+L'interface a ete amelioree avec une meilleure adaptation aux differentes langues, des options de sous-titres plus claires et des controles qui respectent mieux les zones sures de l'ecran.
+
+Des ameliorations ont aussi ete apportees a l'organisation interne de l'application et au flux de deplacement des fichiers, y compris la possibilite de creer un dossier lors du choix de la destination.

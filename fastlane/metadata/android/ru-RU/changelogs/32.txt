@@ -1,0 +1,11 @@
+Fix
+
+Povyshena stabilnost pleera, ispravleny problemy s predprosmotrom, subtitrami i vozobnovleniem vosproizvedeniya.
+
+Features
+
+Teper pleer luchshe podderzhivaet vneshnie subtitry, vklyuchaya izmenenie razmera i bolee stabilnoe vosstanovlenie pri vozvrashchenii k video.
+
+Interfeis takzhe byl uluchshen: povysilas adaptaciya k raznym yazykam, parametry subtitrov stali ponyatnee, a elementy upravleniya luchshe uchityvayut bezopasnye oblasti ekrana.
+
+Krome togo, uluchshena vnutrennyaya organizaciya prilozheniya i protsess peremeshcheniya failov, vklyuchaya vozmozhnost sozdavat papku pri vybore mesta naznacheniya.

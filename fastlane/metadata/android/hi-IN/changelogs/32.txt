@@ -1,0 +1,11 @@
+Fix
+
+Player ki stability me sudhar kiya gaya hai, jisme preview, subtitles aur playback resume behavior se judi samasyaon ko thik kiya gaya hai.
+
+Features
+
+Ab player external subtitles ke liye behtar support deta hai, jisme size adjustment aur video par wapas aane par zyada consistent restore shamil hai.
+
+Interface ko bhi behtar banaya gaya hai, jisse alag-alag bhashao ke sath adaptation, subtitle options ki clarity aur screen safe areas ka respect aur achha ho gaya hai.
+
+Saath hi app ki internal organization aur file move flow me bhi sudhar kiya gaya hai, jisme destination chunte waqt folder banane ka option bhi shamil hai.

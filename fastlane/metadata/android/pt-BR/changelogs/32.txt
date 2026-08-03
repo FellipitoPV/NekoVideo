@@ -1,0 +1,11 @@
+Fix
+
+Melhorias na estabilidade do player, com correcoes em previews, legendas e retomada de reproducao.
+
+Features
+
+O player agora oferece suporte melhor a legendas externas, com ajuste de tamanho e restauracao mais consistente ao voltar para um video.
+
+A interface foi refinada com melhor adaptacao a diferentes idiomas, indicacoes mais claras nas opcoes de legenda e controles que respeitam melhor as areas da tela.
+
+Tambem foram feitas melhorias na organizacao interna do app e no fluxo de mover arquivos, incluindo a opcao de criar pasta durante a selecao de destino.

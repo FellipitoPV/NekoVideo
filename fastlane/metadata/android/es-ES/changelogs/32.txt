@@ -1,0 +1,11 @@
+Fix
+
+Mejoras en la estabilidad del reproductor, con correcciones en las vistas previas, los subtitulos y la reanudacion de la reproduccion.
+
+Features
+
+El reproductor ahora ofrece un mejor soporte para subtitulos externos, con ajuste de tamano y una restauracion mas consistente al volver a un video.
+
+La interfaz se ha refinado con mejor adaptacion a distintos idiomas, opciones de subtitulos mas claras y controles que respetan mejor las areas seguras de la pantalla.
+
+Tambien se realizaron mejoras en la organizacion interna de la app y en el flujo para mover archivos, incluyendo la opcion de crear una carpeta al elegir el destino.

@@ -1,0 +1,11 @@
+Fix
+
+Verbesserte Stabilitat des Players mit Korrekturen fuer Vorschauen, Untertitel und das Fortsetzen der Wiedergabe.
+
+Features
+
+Der Player bietet jetzt eine bessere Unterstuetzung fuer externe Untertitel, einschliesslich Groessenanpassung und zuverlaessigerer Wiederherstellung beim Zurueckkehren zu einem Video.
+
+Die Benutzeroberflaeche wurde verfeinert, mit besserer Anpassung an verschiedene Sprachen, klareren Untertiteloptionen und Steuerelementen, die die sicheren Bildschirmbereiche besser beruecksichtigen.
+
+Ausserdem wurden die interne Organisation der App und der Ablauf beim Verschieben von Dateien verbessert, einschliesslich der Moeglichkeit, waehrend der Zielauswahl einen Ordner zu erstellen.
