@@ -1380,6 +1380,8 @@ fun MainScreen(
                         isMoveMode = isMoveMode,
                         itemsToMove = itemsToMove,
                         onContinueWatchingClick = { entry ->
+                            selectedExternalSubtitleUri = entry.externalSubtitleUri?.let(Uri::parse)
+                            selectedExternalSubtitleName = entry.externalSubtitleName
                             openVideoFromFolder(
                                 targetFolderPath = entry.folderPath,
                                 itemPath = entry.videoPath,

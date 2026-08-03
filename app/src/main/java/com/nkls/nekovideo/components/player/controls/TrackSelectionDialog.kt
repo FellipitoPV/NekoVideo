@@ -168,7 +168,9 @@ fun TrackSelectionDialog(
                     ) {
                         item {
                             AddSubtitleFileRow(
-                                title = stringResource(R.string.subtitle_file_select),
+                                title = selectedExternalSubtitleName
+                                    ?: stringResource(R.string.subtitle_file_select),
+                                selected = isExternalSubtitleSelected,
                                 onClick = {
                                     onExternalSubtitleClick()
                                     dismissAndClose()
@@ -250,6 +252,7 @@ fun TrackSelectionDialog(
 @Composable
 private fun AddSubtitleFileRow(
     title: String,
+    selected: Boolean,
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(10.dp)
@@ -260,7 +263,7 @@ private fun AddSubtitleFileRow(
             .clip(shape)
             .drawBehind {
                 drawRoundRect(
-                    color = Color.White.copy(alpha = 0.28f),
+                    color = if (selected) AccentBlue else Color.White.copy(alpha = 0.28f),
                     style = Stroke(
                         width = 1.dp.toPx(),
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 10f), 0f)
@@ -268,7 +271,7 @@ private fun AddSubtitleFileRow(
                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx(), 10.dp.toPx())
                 )
             }
-            .background(Color.White.copy(alpha = 0.03f))
+            .background(if (selected) RowBgSelected else Color.White.copy(alpha = 0.03f))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -284,17 +287,28 @@ private fun AddSubtitleFileRow(
             Icon(
                 imageVector = Icons.Default.Add,
                 contentDescription = null,
-                tint = AccentBlue,
+                tint = if (selected) TextWhite else AccentBlue,
                 modifier = Modifier.size(16.dp)
             )
         }
 
         Text(
             text = title,
-            color = TextWhite,
+            color = if (selected) TextWhite else TextWhite,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium
         )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        if (selected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = null,
+                tint = AccentBlue,
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 }
 

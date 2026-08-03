@@ -446,16 +446,16 @@ fun VideoPlayerOverlay(
         }
     }
 
-    fun applyExternalSubtitle(controller: MediaController, subtitleUri: Uri, displayName: String?) {
+    fun applyExternalSubtitle(controller: MediaController, subtitleUri: Uri, displayName: String?): Boolean {
         val currentIndex = controller.currentMediaItemIndex
         val currentItemUri = controller.currentMediaItem?.localConfiguration?.uri?.toString()
         if (currentIndex == -1 || currentItemUri == null || controller.currentMediaItem == null) {
-            return
+            return false
         }
 
         val mimeType = subtitleMimeType(subtitleUri, displayName)
         if (mimeType == null) {
-            return
+            return false
         }
 
         val args = Bundle().apply {
@@ -474,6 +474,41 @@ fun VideoPlayerOverlay(
         isExternalSubtitleSelected = true
         appliedExternalSubtitleUri = subtitleUri.toString()
         externalSubtitleVideoUri = currentItemUri
+        return true
+    }
+
+    fun hasExternalSubtitleApplied(controller: MediaController, subtitleUriString: String): Boolean {
+        return (
+            controller.currentMediaItem
+                ?.localConfiguration
+                ?.subtitleConfigurations
+                ?.any { it.uri.toString() == subtitleUriString }
+            ) == true
+    }
+
+    fun syncExternalSubtitleWithCurrentItem(controller: MediaController) {
+        val subtitleUri = selectedExternalSubtitleUri ?: return
+        val subtitleUriString = subtitleUri.toString()
+        val currentItemUri = controller.currentMediaItem?.localConfiguration?.uri?.toString()
+
+        if (currentItemUri == null) {
+            return
+        }
+
+        if (hasExternalSubtitleApplied(controller, subtitleUriString)) {
+            appliedExternalSubtitleUri = subtitleUriString
+            externalSubtitleVideoUri = currentItemUri
+            isExternalSubtitleSelected = !subtitlesExplicitlyDisabled
+            return
+        }
+
+        val applied = applyExternalSubtitle(controller, subtitleUri, selectedExternalSubtitleName)
+        if (!applied) {
+            appliedExternalSubtitleUri = null
+            externalSubtitleVideoUri = null
+            isExternalSubtitleSelected = false
+            onExternalSubtitleCleared()
+        }
     }
 
     fun clearExternalSubtitleSelectionForNewVideo(currentItemUri: String?) {
@@ -574,6 +609,9 @@ fun VideoPlayerOverlay(
 
     fun checkAvailableTracks(controller: MediaController) {
         val tracks = controller.currentTracks
+        val selectedExternalSubtitleUriString = selectedExternalSubtitleUri?.toString()
+        val hasCurrentExternalSubtitle = selectedExternalSubtitleUriString != null &&
+            hasExternalSubtitleApplied(controller, selectedExternalSubtitleUriString)
         val subtitleGroups = mutableListOf<Tracks.Group>()
         val audioGroups = mutableListOf<Tracks.Group>()
         var detectedSubtitleTrack: PreferredTrack? = null
@@ -608,14 +646,16 @@ fun VideoPlayerOverlay(
         availableSubtitles = subtitleGroups
         availableAudioTracks = audioGroups
         subtitlesExplicitlyDisabled = controller.trackSelectionParameters.disabledTrackTypes.contains(C.TRACK_TYPE_TEXT)
-        selectedSubtitleTrack = detectedSubtitleGroupIndex
+        selectedSubtitleTrack = if (hasCurrentExternalSubtitle) null else detectedSubtitleGroupIndex
         selectedAudioTrack = detectedAudioGroupIndex
-        if (selectedSubtitleTrack != null) {
+        if (hasCurrentExternalSubtitle && !subtitlesExplicitlyDisabled) {
+            isExternalSubtitleSelected = true
+        } else if (selectedSubtitleTrack != null) {
             isExternalSubtitleSelected = false
         } else if (selectedExternalSubtitleUri != null && !subtitlesExplicitlyDisabled) {
             isExternalSubtitleSelected = true
         }
-        if (detectedSubtitleTrack != null) {
+        if (detectedSubtitleTrack != null && !hasCurrentExternalSubtitle) {
             preferredSubtitleTrack = detectedSubtitleTrack
         }
         if (detectedAudioTrack != null) {
@@ -653,6 +693,7 @@ fun VideoPlayerOverlay(
         }
 
         checkAvailableTracks(controller)
+        syncExternalSubtitleWithCurrentItem(controller)
 
     }
 
@@ -946,12 +987,7 @@ fun VideoPlayerOverlay(
 
     LaunchedEffect(mediaController, selectedExternalSubtitleUri, selectedExternalSubtitleName) {
         val controller = mediaController ?: return@LaunchedEffect
-        val subtitleUri = selectedExternalSubtitleUri ?: return@LaunchedEffect
-        val subtitleUriString = subtitleUri.toString()
-
-        if (subtitleUriString == appliedExternalSubtitleUri) return@LaunchedEffect
-
-        applyExternalSubtitle(controller, subtitleUri, selectedExternalSubtitleName)
+        syncExternalSubtitleWithCurrentItem(controller)
     }
 
     // Controlar overlay (mesmo código)

@@ -13,6 +13,8 @@ data class ContinueWatchingEntry(
     val positionMs: Long,
     val audioTrack: ContinueWatchingTrackPreference? = null,
     val subtitleTrack: ContinueWatchingTrackPreference? = null,
+    val externalSubtitleUri: String? = null,
+    val externalSubtitleName: String? = null,
     val subtitlesDisabled: Boolean = false
 )
 
@@ -41,6 +43,8 @@ object ContinueWatchingStore {
     private const val KEY_SUBTITLE_TRACK_MIME_TYPE = "subtitle_track_mime_type"
     private const val KEY_SUBTITLE_TRACK_SELECTION_FLAGS = "subtitle_track_selection_flags"
     private const val KEY_SUBTITLE_TRACK_ROLE_FLAGS = "subtitle_track_role_flags"
+    private const val KEY_EXTERNAL_SUBTITLE_URI = "external_subtitle_uri"
+    private const val KEY_EXTERNAL_SUBTITLE_NAME = "external_subtitle_name"
     private const val KEY_SUBTITLES_DISABLED = "subtitles_disabled"
 
     private const val COMPLETION_THRESHOLD = 0.95
@@ -75,6 +79,10 @@ object ContinueWatchingStore {
             prefs.getInt(KEY_SUBTITLE_TRACK_SELECTION_FLAGS, Int.MIN_VALUE),
             prefs.getInt(KEY_SUBTITLE_TRACK_ROLE_FLAGS, Int.MIN_VALUE)
         )
+        val externalSubtitleUri = prefs.getString(KEY_EXTERNAL_SUBTITLE_URI, null)
+            ?.takeIf { it.isNotBlank() }
+        val externalSubtitleName = prefs.getString(KEY_EXTERNAL_SUBTITLE_NAME, null)
+            ?.takeIf { it.isNotBlank() }
         val subtitlesDisabled = prefs.getBoolean(KEY_SUBTITLES_DISABLED, false)
         val normalizedPath = normalizePath(videoPath)
 
@@ -90,6 +98,8 @@ object ContinueWatchingStore {
             positionMs = positionMs,
             audioTrack = audioTrack,
             subtitleTrack = subtitleTrack,
+            externalSubtitleUri = externalSubtitleUri,
+            externalSubtitleName = externalSubtitleName,
             subtitlesDisabled = subtitlesDisabled
         ).also {
             _entry.value = it
@@ -104,6 +114,8 @@ object ContinueWatchingStore {
         durationMs: Long = 0L,
         audioTrack: ContinueWatchingTrackPreference? = null,
         subtitleTrack: ContinueWatchingTrackPreference? = null,
+        externalSubtitleUri: String? = null,
+        externalSubtitleName: String? = null,
         subtitlesDisabled: Boolean = false
     ) {
         val normalizedPath = normalizePath(videoPath).takeIf { it.isNotBlank() } ?: return
@@ -131,6 +143,8 @@ object ContinueWatchingStore {
             .putString(KEY_SUBTITLE_TRACK_MIME_TYPE, subtitleTrack?.mimeType)
             .putInt(KEY_SUBTITLE_TRACK_SELECTION_FLAGS, subtitleTrack?.selectionFlags ?: Int.MIN_VALUE)
             .putInt(KEY_SUBTITLE_TRACK_ROLE_FLAGS, subtitleTrack?.roleFlags ?: Int.MIN_VALUE)
+            .putString(KEY_EXTERNAL_SUBTITLE_URI, externalSubtitleUri)
+            .putString(KEY_EXTERNAL_SUBTITLE_NAME, externalSubtitleName)
             .putBoolean(KEY_SUBTITLES_DISABLED, subtitlesDisabled)
             .apply()
 
@@ -141,6 +155,8 @@ object ContinueWatchingStore {
             positionMs = positionMs,
             audioTrack = audioTrack,
             subtitleTrack = subtitleTrack,
+            externalSubtitleUri = externalSubtitleUri,
+            externalSubtitleName = externalSubtitleName,
             subtitlesDisabled = subtitlesDisabled
         )
     }

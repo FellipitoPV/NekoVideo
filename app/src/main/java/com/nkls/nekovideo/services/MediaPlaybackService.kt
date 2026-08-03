@@ -1006,6 +1006,9 @@ class MediaPlaybackService : MediaSessionService() {
             ).nameWithoutExtension
         val audioTrack = extractSelectedTrackPreference(currentPlayer.currentTracks, C.TRACK_TYPE_AUDIO)
         val subtitleTrack = extractSelectedTrackPreference(currentPlayer.currentTracks, C.TRACK_TYPE_TEXT)
+        val externalSubtitleConfiguration = currentItem.localConfiguration
+            ?.subtitleConfigurations
+            ?.firstOrNull()
         val subtitlesDisabled = currentPlayer.trackSelectionParameters
             .disabledTrackTypes
             .contains(C.TRACK_TYPE_TEXT)
@@ -1018,6 +1021,8 @@ class MediaPlaybackService : MediaSessionService() {
             durationMs = duration,
             audioTrack = audioTrack,
             subtitleTrack = subtitleTrack,
+            externalSubtitleUri = externalSubtitleConfiguration?.uri?.toString(),
+            externalSubtitleName = externalSubtitleConfiguration?.label,
             subtitlesDisabled = subtitlesDisabled
         )
 
