@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +16,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -71,6 +80,7 @@ private val CtrlBtnBgActive = Color.White.copy(alpha = 0.18f)
 private val CtrlIconOn = Color.White
 private val CtrlIconOff = Color.White.copy(alpha = 0.38f)
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CustomVideoControls(
     mediaController: MediaController?,
@@ -118,6 +128,7 @@ fun CustomVideoControls(
                         )
                     )
                 )
+                .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility.only(WindowInsetsSides.Top))
                 .padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
             Row(
@@ -293,6 +304,7 @@ fun CustomVideoControls(
                         )
                     )
                 )
+                .windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility.only(WindowInsetsSides.Bottom))
                 .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
         ) {
             // Seek bar
