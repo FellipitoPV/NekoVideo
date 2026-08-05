@@ -424,4 +424,7 @@
 
     <string name="private_folders_hint">Tippe 3× auf das App-Symbol oben, um private Ordner anzuzeigen/auszublenden</string>
 
+    <string name="video_not_found_title">Video nicht gefunden</string>
+    <string name="video_not_found_message">Das Video "%1$s" wurde nicht gefunden. Aktualisiere die Videos, um es erneut zu suchen.</string>
+    <string name="video_not_found_action_refresh">Videos aktualisieren</string>
 </resources>

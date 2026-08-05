@@ -424,4 +424,7 @@
 
     <string name="private_folders_hint">Appuyez 3× sur l\'icône de l\'app en haut pour afficher/masquer les dossiers privés</string>
 
+    <string name="video_not_found_title">Vidéo introuvable</string>
+    <string name="video_not_found_message">La vidéo "%1$s" est introuvable. Actualisez les vidéos pour essayer de la localiser à nouveau.</string>
+    <string name="video_not_found_action_refresh">Actualiser les vidéos</string>
 </resources>

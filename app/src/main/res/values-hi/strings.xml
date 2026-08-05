@@ -424,4 +424,7 @@
 
     <string name="private_folders_hint">निजी फ़ोल्डर दिखाने/छिपाने के लिए ऊपर ऐप आइकन पर 3× टैप करें</string>
 
+    <string name="video_not_found_title">वीडियो नहीं मिला</string>
+    <string name="video_not_found_message">वीडियो "%1$s" नहीं मिला। इसे फिर से खोजने के लिए वीडियो अपडेट करें।</string>
+    <string name="video_not_found_action_refresh">वीडियो अपडेट करें</string>
 </resources>

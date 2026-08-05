@@ -28,7 +28,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -45,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -87,6 +91,7 @@ import com.nkls.nekovideo.components.helpers.TagScope
 import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.components.player.PlayerUtils.findActivity
 import com.nkls.nekovideo.components.settings.SettingsManager
+import com.nkls.nekovideo.services.FolderVideoScanner
 import android.widget.Toast
 import com.nkls.nekovideo.R
 import kotlinx.coroutines.async
@@ -94,6 +99,10 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
+import kotlin.math.abs
+
+private const val BUFFERING_RECOVERY_TIMEOUT_MS = 15_000L
+private const val MAX_BUFFERING_RECOVERY_ATTEMPTS = 3
 
 private data class PreferredTrack(
     val label: String?,
@@ -178,6 +187,10 @@ fun VideoPlayerOverlay(
     var repeatMode by remember { mutableStateOf(RepeatMode.NONE) }
     var playbackSpeed by remember { mutableStateOf(PlaybackSpeed.SPEED_1_00) }
     var currentPlaybackState by remember { mutableStateOf(Player.STATE_IDLE) }
+    var bufferingRecoveryUri by remember { mutableStateOf<String?>(null) }
+    var bufferingRecoveryAttempts by remember { mutableIntStateOf(0) }
+    var showMissingVideoDialog by remember { mutableStateOf(false) }
+    var missingVideoTitle by remember { mutableStateOf("") }
 
     //Controle de rotação
     var rotationMode by remember { mutableStateOf(RotationMode.AUTO) }
@@ -316,6 +329,56 @@ fun VideoPlayerOverlay(
 
     fun currentMediaUri(controller: MediaController): String? {
         return controller.currentMediaItem?.localConfiguration?.uri?.toString()
+    }
+
+    fun resolveMediaFileFromUri(uriString: String): File? {
+        return when {
+            uriString.startsWith("locked://") -> File(uriString.removePrefix("locked://"))
+            uriString.startsWith("file://") -> File(uriString.removePrefix("file://"))
+            else -> Uri.parse(uriString).path?.let(::File)
+        }
+    }
+
+    fun mediaStillExists(uriString: String): Boolean {
+        return resolveMediaFileFromUri(uriString)?.exists() == true
+    }
+
+    fun showMissingVideoState(uriString: String) {
+        missingVideoTitle = currentVideoTitle.ifBlank {
+            resolveMediaFileFromUri(uriString)?.nameWithoutExtension ?: "desconhecido"
+        }
+        showMissingVideoDialog = true
+        shouldResumeAfterOverlayDialog = false
+        shouldResumeAfterTagsDialog = false
+        bufferingRecoveryAttempts = MAX_BUFFERING_RECOVERY_ATTEMPTS
+        mediaController?.pause()
+    }
+
+    fun closeOverlayForMissingVideo() {
+        showMissingVideoDialog = false
+        shouldResumeAfterOverlayDialog = false
+        shouldResumeAfterTagsDialog = false
+        mediaController?.pause()
+        mediaController?.clearMediaItems()
+        mediaController?.stop()
+        playerView.player = null
+        MediaControllerManager.disconnect()
+        MediaPlaybackService.stopService(context)
+        onDismiss()
+    }
+
+    fun refreshLibraryAfterMissingVideo() {
+        showMissingVideoDialog = false
+        shouldResumeAfterOverlayDialog = false
+        shouldResumeAfterTagsDialog = false
+        mediaController?.pause()
+        mediaController?.clearMediaItems()
+        mediaController?.stop()
+        playerView.player = null
+        MediaControllerManager.disconnect()
+        MediaPlaybackService.stopService(context)
+        FolderVideoScanner.startScan(context, forceRefresh = true)
+        onDismiss()
     }
 
     fun shouldGatePlaybackForRotation(controller: MediaController): Boolean {
@@ -750,7 +813,93 @@ fun VideoPlayerOverlay(
             showVideoTagsDialog ||
             showCastDevicePicker ||
             showTrackSelectionDialog ||
-            isSpeedDialogOpen
+            isSpeedDialogOpen ||
+            showMissingVideoDialog
+    }
+
+    LaunchedEffect(mediaController, currentPlaybackState) {
+        val controller = mediaController ?: return@LaunchedEffect
+        val mediaUri = currentMediaUri(controller)
+
+        if (mediaUri != bufferingRecoveryUri) {
+            bufferingRecoveryUri = mediaUri
+            bufferingRecoveryAttempts = 0
+            showMissingVideoDialog = false
+            missingVideoTitle = ""
+        }
+
+        if (currentPlaybackState == Player.STATE_READY) {
+            bufferingRecoveryAttempts = 0
+        }
+    }
+
+    LaunchedEffect(
+        mediaController,
+        currentPlaybackState,
+        currentPosition,
+        isSeekingActive,
+        overlayActuallyVisible,
+        showDeleteDialog,
+        showVideoTagsDialog,
+        showCastDevicePicker,
+        showTrackSelectionDialog,
+        isSpeedDialogOpen,
+        showMissingVideoDialog,
+        isWaitingForRotationGate
+    ) {
+        val controller = mediaController ?: return@LaunchedEffect
+        val mediaUri = currentMediaUri(controller) ?: return@LaunchedEffect
+
+        val shouldWatchBuffering = overlayActuallyVisible &&
+            hasLoadedVideo &&
+            currentPlaybackState == Player.STATE_BUFFERING &&
+            controller.playWhenReady &&
+            !isSeekingActive &&
+            !isWaitingForRotationGate &&
+            !isPlaybackBlockedByDialog() &&
+            bufferingRecoveryAttempts < MAX_BUFFERING_RECOVERY_ATTEMPTS
+
+        if (!shouldWatchBuffering) {
+            return@LaunchedEffect
+        }
+
+        val startPosition = currentPosition
+        delay(BUFFERING_RECOVERY_TIMEOUT_MS)
+
+        if (mediaController !== controller) return@LaunchedEffect
+        if (currentMediaUri(controller) != mediaUri) return@LaunchedEffect
+        if (currentPlaybackState != Player.STATE_BUFFERING) return@LaunchedEffect
+        if (!controller.playWhenReady || isSeekingActive || isWaitingForRotationGate || isPlaybackBlockedByDialog()) return@LaunchedEffect
+        if (abs(currentPosition - startPosition) > 500L) return@LaunchedEffect
+
+        if (!mediaStillExists(mediaUri)) {
+            showMissingVideoState(mediaUri)
+            Log.w("VideoPlayer", "Arquivo nao encontrado durante buffering: $mediaUri")
+            return@LaunchedEffect
+        }
+
+        when (bufferingRecoveryAttempts) {
+            0 -> {
+                bufferingRecoveryAttempts = 1
+                Log.w("VideoPlayer", "Buffering preso detectado. Tentando recovery 1/3 (pause/play): $mediaUri")
+                controller.pause()
+                delay(150)
+                controller.play()
+            }
+
+            1 -> {
+                bufferingRecoveryAttempts = 2
+                Log.w("VideoPlayer", "Buffering preso detectado. Tentando recovery 2/3 (seek atual): $mediaUri")
+                controller.seekTo(controller.currentPosition.coerceAtLeast(0L))
+                controller.play()
+            }
+
+            2 -> {
+                bufferingRecoveryAttempts = 3
+                Log.w("VideoPlayer", "Buffering preso detectado. Tentando recovery 3/3 (refresh player): $mediaUri")
+                MediaPlaybackService.refreshPlayer(context)
+            }
+        }
     }
 
     if (showVideoTagsDialog && currentVideoPath.isNotEmpty()) {
@@ -973,6 +1122,25 @@ fun VideoPlayerOverlay(
         )
     }
 
+    if (showMissingVideoDialog) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = {
+                Text(text = stringResource(R.string.video_not_found_title))
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.video_not_found_message, missingVideoTitle)
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { refreshLibraryAfterMissingVideo() }) {
+                    Text(text = stringResource(R.string.video_not_found_action_refresh))
+                }
+            }
+        )
+    }
+
     LaunchedEffect(Unit) {
         val sessionToken = SessionToken(context, ComponentName(context, MediaPlaybackService::class.java))
         val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
@@ -1142,6 +1310,17 @@ fun VideoPlayerOverlay(
                                 // O onMediaItemTransition vai atualizar os estados quando o vídeo mudar
                             }
                         }
+                    }
+                }
+
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    val controller = mediaController ?: return
+                    val mediaUri = currentMediaUri(controller) ?: return
+                    Log.e("VideoPlayer", "Playback error no overlay: ${error.message}", error)
+
+                    if (!mediaStillExists(mediaUri)) {
+                        Log.w("VideoPlayer", "Arquivo ausente detectado via onPlayerError: $mediaUri")
+                        showMissingVideoState(mediaUri)
                     }
                 }
 

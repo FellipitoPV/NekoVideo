@@ -424,4 +424,7 @@
 
     <string name="private_folders_hint">Toca 3× el ícono de la app en la parte superior para mostrar/ocultar carpetas privadas</string>
 
+    <string name="video_not_found_title">Vídeo no encontrado</string>
+    <string name="video_not_found_message">No se encontró el vídeo "%1$s". Actualiza los vídeos para intentar localizarlo nuevamente.</string>
+    <string name="video_not_found_action_refresh">Actualizar vídeos</string>
 </resources>

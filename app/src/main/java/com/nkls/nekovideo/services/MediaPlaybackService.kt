@@ -545,6 +545,7 @@ class MediaPlaybackService : MediaSessionService() {
                 activeSeekIndex = null
                 persistContinueWatchingState()
                 ContinueWatchingStore.setPlaybackActive(false)
+                PlaylistManager.clear()
                 player?.run {
                     pause()
                     clearMediaItems()

@@ -425,4 +425,7 @@
         <item quantity="other">%d videos selected</item>
     </plurals>
 
+    <string name="video_not_found_title">Video not found</string>
+    <string name="video_not_found_message">The video "%1$s" was not found. Refresh your videos to try locating it again.</string>
+    <string name="video_not_found_action_refresh">Refresh videos</string>
 </resources>

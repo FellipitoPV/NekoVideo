@@ -425,4 +425,7 @@
             <item quantity="other">Movendo %d itens</item>
         </plurals>
 
+    <string name="video_not_found_title">Vídeo não encontrado</string>
+    <string name="video_not_found_message">O vídeo "%1$s" não foi localizado. Atualize os vídeos para tentar localizá-lo novamente.</string>
+    <string name="video_not_found_action_refresh">Atualizar vídeos</string>
 </resources>

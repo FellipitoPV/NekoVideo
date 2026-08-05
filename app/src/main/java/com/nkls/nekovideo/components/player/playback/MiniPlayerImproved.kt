@@ -142,11 +142,35 @@ fun MiniPlayerImproved(
     }
 
     // Local player listener
-    LaunchedEffect(mediaController) {
-        mediaController?.let { controller ->
+    DisposableEffect(mediaController) {
+        if (mediaController == null) {
+            currentTitle = ""
+            currentUri = ""
+            thumbnail = null
+            currentPosition = 0L
+            duration = 0L
+            isPlaying = false
+            hasNext = false
+            hasPrevious = false
+            onDispose { }
+        }
+
+        else {
+            val controller = mediaController!!
+
             val listener = object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     isPlaying = controller.isPlaying
+
+                    if (controller.mediaItemCount == 0 || controller.currentMediaItem == null) {
+                        currentTitle = ""
+                        currentUri = ""
+                        thumbnail = null
+                        currentPosition = 0L
+                        duration = 0L
+                        hasNext = false
+                        hasPrevious = false
+                    }
                 }
 
                 override fun onIsPlayingChanged(playing: Boolean) {
@@ -173,6 +197,14 @@ fun MiniPlayerImproved(
                                 }
                             }
                         }
+                    } ?: run {
+                        currentTitle = ""
+                        currentUri = ""
+                        thumbnail = null
+                        currentPosition = 0L
+                        duration = 0L
+                        hasNext = false
+                        hasPrevious = false
                     }
                 }
             }
@@ -196,6 +228,18 @@ fun MiniPlayerImproved(
                         }
                     }
                 }
+            } ?: run {
+                currentTitle = ""
+                currentUri = ""
+                thumbnail = null
+                currentPosition = 0L
+                duration = 0L
+                hasNext = false
+                hasPrevious = false
+            }
+
+            onDispose {
+                controller.removeListener(listener)
             }
         }
     }

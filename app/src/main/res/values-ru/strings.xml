@@ -432,4 +432,7 @@
 
     <string name="private_folders_hint">Нажмите 3× на значок приложения вверху, чтобы показать/скрыть приватные папки</string>
 
+    <string name="video_not_found_title">Видео не найдено</string>
+    <string name="video_not_found_message">Видео "%1$s" не найдено. Обновите список видео, чтобы попробовать найти его снова.</string>
+    <string name="video_not_found_action_refresh">Обновить видео</string>
 </resources>
