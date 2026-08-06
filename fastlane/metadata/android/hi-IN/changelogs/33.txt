@@ -1,0 +1,11 @@
+Fix
+
+Ek samasya thik ki gayi hai jisme loading indicator seek, skip ya rewind ke dauran screen par bana reh sakta tha, bhale hi video normal tarike se chal raha ho.
+
+Rare cases ke liye automatic recovery attempts bhi jode gaye hain, jahan koi video buffering me atak sakta tha.
+
+Features
+
+Ab player missing videos ko zyada clearly handle karta hai aur unhe dobara dhoondhne ke liye library refresh ka quick option deta hai.
+
+Player se add ki gayi tags ab video grid par wapas aane par zyada consistently dikhai deti hain.

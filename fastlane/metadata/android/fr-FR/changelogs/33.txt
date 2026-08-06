@@ -1,0 +1,11 @@
+Fix
+
+Correction d'un probleme ou l'indicateur de chargement pouvait rester a l'ecran pendant les recherches, avances ou retours alors que la video continuait a se lire normalement.
+
+Des tentatives automatiques de recuperation ont aussi ete ajoutees pour les rares cas ou une video pouvait rester bloquee en buffering.
+
+Features
+
+Le lecteur gere maintenant plus clairement les videos introuvables et propose une actualisation rapide de la bibliotheque pour essayer de les retrouver.
+
+Les tags ajoutees depuis le lecteur apparaissent maintenant plus regulierement au retour a la grille de videos.

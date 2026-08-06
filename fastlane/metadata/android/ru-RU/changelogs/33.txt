@@ -1,0 +1,11 @@
+Fix
+
+Ispravlena problema, pri kotoroi indikator zagruzki mog ostavatsya na ekrane pri peremotke ili perekhodakh, dazhe esli video prodolzhalo normalno vosproizvoditsya.
+
+Takzhe dobavleny avtomaticheskie popytki vosstanovleniya dlya redkih sluchaev, kogda video moglo zavisat v buffering.
+
+Features
+
+Teper pleer bolee ponyatno obrabatyvaet otsutstvuyushchie video i predlagaet bystroe obnovlenie biblioteki, chtoby popytatsya nayti ikh snova.
+
+Tegi, dobavlennye iz pleera, teper bolee stabilno poyavlyayutsya posle vozvrata k setke video.

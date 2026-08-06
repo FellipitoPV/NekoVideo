@@ -103,6 +103,8 @@ import kotlin.math.abs
 
 private const val BUFFERING_RECOVERY_TIMEOUT_MS = 15_000L
 private const val MAX_BUFFERING_RECOVERY_ATTEMPTS = 3
+private const val BUFFERING_UI_STALL_TIMEOUT_MS = 900L
+private const val BUFFERING_PROGRESS_EPSILON_MS = 200L
 
 private data class PreferredTrack(
     val label: String?,
@@ -191,6 +193,10 @@ fun VideoPlayerOverlay(
     var bufferingRecoveryAttempts by remember { mutableIntStateOf(0) }
     var showMissingVideoDialog by remember { mutableStateOf(false) }
     var missingVideoTitle by remember { mutableStateOf("") }
+    var lastPlaybackProgressAtMs by remember { mutableStateOf(System.currentTimeMillis()) }
+    var lastPlaybackProgressPosition by remember { mutableStateOf(0L) }
+    var showBlockingBufferingUi by remember { mutableStateOf(false) }
+    var hasRenderedFirstFrame by remember { mutableStateOf(false) }
 
     //Controle de rotação
     var rotationMode by remember { mutableStateOf(RotationMode.AUTO) }
@@ -826,6 +832,7 @@ fun VideoPlayerOverlay(
             bufferingRecoveryAttempts = 0
             showMissingVideoDialog = false
             missingVideoTitle = ""
+            hasRenderedFirstFrame = false
         }
 
         if (currentPlaybackState == Player.STATE_READY) {
@@ -982,11 +989,30 @@ fun VideoPlayerOverlay(
     LaunchedEffect(mediaController, isSeekingActive) {
         if (mediaController != null && !isSeekingActive) {
             while (overlayActuallyVisible) {
-                currentPlaybackState = mediaController!!.playbackState
+                val playbackState = mediaController!!.playbackState
+                val newPosition = mediaController!!.currentPosition
+                val now = System.currentTimeMillis()
+
+                currentPlaybackState = playbackState
                 hasLoadedVideo = mediaController!!.currentMediaItem != null
-                currentPosition = mediaController!!.currentPosition
+                currentPosition = newPosition
                 duration = mediaController!!.duration.takeIf { it > 0 } ?: 0L
                 isPlaying = mediaController!!.isPlaying
+
+                if (playbackState != Player.STATE_BUFFERING || isSeekingActive) {
+                    lastPlaybackProgressAtMs = now
+                    lastPlaybackProgressPosition = newPosition
+                    showBlockingBufferingUi = false
+                } else {
+                    if (newPosition > lastPlaybackProgressPosition + BUFFERING_PROGRESS_EPSILON_MS) {
+                        lastPlaybackProgressAtMs = now
+                        lastPlaybackProgressPosition = newPosition
+                        showBlockingBufferingUi = false
+                    } else {
+                        showBlockingBufferingUi = !hasRenderedFirstFrame && now - lastPlaybackProgressAtMs >= BUFFERING_UI_STALL_TIMEOUT_MS
+                    }
+                }
+
                 delay(100)
             }
         }
@@ -1141,18 +1167,6 @@ fun VideoPlayerOverlay(
         )
     }
 
-    LaunchedEffect(Unit) {
-        val sessionToken = SessionToken(context, ComponentName(context, MediaPlaybackService::class.java))
-        val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
-
-        controllerFuture.addListener({
-            try {
-                mediaController = controllerFuture.get()
-            } catch (_: Exception) {
-            }
-        }, MoreExecutors.directExecutor())
-    }
-
     LaunchedEffect(mediaController, selectedExternalSubtitleUri, selectedExternalSubtitleName) {
         val controller = mediaController ?: return@LaunchedEffect
         syncExternalSubtitleWithCurrentItem(controller)
@@ -1222,6 +1236,7 @@ fun VideoPlayerOverlay(
             resumeAfterRotationGate = false
             gatedMediaUri = null
             hasLoadedVideo = false
+            hasRenderedFirstFrame = false
             controlsVisible = false
         }
     }
@@ -1229,28 +1244,41 @@ fun VideoPlayerOverlay(
     // Listener para mudanças com melhorias de UX
     DisposableEffect(mediaController, overlayActuallyVisible, repeatMode) {
         var listener: Player.Listener? = null
+        val controller = mediaController
 
-        if (overlayActuallyVisible && mediaController != null) {
+        if (overlayActuallyVisible && controller != null) {
             listener = object : Player.Listener {
                 override fun onVideoSizeChanged(videoSize: VideoSize) {
                     if (!overlayActuallyVisible) return
                     if (isWaitingForRotationGate) {
-                        finishRotationGateIfReady(mediaController!!, videoSize)
+                        finishRotationGateIfReady(controller, videoSize)
                     } else if (rotationMode == RotationMode.AUTO) {
                         applyRotation(videoSize)
                     }
+                }
+
+                override fun onRenderedFirstFrame() {
+                    hasRenderedFirstFrame = true
+                    showBlockingBufferingUi = false
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     if (!overlayActuallyVisible) return
 
                     val wasControlsVisible = controlsVisible
-                    currentPlaybackState = mediaController!!.playbackState
-                    hasLoadedVideo = mediaController!!.currentMediaItem != null
+                    currentPlaybackState = controller.playbackState
+                    hasLoadedVideo = controller.currentMediaItem != null
 
                     mediaItem?.localConfiguration?.uri?.let { uri ->
                         val uriStr = uri.toString()
-                        pendingAutoPlayOnReady = mediaController!!.playWhenReady
+                        val isDifferentMedia = uriStr != bufferingRecoveryUri
+
+                        if (isDifferentMedia) {
+                            hasRenderedFirstFrame = false
+                            showBlockingBufferingUi = false
+                        }
+
+                        pendingAutoPlayOnReady = controller.playWhenReady
                         if (uriStr.startsWith("locked://")) {
                             currentVideoPath = uriStr.removePrefix("locked://")
                             val obfuscatedName = File(currentVideoPath).name
@@ -1262,7 +1290,7 @@ fun VideoPlayerOverlay(
                         }
                     }
 
-                    beginRotationGateIfNeeded(mediaController!!)
+                    beginRotationGateIfNeeded(controller)
 
                     controlsVisible = wasControlsVisible
 
@@ -1270,11 +1298,11 @@ fun VideoPlayerOverlay(
                         resetUITimer()
                     }
 
-                    if (isPlaybackBlockedByDialog() && mediaController!!.isPlaying) {
-                        mediaController!!.pause()
+                    if (isPlaybackBlockedByDialog() && controller.isPlaying) {
+                        controller.pause()
                     }
 
-                    mediaController!!.setPlaybackSpeed(playbackSpeed.value)
+                    controller.setPlaybackSpeed(playbackSpeed.value)
 
                     // ✅ REMOVIDO: A atualização de window agora é centralizada no MediaPlaybackService
                     // Isso evita duplicação de chamadas e dessincronização
@@ -1283,17 +1311,17 @@ fun VideoPlayerOverlay(
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     currentPlaybackState = playbackState
                     if (playbackState == Player.STATE_READY) {
-                        hasLoadedVideo = mediaController!!.currentMediaItem != null
-                        finishRotationGateIfReady(mediaController!!)
+                        hasLoadedVideo = controller.currentMediaItem != null
+                        finishRotationGateIfReady(controller)
                         if (pendingAutoPlayOnReady && !isWaitingForRotationGate && !isPlaybackBlockedByDialog()) {
                             pendingAutoPlayOnReady = false
-                            mediaController!!.play()
+                            controller.play()
                         }
-                        if (isPlaybackBlockedByDialog() && mediaController!!.isPlaying) {
-                            mediaController!!.pause()
+                        if (isPlaybackBlockedByDialog() && controller.isPlaying) {
+                            controller.pause()
                         }
                     } else if (playbackState == Player.STATE_IDLE) {
-                        hasLoadedVideo = mediaController!!.currentMediaItem != null
+                        hasLoadedVideo = controller.currentMediaItem != null
                     }
 
                     // ✅ SIMPLIFICADO: A navegação automática é feita pelo MediaPlaybackService
@@ -1302,8 +1330,8 @@ fun VideoPlayerOverlay(
                         when (repeatMode) {
                             RepeatMode.REPEAT_ONE -> {
                                 // Apenas REPEAT_ONE precisa de tratamento local
-                                mediaController!!.seekTo(0)
-                                mediaController!!.play()
+                                controller.seekTo(0)
+                                controller.play()
                             }
                             else -> {
                                 // REPEAT_ALL e NONE são tratados pelo MediaPlaybackService
@@ -1313,8 +1341,11 @@ fun VideoPlayerOverlay(
                     }
                 }
 
+                override fun onIsPlayingChanged(isPlayingNow: Boolean) {
+                    isPlaying = isPlayingNow
+                }
+
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    val controller = mediaController ?: return
                     val mediaUri = currentMediaUri(controller) ?: return
                     Log.e("VideoPlayer", "Playback error no overlay: ${error.message}", error)
 
@@ -1326,20 +1357,20 @@ fun VideoPlayerOverlay(
 
                 // ADICIONE AQUI DENTRO:
                 override fun onTracksChanged(tracks: Tracks) {
-                    checkAvailableTracks(mediaController!!)
+                    checkAvailableTracks(controller)
                 }
             }
 
-            mediaController!!.addListener(listener)
+            controller.addListener(listener)
 
             // Apply rotation immediately — onVideoSizeChanged may have fired before
             // this listener was registered (race between recomposition and ExoPlayer decode)
-            beginRotationGateIfNeeded(mediaController!!)
+            beginRotationGateIfNeeded(controller)
         }
 
         onDispose {
             listener?.let {
-                mediaController?.removeListener(it)
+                controller?.removeListener(it)
             }
         }
     }
@@ -1599,7 +1630,7 @@ fun VideoPlayerOverlay(
                     seekAlignment = seekSide
                 )
 
-                if (hasLoadedVideo && currentPlaybackState == Player.STATE_BUFFERING && !isSeekingActive) {
+                if (hasLoadedVideo && showBlockingBufferingUi && !isSeekingActive && !isPlaying && !hasRenderedFirstFrame) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -1614,7 +1645,7 @@ fun VideoPlayerOverlay(
 
                 // Interface customizada com ícones de volume e brilho
                 AnimatedVisibility(
-                    visible = (controlsVisible || isSeekingActive) && !isInPiPMode && hasLoadedVideo && (currentPlaybackState != Player.STATE_BUFFERING || isSeekingActive),
+                    visible = (controlsVisible || isSeekingActive) && !isInPiPMode && hasLoadedVideo && (!showBlockingBufferingUi || isSeekingActive),
                     enter = fadeIn(animationSpec = tween(300)),
                     exit = fadeOut(animationSpec = tween(300))
                 ) {

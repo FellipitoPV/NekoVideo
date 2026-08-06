@@ -997,6 +997,7 @@ fun FolderScreen(
     val continueWatchingEntry by ContinueWatchingStore.entry.collectAsStateWithLifecycle()
     val hasActivePlayback by ContinueWatchingStore.hasActivePlayback.collectAsStateWithLifecycle()
     val videoProgressVersion by VideoProgressStore.changeVersion.collectAsStateWithLifecycle()
+    val tagChangeEvent by VideoTagStore.tagChangeEvent.collectAsStateWithLifecycle()
     val castManager = remember { DLNACastManager.getInstance(context) }
     var hasActiveCastPlayback by remember {
         mutableStateOf(castManager.isConnected && castManager.currentTitle.isNotBlank())
@@ -1416,6 +1417,7 @@ fun FolderScreen(
                                                 sortType = sortType,
                                                 gridColumns = gridColumns,
                                                 renameTrigger = renameTrigger,
+                                                isPlayerOverlayVisible = isPlayerOverlayVisible,
                                                 selectedItems = selectedItems,
                                                 previewingPath = previewingPath,
                                                 showThumbnails = true,
@@ -1425,6 +1427,7 @@ fun FolderScreen(
                                                 isMoveMode = isMoveMode,
                                                 itemsToMove = itemsToMove,
                                                 progressByPath = progressByPath,
+                                                tagChangeEvent = tagChangeEvent,
                                                 onFolderClick = onFolderClick,
                                                 onSelectionChange = onSelectionChange,
                                                 onPreviewToggle = { path ->
@@ -1477,6 +1480,7 @@ private fun MediaRow(
     sortType: SortType,
     gridColumns: Int,
     renameTrigger: Int,
+    isPlayerOverlayVisible: Boolean,
     selectedItems: MutableList<String>,
     previewingPath: String?,
     showThumbnails: Boolean,
@@ -1486,6 +1490,7 @@ private fun MediaRow(
     isMoveMode: Boolean,
     itemsToMove: List<String>,
     progressByPath: Map<String, VideoProgressEntry>,
+    tagChangeEvent: Long,
     onFolderClick: (String, SortType) -> Unit,
     onSelectionChange: (List<String>) -> Unit,
     onPreviewToggle: (String) -> Unit,
@@ -1496,6 +1501,8 @@ private fun MediaRow(
             MediaCard(
                 item = item,
                 renameTrigger = renameTrigger,
+                tagChangeEvent = tagChangeEvent,
+                isPlayerOverlayVisible = isPlayerOverlayVisible,
                 isSelected = item.path in selectedItems,
                 isPreviewing = previewingPath == item.path,
                 isBeingMoved = isMoveMode && item.path in itemsToMove,
@@ -1643,6 +1650,8 @@ private fun formatContinueWatchingTime(timeMs: Long): String {
 private fun MediaCard(
     item: MediaItem,
     renameTrigger: Int,
+    tagChangeEvent: Long,
+    isPlayerOverlayVisible: Boolean,
     isSelected: Boolean,
     isPreviewing: Boolean,
     isBeingMoved: Boolean = false,
@@ -1785,8 +1794,8 @@ private fun MediaCard(
         }
     }
 
-    LaunchedEffect(item.path, renameTrigger) {
-        if (!item.isFolder) {
+    LaunchedEffect(item.path, renameTrigger, tagChangeEvent, isPlayerOverlayVisible) {
+        if (!item.isFolder && !isPlayerOverlayVisible) {
             tagCount = withContext(Dispatchers.IO) {
                 VideoTagStore.getTagCountForVideoPath(context, item.path)
             }

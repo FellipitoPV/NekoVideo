@@ -1,0 +1,11 @@
+Fix
+
+Ein Problem wurde behoben, bei dem der Ladeindikator waehrend Spruengen oder beim Vor- und Zurueckspulen sichtbar bleiben konnte, obwohl das Video normal weiterlief.
+
+Zusaetzlich wurden automatische Wiederherstellungsversuche fuer seltene Faelle hinzugefuegt, in denen ein Video im Buffering haengen bleiben konnte.
+
+Features
+
+Der Player erkennt fehlende Videos jetzt klarer und bietet eine schnelle Bibliotheksaktualisierung an, um sie erneut zu suchen.
+
+Im Player hinzugefuegte Tags erscheinen nun auch zuverlaessiger beim Zurueckkehren zur Video-Uebersicht.

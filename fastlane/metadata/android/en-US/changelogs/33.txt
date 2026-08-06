@@ -1,0 +1,11 @@
+Fix
+
+Fixed an issue where the loading indicator could remain on screen during seeks, skips, or rewinds even while the video was playing normally.
+
+Automatic recovery attempts were also added for rare cases where a video could get stuck buffering.
+
+Features
+
+The player now handles missing videos more clearly and offers a quick library refresh to try locating them again.
+
+Tags added from the player now appear more consistently when returning to the video grid.

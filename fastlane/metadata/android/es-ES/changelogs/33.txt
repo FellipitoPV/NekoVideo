@@ -1,0 +1,11 @@
+Fix
+
+Se corrigio un problema en el que el indicador de carga podia permanecer en pantalla durante busquedas, avances o retrocesos incluso cuando el video seguia reproduciendose normalmente.
+
+Tambien se agregaron intentos automaticos de recuperacion para casos raros en los que un video podia quedarse atascado en buffering.
+
+Features
+
+El reproductor ahora detecta mejor cuando no se puede localizar un video y ofrece una actualizacion rapida de la biblioteca para intentar encontrarlo nuevamente.
+
+Las tags agregadas desde el reproductor ahora aparecen con mas consistencia al volver a la cuadricula de videos.

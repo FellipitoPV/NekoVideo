@@ -1,0 +1,11 @@
+Fix
+
+Corrigido um problema em que o loading podia permanecer na tela durante seeks, avancos ou retrocessos mesmo com o video reproduzindo normalmente.
+
+Tambem foram adicionadas tentativas automaticas de recuperacao para casos raros em que um video ficava preso em buffering.
+
+Features
+
+O player agora identifica melhor quando um video nao pode ser localizado e oferece uma atualizacao rapida da biblioteca para tentar encontra-lo novamente.
+
+As tags adicionadas pelo player tambem passam a aparecer com mais consistencia ao voltar para a grade de videos.
