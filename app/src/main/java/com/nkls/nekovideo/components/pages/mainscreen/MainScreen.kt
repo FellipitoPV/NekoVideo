@@ -121,6 +121,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
 
+private const val MAX_SHUFFLE_PLAYLIST_SIZE = 1000
+
 @Composable
 fun MainScreen(
     hostActivity: ComponentActivity,
@@ -432,7 +434,13 @@ fun MainScreen(
         }
 
         if (filteredVideos.isNotEmpty()) {
-            val lockedVideos = filteredVideos.filter { it.startsWith("locked://") }
+            val shuffleCandidates = if (filteredVideos.size > MAX_SHUFFLE_PLAYLIST_SIZE) {
+                filteredVideos.shuffled().take(MAX_SHUFFLE_PLAYLIST_SIZE)
+            } else {
+                filteredVideos
+            }
+
+            val lockedVideos = shuffleCandidates.filter { it.startsWith("locked://") }
             if (lockedVideos.isNotEmpty()) {
                 val pwd = sessionPassword
                 if (pwd != null) {
@@ -456,7 +464,7 @@ fun MainScreen(
 
             val castManager = DLNACastManager.getInstance(context)
             if (castManager.isConnected) {
-                val shuffled = filteredVideos.shuffled()
+                val shuffled = shuffleCandidates.shuffled()
                 val titles = shuffled.map { path ->
                     if (path.startsWith("locked://")) {
                         val obfuscatedName = File(path.removePrefix("locked://")).name
@@ -468,7 +476,7 @@ fun MainScreen(
                 }
                 castManager.castPlaylist(shuffled, titles, 0)
             } else {
-                PlaylistManager.setPlaylist(filteredVideos, startIndex = 0, shuffle = true)
+                PlaylistManager.setPlaylist(shuffleCandidates, startIndex = 0, shuffle = true)
                 MediaPlaybackService.startWithPlaylist(context, PlaylistManager.getFullPlaylist(), 0)
                 showPlayerOverlay = true
             }
