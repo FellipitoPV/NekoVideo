@@ -970,6 +970,7 @@ fun FolderScreen(
     onContinueWatchingClick: (ContinueWatchingEntry) -> Unit = {},
     selectedItems: MutableList<String>,
     onSelectionChange: (List<String>) -> Unit,
+    onVisibleItemsChange: (List<String>) -> Unit = {},
     renameTrigger: Int,
     deletedVideoPath: String? = null,
     isSecureMode: Boolean = false,
@@ -1215,6 +1216,13 @@ fun FolderScreen(
                     val listState = rememberSaveable(targetPath, saver = LazyListState.Saver) {
                         LazyListState()
                     }
+
+                    LaunchedEffect(targetPath, folderPath, pathItems) {
+                        if (targetPath == folderPath) {
+                            onVisibleItemsChange(pathItems.map { it.path })
+                        }
+                    }
+
                     var overlayRestoreAnchorPath by rememberSaveable(targetPath) {
                         mutableStateOf<String?>(null)
                     }

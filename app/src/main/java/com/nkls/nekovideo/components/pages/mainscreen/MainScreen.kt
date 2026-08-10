@@ -155,6 +155,7 @@ fun MainScreen(
     }
     val isAtRootLevel = folderNavState.isAtRoot
     val selectedItems = remember { mutableStateListOf<String>() }
+    var visibleFolderItems by remember(folderPath) { mutableStateOf<List<String>>(emptyList()) }
     var showFabMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showPasswordDialog by remember { mutableStateOf(false) }
@@ -1096,20 +1097,9 @@ fun MainScreen(
                             showRenameDialog = false
                         },
                         onSelectAll = {
-                            if (currentRoute == "folder") {
-                                val isSecure = isSecureFolder(folderPath)
-                                val isRoot = isAtRootLevel
-
-                                val allItems = loadFolderContent(
-                                    context = context,
-                                    folderPath = folderPath,
-                                    sortType = SortType.NAME_ASC,
-                                    isSecureMode = isSecure,
-                                    isRootLevel = isRoot,
-                                    showPrivateFolders = showPrivateFolders
-                                )
+                            if (currentRoute == "folder" && visibleFolderItems.isNotEmpty()) {
                                 selectedItems.clear()
-                                selectedItems.addAll(allItems.map { it.path })
+                                selectedItems.addAll(visibleFolderItems)
                             }
                         },
                         isAtRootLevel = isAtRootLevel,
@@ -1445,6 +1435,7 @@ fun MainScreen(
                             showFabMenu = false
                             showRenameDialog = false
                         },
+                        onVisibleItemsChange = { visibleFolderItems = it },
                         renameTrigger = renameTrigger,
                         deletedVideoPath = deletedVideoPath
                     )
