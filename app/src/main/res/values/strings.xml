@@ -428,4 +428,19 @@
     <string name="video_not_found_title">Vídeo não encontrado</string>
     <string name="video_not_found_message">O vídeo "%1$s" não foi localizado. Atualize os vídeos para tentar localizá-lo novamente.</string>
     <string name="video_not_found_action_refresh">Atualizar vídeos</string>
+    <string name="player_more_actions">Mais ações</string>
+    <string name="player_picture_in_picture">Picture in Picture</string>
+    <string name="player_cast">Cast</string>
+    <string name="player_casting">Transmitindo</string>
+    <string name="player_sleep_timer">Sleep Timer</string>
+    <string name="player_sleep_timer_active_title">Sleep Timer ativo</string>
+    <string name="player_sleep_timer_active_content_description">Sleep Timer ativo</string>
+    <string name="player_sleep_timer_start">Iniciar</string>
+    <string name="player_sleep_timer_cancel_prompt">Deseja cancelar o sleep timer?</string>
+    <string name="player_sleep_timer_cancel_action">Cancelar timer</string>
+    <string name="player_sleep_timer_remaining">Tempo restante: %1$s</string>
+    <string name="player_sleep_timer_minutes_value">%1$d min</string>
+    <string name="player_sleep_timer_hours_minutes_value">%1$dh %2$dmin</string>
+    <string name="player_sleep_timer_hours_value">%1$dh</string>
+    <string name="player_sleep_timer_only_minutes_value">%1$dmin</string>
 </resources>

@@ -427,4 +427,19 @@
     <string name="video_not_found_title">वीडियो नहीं मिला</string>
     <string name="video_not_found_message">वीडियो "%1$s" नहीं मिला। इसे फिर से खोजने के लिए वीडियो अपडेट करें।</string>
     <string name="video_not_found_action_refresh">वीडियो अपडेट करें</string>
+    <string name="player_more_actions">और क्रियाएं</string>
+    <string name="player_picture_in_picture">पिक्चर इन पिक्चर</string>
+    <string name="player_cast">कास्ट</string>
+    <string name="player_casting">कास्ट हो रहा है</string>
+    <string name="player_sleep_timer">स्लीप टाइमर</string>
+    <string name="player_sleep_timer_active_title">स्लीप टाइमर सक्रिय है</string>
+    <string name="player_sleep_timer_active_content_description">स्लीप टाइमर सक्रिय है</string>
+    <string name="player_sleep_timer_start">शुरू करें</string>
+    <string name="player_sleep_timer_cancel_prompt">क्या आप स्लीप टाइमर रद्द करना चाहते हैं?</string>
+    <string name="player_sleep_timer_cancel_action">टाइमर रद्द करें</string>
+    <string name="player_sleep_timer_remaining">शेष समय: %1$s</string>
+    <string name="player_sleep_timer_minutes_value">%1$d मिनट</string>
+    <string name="player_sleep_timer_hours_minutes_value">%1$dघं %2$dमिनट</string>
+    <string name="player_sleep_timer_hours_value">%1$dघं</string>
+    <string name="player_sleep_timer_only_minutes_value">%1$dमिनट</string>
 </resources>

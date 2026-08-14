@@ -50,6 +50,13 @@ class MediaPlaybackService : MediaSessionService() {
         const val COMMAND_CLEAR_EXTERNAL_SUBTITLE = "nekovideo.clear_external_subtitle"
         const val EXTRA_SUBTITLE_URI = "subtitle_uri"
         const val EXTRA_SUBTITLE_NAME = "subtitle_name"
+        const val ACTION_START_SLEEP_TIMER = "nekovideo.action.START_SLEEP_TIMER"
+        const val ACTION_CLEAR_SLEEP_TIMER = "nekovideo.action.CLEAR_SLEEP_TIMER"
+        const val ACTION_REQUEST_SLEEP_TIMER_STATE = "nekovideo.action.REQUEST_SLEEP_TIMER_STATE"
+        const val EXTRA_SLEEP_TIMER_DURATION_MS = "sleep_timer_duration_ms"
+        const val BROADCAST_SLEEP_TIMER_STATE_CHANGED = "nekovideo.broadcast.SLEEP_TIMER_STATE_CHANGED"
+        const val EXTRA_SLEEP_TIMER_ACTIVE = "sleep_timer_active"
+        const val EXTRA_SLEEP_TIMER_END_AT_MS = "sleep_timer_end_at_ms"
 
         fun startWithPlaylist(
             context: Context,
@@ -121,6 +128,28 @@ class MediaPlaybackService : MediaSessionService() {
             }
             context.startService(intent)
         }
+
+        fun startSleepTimer(context: Context, durationMs: Long) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = ACTION_START_SLEEP_TIMER
+                putExtra(EXTRA_SLEEP_TIMER_DURATION_MS, durationMs)
+            }
+            context.startService(intent)
+        }
+
+        fun clearSleepTimer(context: Context) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = ACTION_CLEAR_SLEEP_TIMER
+            }
+            context.startService(intent)
+        }
+
+        fun requestSleepTimerState(context: Context) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = ACTION_REQUEST_SLEEP_TIMER_STATE
+            }
+            context.startService(intent)
+        }
     }
 
     private var mediaSession: MediaSession? = null
@@ -133,6 +162,9 @@ class MediaPlaybackService : MediaSessionService() {
 
     private val preloadScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var currentPlaybackProcessingJob: Job? = null
+    private var sleepTimerJob: Job? = null
+    private var isSleepTimerActive = false
+    private var sleepTimerEndAtMs = 0L
 
     // Flag para evitar recursão na atualização de metadados
     private var isUpdatingMetadata = false
@@ -541,6 +573,7 @@ class MediaPlaybackService : MediaSessionService() {
                 resumeLocalPlayback()
             }
             "STOP_SERVICE" -> {
+                cancelSleepTimer()
                 pendingSeekIndex = null
                 activeSeekIndex = null
                 persistContinueWatchingState()
@@ -558,8 +591,66 @@ class MediaPlaybackService : MediaSessionService() {
 
                 stopSelf()
             }
+            ACTION_START_SLEEP_TIMER -> {
+                val durationMs = intent.getLongExtra(EXTRA_SLEEP_TIMER_DURATION_MS, 0L)
+                startSleepTimer(durationMs)
+            }
+            ACTION_CLEAR_SLEEP_TIMER -> {
+                cancelSleepTimer()
+            }
+            ACTION_REQUEST_SLEEP_TIMER_STATE -> {
+                broadcastSleepTimerState(isActive = isSleepTimerActive)
+            }
         }
         return super.onStartCommand(intent, flags, startId)
+    }
+
+    private fun startSleepTimer(durationMs: Long) {
+        if (durationMs <= 0L) {
+            cancelSleepTimer()
+            return
+        }
+
+        sleepTimerJob?.cancel()
+        isSleepTimerActive = true
+        sleepTimerEndAtMs = System.currentTimeMillis() + durationMs
+        broadcastSleepTimerState(isActive = true)
+
+        sleepTimerJob = preloadScope.launch {
+            delay(durationMs)
+            withContext(Dispatchers.Main) {
+                player?.let { currentPlayer ->
+                    currentPlayer.playWhenReady = false
+                    currentPlayer.pause()
+                }
+                sleepTimerJob = null
+                isSleepTimerActive = false
+                sleepTimerEndAtMs = 0L
+                broadcastSleepTimerState(isActive = false)
+            }
+        }
+    }
+
+    private fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+
+        if (!isSleepTimerActive) {
+            return
+        }
+
+        isSleepTimerActive = false
+        sleepTimerEndAtMs = 0L
+        broadcastSleepTimerState(isActive = false)
+    }
+
+    private fun broadcastSleepTimerState(isActive: Boolean) {
+        sendBroadcast(
+            Intent(BROADCAST_SLEEP_TIMER_STATE_CHANGED).apply {
+                putExtra(EXTRA_SLEEP_TIMER_ACTIVE, isActive)
+                putExtra(EXTRA_SLEEP_TIMER_END_AT_MS, sleepTimerEndAtMs)
+            }
+        )
     }
 
     private fun updatePlaylist(playlist: List<String>, initialIndex: Int, initialPositionMs: Long = 0L) {
@@ -798,6 +889,7 @@ class MediaPlaybackService : MediaSessionService() {
 
         pendingSeekIndex = null
         activeSeekIndex = null
+        cancelSleepTimer()
         currentPlayer.playWhenReady = false
         currentPlayer.pause()
         PlaylistManager.confirmCurrentIndex(currentIndex)
@@ -892,6 +984,7 @@ class MediaPlaybackService : MediaSessionService() {
     override fun onDestroy() {
         persistContinueWatchingState()
         ContinueWatchingStore.setPlaybackActive(false)
+        cancelSleepTimer()
         pendingSeekIndex = null
         activeSeekIndex = null
         // Serviço destruído com vídeo pausado (ex: notificação arrastada enquanto pausado)

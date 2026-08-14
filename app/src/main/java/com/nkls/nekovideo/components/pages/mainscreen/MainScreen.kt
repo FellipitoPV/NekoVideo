@@ -663,13 +663,6 @@ fun MainScreen(
 
     // BackHandlers movidos para DEPOIS do NavHost para ter prioridade (ordem LIFO)
 
-    LaunchedEffect(showPlayerOverlay) {
-        val activity = context.findActivity()
-        if (activity is MainActivity) {
-            activity.keepScreenOn(showPlayerOverlay)
-        }
-    }
-
     LaunchedEffect(externalVideoReceived) {
         if (externalVideoReceived) {
             // Aguardar serviço de mídia inicializar

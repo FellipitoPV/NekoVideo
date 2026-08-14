@@ -1,11 +1,9 @@
 package com.nkls.nekovideo
 
 import android.app.PictureInPictureParams
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
-import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -27,7 +25,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.FilesManager
@@ -286,22 +283,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private val playbackReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "PLAYBACK_STATE_CHANGED") {
-                val isPlaying = intent.getBooleanExtra("IS_PLAYING", false)
-                keepScreenOn(isPlaying)
-            }
-        }
-    }
-
     override fun onPause() {
         super.onPause()
-        try {
-            unregisterReceiver(playbackReceiver)
-        } catch (e: IllegalArgumentException) {
-            // Receiver já foi removido
-        }
         keepScreenOn(false)
         OptimizedThumbnailManager.cancelLoading("")
     }
@@ -342,13 +325,6 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         Log.d("BackDebug", "📱 onResume - App em primeiro plano")
-
-        ContextCompat.registerReceiver(
-            this,
-            playbackReceiver,
-            IntentFilter("PLAYBACK_STATE_CHANGED"),
-            ContextCompat.RECEIVER_NOT_EXPORTED
-        )
     }
 
 }

@@ -197,6 +197,8 @@ fun VideoPlayerOverlay(
     var lastPlaybackProgressPosition by remember { mutableStateOf(0L) }
     var showBlockingBufferingUi by remember { mutableStateOf(false) }
     var hasRenderedFirstFrame by remember { mutableStateOf(false) }
+    var sleepTimerActive by remember { mutableStateOf(false) }
+    var sleepTimerEndAtMs by remember { mutableStateOf(0L) }
 
     //Controle de rotação
     var rotationMode by remember { mutableStateOf(RotationMode.AUTO) }
@@ -1018,6 +1020,25 @@ fun VideoPlayerOverlay(
         }
     }
 
+    DisposableEffect(context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action != MediaPlaybackService.BROADCAST_SLEEP_TIMER_STATE_CHANGED) return
+
+                sleepTimerActive = intent.getBooleanExtra(MediaPlaybackService.EXTRA_SLEEP_TIMER_ACTIVE, false)
+                sleepTimerEndAtMs = intent.getLongExtra(MediaPlaybackService.EXTRA_SLEEP_TIMER_END_AT_MS, 0L)
+            }
+        }
+
+        val filter = IntentFilter(MediaPlaybackService.BROADCAST_SLEEP_TIMER_STATE_CHANGED)
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        MediaPlaybackService.requestSleepTimerState(context)
+
+        onDispose {
+            context.unregisterReceiver(receiver)
+        }
+    }
+
     LaunchedEffect(Unit) {
         val savedSpeed = SettingsManager.getPlaybackSpeed(context)
         playbackSpeed = PlaybackSpeed.entries.find { it.value == savedSpeed } ?: PlaybackSpeed.SPEED_1_00
@@ -1389,26 +1410,36 @@ fun VideoPlayerOverlay(
             }
             isFullscreen = true
 
-            // Manter tela ligada enquanto o vídeo está tocando
-            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
             onDispose {
                 WindowCompat.setDecorFitsSystemWindows(window, true)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
                 // Restaurar orientação padrão ao voltar para o FolderScreen
                 localActivity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 isFullscreen = false
-
-                // Remover flag de manter tela ligada
-                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         } else {
             onDispose { }
         }
     }
 
+    DisposableEffect(isVisible, isPlaying) {
+        val window = activity?.window
+
+        if (window != null) {
+            if (isVisible && isPlaying) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+        }
+
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     // Reaplicar flags quando o app volta do background
-    DisposableEffect(lifecycleOwner, isVisible) {
+    DisposableEffect(lifecycleOwner, isVisible, isPlaying) {
         Log.d("BackDebug", "🎬 VideoPlayerOverlay - DisposableEffect montado, isVisible: $isVisible")
 
         val observer = LifecycleEventObserver { _, event ->
@@ -1426,8 +1457,11 @@ fun VideoPlayerOverlay(
                     systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 }
 
-                // Reaplicar keep screen on
-                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                if (isPlaying) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                }
             }
         }
 
@@ -1750,6 +1784,19 @@ fun VideoPlayerOverlay(
                         onPiPClick = {
                             controlsVisible = false
                             (activity as? MainActivity)?.enterPiPMode()
+                        },
+                        sleepTimerActive = sleepTimerActive,
+                        sleepTimerEndAtMs = sleepTimerEndAtMs,
+                        onSleepTimerStarted = { endAtMs ->
+                            sleepTimerActive = true
+                            sleepTimerEndAtMs = endAtMs
+                        },
+                        onSleepTimerCleared = {
+                            sleepTimerActive = false
+                            sleepTimerEndAtMs = 0L
+                        },
+                        onSleepTimerConfirmed = {
+                            controlsVisible = false
                         }
                     )
                 }

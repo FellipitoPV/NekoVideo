@@ -3,19 +3,32 @@ package com.nkls.nekovideo.components.player
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import androidx.compose.animation.core.RepeatMode as AnimationRepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.navigationBars
@@ -31,6 +44,8 @@ import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.CastConnected
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocalOffer
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.PlayArrow
@@ -43,6 +58,7 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.StayCurrentLandscape
 import androidx.compose.material.icons.filled.StayCurrentPortrait
 import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -50,19 +66,23 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.nkls.nekovideo.R
 import androidx.media3.session.MediaController
 import com.nkls.nekovideo.MediaPlaybackService
@@ -79,6 +99,7 @@ private val CtrlBtnBg = Color.White.copy(alpha = 0.1f)
 private val CtrlBtnBgActive = Color.White.copy(alpha = 0.18f)
 private val CtrlIconOn = Color.White
 private val CtrlIconOff = Color.White.copy(alpha = 0.38f)
+private val CtrlDrawerBg = Color(0xFF121212).copy(alpha = 0.96f)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -107,447 +128,756 @@ fun CustomVideoControls(
     hasSubtitles: Boolean,
     subtitlesEnabled: Boolean,
     onSubtitlesClick: () -> Unit,
-    onPiPClick: () -> Unit
+    onPiPClick: () -> Unit,
+    sleepTimerActive: Boolean,
+    sleepTimerEndAtMs: Long,
+    onSleepTimerStarted: (Long) -> Unit,
+    onSleepTimerCleared: () -> Unit,
+    onSleepTimerConfirmed: () -> Unit
 ) {
     val controller = mediaController ?: return
     val context = androidx.compose.ui.platform.LocalContext.current
+    var showActionDrawer by remember { mutableStateOf(false) }
+    var resumeAfterActionDrawer by remember { mutableStateOf(false) }
+    var showSleepTimerDialog by remember { mutableStateOf(false) }
+    var showSleepTimerStatusDialog by remember { mutableStateOf(false) }
+    var resumeAfterSleepTimerStatusDialog by remember { mutableStateOf(false) }
+    var sleepTimerMinutes by remember { mutableStateOf(30f) }
+    var sleepTimerRemainingMs by remember { mutableStateOf(0L) }
 
     val currentGlobalIndex = controller.currentMediaItemIndex
     val totalPlaylistSize = PlaylistManager.getTotalSize()
 
+    fun openActionDrawer() {
+        resumeAfterActionDrawer = isPlaying
+        if (isPlaying) {
+            controller.pause()
+        }
+        showActionDrawer = true
+        resetUITimer()
+    }
+
+    fun closeActionDrawer(shouldResumePlayback: Boolean) {
+        showActionDrawer = false
+        if (shouldResumePlayback && resumeAfterActionDrawer) {
+            controller.play()
+        }
+        resumeAfterActionDrawer = false
+    }
+
+    fun openSleepTimerStatusDialog() {
+        resumeAfterSleepTimerStatusDialog = isPlaying
+        if (isPlaying) {
+            controller.pause()
+        }
+        showSleepTimerStatusDialog = true
+        resetUITimer()
+    }
+
+    fun closeSleepTimerStatusDialog(shouldResumePlayback: Boolean) {
+        showSleepTimerStatusDialog = false
+        if (shouldResumePlayback && resumeAfterSleepTimerStatusDialog) {
+            controller.play()
+        }
+        resumeAfterSleepTimerStatusDialog = false
+    }
+
+    LaunchedEffect(sleepTimerActive, sleepTimerEndAtMs) {
+        if (!sleepTimerActive || sleepTimerEndAtMs <= 0L) {
+            sleepTimerRemainingMs = 0L
+            return@LaunchedEffect
+        }
+
+        while (sleepTimerActive) {
+            val remaining = (sleepTimerEndAtMs - System.currentTimeMillis()).coerceAtLeast(0L)
+            sleepTimerRemainingMs = remaining
+            if (remaining <= 0L) {
+                break
+            }
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+
+    val sleepPulse by rememberInfiniteTransition(label = "sleepTimerPulse").animateFloat(
+        initialValue = 0.45f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200),
+            repeatMode = AnimationRepeatMode.Reverse
+        ),
+        label = "sleepTimerPulseAlpha"
+    )
+
     Box(modifier = Modifier.fillMaxSize()) {
-        // Header com gradiente
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.75f),
-                            Color.Transparent
-                        )
-                    )
-                )
-                .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility.only(WindowInsetsSides.Top))
-                .padding(horizontal = 12.dp, vertical = 10.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onBackClick,
-                    modifier = Modifier
-                        .background(CtrlBtnBg, CircleShape)
-                        .size(44.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = CtrlIconOn,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                Text(
-                    text = videoTitle,
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Normal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 12.dp)
-                )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    // Botão PIP
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        IconButton(
-                            onClick = onPiPClick,
-                            modifier = Modifier
-                                .background(CtrlBtnBg, CircleShape)
-                                .size(44.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PictureInPicture,
-                                contentDescription = "Picture in Picture",
-                                tint = CtrlIconOn,
-                                modifier = Modifier.size(20.dp)
+        if (!showSleepTimerDialog) {
+            // Header com gradiente
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.75f),
+                                Color.Transparent
                             )
-                        }
-                    }
-
-                    // Casting (DLNA device picker)
-                    IconButton(
-                        onClick = onCastClick,
-                        modifier = Modifier
-                            .background(CtrlBtnBg, CircleShape)
-                            .size(44.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isCasting) Icons.Default.CastConnected else Icons.Default.Cast,
-                            contentDescription = if (isCasting) "Casting" else "Cast",
-                            tint = if (isCasting) Color(0xFF4CAF50) else Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            onTagsClick()
-                            resetUITimer()
-                        },
-                        modifier = Modifier
-                            .background(CtrlBtnBg, CircleShape)
-                            .size(44.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LocalOffer,
-                            contentDescription = "Tags",
-                            tint = CtrlIconOn,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = onDeleteClick,
-                        modifier = Modifier
-                            .background(CtrlBtnBg, CircleShape)
-                            .size(44.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete",
-                            tint = CtrlIconOn.copy(alpha = 0.75f),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        // Controles centrais
-        Row(
-            modifier = Modifier.align(Alignment.Center),
-            horizontalArrangement = Arrangement.spacedBy(28.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = {
-                    resetUITimer()
-                    PlaylistNavigator.previous(context)
-                },
-                modifier = Modifier
-                    .background(CtrlBtnBg, CircleShape)
-                    .size(54.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SkipPrevious,
-                    contentDescription = "Previous",
-                    tint = CtrlIconOn,
-                    modifier = Modifier.size(30.dp)
-                )
-            }
-
-            IconButton(
-                onClick = {
-                    if (isPlaying) {
-                        controller.pause()
-                    } else {
-                        controller.play()
-                    }
-                },
-                modifier = Modifier
-                    .background(Color.White, CircleShape)
-                    .border(2.dp, Color.White.copy(alpha = 0.25f), CircleShape)
-                    .size(70.dp)
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = Color.Black,
-                    modifier = Modifier.size(36.dp)
-                )
-            }
-
-            IconButton(
-                onClick = {
-                    resetUITimer()
-                    PlaylistNavigator.next(context)
-                },
-                modifier = Modifier
-                    .background(CtrlBtnBg, CircleShape)
-                    .size(54.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SkipNext,
-                    contentDescription = "Next",
-                    tint = CtrlIconOn,
-                    modifier = Modifier.size(30.dp)
-                )
-            }
-        }
-
-        // Bottom controls
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.85f)
                         )
                     )
-                )
-                .windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility.only(WindowInsetsSides.Bottom))
-                .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
-        ) {
-            // Seek bar
-            if (duration > 0) {
-                var tempPosition by remember { mutableStateOf(currentPosition) }
-                var isDragging by remember { mutableStateOf(false) }
-
-                Slider(
-                    value = if (isDragging) tempPosition.toFloat() else currentPosition.toFloat(),
-                    onValueChange = { newValue ->
-                        tempPosition = newValue.toLong()
-                        if (!isDragging) {
-                            isDragging = true
-                            onSeekStart()
-                        }
-                        controller.seekTo(newValue.toLong())
-                    },
-                    onValueChangeFinished = {
-                        isDragging = false
-                        onSeekEnd()
-                    },
-                    valueRange = 0f..duration.toFloat(),
-                    thumb = {
-                        Box(
-                            modifier = Modifier
-                                .size(if (isDragging) 16.dp else 12.dp)
-                                .background(Color.White, CircleShape)
-                        )
-                    },
-                    track = { sliderState ->
-                        SliderDefaults.Track(
-                            sliderState = sliderState,
-                            modifier = Modifier.height(3.dp),
-                            colors = SliderDefaults.colors(
-                                activeTrackColor = Color.White,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.22f)
-                            ),
-                            thumbTrackGapSize = 0.dp,
-                            trackInsideCornerSize = 0.dp,
-                            drawStopIndicator = null
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
+                    .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility.only(WindowInsetsSides.Top))
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Tempo atual
-                    Text(
-                        text = formatTime(if (isDragging) tempPosition else currentPosition),
-                        color = Color.White.copy(alpha = 0.75f),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Light
-                    )
-
-                    if (totalPlaylistSize > 1) {
-                        Text(
-                            text = "${currentGlobalIndex + 1} / $totalPlaylistSize",
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Normal,
-                            modifier = Modifier
-                                .background(
-                                    Color.White.copy(alpha = 0.08f),
-                                    androidx.compose.foundation.shape.RoundedCornerShape(6.dp)
-                                )
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                    IconButton(
+                        onClick = onBackClick,
+                        modifier = Modifier
+                            .background(CtrlBtnBg, CircleShape)
+                            .size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = CtrlIconOn,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
+                    Text(
+                        text = videoTitle,
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 12.dp)
+                    )
+
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Duração total
+                        if (sleepTimerActive) {
+                            IconButton(
+                                onClick = { openSleepTimerStatusDialog() },
+                                modifier = Modifier
+                                    .background(CtrlBtnBgActive, CircleShape)
+                                    .graphicsLayer { alpha = sleepPulse }
+                                    .size(44.dp)
+                            ) {
+                            Icon(
+                                imageVector = Icons.Default.NightsStay,
+                                contentDescription = stringResource(R.string.player_sleep_timer_active_content_description),
+                                tint = CtrlIconOn,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        }
+
+                        IconButton(
+                            onClick = { openActionDrawer() },
+                            modifier = Modifier
+                                .background(CtrlBtnBg, CircleShape)
+                                .size(44.dp)
+                        ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.player_more_actions),
+                            tint = CtrlIconOn,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        }
+                    }
+                }
+            }
+
+            // Controles centrais
+            Row(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalArrangement = Arrangement.spacedBy(28.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = {
+                        resetUITimer()
+                        PlaylistNavigator.previous(context)
+                    },
+                    modifier = Modifier
+                        .background(CtrlBtnBg, CircleShape)
+                        .size(54.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipPrevious,
+                        contentDescription = "Previous",
+                        tint = CtrlIconOn,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = {
+                        if (isPlaying) {
+                            controller.pause()
+                        } else {
+                            controller.play()
+                        }
+                    },
+                    modifier = Modifier
+                        .background(Color.White, CircleShape)
+                        .border(2.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+                        .size(70.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = Color.Black,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = {
+                        resetUITimer()
+                        PlaylistNavigator.next(context)
+                    },
+                    modifier = Modifier
+                        .background(CtrlBtnBg, CircleShape)
+                        .size(54.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = "Next",
+                        tint = CtrlIconOn,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+            }
+
+            // Bottom controls
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.85f)
+                            )
+                        )
+                    )
+                    .windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility.only(WindowInsetsSides.Bottom))
+                    .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+            ) {
+                // Seek bar
+                if (duration > 0) {
+                    var tempPosition by remember { mutableStateOf(currentPosition) }
+                    var isDragging by remember { mutableStateOf(false) }
+
+                    Slider(
+                        value = if (isDragging) tempPosition.toFloat() else currentPosition.toFloat(),
+                        onValueChange = { newValue ->
+                            tempPosition = newValue.toLong()
+                            if (!isDragging) {
+                                isDragging = true
+                                onSeekStart()
+                            }
+                            controller.seekTo(newValue.toLong())
+                        },
+                        onValueChangeFinished = {
+                            isDragging = false
+                            onSeekEnd()
+                        },
+                        valueRange = 0f..duration.toFloat(),
+                        thumb = {
+                            Box(
+                                modifier = Modifier
+                                    .size(if (isDragging) 16.dp else 12.dp)
+                                    .background(Color.White, CircleShape)
+                            )
+                        },
+                        track = { sliderState ->
+                            SliderDefaults.Track(
+                                sliderState = sliderState,
+                                modifier = Modifier.height(3.dp),
+                                colors = SliderDefaults.colors(
+                                    activeTrackColor = Color.White,
+                                    inactiveTrackColor = Color.White.copy(alpha = 0.22f)
+                                ),
+                                thumbTrackGapSize = 0.dp,
+                                trackInsideCornerSize = 0.dp,
+                                drawStopIndicator = null
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Tempo atual
                         Text(
-                            text = formatTime(duration),
+                            text = formatTime(if (isDragging) tempPosition else currentPosition),
                             color = Color.White.copy(alpha = 0.75f),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Light
                         )
 
-                        // Legendas
-                        val subtitleBg = if (subtitlesEnabled) CtrlBtnBgActive else CtrlBtnBg
-                        IconButton(
-                            onClick = {
-                                onSubtitlesClick()
-                                resetUITimer()
-                            },
-                            modifier = Modifier
-                                .background(subtitleBg, CircleShape)
-                                .size(38.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Subtitles,
-                                contentDescription = "Legendas",
-                                tint = if (subtitlesEnabled) CtrlIconOn else CtrlIconOff,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        // Rotação
-                        val (rotIcon, rotDesc, rotActive) = when (rotationMode) {
-                            RotationMode.AUTO -> Triple(Icons.Default.ScreenRotation, "Auto Rotation", false)
-                            RotationMode.PORTRAIT -> Triple(Icons.Default.StayCurrentPortrait, "Portrait Lock", true)
-                            RotationMode.LANDSCAPE -> Triple(Icons.Default.StayCurrentLandscape, "Landscape Lock", true)
-                        }
-                        IconButton(
-                            onClick = {
-                                val nextMode = when (rotationMode) {
-                                    RotationMode.AUTO -> RotationMode.PORTRAIT
-                                    RotationMode.PORTRAIT -> RotationMode.LANDSCAPE
-                                    RotationMode.LANDSCAPE -> RotationMode.AUTO
-                                }
-                                onRotationModeChange(nextMode)
-                                resetUITimer()
-                            },
-                            modifier = Modifier
-                                .background(if (rotActive) CtrlBtnBgActive else CtrlBtnBg, CircleShape)
-                                .size(38.dp)
-                        ) {
-                            Icon(
-                                imageVector = rotIcon,
-                                contentDescription = rotDesc,
-                                tint = if (rotActive) CtrlIconOn else CtrlIconOff,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        // Velocidade
-                        var showSpeedDialog by remember { mutableStateOf(false) }
-                        val speedActive = playbackSpeed.value != 1.0f
-                        IconButton(
-                            onClick = {
-                                onSpeedDialogOpen()
-                                showSpeedDialog = true
-                            },
-                            modifier = Modifier
-                                .background(if (speedActive) CtrlBtnBgActive else CtrlBtnBg, CircleShape)
-                                .size(38.dp)
-                        ) {
+                        if (totalPlaylistSize > 1) {
                             Text(
-                                text = formatSpeedLabel(playbackSpeed),
-                                color = if (speedActive) CtrlIconOn else CtrlIconOff,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1
+                                text = "${currentGlobalIndex + 1} / $totalPlaylistSize",
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Normal,
+                                modifier = Modifier
+                                    .background(
+                                        Color.White.copy(alpha = 0.08f),
+                                        androidx.compose.foundation.shape.RoundedCornerShape(6.dp)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
                             )
                         }
 
-                        if (showSpeedDialog) {
-                            androidx.compose.material3.AlertDialog(
-                                onDismissRequest = { showSpeedDialog = false; onSpeedDialogClose() },
-                                containerColor = Color(0xFF1A1A2E),
-                                titleContentColor = Color.White,
-                                textContentColor = Color.White.copy(alpha = 0.85f),
-                                title = {
-                                    Text(stringResource(R.string.playback_speed_title), fontWeight = FontWeight.SemiBold)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            // Duração total
+                            Text(
+                                text = formatTime(duration),
+                                color = Color.White.copy(alpha = 0.75f),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Light
+                            )
+
+                            // Legendas
+                            val subtitleBg = if (subtitlesEnabled) CtrlBtnBgActive else CtrlBtnBg
+                            IconButton(
+                                onClick = {
+                                    onSubtitlesClick()
+                                    resetUITimer()
                                 },
-                                text = {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text(
-                                            text = formatSpeedLabel(playbackSpeed),
-                                            color = Color.White,
-                                            fontSize = 40.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Slider(
-                                            value = playbackSpeed.value,
-                                            onValueChange = {
-                                                val closest = PlaybackSpeed.entries.minByOrNull { speed ->
-                                                    kotlin.math.abs(speed.value - it)
-                                                }
-                                                closest?.let { onPlaybackSpeedChange(it) }
-                                            },
-                                            valueRange = 0.25f..2.0f,
-                                            steps = 6,
-                                            colors = SliderDefaults.colors(
-                                                thumbColor = Color.White,
-                                                activeTrackColor = Color.White.copy(alpha = 0.7f),
-                                                inactiveTrackColor = Color.White.copy(alpha = 0.2f)
-                                            ),
+                                modifier = Modifier
+                                    .background(subtitleBg, CircleShape)
+                                    .size(38.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Subtitles,
+                                    contentDescription = "Legendas",
+                                    tint = if (subtitlesEnabled) CtrlIconOn else CtrlIconOff,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            // Rotação
+                            val (rotIcon, rotDesc, rotActive) = when (rotationMode) {
+                                RotationMode.AUTO -> Triple(Icons.Default.ScreenRotation, "Auto Rotation", false)
+                                RotationMode.PORTRAIT -> Triple(Icons.Default.StayCurrentPortrait, "Portrait Lock", true)
+                                RotationMode.LANDSCAPE -> Triple(Icons.Default.StayCurrentLandscape, "Landscape Lock", true)
+                            }
+                            IconButton(
+                                onClick = {
+                                    val nextMode = when (rotationMode) {
+                                        RotationMode.AUTO -> RotationMode.PORTRAIT
+                                        RotationMode.PORTRAIT -> RotationMode.LANDSCAPE
+                                        RotationMode.LANDSCAPE -> RotationMode.AUTO
+                                    }
+                                    onRotationModeChange(nextMode)
+                                    resetUITimer()
+                                },
+                                modifier = Modifier
+                                    .background(if (rotActive) CtrlBtnBgActive else CtrlBtnBg, CircleShape)
+                                    .size(38.dp)
+                            ) {
+                                Icon(
+                                    imageVector = rotIcon,
+                                    contentDescription = rotDesc,
+                                    tint = if (rotActive) CtrlIconOn else CtrlIconOff,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            // Velocidade
+                            var showSpeedDialog by remember { mutableStateOf(false) }
+                            val speedActive = playbackSpeed.value != 1.0f
+                            IconButton(
+                                onClick = {
+                                    onSpeedDialogOpen()
+                                    showSpeedDialog = true
+                                },
+                                modifier = Modifier
+                                    .background(if (speedActive) CtrlBtnBgActive else CtrlBtnBg, CircleShape)
+                                    .size(38.dp)
+                            ) {
+                                Text(
+                                    text = formatSpeedLabel(playbackSpeed),
+                                    color = if (speedActive) CtrlIconOn else CtrlIconOff,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                            }
+
+                            if (showSpeedDialog) {
+                                androidx.compose.material3.AlertDialog(
+                                    onDismissRequest = { showSpeedDialog = false; onSpeedDialogClose() },
+                                    containerColor = Color(0xFF1A1A2E),
+                                    titleContentColor = Color.White,
+                                    textContentColor = Color.White.copy(alpha = 0.85f),
+                                    title = {
+                                        Text(stringResource(R.string.playback_speed_title), fontWeight = FontWeight.SemiBold)
+                                    },
+                                    text = {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
                                             modifier = Modifier.fillMaxWidth()
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
-                                            PlaybackSpeed.entries.forEach { speed ->
-                                                Text(
-                                                    text = formatSpeedLabel(speed),
-                                                    color = if (speed == playbackSpeed) Color.White
-                                                            else Color.White.copy(alpha = 0.4f),
-                                                    fontSize = 9.sp
-                                                )
+                                            Text(
+                                                text = formatSpeedLabel(playbackSpeed),
+                                                color = Color.White,
+                                                fontSize = 40.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Slider(
+                                                value = playbackSpeed.value,
+                                                onValueChange = {
+                                                    val closest = PlaybackSpeed.entries.minByOrNull { speed ->
+                                                        kotlin.math.abs(speed.value - it)
+                                                    }
+                                                    closest?.let { onPlaybackSpeedChange(it) }
+                                                },
+                                                valueRange = 0.25f..2.0f,
+                                                steps = 6,
+                                                colors = SliderDefaults.colors(
+                                                    thumbColor = Color.White,
+                                                    activeTrackColor = Color.White.copy(alpha = 0.7f),
+                                                    inactiveTrackColor = Color.White.copy(alpha = 0.2f)
+                                                ),
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                PlaybackSpeed.entries.forEach { speed ->
+                                                    Text(
+                                                        text = formatSpeedLabel(speed),
+                                                        color = if (speed == playbackSpeed) Color.White
+                                                                else Color.White.copy(alpha = 0.4f),
+                                                        fontSize = 9.sp
+                                                    )
+                                                }
                                             }
                                         }
-                                    }
-                                },
-                                confirmButton = {}
-                            )
-                        }
+                                    },
+                                    confirmButton = {}
+                                )
+                            }
 
-                        // Repeat mode
-                        val (repIcon, repDesc, repActive) = when (repeatMode) {
-                            RepeatMode.NONE -> Triple(Icons.Default.PlaylistPlay, "Normal Play", false)
-                            RepeatMode.REPEAT_ALL -> Triple(Icons.Default.Repeat, "Repeat Playlist", true)
-                            RepeatMode.REPEAT_ONE -> Triple(Icons.Default.RepeatOne, "Repeat One", true)
-                        }
-                        IconButton(
-                            onClick = {
-                                val nextMode = when (repeatMode) {
-                                    RepeatMode.NONE -> RepeatMode.REPEAT_ALL
-                                    RepeatMode.REPEAT_ALL -> RepeatMode.REPEAT_ONE
-                                    RepeatMode.REPEAT_ONE -> RepeatMode.NONE
-                                }
-                                onRepeatModeChange(nextMode)
-                                resetUITimer()
-                            },
-                            modifier = Modifier
-                                .background(if (repActive) CtrlBtnBgActive else CtrlBtnBg, CircleShape)
-                                .size(38.dp)
-                        ) {
-                            Icon(
-                                imageVector = repIcon,
-                                contentDescription = repDesc,
-                                tint = if (repActive) CtrlIconOn else CtrlIconOff,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            // Repeat mode
+                            val (repIcon, repDesc, repActive) = when (repeatMode) {
+                                RepeatMode.NONE -> Triple(Icons.Default.PlaylistPlay, "Normal Play", false)
+                                RepeatMode.REPEAT_ALL -> Triple(Icons.Default.Repeat, "Repeat Playlist", true)
+                                RepeatMode.REPEAT_ONE -> Triple(Icons.Default.RepeatOne, "Repeat One", true)
+                            }
+                            IconButton(
+                                onClick = {
+                                    val nextMode = when (repeatMode) {
+                                        RepeatMode.NONE -> RepeatMode.REPEAT_ALL
+                                        RepeatMode.REPEAT_ALL -> RepeatMode.REPEAT_ONE
+                                        RepeatMode.REPEAT_ONE -> RepeatMode.NONE
+                                    }
+                                    onRepeatModeChange(nextMode)
+                                    resetUITimer()
+                                },
+                                modifier = Modifier
+                                    .background(if (repActive) CtrlBtnBgActive else CtrlBtnBg, CircleShape)
+                                    .size(38.dp)
+                            ) {
+                                Icon(
+                                    imageVector = repIcon,
+                                    contentDescription = repDesc,
+                                    tint = if (repActive) CtrlIconOn else CtrlIconOff,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+
+        AnimatedVisibility(
+            visible = showActionDrawer,
+            enter = fadeIn() + slideInHorizontally(initialOffsetX = { it }),
+            exit = fadeOut() + slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            val dismissInteractionSource = remember { MutableInteractionSource() }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(10f)
+                    .background(Color.Black.copy(alpha = 0.28f))
+                    .clickable(
+                        interactionSource = dismissInteractionSource,
+                        indication = null
+                    ) {
+                        closeActionDrawer(shouldResumePlayback = true)
+                    }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .fillMaxHeight()
+                        .width(220.dp)
+                        .background(CtrlDrawerBg)
+                        .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility.only(WindowInsetsSides.Top))
+                        .padding(top = 72.dp, start = 12.dp, end = 12.dp, bottom = 12.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { }
+                ) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        DrawerActionItem(
+                            icon = Icons.Default.PictureInPicture,
+                            label = stringResource(R.string.player_picture_in_picture),
+                            tint = CtrlIconOn,
+                            onClick = {
+                                closeActionDrawer(shouldResumePlayback = false)
+                                onPiPClick()
+                            }
+                        )
+                    }
+
+                    DrawerActionItem(
+                        icon = if (isCasting) Icons.Default.CastConnected else Icons.Default.Cast,
+                        label = stringResource(if (isCasting) R.string.player_casting else R.string.player_cast),
+                        tint = if (isCasting) Color(0xFF4CAF50) else CtrlIconOn,
+                        onClick = {
+                            closeActionDrawer(shouldResumePlayback = false)
+                            onCastClick()
+                            resetUITimer()
+                        }
+                    )
+
+                    DrawerActionItem(
+                        icon = Icons.Default.LocalOffer,
+                        label = stringResource(R.string.action_tags),
+                        tint = CtrlIconOn,
+                        onClick = {
+                            closeActionDrawer(shouldResumePlayback = false)
+                            onTagsClick()
+                            resetUITimer()
+                        }
+                    )
+
+                    DrawerActionItem(
+                        icon = Icons.Default.NightsStay,
+                        label = stringResource(R.string.player_sleep_timer),
+                        tint = CtrlIconOn,
+                        onClick = {
+                            showActionDrawer = false
+                            showSleepTimerDialog = true
+                            resetUITimer()
+                        }
+                    )
+
+                    DrawerActionItem(
+                        icon = Icons.Default.Delete,
+                        label = stringResource(R.string.action_delete),
+                        tint = CtrlIconOn.copy(alpha = 0.75f),
+                        onClick = {
+                            closeActionDrawer(shouldResumePlayback = false)
+                            onDeleteClick()
+                        }
+                    )
+                }
+            }
+        }
+
+        if (showSleepTimerDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showSleepTimerDialog = false
+                    if (resumeAfterActionDrawer) {
+                        controller.play()
+                        resumeAfterActionDrawer = false
+                    }
+                },
+                containerColor = Color(0xFF1A1A2E),
+                titleContentColor = Color.White,
+                textContentColor = Color.White.copy(alpha = 0.85f),
+                title = {
+                    Text(stringResource(R.string.player_sleep_timer), fontWeight = FontWeight.SemiBold)
+                },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = stringResource(R.string.player_sleep_timer_minutes_value, sleepTimerMinutes.toInt()),
+                            color = Color.White,
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Slider(
+                            value = sleepTimerMinutes,
+                            onValueChange = { value ->
+                                sleepTimerMinutes = (value / 5f).toInt().coerceIn(1, 18) * 5f
+                            },
+                            valueRange = 5f..90f,
+                            steps = 16,
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color.White,
+                                activeTrackColor = Color.White.copy(alpha = 0.7f),
+                                inactiveTrackColor = Color.White.copy(alpha = 0.2f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                stringResource(R.string.player_sleep_timer_minutes_value, 5),
+                                color = Color.White.copy(alpha = 0.55f),
+                                fontSize = 11.sp
+                            )
+                            Text(
+                                stringResource(R.string.player_sleep_timer_minutes_value, 90),
+                                color = Color.White.copy(alpha = 0.55f),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showSleepTimerDialog = false
+                            if (resumeAfterActionDrawer) {
+                                controller.play()
+                                resumeAfterActionDrawer = false
+                            }
+                        }
+                    ) {
+                        Text(stringResource(R.string.action_cancel))
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val durationMs = sleepTimerMinutes.toLong() * 60_000L
+                            onSleepTimerStarted(System.currentTimeMillis() + durationMs)
+                            onSleepTimerConfirmed()
+                            MediaPlaybackService.startSleepTimer(
+                                context,
+                                durationMs
+                            )
+                            showSleepTimerDialog = false
+                            if (resumeAfterActionDrawer) {
+                                controller.play()
+                                resumeAfterActionDrawer = false
+                            }
+                        }
+                    ) {
+                        Text(stringResource(R.string.player_sleep_timer_start))
+                    }
+                }
+            )
+        }
+
+        if (showSleepTimerStatusDialog && sleepTimerActive) {
+            AlertDialog(
+                onDismissRequest = { closeSleepTimerStatusDialog(shouldResumePlayback = true) },
+                containerColor = Color(0xFF1A1A2E),
+                titleContentColor = Color.White,
+                textContentColor = Color.White.copy(alpha = 0.85f),
+                title = {
+                    Text(stringResource(R.string.player_sleep_timer_active_title), fontWeight = FontWeight.SemiBold)
+                },
+                text = {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = stringResource(
+                                R.string.player_sleep_timer_remaining,
+                                formatRemainingTime(context, sleepTimerRemainingMs)
+                            ),
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.player_sleep_timer_cancel_prompt),
+                            color = Color.White.copy(alpha = 0.75f),
+                            fontSize = 14.sp
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { closeSleepTimerStatusDialog(shouldResumePlayback = true) }) {
+                        Text(stringResource(R.string.close))
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onSleepTimerCleared()
+                            MediaPlaybackService.clearSleepTimer(context)
+                            closeSleepTimerStatusDialog(shouldResumePlayback = true)
+                        }
+                    ) {
+                        Text(stringResource(R.string.player_sleep_timer_cancel_action))
+                    }
+                }
+            )
+        }
     }
+}
+
+@Composable
+private fun DrawerActionItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White.copy(alpha = 0.04f), androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = tint,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = label,
+            color = Color.White,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
+    }
+
+    Spacer(modifier = Modifier.height(10.dp))
 }
 
 suspend fun deleteCurrentVideo(
@@ -693,4 +1023,16 @@ private fun formatSpeedLabel(speed: PlaybackSpeed): String = when (speed) {
     PlaybackSpeed.SPEED_1_50 -> "1.5x"
     PlaybackSpeed.SPEED_1_75 -> "1.75x"
     PlaybackSpeed.SPEED_2_00 -> "2x"
+}
+
+private fun formatRemainingTime(context: Context, remainingMs: Long): String {
+    val totalMinutes = kotlin.math.ceil(remainingMs.coerceAtLeast(0L) / 60000.0).toInt()
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+
+    return when {
+        hours > 0 && minutes > 0 -> context.getString(R.string.player_sleep_timer_hours_minutes_value, hours, minutes)
+        hours > 0 -> context.getString(R.string.player_sleep_timer_hours_value, hours)
+        else -> context.getString(R.string.player_sleep_timer_only_minutes_value, minutes)
+    }
 }
