@@ -1,0 +1,15 @@
+Fix
+
+Filtered folder selection now only considers items currently visible in the active filter.
+
+Shuffle playlists are now limited to 1000 videos to avoid excessively large queues.
+
+Features
+
+Added a Sleep Timer with 5 to 90 minute options, a top indicator, a dialog to track remaining time, and an option to cancel the timer.
+
+The video actions menu was reorganized into a side drawer, reducing the number of top buttons and improving screen space usage.
+
+The screen now stays awake only during playback, and the Sleep Timer flow was refined to clear the current session and pause or resume the video correctly in related dialogs.
+
+Sleep Timer drawer and dialog texts are now prepared for the app's supported languages.

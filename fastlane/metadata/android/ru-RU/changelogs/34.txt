@@ -1,0 +1,15 @@
+Fix
+
+Vybor v otfiltrovannykh papkakh teper uchityvaet tolko elementy, kotorye vidimy v tekushchem filtre.
+
+Sluchainye playlists teper ogranicheny 1000 video, chtoby izbezhat slishkom bolshikh ocheredey.
+
+Features
+
+Dobavlen Sleep Timer s variantami ot 5 do 90 minut, vizualnym indikatorom sverkhu, dialogom dlya otslezhivaniya ostavshegosya vremeni i vozmozhnostyu otmenit taymer.
+
+Menyu deistviy video bylo reorganizovano v bokovoi drawer, chto umenshilo kolichestvo knopok sverkhu i uluchshilo ispolzovanie prostranstva.
+
+Ekran teper ostayetsya vklyuchennym tolko vo vremya vosproizvedeniya, a rabota Sleep Timer byla dorabotana, chtoby korrektno ochishchat tekushchuyu sessiyu i pravilno stavit video na pauzu ili vozobnovlyat ego v svyazannykh dialogakh.
+
+Teksty drawer i dialogov Sleep Timer teper podgotovleny dlya yazykov, kotorye podderzhivaet prilozhenie.

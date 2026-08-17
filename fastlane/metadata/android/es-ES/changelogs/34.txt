@@ -1,0 +1,15 @@
+Fix
+
+La seleccion en carpetas filtradas ahora solo considera los elementos visibles en el filtro actual.
+
+Las playlists aleatorias ahora estan limitadas a 1000 videos para evitar colas excesivas.
+
+Features
+
+Se agrego un Sleep Timer con opciones de 5 a 90 minutos, indicador visual en la parte superior, dialogo para seguir el tiempo restante y opcion para cancelar el temporizador.
+
+El menu de acciones del video fue reorganizado en un drawer lateral, reduciendo la cantidad de botones en la parte superior y mejorando el uso del espacio.
+
+La pantalla ahora permanece encendida solo durante la reproduccion, y el flujo del Sleep Timer fue refinado para limpiar la sesion actual y pausar o reanudar correctamente el video en los dialogos relacionados.
+
+Los textos del drawer y de los dialogos del Sleep Timer ya estan preparados para los idiomas compatibles de la app.

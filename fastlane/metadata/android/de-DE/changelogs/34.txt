@@ -1,0 +1,15 @@
+Fix
+
+Die Auswahl in gefilterten Ordnern beruecksichtigt jetzt nur noch die Elemente, die im aktuellen Filter sichtbar sind.
+
+Shuffle-Playlists sind nun auf 1000 Videos begrenzt, um uebermaessig grosse Warteschlangen zu vermeiden.
+
+Features
+
+Ein Sleep Timer wurde hinzugefuegt mit Optionen von 5 bis 90 Minuten, einem visuellen Indikator oben, einem Dialog zur Anzeige der verbleibenden Zeit und einer Option zum Abbrechen des Timers.
+
+Das Aktionsmenue des Videos wurde in einen seitlichen Drawer verschoben, wodurch die Anzahl der oberen Schaltflaechen reduziert und der Platz besser genutzt wird.
+
+Der Bildschirm bleibt jetzt nur noch waehrend der Wiedergabe aktiv, und der Sleep-Timer-Ablauf wurde verbessert, damit die aktuelle Sitzung korrekt bereinigt wird und zugehoerige Dialoge das Video richtig pausieren oder fortsetzen.
+
+Die Texte des Drawers und der Sleep-Timer-Dialoge sind jetzt fuer die vom App unterstuetzten Sprachen vorbereitet.

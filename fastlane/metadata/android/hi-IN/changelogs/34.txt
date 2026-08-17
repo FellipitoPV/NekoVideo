@@ -1,0 +1,15 @@
+Fix
+
+Filtered folders me selection ab sirf un items ko consider karti hai jo current filter me visible hain.
+
+Shuffle playlists ab 1000 videos tak limited hain taaki bahut badi queues na banen.
+
+Features
+
+Sleep Timer add kiya gaya hai jisme 5 se 90 minute ke options, top par visual indicator, remaining time dekhne ke liye dialog, aur timer cancel karne ka option shamil hai.
+
+Video actions menu ko side drawer me reorganize kiya gaya hai, jisse top par buttons kam hote hain aur screen space ka better use hota hai.
+
+Ab screen sirf playback ke dauran awake rehti hai, aur Sleep Timer flow ko refine kiya gaya hai taaki current session sahi tarike se clear ho aur related dialogs me video sahi tarike se pause ya resume ho.
+
+Sleep Timer drawer aur dialogs ke texts ab app ki supported languages ke liye taiyar hain.
