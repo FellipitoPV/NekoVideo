@@ -1,0 +1,11 @@
+Fix
+
+Corrigidos problemas no player e no overlay, incluindo casos de tela preta, controles presos na tela e dialogs que nem sempre retomavam a reproducao corretamente.
+
+Tambem foram ajustados o autoplay do proximo video e o comportamento do Sleep Timer para manter a experiencia mais consistente.
+
+Features
+
+O drawer lateral do player foi refinado com visual mais limpo, melhor organizacao das acoes e adaptacao mais consistente para diferentes orientacoes de tela.
+
+Tambem foram preparados mais textos do player para traducao, com atualizacao das strings nos idiomas suportados pelo app.

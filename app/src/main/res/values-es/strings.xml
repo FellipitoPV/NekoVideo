@@ -442,4 +442,20 @@
     <string name="player_sleep_timer_hours_minutes_value">%1$dh %2$dmin</string>
     <string name="player_sleep_timer_hours_value">%1$dh</string>
     <string name="player_sleep_timer_only_minutes_value">%1$dmin</string>
+    <string name="player_back">Atrás</string>
+    <string name="player_previous">Anterior</string>
+    <string name="player_pause">Pausar</string>
+    <string name="player_play">Reproducir</string>
+    <string name="player_next">Siguiente</string>
+    <string name="player_subtitles">Subtítulos</string>
+    <string name="player_rotation_auto">Rotación automática</string>
+    <string name="player_rotation_portrait">Bloquear vertical</string>
+    <string name="player_rotation_landscape">Bloquear horizontal</string>
+    <string name="player_repeat_normal">Reproducción normal</string>
+    <string name="player_repeat_all">Repetir lista</string>
+    <string name="player_repeat_one">Repetir uno</string>
+    <string name="player_seek_forward">Avanzar búsqueda</string>
+    <string name="player_seek_backward">Retroceder búsqueda</string>
+    <string name="player_audio_track_number">Audio %1$d</string>
+    <string name="player_track_number">Pista %1$d</string>
 </resources>

@@ -1,0 +1,11 @@
+Fix
+
+Probleme im Player und im Overlay wurden behoben, darunter Faelle mit schwarzem Bildschirm, auf dem Bildschirm festhaengende Steuerelemente und Dialoge, die die Wiedergabe nicht immer korrekt fortgesetzt haben.
+
+Auch das Autoplay des naechsten Videos und das Verhalten des Sleep Timers wurden angepasst, um das Nutzungserlebnis konsistenter zu machen.
+
+Features
+
+Der seitliche Drawer des Players wurde mit einem aufgeraeumteren Look, einer besseren Organisation der Aktionen und einer konsistenteren Anpassung an verschiedene Bildschirmorientierungen ueberarbeitet.
+
+Zusaetzlich wurden weitere Texte des Players fuer Uebersetzungen vorbereitet und die Strings in den von der App unterstuetzten Sprachen aktualisiert.

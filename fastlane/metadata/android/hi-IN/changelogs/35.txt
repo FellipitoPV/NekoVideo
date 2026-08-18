@@ -1,0 +1,11 @@
+Fix
+
+Player aur overlay ke kai issues theek kiye gaye hain, jinme black screen ke cases, screen par atke rehne wale controls, aur aise dialogs shamil hain jo hamesha playback ko sahi tarah resume nahin karte the.
+
+Next video ke autoplay aur Sleep Timer ke behavior ko bhi adjust kiya gaya hai taaki experience zyada consistent rahe.
+
+Features
+
+Player ke side drawer ko cleaner look, actions ki better organization, aur alag-alag screen orientations ke liye zyada consistent adaptation ke saath refine kiya gaya hai.
+
+Player ke aur texts ko translation ke liye bhi prepare kiya gaya hai, aur app ki supported languages me strings update ki gayi hain.

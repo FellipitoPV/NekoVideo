@@ -1,0 +1,11 @@
+Fix
+
+Fixed player and overlay issues, including black screen cases, controls getting stuck on screen, and dialogs that did not always resume playback correctly.
+
+Autoplay for the next video and Sleep Timer behavior were also adjusted to keep the experience more consistent.
+
+Features
+
+The player side drawer was refined with a cleaner look, better action organization, and more consistent adaptation for different screen orientations.
+
+More player texts were also prepared for translation, with string updates across the app's supported languages.

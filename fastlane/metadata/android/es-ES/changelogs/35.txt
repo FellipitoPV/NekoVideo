@@ -1,0 +1,11 @@
+Fix
+
+Se corrigieron problemas en el reproductor y en el overlay, incluidos casos de pantalla negra, controles que quedaban fijos en pantalla y dialogos que no siempre reanudaban la reproduccion correctamente.
+
+Tambien se ajustaron el autoplay del siguiente video y el comportamiento del Sleep Timer para mantener una experiencia mas consistente.
+
+Features
+
+El drawer lateral del reproductor fue refinado con un aspecto mas limpio, mejor organizacion de las acciones y una adaptacion mas consistente para diferentes orientaciones de pantalla.
+
+Tambien se prepararon mas textos del reproductor para traduccion, con actualizacion de strings en los idiomas compatibles de la app.

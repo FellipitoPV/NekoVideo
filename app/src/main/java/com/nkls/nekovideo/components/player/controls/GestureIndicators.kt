@@ -30,10 +30,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nkls.nekovideo.R
 
 /**
  * Indicadores visuais para gestos do player (seek)
@@ -87,14 +89,14 @@ fun GestureIndicators(
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             imageVector = seekIcon,
-                            contentDescription = "Seek Forward",
+                            contentDescription = stringResource(R.string.player_seek_forward),
                             tint = Color.White,
                             modifier = Modifier.size(28.dp)
                         )
                     } else {
                         Icon(
                             imageVector = seekIcon,
-                            contentDescription = "Seek Backward",
+                            contentDescription = stringResource(R.string.player_seek_backward),
                             tint = Color.White,
                             modifier = Modifier.size(28.dp)
                         )

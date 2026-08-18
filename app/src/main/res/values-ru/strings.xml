@@ -450,4 +450,20 @@
     <string name="player_sleep_timer_hours_minutes_value">%1$dч %2$dмин</string>
     <string name="player_sleep_timer_hours_value">%1$dч</string>
     <string name="player_sleep_timer_only_minutes_value">%1$dмин</string>
+    <string name="player_back">Назад</string>
+    <string name="player_previous">Предыдущий</string>
+    <string name="player_pause">Пауза</string>
+    <string name="player_play">Воспроизвести</string>
+    <string name="player_next">Следующий</string>
+    <string name="player_subtitles">Субтитры</string>
+    <string name="player_rotation_auto">Автоповорот</string>
+    <string name="player_rotation_portrait">Зафиксировать портретный режим</string>
+    <string name="player_rotation_landscape">Зафиксировать альбомный режим</string>
+    <string name="player_repeat_normal">Обычное воспроизведение</string>
+    <string name="player_repeat_all">Повторять плейлист</string>
+    <string name="player_repeat_one">Повторять один трек</string>
+    <string name="player_seek_forward">Перемотка вперед</string>
+    <string name="player_seek_backward">Перемотка назад</string>
+    <string name="player_audio_track_number">Аудио %1$d</string>
+    <string name="player_track_number">Дорожка %1$d</string>
 </resources>

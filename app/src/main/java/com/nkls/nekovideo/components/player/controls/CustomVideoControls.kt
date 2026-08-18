@@ -16,6 +16,8 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,6 +74,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,7 +102,15 @@ private val CtrlBtnBg = Color.White.copy(alpha = 0.1f)
 private val CtrlBtnBgActive = Color.White.copy(alpha = 0.18f)
 private val CtrlIconOn = Color.White
 private val CtrlIconOff = Color.White.copy(alpha = 0.38f)
-private val CtrlDrawerBg = Color(0xFF121212).copy(alpha = 0.96f)
+private val CtrlDrawerBg = Color(0xFF15181D).copy(alpha = 0.985f)
+private val CtrlDrawerBorder = Color.White.copy(alpha = 0.08f)
+private val CtrlDrawerItemBg = Color.White.copy(alpha = 0.045f)
+private val CtrlDrawerItemActiveBg = Color.White.copy(alpha = 0.09f)
+private val CtrlDrawerItemDestructiveBg = Color(0xFFB84040).copy(alpha = 0.12f)
+private val CtrlDrawerIconBg = Color.White.copy(alpha = 0.07f)
+private val CtrlDrawerIconActiveBg = Color(0xFF4CAF50).copy(alpha = 0.18f)
+private val CtrlDrawerDivider = Color.White.copy(alpha = 0.07f)
+private val CtrlDrawerDeleteTint = Color(0xFFFF8A80)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -122,6 +133,7 @@ fun CustomVideoControls(
     onSpeedDialogOpen: () -> Unit,
     onSpeedDialogClose: () -> Unit,
     isCasting: Boolean,
+    currentVideoTagCount: Int,
     onCastClick: () -> Unit,
     rotationMode: RotationMode,
     onRotationModeChange: (RotationMode) -> Unit,
@@ -137,6 +149,7 @@ fun CustomVideoControls(
 ) {
     val controller = mediaController ?: return
     val context = androidx.compose.ui.platform.LocalContext.current
+    val configuration = LocalConfiguration.current
     var showActionDrawer by remember { mutableStateOf(false) }
     var resumeAfterActionDrawer by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
@@ -144,15 +157,18 @@ fun CustomVideoControls(
     var resumeAfterSleepTimerStatusDialog by remember { mutableStateOf(false) }
     var sleepTimerMinutes by remember { mutableStateOf(30f) }
     var sleepTimerRemainingMs by remember { mutableStateOf(0L) }
+    val actionDrawerScrollState = rememberScrollState()
 
     val currentGlobalIndex = controller.currentMediaItemIndex
     val totalPlaylistSize = PlaylistManager.getTotalSize()
+    val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+    val maxDrawerWidth = configuration.screenWidthDp.dp * if (isLandscape) 0.25f else 0.5f
+    val preferredDrawerWidth = if (isLandscape) 220.dp else 240.dp
+    val drawerWidth = minOf(preferredDrawerWidth, maxDrawerWidth)
 
     fun openActionDrawer() {
-        resumeAfterActionDrawer = isPlaying
-        if (isPlaying) {
-            controller.pause()
-        }
+        resumeAfterActionDrawer = true
+        controller.pause()
         showActionDrawer = true
         resetUITimer()
     }
@@ -166,10 +182,8 @@ fun CustomVideoControls(
     }
 
     fun openSleepTimerStatusDialog() {
-        resumeAfterSleepTimerStatusDialog = isPlaying
-        if (isPlaying) {
-            controller.pause()
-        }
+        resumeAfterSleepTimerStatusDialog = true
+        controller.pause()
         showSleepTimerStatusDialog = true
         resetUITimer()
     }
@@ -238,7 +252,7 @@ fun CustomVideoControls(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.player_back),
                             tint = CtrlIconOn,
                             modifier = Modifier.size(22.dp)
                         )
@@ -311,7 +325,7 @@ fun CustomVideoControls(
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipPrevious,
-                        contentDescription = "Previous",
+                        contentDescription = stringResource(R.string.player_previous),
                         tint = CtrlIconOn,
                         modifier = Modifier.size(30.dp)
                     )
@@ -332,7 +346,7 @@ fun CustomVideoControls(
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        contentDescription = if (isPlaying) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
                         tint = Color.Black,
                         modifier = Modifier.size(36.dp)
                     )
@@ -349,7 +363,7 @@ fun CustomVideoControls(
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
-                        contentDescription = "Next",
+                        contentDescription = stringResource(R.string.player_next),
                         tint = CtrlIconOn,
                         modifier = Modifier.size(30.dp)
                     )
@@ -468,7 +482,7 @@ fun CustomVideoControls(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Subtitles,
-                                    contentDescription = "Legendas",
+                                    contentDescription = stringResource(R.string.player_subtitles),
                                     tint = if (subtitlesEnabled) CtrlIconOn else CtrlIconOff,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -476,9 +490,9 @@ fun CustomVideoControls(
 
                             // Rotação
                             val (rotIcon, rotDesc, rotActive) = when (rotationMode) {
-                                RotationMode.AUTO -> Triple(Icons.Default.ScreenRotation, "Auto Rotation", false)
-                                RotationMode.PORTRAIT -> Triple(Icons.Default.StayCurrentPortrait, "Portrait Lock", true)
-                                RotationMode.LANDSCAPE -> Triple(Icons.Default.StayCurrentLandscape, "Landscape Lock", true)
+                                RotationMode.AUTO -> Triple(Icons.Default.ScreenRotation, stringResource(R.string.player_rotation_auto), false)
+                                RotationMode.PORTRAIT -> Triple(Icons.Default.StayCurrentPortrait, stringResource(R.string.player_rotation_portrait), true)
+                                RotationMode.LANDSCAPE -> Triple(Icons.Default.StayCurrentLandscape, stringResource(R.string.player_rotation_landscape), true)
                             }
                             IconButton(
                                 onClick = {
@@ -583,9 +597,9 @@ fun CustomVideoControls(
 
                             // Repeat mode
                             val (repIcon, repDesc, repActive) = when (repeatMode) {
-                                RepeatMode.NONE -> Triple(Icons.Default.PlaylistPlay, "Normal Play", false)
-                                RepeatMode.REPEAT_ALL -> Triple(Icons.Default.Repeat, "Repeat Playlist", true)
-                                RepeatMode.REPEAT_ONE -> Triple(Icons.Default.RepeatOne, "Repeat One", true)
+                                RepeatMode.NONE -> Triple(Icons.Default.PlaylistPlay, stringResource(R.string.player_repeat_normal), false)
+                                RepeatMode.REPEAT_ALL -> Triple(Icons.Default.Repeat, stringResource(R.string.player_repeat_all), true)
+                                RepeatMode.REPEAT_ONE -> Triple(Icons.Default.RepeatOne, stringResource(R.string.player_repeat_one), true)
                             }
                             IconButton(
                                 onClick = {
@@ -637,69 +651,119 @@ fun CustomVideoControls(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .fillMaxHeight()
-                        .width(220.dp)
+                        .width(drawerWidth)
+                        .border(1.dp, CtrlDrawerBorder, androidx.compose.foundation.shape.RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp))
                         .background(CtrlDrawerBg)
-                        .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility.only(WindowInsetsSides.Top))
-                        .padding(top = 72.dp, start = 12.dp, end = 12.dp, bottom = 12.dp)
+                        .padding(14.dp)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) { }
                 ) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Color.White.copy(alpha = 0.035f),
+                                androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
+                            )
+                            .border(
+                                1.dp,
+                                Color.White.copy(alpha = 0.05f),
+                                androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
+                            )
+                            .padding(horizontal = 14.dp, vertical = 14.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = stringResource(R.string.player_more_actions),
+                                color = Color.White.copy(alpha = 0.96f),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = videoTitle,
+                                color = Color.White.copy(alpha = 0.58f),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Normal,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(actionDrawerScrollState)
+                    ) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            DrawerActionItem(
+                                icon = Icons.Default.PictureInPicture,
+                                label = stringResource(R.string.player_picture_in_picture),
+                                tint = CtrlIconOn,
+                                onClick = {
+                                    closeActionDrawer(shouldResumePlayback = false)
+                                    onPiPClick()
+                                }
+                            )
+                        }
+
                         DrawerActionItem(
-                            icon = Icons.Default.PictureInPicture,
-                            label = stringResource(R.string.player_picture_in_picture),
-                            tint = CtrlIconOn,
+                            icon = if (isCasting) Icons.Default.CastConnected else Icons.Default.Cast,
+                            label = stringResource(if (isCasting) R.string.player_casting else R.string.player_cast),
+                            tint = if (isCasting) Color(0xFF4CAF50) else CtrlIconOn,
+                            isActive = isCasting,
                             onClick = {
                                 closeActionDrawer(shouldResumePlayback = false)
-                                onPiPClick()
+                                onCastClick()
+                                resetUITimer()
+                            }
+                        )
+
+                        DrawerActionItem(
+                            icon = Icons.Default.LocalOffer,
+                            label = stringResource(R.string.action_tags),
+                            tint = CtrlIconOn,
+                            trailingLabel = currentVideoTagCount.takeIf { it > 0 }?.toString(),
+                            onClick = {
+                                closeActionDrawer(shouldResumePlayback = false)
+                                onTagsClick()
+                                resetUITimer()
+                            }
+                        )
+
+                        DrawerActionItem(
+                            icon = Icons.Default.NightsStay,
+                            label = stringResource(R.string.player_sleep_timer),
+                            tint = CtrlIconOn,
+                            isActive = sleepTimerActive,
+                            onClick = {
+                                showActionDrawer = false
+                                showSleepTimerDialog = true
+                                resetUITimer()
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        DrawerDivider()
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        DrawerActionItem(
+                            icon = Icons.Default.Delete,
+                            label = stringResource(R.string.action_delete),
+                            tint = CtrlDrawerDeleteTint,
+                            isDestructive = true,
+                            onClick = {
+                                closeActionDrawer(shouldResumePlayback = false)
+                                onDeleteClick()
                             }
                         )
                     }
-
-                    DrawerActionItem(
-                        icon = if (isCasting) Icons.Default.CastConnected else Icons.Default.Cast,
-                        label = stringResource(if (isCasting) R.string.player_casting else R.string.player_cast),
-                        tint = if (isCasting) Color(0xFF4CAF50) else CtrlIconOn,
-                        onClick = {
-                            closeActionDrawer(shouldResumePlayback = false)
-                            onCastClick()
-                            resetUITimer()
-                        }
-                    )
-
-                    DrawerActionItem(
-                        icon = Icons.Default.LocalOffer,
-                        label = stringResource(R.string.action_tags),
-                        tint = CtrlIconOn,
-                        onClick = {
-                            closeActionDrawer(shouldResumePlayback = false)
-                            onTagsClick()
-                            resetUITimer()
-                        }
-                    )
-
-                    DrawerActionItem(
-                        icon = Icons.Default.NightsStay,
-                        label = stringResource(R.string.player_sleep_timer),
-                        tint = CtrlIconOn,
-                        onClick = {
-                            showActionDrawer = false
-                            showSleepTimerDialog = true
-                            resetUITimer()
-                        }
-                    )
-
-                    DrawerActionItem(
-                        icon = Icons.Default.Delete,
-                        label = stringResource(R.string.action_delete),
-                        tint = CtrlIconOn.copy(alpha = 0.75f),
-                        onClick = {
-                            closeActionDrawer(shouldResumePlayback = false)
-                            onDeleteClick()
-                        }
-                    )
                 }
             }
         }
@@ -852,32 +916,94 @@ private fun DrawerActionItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     tint: Color,
+    isActive: Boolean = false,
+    isDestructive: Boolean = false,
+    trailingLabel: String? = null,
     onClick: () -> Unit
 ) {
+    val containerColor = when {
+        isDestructive -> CtrlDrawerItemDestructiveBg
+        isActive -> CtrlDrawerItemActiveBg
+        else -> CtrlDrawerItemBg
+    }
+    val iconContainerColor = when {
+        isDestructive -> tint.copy(alpha = 0.16f)
+        isActive -> CtrlDrawerIconActiveBg
+        else -> CtrlDrawerIconBg
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White.copy(alpha = 0.04f), androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+            .background(containerColor, androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+            .border(
+                1.dp,
+                if (isActive) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.04f),
+                androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+            )
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = tint,
-            modifier = Modifier.size(20.dp)
-        )
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .background(iconContainerColor, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = tint,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+
         Text(
             text = label,
-            color = Color.White,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium
+            color = if (isDestructive) tint else Color.White.copy(alpha = 0.95f),
+            fontSize = 12.sp,
+            fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
+            modifier = Modifier.weight(1f)
         )
+
+        if (!trailingLabel.isNullOrBlank()) {
+            Box(
+                modifier = Modifier
+                    .background(Color.White.copy(alpha = 0.08f), androidx.compose.foundation.shape.RoundedCornerShape(999.dp))
+                    .padding(horizontal = 7.dp, vertical = 3.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = trailingLabel,
+                    color = Color.White.copy(alpha = 0.82f),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        if (isActive) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(tint, CircleShape)
+            )
+        }
     }
 
-    Spacer(modifier = Modifier.height(10.dp))
+    Spacer(modifier = Modifier.height(6.dp))
+}
+
+@Composable
+private fun DrawerDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(CtrlDrawerDivider)
+    )
 }
 
 suspend fun deleteCurrentVideo(

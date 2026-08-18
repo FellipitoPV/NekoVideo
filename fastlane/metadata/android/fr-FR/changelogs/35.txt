@@ -1,0 +1,11 @@
+Fix
+
+Correction de problemes dans le lecteur et l'overlay, y compris des cas d'ecran noir, des controles qui restaient bloques a l'ecran et des dialogues qui ne reprenaient pas toujours correctement la lecture.
+
+L'autoplay de la video suivante et le comportement du Sleep Timer ont egalement ete ajustes pour offrir une experience plus coherente.
+
+Features
+
+Le drawer lateral du lecteur a ete affine avec une apparence plus propre, une meilleure organisation des actions et une adaptation plus coherente aux differentes orientations de l'ecran.
+
+Davantage de textes du lecteur ont aussi ete prepares pour la traduction, avec une mise a jour des strings dans les langues prises en charge par l'application.

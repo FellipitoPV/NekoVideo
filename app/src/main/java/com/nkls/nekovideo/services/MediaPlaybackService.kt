@@ -53,6 +53,7 @@ class MediaPlaybackService : MediaSessionService() {
         const val ACTION_START_SLEEP_TIMER = "nekovideo.action.START_SLEEP_TIMER"
         const val ACTION_CLEAR_SLEEP_TIMER = "nekovideo.action.CLEAR_SLEEP_TIMER"
         const val ACTION_REQUEST_SLEEP_TIMER_STATE = "nekovideo.action.REQUEST_SLEEP_TIMER_STATE"
+        const val ACTION_REFRESH_CURRENT_ARTWORK = "nekovideo.action.REFRESH_CURRENT_ARTWORK"
         const val EXTRA_SLEEP_TIMER_DURATION_MS = "sleep_timer_duration_ms"
         const val BROADCAST_SLEEP_TIMER_STATE_CHANGED = "nekovideo.broadcast.SLEEP_TIMER_STATE_CHANGED"
         const val EXTRA_SLEEP_TIMER_ACTIVE = "sleep_timer_active"
@@ -80,6 +81,13 @@ class MediaPlaybackService : MediaSessionService() {
             context.startService(intent)
         }
 
+        fun refreshCurrentArtwork(context: Context) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = ACTION_REFRESH_CURRENT_ARTWORK
+            }
+            context.startService(intent)
+        }
+
         fun updatePlayerWindow(context: Context, window: List<String>, currentIndexInWindow: Int) {
             val intent = Intent(context, MediaPlaybackService::class.java).apply {
                 action = "UPDATE_WINDOW"
@@ -89,10 +97,11 @@ class MediaPlaybackService : MediaSessionService() {
             context.startService(intent)
         }
 
-        fun seekToPlaylistIndex(context: Context, playlistIndex: Int) {
+        fun seekToPlaylistIndex(context: Context, playlistIndex: Int, autoPlay: Boolean = false) {
             val intent = Intent(context, MediaPlaybackService::class.java).apply {
                 action = "SEEK_TO_PLAYLIST_INDEX"
                 putExtra("PLAYLIST_INDEX", playlistIndex)
+                putExtra("AUTO_PLAY", autoPlay)
             }
             context.startService(intent)
         }
@@ -554,7 +563,8 @@ class MediaPlaybackService : MediaSessionService() {
             }
             "SEEK_TO_PLAYLIST_INDEX" -> {
                 val playlistIndex = intent.getIntExtra("PLAYLIST_INDEX", 0)
-                seekToPlaylistIndex(playlistIndex)
+                val autoPlay = intent.getBooleanExtra("AUTO_PLAY", false)
+                seekToPlaylistIndex(playlistIndex, autoPlay)
             }
             "REMOVE_PLAYLIST_ITEM" -> {
                 val removeIndex = intent.getIntExtra("REMOVE_INDEX", -1)
@@ -600,6 +610,9 @@ class MediaPlaybackService : MediaSessionService() {
             }
             ACTION_REQUEST_SLEEP_TIMER_STATE -> {
                 broadcastSleepTimerState(isActive = isSleepTimerActive)
+            }
+            ACTION_REFRESH_CURRENT_ARTWORK -> {
+                scheduleCurrentPlaybackProcessing()
             }
         }
         return super.onStartCommand(intent, flags, startId)
@@ -833,7 +846,7 @@ class MediaPlaybackService : MediaSessionService() {
         updatePlaylist(window, currentIndexInWindow)
     }
 
-    private fun seekToPlaylistIndex(playlistIndex: Int) {
+    private fun seekToPlaylistIndex(playlistIndex: Int, autoPlay: Boolean) {
         player?.let { currentPlayer ->
             if (playlistIndex !in 0 until currentPlayer.mediaItemCount) {
                 Log.w("MediaPlaybackService", "seekToPlaylistIndex ignorado: índice inválido $playlistIndex/${currentPlayer.mediaItemCount}")
@@ -845,6 +858,9 @@ class MediaPlaybackService : MediaSessionService() {
             }
 
             pendingSeekIndex = playlistIndex
+            if (autoPlay) {
+                currentPlayer.playWhenReady = true
+            }
             processPendingSeekIfNeeded(currentPlayer)
         }
     }

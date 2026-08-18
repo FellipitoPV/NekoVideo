@@ -19,12 +19,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
+import com.nkls.nekovideo.R
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.DLNACastManager
@@ -369,7 +371,7 @@ fun MiniPlayerImproved(
                         Text(
                             text = if (effectiveDuration > 0)
                                 "${formatTime(effectivePosition)} / ${formatTime(effectiveDuration)}"
-                            else if (isCasting) "Transmitindo…" else "",
+                            else if (isCasting) stringResource(R.string.player_casting) else "",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (isCasting) Color(0xFF4CAF50).copy(alpha = 0.8f)
                                     else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -394,7 +396,7 @@ fun MiniPlayerImproved(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SkipPrevious,
-                                contentDescription = "Previous",
+                                contentDescription = stringResource(R.string.player_previous),
                                 tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -428,7 +430,7 @@ fun MiniPlayerImproved(
                                 ) { playing ->
                                     Icon(
                                         imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                        contentDescription = if (playing) "Pause" else "Play",
+                                        contentDescription = if (playing) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
                                         tint = MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.size(24.dp)
                                     )
@@ -446,7 +448,7 @@ fun MiniPlayerImproved(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SkipNext,
-                                contentDescription = "Next",
+                                contentDescription = stringResource(R.string.player_next),
                                 tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -459,7 +461,7 @@ fun MiniPlayerImproved(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
+                                contentDescription = stringResource(R.string.close),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )

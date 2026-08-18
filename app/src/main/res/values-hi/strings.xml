@@ -442,4 +442,20 @@
     <string name="player_sleep_timer_hours_minutes_value">%1$dघं %2$dमिनट</string>
     <string name="player_sleep_timer_hours_value">%1$dघं</string>
     <string name="player_sleep_timer_only_minutes_value">%1$dमिनट</string>
+    <string name="player_back">वापस</string>
+    <string name="player_previous">पिछला</string>
+    <string name="player_pause">रोकें</string>
+    <string name="player_play">चलाएं</string>
+    <string name="player_next">अगला</string>
+    <string name="player_subtitles">उपशीर्षक</string>
+    <string name="player_rotation_auto">ऑटो रोटेशन</string>
+    <string name="player_rotation_portrait">पोर्ट्रेट लॉक</string>
+    <string name="player_rotation_landscape">लैंडस्केप लॉक</string>
+    <string name="player_repeat_normal">सामान्य प्लेबैक</string>
+    <string name="player_repeat_all">प्लेलिस्ट दोहराएं</string>
+    <string name="player_repeat_one">एक ट्रैक दोहराएं</string>
+    <string name="player_seek_forward">आगे खोजें</string>
+    <string name="player_seek_backward">पीछे खोजें</string>
+    <string name="player_audio_track_number">ऑडियो %1$d</string>
+    <string name="player_track_number">ट्रैक %1$d</string>
 </resources>

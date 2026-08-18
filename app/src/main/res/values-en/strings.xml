@@ -443,4 +443,20 @@
     <string name="player_sleep_timer_hours_minutes_value">%1$dh %2$dmin</string>
     <string name="player_sleep_timer_hours_value">%1$dh</string>
     <string name="player_sleep_timer_only_minutes_value">%1$dmin</string>
+    <string name="player_back">Back</string>
+    <string name="player_previous">Previous</string>
+    <string name="player_pause">Pause</string>
+    <string name="player_play">Play</string>
+    <string name="player_next">Next</string>
+    <string name="player_subtitles">Subtitles</string>
+    <string name="player_rotation_auto">Auto rotation</string>
+    <string name="player_rotation_portrait">Portrait lock</string>
+    <string name="player_rotation_landscape">Landscape lock</string>
+    <string name="player_repeat_normal">Normal playback</string>
+    <string name="player_repeat_all">Repeat playlist</string>
+    <string name="player_repeat_one">Repeat one</string>
+    <string name="player_seek_forward">Seek forward</string>
+    <string name="player_seek_backward">Seek backward</string>
+    <string name="player_audio_track_number">Audio %1$d</string>
+    <string name="player_track_number">Track %1$d</string>
 </resources>

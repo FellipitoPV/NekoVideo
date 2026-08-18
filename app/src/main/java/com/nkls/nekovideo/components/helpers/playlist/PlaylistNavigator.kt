@@ -80,7 +80,7 @@ object PlaylistNavigator {
                     val indexAfter = PlaylistManager.getRequestedIndex()
 
                     Log.d(TAG, "Next: $indexBefore → $indexAfter")
-                    MediaPlaybackService.seekToPlaylistIndex(context, indexAfter)
+                    MediaPlaybackService.seekToPlaylistIndex(context, indexAfter, autoPlay = true)
                     true
                 }
                 PlaylistManager.NavigationResult.EndOfPlaylist -> {

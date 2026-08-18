@@ -81,7 +81,7 @@ fun PlaybackThumbnailCoordinator() {
                 currentMediaUri(controller) == mediaUri
 
             if (generated && sameVideo && loadExistingThumbnail(mediaUri) != null) {
-                MediaPlaybackService.refreshPlayer(context)
+                MediaPlaybackService.refreshCurrentArtwork(context)
             }
         }
     }

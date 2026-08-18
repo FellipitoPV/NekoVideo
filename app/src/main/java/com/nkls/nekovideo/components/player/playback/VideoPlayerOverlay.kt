@@ -159,6 +159,7 @@ fun VideoPlayerOverlay(
     var shouldResumeAfterOverlayDialog by remember { mutableStateOf(false) }
     var isSpeedDialogOpen by remember { mutableStateOf(false) }
     var currentVideoPath by remember { mutableStateOf("") }
+    var currentVideoTagCount by remember { mutableIntStateOf(0) }
     var availableTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
     var commonSelectedTagIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var availableTagsScope by remember { mutableStateOf<TagScope?>(null) }
@@ -800,18 +801,37 @@ fun VideoPlayerOverlay(
     fun resumePlaybackAfterTagsDialog() {
         if (shouldResumeAfterTagsDialog) {
             mediaController?.play()
+            if (controlsVisible) {
+                resetUITimer()
+            }
             shouldResumeAfterTagsDialog = false
         }
     }
 
+    LaunchedEffect(currentVideoPath, tagChangeEvent) {
+        val path = currentVideoPath
+        if (path.isBlank()) {
+            currentVideoTagCount = 0
+            return@LaunchedEffect
+        }
+
+        val scope = getTagScopeForPath(path)
+        currentVideoTagCount = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            VideoTagStore.getCommonTagIds(context, listOf(path), scope).size
+        }
+    }
+
     fun pausePlaybackForOverlayDialog() {
-        shouldResumeAfterOverlayDialog = mediaController?.isPlaying == true
+        shouldResumeAfterOverlayDialog = true
         mediaController?.pause()
     }
 
     fun resumePlaybackAfterOverlayDialog() {
         if (shouldResumeAfterOverlayDialog) {
             mediaController?.play()
+            if (controlsVisible) {
+                resetUITimer()
+            }
             shouldResumeAfterOverlayDialog = false
         }
     }
@@ -1045,7 +1065,7 @@ fun VideoPlayerOverlay(
         mediaController?.setPlaybackSpeed(playbackSpeed.value)
     }
 
-    LaunchedEffect(controlsVisible) {
+    LaunchedEffect(controlsVisible, isPlaying, isSeekingActive) {
         if (controlsVisible && isPlaying) {
             uiTimer = 4
             while (uiTimer > 0 && controlsVisible && isPlaying) {
@@ -1707,7 +1727,7 @@ fun VideoPlayerOverlay(
                         },
                         onTagsClick = {
                             if (currentVideoPath.isNotEmpty()) {
-                                shouldResumeAfterTagsDialog = mediaController?.isPlaying == true
+                                shouldResumeAfterTagsDialog = true
                                 mediaController?.pause()
                                 coroutineScope.launch {
                                     val scope = getTagScopeForPath(currentVideoPath)
@@ -1757,6 +1777,7 @@ fun VideoPlayerOverlay(
                             resumePlaybackAfterOverlayDialog()
                         },
                         isCasting = isCasting,
+                        currentVideoTagCount = currentVideoTagCount,
                         onCastClick = {
                             pausePlaybackForOverlayDialog()
                             discoveredDevices = emptyList()
@@ -1795,9 +1816,7 @@ fun VideoPlayerOverlay(
                             sleepTimerActive = false
                             sleepTimerEndAtMs = 0L
                         },
-                        onSleepTimerConfirmed = {
-                            controlsVisible = false
-                        }
+                        onSleepTimerConfirmed = {}
                     )
                 }
             }

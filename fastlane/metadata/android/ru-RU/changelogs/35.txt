@@ -1,0 +1,11 @@
+Fix
+
+Ispravleny problemy v pleere i overlay, vklyuchaya sluchai chernogo ekrana, zastryevayushchie na ekrane elementy upravleniya i dialogi, kotorye ne vsegda korrektno vozobnovlyali vosproizvedenie.
+
+Takzhe byli skorrektirovany autoplay sleduyushchego video i povedenie Sleep Timer, chtoby sdelat rabotu prilozheniya bolee posledovatelnoy.
+
+Features
+
+Bokovoi drawer pleera byl dorabotan: on poluchil bolee chistyy vid, luchshuyu organizatsiyu deystviy i bolee posledovatelnuyu adaptatsiyu dlya raznykh orientatsiy ekrana.
+
+Takzhe dlya perevoda podgotovleno bolshe tekstov pleera, a strings obnovleny vo vsekh podderzhivaemykh yazykakh prilozheniya.

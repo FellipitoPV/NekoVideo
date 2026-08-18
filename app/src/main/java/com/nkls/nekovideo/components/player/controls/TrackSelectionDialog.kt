@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.nkls.nekovideo.R
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.Tracks
 import kotlin.math.roundToInt
+import java.util.Locale
 
 private val DialogBg = Color(0xFF1A1A2E)
 private val AccentBlue = Color(0xFF6C8CFF)
@@ -79,6 +81,7 @@ fun TrackSelectionDialog(
     onOpen: () -> Unit = {},
     onClose: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) { onOpen() }
@@ -92,7 +95,7 @@ fun TrackSelectionDialog(
                     TrackOption(
                         groupIndex = groupIndex,
                         trackIndex = trackIndex,
-                        title = getSubtitleDisplayName(group, trackIndex)
+                        title = getSubtitleDisplayName(context, group, trackIndex)
                     )
                 )
             }
@@ -107,7 +110,7 @@ fun TrackSelectionDialog(
                     TrackOption(
                         groupIndex = groupIndex,
                         trackIndex = trackIndex,
-                        title = format.label ?: format.language ?: "Audio ${trackIndex + 1}"
+                        title = format.label ?: format.language ?: context.getString(R.string.player_audio_track_number, trackIndex + 1)
                     )
                 )
             }
@@ -441,7 +444,7 @@ private fun TrackOptionRow(
     }
 }
 
-private fun getSubtitleDisplayName(group: Tracks.Group, index: Int): String {
+private fun getSubtitleDisplayName(context: android.content.Context, group: Tracks.Group, index: Int): String {
     val format = group.getTrackFormat(index)
 
     val label = format.label?.takeIf { it.isNotBlank() }
@@ -451,14 +454,21 @@ private fun getSubtitleDisplayName(group: Tracks.Group, index: Int): String {
         label != null && language != null -> "$label - [$language]"
         label != null -> label
         language != null -> {
-            when (language.lowercase()) {
-                "pt", "pt-br", "por" -> "Portugu\u00eas"
-                "en", "eng" -> "English"
-                "es", "spa" -> "Espa\u00f1ol"
-                "ja", "jpn" -> "\u65e5\u672c\u8a9e"
-                else -> language.uppercase()
-            }
+            languageCodeToTag(language)?.let { tag ->
+                Locale.forLanguageTag(tag).getDisplayLanguage(Locale.getDefault())
+                    .takeIf { it.isNotBlank() }
+            } ?: language.uppercase()
         }
-        else -> "Track ${index + 1}"
+        else -> context.getString(R.string.player_track_number, index + 1)
+    }
+}
+
+private fun languageCodeToTag(language: String): String? {
+    return when (language.lowercase()) {
+        "pt", "pt-br", "por" -> "pt-BR"
+        "en", "eng" -> "en"
+        "es", "spa" -> "es"
+        "ja", "jpn" -> "ja"
+        else -> null
     }
 }
