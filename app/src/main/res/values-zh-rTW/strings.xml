@@ -1,0 +1,449 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Button actions -->
+    <string name="action_paste_here">貼到此處</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_cancel_operation">取消操作</string>
+    <string name="action_unlock">解鎖</string>
+    <string name="action_protect">移至安全資料夾</string>
+    <string name="action_unprivatize">取消私密</string>
+    <string name="action_privatize">設為私密</string>
+    <string name="action_lock_folder">設為私密</string>
+    <string name="action_unlock_folder">取消私密</string>
+    <string name="locking_folder">正在鎖定資料夾…</string>
+    <string name="locking_progress">正在鎖定… %1$d/%2$d 個檔案</string>
+    <string name="unlocking_folder">正在解鎖資料夾…</string>
+    <string name="unlocking_progress">正在解鎖… %1$d/%2$d 個檔案</string>
+    <string name="moving_files">正在移動檔案…</string>
+    <string name="moving_progress">正在移動… %1$d/%2$d 個檔案</string>
+    <string name="deleting_items">正在刪除項目…</string>
+    <string name="deleting_progress">正在刪除… %1$d/%2$d 項</string>
+    <string name="folder_locked_success">資料夾鎖定成功</string>
+    <string name="folder_unlocked_success">資料夾解鎖成功</string>
+    <string name="enter_password_to_lock">輸入密碼以鎖定資料夾</string>
+    <string name="enter_password_to_unlock">輸入密碼以解鎖</string>
+    <string name="enter_password_to_view">輸入密碼以檢視</string>
+    <string name="invalid_password_or_corrupted">密碼無效或資料已損毀</string>
+    <string name="locked_folder">已鎖定資料夾</string>
+    <string name="action_delete">刪除</string>
+    <string name="action_rename">重新命名</string>
+    <string name="action_move">移動</string>
+    <string name="action_share">分享</string>
+    <string name="action_tags">標籤</string>
+    <string name="share_videos">分享影片</string>
+    <string name="action_shuffle_play">隨機播放</string>
+    <string name="action_create_folder">新增資料夾</string>
+    <string name="action_settings">設定</string>
+    <string name="no_videos_found">此資料夾中沒有影片</string>
+    <string name="empty_folder_title">空資料夾</string>
+    <string name="empty_folder_message">目前沒有可顯示的資料夾或影片。</string>
+    <string name="neko_private_folder_name">私密保險庫</string>
+    <string name="secure_folders_hidden">已隱藏安全資料夾</string>
+    <string name="secure_folders_shown">已顯示安全資料夾</string>
+    <string name="select_private_folders_to_unprivatize">選擇要取消私密的資料夾</string>
+    <string name="select_valid_folders_to_privatize">選擇要設為私密的有效資料夾</string>
+    <string name="unprivatizing_folders">正在取消私密…</string>
+    <string name="privatizing_folders">正在設為私密…</string>
+    <string name="unprivatize_title">取消私密</string>
+    <string name="privatize_title">設為私密</string>
+    <string name="move_mode_activated">已啟用移動模式。請前往目標位置並貼上。</string>
+    <string name="move_operation_cancelled">已取消移動操作</string>
+    <string name="items_moved">項目已移動！</string>
+    <string name="items_deleted_locked">項目已刪除！</string>
+    <string name="files_secured">檔案已保護！</string>
+    <string name="folder_created">資料夾已建立</string>
+    <string name="action_set_secure_folder">設為安全資料夾</string>
+    <string name="secure_folder_set">此資料夾現在是安全資料夾！</string>
+    <string name="pull_to_refresh_tutorial">下拉以重新整理影片</string>
+
+    <!-- Content descriptions -->
+    <string name="cancel_description">取消</string>
+    <string name="paste_here_description">貼到此處</string>
+    <string name="actions_description">操作</string>
+    <string name="options_description">選項</string>
+
+    <string name="loading">載入中…</string>
+    <string name="updating_index">正在更新索引…</string>
+    <string name="indexing_videos">正在建立影片索引…</string>
+    <string name="pull_down_to_scan">此資料夾中未找到相容的影片</string>
+
+    <string name="searching_cast_devices">正在搜尋投放裝置…</string>
+    <string name="no_cast_devices_found">未找到投放裝置</string>
+    <string name="available_devices">可用裝置</string>
+    <string name="refresh">重新整理</string>
+    <string name="select_cast_device">選擇投放裝置</string>
+    <string name="cast_playing_on">正在播放於</string>
+    <string name="cast_disconnect_title">停止投放？</string>
+    <string name="cast_disconnect_message">將停止在 %s 上的播放。</string>
+    <string name="cast_disconnect_confirm">中斷連線</string>
+    <string name="cast_notification_channel_name">投放控制</string>
+    <string name="cast_notification_casting_to">正在投放至 %s</string>
+    <string name="cast_notification_idle">準備投放</string>
+    <string name="previous">上一個</string>
+    <string name="play">播放</string>
+    <string name="pause">暫停</string>
+    <string name="next">下一個</string>
+
+    <!-- Premium -->
+    <string name="premium_title">移除廣告</string>
+    <string name="premium_description">支持開發並享受無廣告體驗！</string>
+    <string name="premium_no_ads">無廣告</string>
+    <string name="premium_support">支持開發者</string>
+    <string name="premium_active">進階版已啟用</string>
+    <string name="premium_thanks">感謝您的支持！</string>
+
+    <!-- Bottom sheet headers -->
+    <string name="mode_move_files">模式：移動檔案</string>
+    <string name="item_actions">項目操作</string>
+    <string name="options">選項</string>
+    <string name="navigate_to_destination">前往目標位置並貼上檔案</string>
+
+    <!-- Interface Settings -->
+    <string name="settings_appearance">外觀</string>
+    <string name="settings_language">語言</string>
+    <string name="settings_dark_mode">深色模式</string>
+    <string name="settings_dark_mode_desc">淺色、深色或跟隨系統</string>
+    <string name="settings_app_language">應用程式語言</string>
+    <string name="settings_app_language_desc">應用程式介面顯示語言</string>
+
+    <!-- Rename dialogs -->
+    <string name="rename_item">重新命名項目</string>
+    <string name="renaming_item">正在重新命名項目…</string>
+    <string name="new_name">新名稱</string>
+    <string name="rename_multiple_items">批次重新命名</string>
+    <string name="selected_items_count">已選擇 %d 項</string>
+    <string name="video_tags_title">影片標籤</string>
+    <string name="video_tags_empty">尚未建立標籤</string>
+    <string name="video_tags_empty_desc">建立標籤以整理影片，並在隨機播放時重複使用。</string>
+    <string name="video_tags_create">建立標籤</string>
+    <string name="edit_tag">編輯標籤</string>
+    <string name="video_tags_new_label">標籤名稱</string>
+    <string name="video_tags_save">儲存標籤</string>
+    <string name="video_tags_choose">選擇要新增至所選影片的標籤</string>
+    <string name="video_tags_add_success">影片標籤已更新</string>
+    <string name="video_tags_create_success">標籤已建立</string>
+    <string name="video_tags_name_empty">請輸入標籤名稱</string>
+    <string name="video_tags_name_exists">此標籤已存在</string>
+    <string name="video_tags_none_selected">請至少選擇一個標籤</string>
+    <string name="shuffle_tags_title">依標籤隨機播放</string>
+    <string name="shuffle_tags_description">點擊標籤可在使用、忽略和中性之間切換。若未標記任何要使用的標籤，則隨機播放會考慮所有影片，僅排除被忽略的標籤。</string>
+    <string name="shuffle_tags_empty">尚未建立標籤。請先為影片新增標籤。</string>
+    <string name="shuffle_tags_confirm">建立隨機播放</string>
+    <string name="shuffle_tags_no_match">未找到包含所選標籤的影片</string>
+    <string name="shuffle_tags_mode_neutral">中性</string>
+    <string name="shuffle_tags_mode_include">用於隨機播放</string>
+    <string name="shuffle_tags_mode_exclude">隨機播放時忽略</string>
+    <string name="shuffle_tags_hint_message">提示：長按「隨機播放」可選擇要使用的標籤。</string>
+
+    <!-- Permissions -->
+    <string name="permission_title">需要檔案存取權限</string>
+    <string name="permission_description">為正常運作，本應用程式需要存取裝置上的所有檔案。這樣您才能瀏覽和播放影片。</string>
+    <string name="permission_button">允許檔案存取</string>
+    <string name="permission_instructions">點擊上方按鈕，並在系統設定中開啟「允許管理所有檔案」權限。</string>
+
+    <!-- Pull to Refresh Tutorial -->
+    <string name="pull_to_refresh_title">下拉重新整理</string>
+    <string name="pull_to_refresh_description">按住並向下拖動此區域，以手動更新影片</string>
+    <string name="updating_videos">正在更新影片…</string>
+    <string name="pull_to_refresh">下拉重新整理</string>
+    <string name="release_to_refresh">放開以重新整理</string>
+    <string name="pull_to_refresh_empty">點擊圖示以重新整理影片索引</string>
+
+    <!-- Themes -->
+    <string name="theme_light">淺色</string>
+    <string name="theme_dark">深色</string>
+    <string name="theme_system">跟隨系統</string>
+
+    <!-- Languages -->
+    <string name="language_system">跟隨系統</string>
+    <string name="language_portuguese">Português (Brasil)</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+    <string name="language_french">Français</string>
+    <string name="language_german">Deutsch</string>
+    <string name="language_russian">Русский</string>
+    <string name="language_hindi">हिन्दी</string>
+    <string name="language_chinese">简体中文</string>
+    <string name="language_chinese_traditional">繁體中文</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_playback">播放</string>
+    <string name="settings_playback_desc">播放控制和播放器行為</string>
+    <string name="settings_interface">介面</string>
+    <string name="settings_interface_desc">應用程式主題和語言</string>
+    <string name="settings_display">顯示</string>
+    <string name="settings_display_desc">縮圖、網格和資訊顯示</string>
+    <string name="settings_files">檔案</string>
+    <string name="settings_files_desc">資料夾和檔案管理</string>
+    <string name="settings_performance">效能</string>
+    <string name="settings_performance_desc">快取和效能最佳化</string>
+    <string name="settings_storage">儲存空間與快取</string>
+    <string name="settings_storage_desc">管理縮圖快取</string>
+    <string name="settings_tags">標籤</string>
+    <string name="settings_tags_desc">管理一般和私密影片標籤</string>
+    <string name="settings_about">關於</string>
+    <string name="settings_about_desc">應用程式資訊和支援</string>
+    <string name="settings_support_developer">支持開發者</string>
+    <string name="settings_support_developer_desc">協助保持 NekoVideo 開源</string>
+    <string name="settings_security">安全與隱私</string>
+    <string name="settings_security_desc">生物辨識和密碼選項</string>
+    <string name="security_title">安全與隱私</string>
+    <string name="biometric_section">生物辨識</string>
+    <string name="biometric_unlock">生物辨識解鎖</string>
+    <string name="biometric_unlock_desc">使用指紋或臉部辨識解鎖私密資料夾</string>
+    <string name="biometric_unlock_title">解鎖私密資料夾</string>
+    <string name="biometric_use_password">使用密碼</string>
+    <string name="biometric_scanning">等待生物辨識…</string>
+    <string name="biometric_not_available">此裝置不支援生物辨識</string>
+    <string name="biometric_no_password">請先設定隱私密碼</string>
+    <string name="biometric_enable_title">啟用生物辨識解鎖？</string>
+    <string name="biometric_enable_desc">使用生物辨識解鎖私密資料夾，無需輸入密碼。</string>
+    <string name="biometric_enable_confirm">啟用生物辨識</string>
+    <string name="biometric_enable_prompt_title">啟用生物辨識</string>
+    <string name="biometric_enable_prompt_subtitle">確認以啟用生物辨識解鎖</string>
+    <string name="biometric_enable_cancel">取消</string>
+    <string name="biometric_not_now">暫不</string>
+    <string name="biometric_enabled_success">生物辨識已成功啟用！</string>
+    <string name="biometric_disabled">生物辨識已關閉。</string>
+    <string name="change_password">變更密碼</string>
+    <string name="change_password_desc">更新所有私密資料夾的密碼</string>
+    <string name="change_password_title">變更密碼</string>
+    <string name="change_password_step_old">目前密碼</string>
+    <string name="change_password_step_new">新密碼</string>
+    <string name="change_password_confirm_new">確認新密碼</string>
+    <string name="change_password_next">下一步</string>
+    <string name="change_password_confirm_btn">確認</string>
+    <string name="change_password_processing">正在更新私密資料夾…</string>
+    <string name="change_password_success">密碼變更成功！</string>
+    <string name="change_password_section">密碼</string>
+    <string name="biometric_reactivate_prompt_title">重新啟用生物辨識</string>
+    <string name="biometric_reactivate_prompt_subtitle">確認以使用新密碼更新生物辨識解鎖</string>
+    <string name="biometric_reactivated">生物辨識已成功更新！</string>
+    <string name="biometric_deactivated_reactivate">生物辨識已關閉。可在「安全與隱私」中重新啟用。</string>
+    <string name="storage_thumbnails_section">縮圖快取</string>
+    <string name="storage_clear_thumbnails">清除縮圖快取</string>
+    <string name="storage_clear_thumbnails_desc">刪除所有已儲存的縮圖，瀏覽資料夾時會重新產生</string>
+    <string name="storage_clear_thumbnails_success">縮圖快取已清除</string>
+    <string name="storage_clear_continue_watching">清除繼續觀看記錄</string>
+    <string name="storage_clear_continue_watching_desc">移除根目錄卡片和所有已儲存的播放進度</string>
+    <string name="storage_clear_continue_watching_success">繼續觀看記錄已清除</string>
+    <string name="tags_title">標籤</string>
+    <string name="tags_normal_section">一般影片標籤</string>
+    <string name="tags_private_section">私密影片標籤</string>
+    <string name="tags_private_locked_title">私密標籤已受保護</string>
+    <string name="tags_private_locked_desc">使用生物辨識或密碼解鎖後，可檢視、建立和刪除私密標籤。</string>
+    <string name="tags_private_unlock">解鎖私密標籤</string>
+    <string name="tags_private_password_required">請先設定隱私密碼以管理私密標籤</string>
+    <string name="tags_backup_section">標籤備份</string>
+    <string name="tags_backup_export">匯出備份</string>
+    <string name="tags_backup_export_desc">將備份手動儲存到任意位置</string>
+    <string name="tags_backup_import">匯入備份</string>
+    <string name="tags_backup_import_desc">將裝置上的自動備份與目前標籤合併</string>
+    <string name="tags_backup_auto_status">自動備份已儲存於 %1$s</string>
+    <string name="tags_backup_auto_status_empty">尚未儲存自動備份</string>
+    <string name="tags_backup_export_success">備份匯出成功</string>
+    <string name="tags_backup_import_success">備份已匯入：新增 %1$d 個標籤，恢復 %2$d 個關聯</string>
+    <string name="tags_backup_action_failed">無法完成備份操作</string>
+    <string name="tags_create_hint">建立新標籤</string>
+    <string name="tags_empty_scope">此類別中尚無標籤</string>
+    <string name="tags_delete">刪除標籤</string>
+
+    <!-- TopAppBar -->
+    <string name="settings_title">設定</string>
+    <string name="playback_title">播放</string>
+    <string name="interface_title">介面</string>
+    <string name="about_title">關於</string>
+    <string name="cancel_selection">取消選擇</string>
+    <string name="back">返回</string>
+    <string name="select_all">全選</string>
+
+    <!-- Playback Settings Screen -->
+    <string name="playback_controls">控制</string>
+    <string name="playback_features">功能</string>
+
+    <string name="playback_auto_hide_controls">自動隱藏控制列</string>
+    <string name="playback_auto_hide_controls_desc">播放時自動隱藏</string>
+    <string name="playback_double_tap_seek">雙擊快轉/倒轉</string>
+    <string name="playback_double_tap_seek_desc">快轉或倒轉的秒數</string>
+    <string name="playback_keep_screen_on">保持螢幕常亮</string>
+    <string name="playback_keep_screen_on_desc">播放時不關閉螢幕</string>
+    <string name="playback_pip">自動子母畫面</string>
+    <string name="playback_pip_desc">播放時離開應用程式自動進入子母畫面</string>
+    <string name="playback_continue_watching">繼續觀看</string>
+    <string name="playback_continue_watching_enabled">啟用繼續觀看</string>
+    <string name="playback_continue_watching_enabled_desc">儲存播放進度，稍後繼續觀看</string>
+    <string name="playback_continue_watching_min_duration">最短影片長度</string>
+    <string name="playback_continue_watching_min_duration_desc">僅儲存達到此長度的影片進度</string>
+    <string name="playback_continue_watching_private">包含私密影片</string>
+    <string name="playback_continue_watching_private_desc">同時儲存私密資料夾內影片的播放進度</string>
+    <string name="playback_continue_watching_stopped_at">停在 %1$s</string>
+
+    <!-- Display Settings Screen -->
+    <string name="display_video_info">影片資訊</string>
+    <string name="display_show_thumbnails">顯示縮圖</string>
+    <string name="display_show_thumbnails_desc">顯示影片縮圖</string>
+    <string name="display_show_durations">顯示長度</string>
+    <string name="display_show_durations_desc">顯示影片長度</string>
+    <string name="display_show_file_sizes">顯示檔案大小</string>
+    <string name="display_show_file_sizes_desc">顯示檔案大小</string>
+    <string name="display_layout">版面配置</string>
+    <string name="display_grid_columns">網格欄數</string>
+    <string name="display_grid_columns_desc">清單中的欄數</string>
+    <string name="display_quality">畫質</string>
+    <string name="display_thumbnail_quality">縮圖解析度</string>
+    <string name="display_thumbnail_quality_desc">產生的縮圖品質</string>
+
+    <!-- Quality Options -->
+    <string name="quality_low">低 (360p)</string>
+    <string name="quality_medium">中 (720p)</string>
+    <string name="quality_high">高 (1080p)</string>
+    <string name="quality_original">原始</string>
+
+    <!-- Private folders hint -->
+    <string name="private_folders_hint">連續點擊頂部應用程式圖示 3 次可顯示/隱藏私密資料夾</string>
+
+    <!-- Files Settings Screen -->
+    <string name="files_management">管理</string>
+    <string name="files_app_only_folders">建立私密資料夾</string>
+    <string name="files_app_only_folders_desc">預設建立私密資料夾</string>
+    <string name="files_confirm_delete">刪除前確認</string>
+    <string name="files_confirm_delete_desc">刪除檔案前詢問確認</string>
+
+    <!-- Performance Settings Screen -->
+    <string name="performance_cache">快取</string>
+    <string name="performance_thumbnail_cache">縮圖快取</string>
+    <string name="performance_thumbnail_cache_desc">為縮圖預留的空間</string>
+
+    <!-- About Settings Screen -->
+    <string name="about_information">資訊</string>
+    <string name="about_app_version">應用程式版本</string>
+    <string name="about_source_code">原始碼</string>
+    <string name="about_source_code_desc">在 GitHub 上檢視</string>
+    <string name="about_report_bug">回報問題</string>
+    <string name="about_report_bug_desc">在 GitHub 上回報錯誤或提出建議；可能需要登入</string>
+
+    <!-- Dialogs -->
+    <string name="rename_files">重新命名檔案</string>
+    <string name="renaming_files">正在重新命名檔案</string>
+    <string name="renaming_progress">正在重新命名第 %1$d 個，共 %2$d 個</string>
+    <string name="base_name">基礎名稱</string>
+    <string name="start_number">起始編號</string>
+    <string name="rename">重新命名</string>
+
+    <string name="create_new_folder">新增資料夾</string>
+    <string name="creating_folder">正在建立資料夾…</string>
+    <string name="folder_name">資料夾名稱</string>
+    <string name="folder_name_empty_error">資料夾名稱不能為空</string>
+    <string name="create">建立</string>
+
+    <string name="set_secure_password">設定安全資料夾密碼</string>
+    <string name="enter_password">輸入密碼</string>
+    <string name="processing">處理中…</string>
+    <string name="password">密碼</string>
+    <string name="confirm_password">確認密碼</string>
+    <string name="password_empty_error">密碼不能為空</string>
+    <string name="passwords_no_match_error">兩次輸入的密碼不一致</string>
+    <string name="invalid_password_error">密碼無效</string>
+    <string name="set_password">設定密碼</string>
+    <string name="verify">驗證</string>
+
+    <string name="confirm_deletion">確認刪除</string>
+    <string name="delete_confirmation_message">確定要刪除 %d 項嗎？此操作無法復原。</string>
+    <string name="delete">刪除</string>
+
+    <string name="cancel">取消</string>
+    <string name="no_items_selected">未選擇任何項目</string>
+
+    <!-- Sort Options -->
+    <string name="sort_name_asc">名稱 A-Z</string>
+    <string name="sort_name_desc">名稱 Z-A</string>
+    <string name="sort_date_newest">最新</string>
+    <string name="sort_date_oldest">最舊</string>
+    <string name="sort_size_largest">最大</string>
+    <string name="sort_size_smallest">最小</string>
+
+    <!-- Player Delete Dialog -->
+    <string name="delete_video">刪除影片</string>
+    <string name="delete_video_confirmation">確定要刪除「%1$s」嗎？\n\n此操作無法復原。</string>
+    <string name="delete_no_items_selected">未選擇任何項目</string>
+    <string name="delete_item_not_found">未找到項目：%1$s</string>
+    <string name="delete_item_failed">刪除 %1$s 失敗</string>
+    <string name="delete_item_error">刪除 %1$s 時發生錯誤：%2$s</string>
+    <string name="delete_no_items_deleted">沒有項目被刪除</string>
+    <string name="delete_items_success">已刪除 %1$d 項</string>
+    <string name="delete_secure_items_invalid_folder">部分項目不在安全資料夾中</string>
+    <string name="delete_secure_item_failed">刪除安全項目 %1$s 失敗</string>
+    <string name="delete_secure_item_error">刪除安全項目 %1$s 時發生錯誤：%2$s</string>
+    <string name="delete_no_secure_items_deleted">沒有安全項目被刪除</string>
+    <string name="delete_secure_items_success">已刪除 %1$d 個安全項目</string>
+    <string name="delete_items_error_generic">刪除項目時發生錯誤</string>
+    <string name="video_delete_success">影片刪除成功</string>
+    <string name="video_delete_failed">影片刪除失敗</string>
+    <string name="video_delete_error">刪除影片時發生錯誤：%1$s</string>
+
+    <string name="playback_speed_title">播放速度</string>
+    <string name="close">關閉</string>
+
+    <string name="tracks_title">軌道</string>
+    <string name="tab_subtitles">字幕</string>
+    <string name="tab_audio">音訊</string>
+    <string name="subtitle_file_select">選擇字幕檔案</string>
+    <string name="subtitle_file_video_section">影片內字幕</string>
+    <string name="subtitle_size_title">字幕大小</string>
+    <string name="subtitle_size_small">小</string>
+    <string name="subtitle_size_medium">中</string>
+    <string name="subtitle_size_large">大</string>
+    <string name="subtitles_off">關閉</string>
+    <string name="no_tracks_available">無可用軌道</string>
+
+    <plurals name="items_selected">
+        <item quantity="other">已選擇 %d 項</item>
+    </plurals>
+
+    <plurals name="move_items_count">
+        <item quantity="other">移動 %d 項</item>
+    </plurals>
+
+    <plurals name="moving_items_status">
+        <item quantity="other">正在移動 %d 項</item>
+    </plurals>
+
+    <plurals name="video_tags_selected_count">
+        <item quantity="other">已選擇 %d 部影片</item>
+    </plurals>
+
+    <string name="video_not_found_title">未找到影片</string>
+    <string name="video_not_found_message">未找到影片「%1$s」。請重新整理影片清單後重試。</string>
+    <string name="video_not_found_action_refresh">重新整理影片</string>
+    <string name="player_more_actions">更多操作</string>
+    <string name="player_picture_in_picture">子母畫面</string>
+    <string name="player_cast">投放</string>
+    <string name="player_casting">投放中</string>
+    <string name="player_sleep_timer">睡眠定時</string>
+    <string name="player_sleep_timer_active_title">睡眠定時已啟用</string>
+    <string name="player_sleep_timer_active_content_description">睡眠定時已啟用</string>
+    <string name="player_sleep_timer_start">開始</string>
+    <string name="player_sleep_timer_cancel_prompt">要取消睡眠定時嗎？</string>
+    <string name="player_sleep_timer_cancel_action">取消定時</string>
+    <string name="player_sleep_timer_remaining">剩餘時間：%1$s</string>
+    <string name="player_sleep_timer_minutes_value">%1$d 分鐘</string>
+    <string name="player_sleep_timer_hours_minutes_value">%1$d 小時 %2$d 分鐘</string>
+    <string name="player_sleep_timer_hours_value">%1$d 小時</string>
+    <string name="player_sleep_timer_only_minutes_value">%1$d 分鐘</string>
+    <string name="player_back">返回</string>
+    <string name="player_previous">上一個</string>
+    <string name="player_pause">暫停</string>
+    <string name="player_play">播放</string>
+    <string name="player_next">下一個</string>
+    <string name="player_subtitles">字幕</string>
+    <string name="player_rotation_auto">自動旋轉</string>
+    <string name="player_rotation_portrait">鎖定直向</string>
+    <string name="player_rotation_landscape">鎖定橫向</string>
+    <string name="player_repeat_normal">正常播放</string>
+    <string name="player_repeat_all">重複播放清單</string>
+    <string name="player_repeat_one">單曲重複</string>
+    <string name="player_seek_forward">快轉</string>
+    <string name="player_seek_backward">倒轉</string>
+    <string name="player_audio_track_number">音訊 %1$d</string>
+    <string name="player_track_number">軌道 %1$d</string>
+</resources>

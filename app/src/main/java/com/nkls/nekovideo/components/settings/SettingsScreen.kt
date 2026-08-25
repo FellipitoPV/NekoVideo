@@ -375,7 +375,9 @@ fun InterfaceSettingsScreen(themeManager: ThemeManager) {
         "fr" to stringResource(R.string.language_french),
         "de" to stringResource(R.string.language_german),
         "ru" to stringResource(R.string.language_russian),
-        "hi" to stringResource(R.string.language_hindi)
+        "hi" to stringResource(R.string.language_hindi),
+        "zh" to stringResource(R.string.language_chinese),
+        "zh-TW" to stringResource(R.string.language_chinese_traditional)
     )
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
