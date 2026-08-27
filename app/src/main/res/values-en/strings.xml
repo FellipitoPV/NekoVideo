@@ -30,6 +30,17 @@
     <string name="action_move">Move</string>
     <string name="action_share">Share</string>
     <string name="action_tags">Tags</string>
+    <string name="action_pin_folder">Pin folder</string>
+    <string name="action_unpin_folder">Unpin folder</string>
+    <string name="pinned_folders_title">Pinned folders</string>
+    <string name="pinned_folder_unavailable">Folder not found</string>
+    <string name="pin_folder_success">Folder pinned</string>
+    <string name="unpin_folder_success">Folder unpinned</string>
+    <string name="unpin_folder_confirm_title">Unpin folder?</string>
+    <string name="unpin_folder_confirm_message">Remove \"%1$s\" from pinned folders?</string>
+    <string name="pin_folder_already_pinned">This folder is already pinned</string>
+    <string name="pin_folder_limit_reached">Pinned folder limit reached</string>
+    <string name="pin_folder_invalid">Only existing folders can be pinned</string>
     <string name="share_videos">Share videos</string>
     <string name="action_shuffle_play">Shuffle</string>
     <string name="action_create_folder">New Folder</string>

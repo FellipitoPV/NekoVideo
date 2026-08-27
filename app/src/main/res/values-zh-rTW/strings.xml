@@ -30,6 +30,17 @@
     <string name="action_move">移動</string>
     <string name="action_share">分享</string>
     <string name="action_tags">標籤</string>
+    <string name="action_pin_folder">固定資料夾</string>
+    <string name="action_unpin_folder">取消固定</string>
+    <string name="pinned_folders_title">固定資料夾</string>
+    <string name="pinned_folder_unavailable">資料夾不存在</string>
+    <string name="pin_folder_success">已固定資料夾</string>
+    <string name="unpin_folder_success">已取消固定</string>
+    <string name="unpin_folder_confirm_title">取消固定？</string>
+    <string name="unpin_folder_confirm_message">確定將「%1$s」從固定資料夾中移除嗎？</string>
+    <string name="pin_folder_already_pinned">此資料夾已固定</string>
+    <string name="pin_folder_limit_reached">固定資料夾數量已達上限</string>
+    <string name="pin_folder_invalid">只能固定已存在的資料夾</string>
     <string name="share_videos">分享影片</string>
     <string name="action_shuffle_play">隨機播放</string>
     <string name="action_create_folder">新增資料夾</string>

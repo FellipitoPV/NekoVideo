@@ -79,6 +79,9 @@ import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.VideoProgressEntry
 import com.nkls.nekovideo.components.helpers.VideoProgressStore
 import com.nkls.nekovideo.components.helpers.supportedVideoExtensions
+import com.nkls.nekovideo.components.helpers.PinnedFolderEntry
+import com.nkls.nekovideo.components.helpers.PinnedFoldersStore
+import com.nkls.nekovideo.components.helpers.SortRowMessageCenter
 import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.services.FolderVideoScanner
 import kotlinx.coroutines.CancellationException
@@ -102,6 +105,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import com.nkls.nekovideo.R
+import com.nkls.nekovideo.components.UnpinFolderConfirmationDialog
 import kotlin.math.roundToInt
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
@@ -520,18 +524,35 @@ private fun loadNormalContentFromCache(
         }
     }
 
-    // Carregar vídeos (mantém igual)
+    // Carregar vídeos: usa cache do scanner; se vazio, lê direto do filesystem
     val folderInfo = folderCache[folderPath]
-    folderInfo?.videos?.forEach { videoInfo ->
-        items.add(
-            MediaItem(
-                path = videoInfo.path,
-                uri = videoInfo.uri,
-                isFolder = false,
-                lastModified = videoInfo.lastModified,
-                sizeInBytes = videoInfo.sizeInBytes
+    val cachedVideos = folderInfo?.videos.orEmpty()
+    if (cachedVideos.isNotEmpty()) {
+        cachedVideos.forEach { videoInfo ->
+            items.add(
+                MediaItem(
+                    path = videoInfo.path,
+                    uri = videoInfo.uri,
+                    isFolder = false,
+                    lastModified = videoInfo.lastModified,
+                    sizeInBytes = videoInfo.sizeInBytes
+                )
             )
-        )
+        }
+    } else {
+        folder.listFiles()?.forEach { videoFile ->
+            if (videoFile.isFile && videoFile.extension.lowercase() in supportedVideoExtensions) {
+                items.add(
+                    MediaItem(
+                        path = videoFile.absolutePath,
+                        uri = Uri.fromFile(videoFile),
+                        isFolder = false,
+                        lastModified = videoFile.lastModified(),
+                        sizeInBytes = videoFile.length()
+                    )
+                )
+            }
+        }
     }
 
     return applySorting(items, sortType)
@@ -1000,6 +1021,7 @@ fun FolderScreen(
     val coroutineScope = rememberCoroutineScope()
     val continueWatchingEntry by ContinueWatchingStore.entry.collectAsStateWithLifecycle()
     val hasActivePlayback by ContinueWatchingStore.hasActivePlayback.collectAsStateWithLifecycle()
+    val pinnedFolders by PinnedFoldersStore.entries.collectAsStateWithLifecycle()
     val videoProgressVersion by VideoProgressStore.changeVersion.collectAsStateWithLifecycle()
     val tagChangeEvent by VideoTagStore.tagChangeEvent.collectAsStateWithLifecycle()
     val castManager = remember { DLNACastManager.getInstance(context) }
@@ -1040,6 +1062,7 @@ fun FolderScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var isSearchExpanded by remember { mutableStateOf(false) }
+    var pendingUnpinPath by remember { mutableStateOf<String?>(null) }
     var previewingPath by remember(folderPath) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(selectedItems.size) {
@@ -1075,6 +1098,12 @@ fun FolderScreen(
             }
 
             awaitCancellation()
+        }
+    }
+
+    LaunchedEffect(isRootLevel) {
+        if (isRootLevel) {
+            PinnedFoldersStore.pruneMissing(context)
         }
     }
 
@@ -1302,7 +1331,8 @@ fun FolderScreen(
 
                         val hasOverlayContent =
                             (showPrivateFolderHint && hintAlpha > 0f) ||
-                            (isRootLevel && !hasVisiblePlaybackSession && continueWatchingEntry != null)
+                            (isRootLevel && !hasVisiblePlaybackSession && continueWatchingEntry != null) ||
+                            (isRootLevel && pinnedFolders.isNotEmpty())
 
                         val shouldShowEmptyState = !isPathLoading && pathItems.isEmpty() && !hasOverlayContent
 
@@ -1428,6 +1458,28 @@ fun FolderScreen(
                                             }
                                         }
 
+                                        if (isRootLevel && pinnedFolders.isNotEmpty()) {
+                                            item(key = "pinned_folders_header") {
+                                                Text(
+                                                    text = stringResource(R.string.pinned_folders_title),
+                                                    style = MaterialTheme.typography.titleSmall,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                                                )
+                                            }
+                                            items(
+                                                items = pinnedFolders,
+                                                key = { it.path }
+                                            ) { entry ->
+                                                PinnedFolderCard(
+                                                    entry = entry,
+                                                    onClick = { onFolderClick(entry.path, sortType) },
+                                                    onUnpin = { pendingUnpinPath = entry.path }
+                                                )
+                                            }
+                                        }
+
                                         items(pathItems.chunked(gridColumns), key = { chunk -> "${targetPath}_${chunk.joinToString { it.path }}" }) { rowItems ->
                                             MediaRow(
                                                 items = rowItems,
@@ -1487,6 +1539,18 @@ fun FolderScreen(
             }
 
         }
+    }
+
+    pendingUnpinPath?.let { unpinPath ->
+        UnpinFolderConfirmationDialog(
+            folderName = PinnedFoldersStore.resolveDisplayName(context, unpinPath),
+            onDismiss = { pendingUnpinPath = null },
+            onConfirm = {
+                PinnedFoldersStore.unpin(context, unpinPath)
+                SortRowMessageCenter.showInfo(context.getString(R.string.unpin_folder_success))
+                pendingUnpinPath = null
+            }
+        )
     }
 }
 
@@ -1552,6 +1616,94 @@ private fun MediaRow(
             )
         }
         repeat(gridColumns - items.size) { Box(modifier = Modifier.weight(1f)) }
+    }
+}
+
+@Composable
+private fun PinnedFolderCard(
+    entry: PinnedFolderEntry,
+    onClick: () -> Unit,
+    onUnpin: () -> Unit
+) {
+    val context = LocalContext.current
+    val folderExists = remember(entry.path) { File(entry.path).exists() }
+    val displayName = remember(entry.path) {
+        PinnedFoldersStore.resolveDisplayName(context, entry.path)
+    }
+    val subtitle = remember(entry.path) {
+        PinnedFoldersStore.resolveSubtitle(entry.path)
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 4.dp)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onUnpin
+            ),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PushPin,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .rotate(45f)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = if (folderExists) subtitle else stringResource(R.string.pinned_folder_unavailable),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (folderExists) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            IconButton(onClick = onUnpin) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.action_unpin_folder),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 

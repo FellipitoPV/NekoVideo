@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.lifecycle.lifecycleScope
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.FilesManager
+import com.nkls.nekovideo.components.helpers.PinnedFoldersStore
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.components.pages.mainscreen.MainScreen
@@ -230,6 +231,7 @@ class MainActivity : AppCompatActivity() {
 
         // 🚀 Carrega cache e inicia scan se necessário
         FolderVideoScanner.loadCacheFromDisk(this)
+        PinnedFoldersStore.load(this)
 
         lifecycleScope.launch {
             FolderVideoScanner.startScan(this@MainActivity, forceRefresh = true)
