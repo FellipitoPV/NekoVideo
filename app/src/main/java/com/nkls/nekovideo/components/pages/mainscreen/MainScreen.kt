@@ -602,6 +602,7 @@ fun MainScreen(
     }
 
     fun closePlayerOverlay() {
+        MediaPlaybackService.persistContinueWatching(context)
         showPlayerOverlay = false
         isInPiPMode = false
     }
