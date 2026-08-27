@@ -42,7 +42,8 @@ import com.nkls.nekovideo.R
 
 enum class ActionType {
     UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS, PASTE,
-    PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE, SET_AS_SECURE_FOLDER, SHARE, TAGS
+    PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE, SET_AS_SECURE_FOLDER, SHARE, TAGS,
+    PIN_FOLDER, UNPIN_FOLDER
 }
 
 data class ActionItem(
@@ -63,6 +64,7 @@ fun ActionFAB(
     selectedItems: List<String> = emptyList(),
     itemsToMoveCount: Int = 0,
     isInsideLockedFolder: Boolean = false,
+    pinnedFolderPaths: Set<String> = emptySet(),
     showShuffleLongPressHint: Boolean = false,
     onShuffleLongPressHintShown: () -> Unit = {},
     onFabOpened: () -> Unit = {},
@@ -97,6 +99,8 @@ fun ActionFAB(
     val secureFolderSet = stringResource(R.string.action_set_secure_folder)
     val shareText = stringResource(R.string.action_share)
     val tagsText = stringResource(R.string.action_tags)
+    val pinFolderText = stringResource(R.string.action_pin_folder)
+    val unpinFolderText = stringResource(R.string.action_unpin_folder)
     val moveItemsText = pluralStringResource(R.plurals.move_items_count, itemsToMoveCount, itemsToMoveCount)
 
     // NOVOS: strings que estavam hardcoded
@@ -134,7 +138,15 @@ fun ActionFAB(
         selectedItems.isNotEmpty() && selectedItems.all { java.io.File(it).isFile }
     }
 
-    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder, hasOnlyFiles, tagsText) {
+    val isSingleFolderSelection = remember(selectedItems) {
+        selectedItems.size == 1 && java.io.File(selectedItems.first()).isDirectory
+    }
+
+    val isSelectedFolderPinned = remember(selectedItems, pinnedFolderPaths) {
+        isSingleFolderSelection && pinnedFolderPaths.contains(java.io.File(selectedItems.first()).absolutePath)
+    }
+
+    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder, hasOnlyFiles, tagsText, isSingleFolderSelection, isSelectedFolderPinned, pinFolderText, unpinFolderText) {
         when {
             isMoveMode -> {
                 listOf(
@@ -165,6 +177,16 @@ fun ActionFAB(
                         actionsList.add(ActionItem(ActionType.TAGS, Icons.Default.LocalOffer, tagsText))
                     }
                 } else {
+                    if (isSingleFolderSelection) {
+                        actionsList.add(
+                            ActionItem(
+                                type = if (isSelectedFolderPinned) ActionType.UNPIN_FOLDER else ActionType.PIN_FOLDER,
+                                icon = if (isSelectedFolderPinned) Icons.Default.PushPin else Icons.Default.PushPin,
+                                title = if (isSelectedFolderPinned) unpinFolderText else pinFolderText
+                            )
+                        )
+                    }
+
                     // All actions available in non-locked folders (even inside secure_videos)
                     if (!isSecureMode) {
                         actionsList.add(ActionItem(ActionType.SECURE, Icons.Default.Lock, protectText))

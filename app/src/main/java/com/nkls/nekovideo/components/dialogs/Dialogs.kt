@@ -25,6 +25,7 @@ import android.content.ContextWrapper
 import androidx.fragment.app.FragmentActivity
 import com.nkls.nekovideo.components.helpers.BiometricHelper
 import com.nkls.nekovideo.components.helpers.FolderLockManager
+import com.nkls.nekovideo.components.helpers.PinnedFoldersStore
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
@@ -117,6 +118,7 @@ fun SingleRenameDialog(
                 if (success) {
                     withContext(Dispatchers.IO) {
                         VideoTagStore.moveTagsForPath(context, file.absolutePath, newFile.absolutePath)
+                        PinnedFoldersStore.relocatePath(context, file.absolutePath, newFile.absolutePath)
                     }
                     onRefresh?.invoke()
                 }
@@ -1264,6 +1266,74 @@ fun DeleteConfirmationDialog(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(stringResource(R.string.delete))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun UnpinFolderConfirmationDialog(
+    folderName: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = bottomSheetState,
+        dragHandle = {
+            Surface(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(2.dp)
+            ) {
+                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
+            }
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.unpin_folder_confirm_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            HorizontalDivider()
+
+            Text(
+                text = stringResource(R.string.unpin_folder_confirm_message, folderName),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 20.sp
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+            ) {
+                TextButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+                Button(
+                    onClick = onConfirm,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(stringResource(R.string.action_unpin_folder))
                 }
             }
         }

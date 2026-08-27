@@ -30,6 +30,17 @@
     <string name="action_move">移动</string>
     <string name="action_share">分享</string>
     <string name="action_tags">标签</string>
+    <string name="action_pin_folder">固定文件夹</string>
+    <string name="action_unpin_folder">取消固定</string>
+    <string name="pinned_folders_title">固定文件夹</string>
+    <string name="pinned_folder_unavailable">文件夹不存在</string>
+    <string name="pin_folder_success">已固定文件夹</string>
+    <string name="unpin_folder_success">已取消固定</string>
+    <string name="unpin_folder_confirm_title">取消固定？</string>
+    <string name="unpin_folder_confirm_message">确定将「%1$s」从固定文件夹中移除吗？</string>
+    <string name="pin_folder_already_pinned">该文件夹已固定</string>
+    <string name="pin_folder_limit_reached">固定文件夹数量已达上限</string>
+    <string name="pin_folder_invalid">只能固定已存在的文件夹</string>
     <string name="share_videos">分享视频</string>
     <string name="action_shuffle_play">随机播放</string>
     <string name="action_create_folder">新建文件夹</string>

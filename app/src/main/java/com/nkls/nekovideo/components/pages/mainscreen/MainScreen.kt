@@ -70,6 +70,7 @@ import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.CreateFolderDialog
 import com.nkls.nekovideo.components.DeleteConfirmationDialog
+import com.nkls.nekovideo.components.UnpinFolderConfirmationDialog
 import com.nkls.nekovideo.components.EnableBiometricDialog
 import com.nkls.nekovideo.components.PasswordDialog
 import com.nkls.nekovideo.components.ProcessingDialog
@@ -86,6 +87,8 @@ import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedFolderOperations
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
+import com.nkls.nekovideo.components.helpers.PinnedFoldersStore
+import com.nkls.nekovideo.components.helpers.PinFolderResult
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.SortRowMessageCenter
 import com.nkls.nekovideo.components.helpers.TagEntity
@@ -162,10 +165,12 @@ fun MainScreen(
     var renameTrigger by remember { mutableStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
+    val pinnedFolders by PinnedFoldersStore.entries.collectAsState()
 
     var showPlayerOverlay by remember { mutableStateOf(false) }
     var deletedVideoPath by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var pendingUnpinPath by remember { mutableStateOf<String?>(null) }
     var selectedExternalSubtitleUri by remember { mutableStateOf<Uri?>(null) }
     var selectedExternalSubtitleName by remember { mutableStateOf<String?>(null) }
 
@@ -1066,6 +1071,22 @@ fun MainScreen(
         )
     }
 
+    pendingUnpinPath?.let { unpinPath ->
+        UnpinFolderConfirmationDialog(
+            folderName = PinnedFoldersStore.resolveDisplayName(context, unpinPath),
+            onDismiss = {
+                pendingUnpinPath = null
+                selectedItems.clear()
+            },
+            onConfirm = {
+                PinnedFoldersStore.unpin(context, unpinPath)
+                SortRowMessageCenter.showSuccess(context.getString(R.string.unpin_folder_success))
+                pendingUnpinPath = null
+                selectedItems.clear()
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             if (currentRoute != "video_player" && !showPlayerOverlay) {
@@ -1125,6 +1146,7 @@ fun MainScreen(
                     selectedItems = selectedItems.toList(),
                     itemsToMoveCount = itemsToMove.size,
                     isInsideLockedFolder = FolderLockManager.isLocked(folderPath) && LockedPlaybackSession.isActive && LockedPlaybackSession.hasSessionForFolder(folderPath),
+                    pinnedFolderPaths = pinnedFolders.map { it.path }.toSet(),
                     showShuffleLongPressHint = showShuffleLongPressHint,
                     onFabOpened = {
                         coroutineScope.launch {
@@ -1302,6 +1324,27 @@ fun MainScreen(
                                     refreshAffectedPaths(listOf(folderPath, File(folderPath).parent ?: folderPath))
                                 }
                             }
+                            ActionType.PIN_FOLDER -> {
+                                val path = selectedItems.firstOrNull()
+                                if (path != null) {
+                                    when (PinnedFoldersStore.pin(context, path)) {
+                                        PinFolderResult.Success ->
+                                            SortRowMessageCenter.showSuccess(context.getString(R.string.pin_folder_success))
+                                        PinFolderResult.AlreadyPinned ->
+                                            SortRowMessageCenter.showInfo(context.getString(R.string.pin_folder_already_pinned))
+                                        PinFolderResult.LimitReached ->
+                                            SortRowMessageCenter.showError(context.getString(R.string.pin_folder_limit_reached))
+                                        PinFolderResult.Invalid ->
+                                            SortRowMessageCenter.showError(context.getString(R.string.pin_folder_invalid))
+                                    }
+                                }
+                                selectedItems.clear()
+                            }
+                            ActionType.UNPIN_FOLDER -> {
+                                selectedItems.firstOrNull()?.let { path ->
+                                    pendingUnpinPath = path
+                                }
+                            }
                         }
                     },
                     onActionLongClick = { action ->
@@ -1380,17 +1423,7 @@ fun MainScreen(
                             )
                         },
                         onFolderClick = { itemPath, currentSortType ->
-                            val items = loadFolderContent(
-                                context = context,
-                                folderPath = folderPath,
-                                sortType = currentSortType,
-                                isSecureMode = isSecure,
-                                isRootLevel = isAtRootLevel,
-                                showPrivateFolders = showPrivateFolders
-                            )
-                            val item = items.find { it.path == itemPath }
-                            if (item?.isFolder == true) {
-                                // Check if folder is locked - use sessionPassword
+                            if (File(itemPath).isDirectory) {
                                 if (FolderLockManager.isLocked(itemPath)) {
                                     val pwd = sessionPassword ?: LockedPlaybackSession.sessionPassword
                                     if (pwd != null) {
@@ -1418,7 +1451,20 @@ fun MainScreen(
                                     folderNavState.navigateTo(itemPath)
                                 }
                             } else {
-                                openVideoFromFolder(folderPath, itemPath, currentSortType)
+                                val items = loadFolderContent(
+                                    context = context,
+                                    folderPath = folderPath,
+                                    sortType = currentSortType,
+                                    isSecureMode = isSecure,
+                                    isRootLevel = isAtRootLevel,
+                                    showPrivateFolders = showPrivateFolders
+                                )
+                                val item = items.find { it.path == itemPath }
+                                if (item?.isFolder == true) {
+                                    folderNavState.navigateTo(itemPath)
+                                } else {
+                                    openVideoFromFolder(folderPath, itemPath, currentSortType)
+                                }
                             }
                         },
                         selectedItems = selectedItems,
