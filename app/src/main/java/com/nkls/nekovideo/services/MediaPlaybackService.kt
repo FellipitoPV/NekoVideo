@@ -54,7 +54,9 @@ class MediaPlaybackService : MediaSessionService() {
         const val ACTION_CLEAR_SLEEP_TIMER = "nekovideo.action.CLEAR_SLEEP_TIMER"
         const val ACTION_REQUEST_SLEEP_TIMER_STATE = "nekovideo.action.REQUEST_SLEEP_TIMER_STATE"
         const val ACTION_REFRESH_CURRENT_ARTWORK = "nekovideo.action.REFRESH_CURRENT_ARTWORK"
+        const val ACTION_PERSIST_CONTINUE_WATCHING = "nekovideo.action.PERSIST_CONTINUE_WATCHING"
         const val EXTRA_SLEEP_TIMER_DURATION_MS = "sleep_timer_duration_ms"
+        private const val PROGRESS_PERSIST_INTERVAL_MS = 10_000L
         const val BROADCAST_SLEEP_TIMER_STATE_CHANGED = "nekovideo.broadcast.SLEEP_TIMER_STATE_CHANGED"
         const val EXTRA_SLEEP_TIMER_ACTIVE = "sleep_timer_active"
         const val EXTRA_SLEEP_TIMER_END_AT_MS = "sleep_timer_end_at_ms"
@@ -138,6 +140,13 @@ class MediaPlaybackService : MediaSessionService() {
             context.startService(intent)
         }
 
+        fun persistContinueWatching(context: Context) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = ACTION_PERSIST_CONTINUE_WATCHING
+            }
+            context.startService(intent)
+        }
+
         fun startSleepTimer(context: Context, durationMs: Long) {
             val intent = Intent(context, MediaPlaybackService::class.java).apply {
                 action = ACTION_START_SLEEP_TIMER
@@ -171,6 +180,7 @@ class MediaPlaybackService : MediaSessionService() {
 
     private val preloadScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var currentPlaybackProcessingJob: Job? = null
+    private var progressPersistenceJob: Job? = null
     private var sleepTimerJob: Job? = null
     private var isSleepTimerActive = false
     private var sleepTimerEndAtMs = 0L
@@ -381,7 +391,12 @@ class MediaPlaybackService : MediaSessionService() {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            super.onIsPlayingChanged(isPlaying)
+            if (isPlaying) {
+                scheduleProgressPersistence()
+            } else {
+                persistContinueWatchingState()
+                cancelProgressPersistence()
+            }
         }
 
         override fun onTracksChanged(tracks: Tracks) {
@@ -613,6 +628,9 @@ class MediaPlaybackService : MediaSessionService() {
             }
             ACTION_REFRESH_CURRENT_ARTWORK -> {
                 scheduleCurrentPlaybackProcessing()
+            }
+            ACTION_PERSIST_CONTINUE_WATCHING -> {
+                persistContinueWatchingState()
             }
         }
         return super.onStartCommand(intent, flags, startId)
@@ -1000,6 +1018,7 @@ class MediaPlaybackService : MediaSessionService() {
     override fun onDestroy() {
         persistContinueWatchingState()
         ContinueWatchingStore.setPlaybackActive(false)
+        cancelProgressPersistence()
         cancelSleepTimer()
         pendingSeekIndex = null
         activeSeekIndex = null
@@ -1101,6 +1120,31 @@ class MediaPlaybackService : MediaSessionService() {
         val stream = java.io.ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.JPEG, 75, stream)
         return stream.toByteArray()
+    }
+
+    private fun scheduleProgressPersistence() {
+        if (progressPersistenceJob?.isActive == true) return
+
+        progressPersistenceJob = preloadScope.launch {
+            while (isActive) {
+                delay(PROGRESS_PERSIST_INTERVAL_MS)
+                val shouldContinue = withContext(Dispatchers.Main) {
+                    val currentPlayer = player
+                    if (currentPlayer == null || !currentPlayer.isPlaying) {
+                        false
+                    } else {
+                        persistContinueWatchingState()
+                        true
+                    }
+                }
+                if (!shouldContinue) break
+            }
+        }
+    }
+
+    private fun cancelProgressPersistence() {
+        progressPersistenceJob?.cancel()
+        progressPersistenceJob = null
     }
 
     private fun persistContinueWatchingState() {
