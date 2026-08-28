@@ -37,6 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,6 +50,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -59,8 +61,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -74,6 +78,7 @@ import com.nkls.nekovideo.language.LanguageManager
 import com.nkls.nekovideo.components.helpers.VideoTagStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -92,7 +97,12 @@ fun SingleRenameDialog(
         } else {
             file.name.removePrefix(".")
         }
-        mutableStateOf(nameWithoutExtension)
+        mutableStateOf(
+            TextFieldValue(
+                text = nameWithoutExtension,
+                selection = TextRange(nameWithoutExtension.length)
+            )
+        )
     }
     var isRenaming by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -100,16 +110,27 @@ fun SingleRenameDialog(
     val focusRequester = remember { FocusRequester() }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    LaunchedEffect(bottomSheetState, isRenaming) {
+        if (!isRenaming) {
+            snapshotFlow {
+                bottomSheetState.currentValue == SheetValue.Expanded &&
+                    bottomSheetState.targetValue == SheetValue.Expanded
+            }.first { it }
+            try {
+                focusRequester.requestFocus()
+            } catch (_: Exception) {}
+        }
+    }
 
     fun performRename() {
-        if (newName.trim().isNotEmpty()) {
+        if (newName.text.trim().isNotEmpty()) {
             isRenaming = true
             coroutineScope.launch {
                 val file = File(selectedItem)
                 val extension = if (file.isFile) ".${file.extension}" else ""
                 val isPrivateFolder = file.isDirectory && file.name.startsWith(".")
-                val finalName = if (isPrivateFolder) ".${newName.trim()}" else newName.trim()
+                val trimmedName = newName.text.trim()
+                val finalName = if (isPrivateFolder) ".${trimmedName}" else trimmedName
 
                 val newFile = File(file.parent, "$finalName$extension")
                 val success = file.renameTo(newFile)
@@ -210,7 +231,7 @@ fun SingleRenameDialog(
                     }
                     Button(
                         onClick = { performRename() },
-                        enabled = newName.trim().isNotEmpty(),
+                        enabled = newName.text.trim().isNotEmpty(),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
@@ -327,7 +348,14 @@ fun MultipleRenameDialog(
     onComplete: () -> Unit,
     onRefresh: (() -> Unit)? = null
 ) {
-    var baseName by remember { mutableStateOf("") }
+    var baseName by remember {
+        mutableStateOf(
+            TextFieldValue(
+                text = "",
+                selection = TextRange(0)
+            )
+        )
+    }
     var startNumber by remember { mutableStateOf("1") }
     var isRenaming by remember { mutableStateOf(false) }
     var currentProgress by remember { mutableStateOf(0) }
@@ -337,16 +365,26 @@ fun MultipleRenameDialog(
     val focusRequester = remember { FocusRequester() }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    LaunchedEffect(bottomSheetState, isRenaming) {
+        if (!isRenaming) {
+            snapshotFlow {
+                bottomSheetState.currentValue == SheetValue.Expanded &&
+                    bottomSheetState.targetValue == SheetValue.Expanded
+            }.first { it }
+            try {
+                focusRequester.requestFocus()
+            } catch (_: Exception) {}
+        }
+    }
 
     fun performMultiRename() {
-        if (baseName.trim().isNotEmpty() && startNumber.toIntOrNull() != null) {
+        if (baseName.text.trim().isNotEmpty() && startNumber.toIntOrNull() != null) {
             isRenaming = true
             coroutineScope.launch {
                 FilesManager.renameSelectedItems(
                     context,
                     selectedItems,
-                    baseName.trim(),
+                    baseName.text.trim(),
                     startNumber.toIntOrNull() ?: 1,
                     onProgress = { current, total ->
                         currentProgress = current
@@ -457,7 +495,7 @@ fun MultipleRenameDialog(
                     }
                     Button(
                         onClick = { performMultiRename() },
-                        enabled = baseName.trim().isNotEmpty() && startNumber.toIntOrNull() != null,
+                        enabled = baseName.text.trim().isNotEmpty() && startNumber.toIntOrNull() != null,
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
@@ -510,140 +548,154 @@ fun CreateFolderDialog(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
+    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    LaunchedEffect(bottomSheetState, isCreating) {
+        if (!isCreating) {
+            snapshotFlow {
+                bottomSheetState.currentValue == SheetValue.Expanded &&
+                    bottomSheetState.targetValue == SheetValue.Expanded
+            }.first { it }
+            try {
+                focusRequester.requestFocus()
+            } catch (_: Exception) {}
+        }
+    }
 
-    Dialog(
+    ModalBottomSheet(
         onDismissRequest = { if (!isCreating) onDismiss() },
-        properties = DialogProperties(
-            dismissOnBackPress = !isCreating,
-            dismissOnClickOutside = !isCreating
-        )
+        sheetState = bottomSheetState,
+        dragHandle = {
+            Surface(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(2.dp)
+            ) {
+                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
+            }
+        }
     ) {
-        Surface(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.create_new_folder),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+            Text(
+                text = stringResource(R.string.create_new_folder),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
 
-                if (isCreating) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            strokeWidth = 2.5.dp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                        Text(
-                            text = stringResource(R.string.creating_folder),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else {
-                    fun performCreateFolder() {
-                        if (folderName.isNotBlank()) {
-                            if (isInsideLockedFolder) {
-                                onFolderCreated(folderName.trim())
-                                onDismiss()
-                            } else {
-                                isCreating = true
-                                errorMessage = null
+            HorizontalDivider()
 
-                                coroutineScope.launch {
-                                    val success = withContext(Dispatchers.IO) {
-                                        try {
-                                            FilesManager.createFolderWithMarker(
-                                                context = context,
-                                                path = currentPath,
-                                                folderName = folderName,
-                                                onRefresh = onRefresh
-                                            )
-                                        } catch (e: Exception) {
-                                            errorMessage = e.message ?: "Failed to create folder"
-                                            false
-                                        }
-                                    }
+            if (isCreating) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.5.dp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = stringResource(R.string.creating_folder),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                fun performCreateFolder() {
+                    if (folderName.isNotBlank()) {
+                        if (isInsideLockedFolder) {
+                            onFolderCreated(folderName.trim())
+                            onDismiss()
+                        } else {
+                            isCreating = true
+                            errorMessage = null
 
-                                    isCreating = false
-
-                                    if (success) {
-                                        onFolderCreated(folderName.trim())
-                                        onDismiss()
+                            coroutineScope.launch {
+                                val success = withContext(Dispatchers.IO) {
+                                    try {
+                                        FilesManager.createFolderWithMarker(
+                                            context = context,
+                                            path = currentPath,
+                                            folderName = folderName,
+                                            onRefresh = onRefresh
+                                        )
+                                    } catch (e: Exception) {
+                                        errorMessage = e.message ?: "Failed to create folder"
+                                        false
                                     }
                                 }
+
+                                isCreating = false
+
+                                if (success) {
+                                    onFolderCreated(folderName.trim())
+                                    onDismiss()
+                                }
                             }
-                        } else {
-                            errorMessage = "Folder name cannot be empty"
                         }
+                    } else {
+                        errorMessage = "Folder name cannot be empty"
                     }
+                }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        OutlinedTextField(
-                            value = folderName,
-                            onValueChange = {
-                                folderName = it
-                                errorMessage = null
-                            },
-                            label = { Text(stringResource(R.string.folder_name)) },
-                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-                            isError = errorMessage != null,
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = { performCreateFolder() }),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                                errorBorderColor = MaterialTheme.colorScheme.error
-                            )
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedTextField(
+                        value = folderName,
+                        onValueChange = {
+                            folderName = it
+                            errorMessage = null
+                        },
+                        label = { Text(stringResource(R.string.folder_name)) },
+                        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                        isError = errorMessage != null,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { performCreateFolder() }),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            errorBorderColor = MaterialTheme.colorScheme.error
                         )
+                    )
 
-                        errorMessage?.let { error ->
-                            Text(
-                                text = error,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(start = 4.dp)
-                            )
-                        }
+                    errorMessage?.let { error ->
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
                     }
+                }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        TextButton(
-                            onClick = onDismiss,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                        Button(
-                            onClick = { performCreateFolder() },
-                            enabled = folderName.isNotBlank() && !isCreating,
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        ) {
-                            Text(stringResource(R.string.create))
-                        }
+                        Text(stringResource(R.string.cancel))
+                    }
+                    Button(
+                        onClick = { performCreateFolder() },
+                        enabled = folderName.isNotBlank() && !isCreating,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Text(stringResource(R.string.create))
                     }
                 }
             }

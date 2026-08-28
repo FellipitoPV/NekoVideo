@@ -16,6 +16,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +41,8 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cast
@@ -60,13 +63,18 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.StayCurrentLandscape
 import androidx.compose.material.icons.filled.StayCurrentPortrait
 import androidx.compose.material.icons.filled.Subtitles
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -86,6 +94,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.nkls.nekovideo.BuildConfig
 import com.nkls.nekovideo.R
 import androidx.media3.session.MediaController
 import com.nkls.nekovideo.MediaPlaybackService
@@ -112,7 +121,7 @@ private val CtrlDrawerIconActiveBg = Color(0xFF4CAF50).copy(alpha = 0.18f)
 private val CtrlDrawerDivider = Color.White.copy(alpha = 0.07f)
 private val CtrlDrawerDeleteTint = Color(0xFFFF8A80)
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun CustomVideoControls(
     mediaController: MediaController?,
@@ -123,7 +132,7 @@ fun CustomVideoControls(
     onSeekStart: () -> Unit,
     onSeekEnd: () -> Unit,
     onDeleteClick: () -> Unit,
-    onTagsClick: () -> Unit,
+    onTagsClick: (Boolean) -> Unit,
     onBackClick: () -> Unit,
     resetUITimer: () -> Unit,
     repeatMode: RepeatMode,
@@ -134,7 +143,7 @@ fun CustomVideoControls(
     onSpeedDialogClose: () -> Unit,
     isCasting: Boolean,
     currentVideoTagCount: Int,
-    onCastClick: () -> Unit,
+    onCastClick: (Boolean) -> Unit,
     rotationMode: RotationMode,
     onRotationModeChange: (RotationMode) -> Unit,
     hasSubtitles: Boolean,
@@ -155,8 +164,21 @@ fun CustomVideoControls(
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var showSleepTimerStatusDialog by remember { mutableStateOf(false) }
     var resumeAfterSleepTimerStatusDialog by remember { mutableStateOf(false) }
-    var sleepTimerMinutes by remember { mutableStateOf(30f) }
     var sleepTimerRemainingMs by remember { mutableStateOf(0L) }
+    val sleepTimerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sleepTimerStatusSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sleepTimerOptionsMs = remember {
+        buildList {
+            if (BuildConfig.DEBUG) {
+                add(15_000L)
+            }
+            addAll((1..18).map { it * 5L * 60_000L })
+        }
+    }
+    val defaultSleepTimerDurationMs = 30L * 60_000L
+    var sleepTimerOptionIndex by remember {
+        mutableStateOf(sleepTimerOptionsMs.indexOf(defaultSleepTimerDurationMs).coerceAtLeast(0).toFloat())
+    }
     val actionDrawerScrollState = rememberScrollState()
 
     val currentGlobalIndex = controller.currentMediaItemIndex
@@ -167,8 +189,10 @@ fun CustomVideoControls(
     val drawerWidth = minOf(preferredDrawerWidth, maxDrawerWidth)
 
     fun openActionDrawer() {
-        resumeAfterActionDrawer = true
-        controller.pause()
+        resumeAfterActionDrawer = controller.isPlaying
+        if (resumeAfterActionDrawer) {
+            controller.pause()
+        }
         showActionDrawer = true
         resetUITimer()
     }
@@ -182,8 +206,10 @@ fun CustomVideoControls(
     }
 
     fun openSleepTimerStatusDialog() {
-        resumeAfterSleepTimerStatusDialog = true
-        controller.pause()
+        resumeAfterSleepTimerStatusDialog = controller.isPlaying
+        if (resumeAfterSleepTimerStatusDialog) {
+            controller.pause()
+        }
         showSleepTimerStatusDialog = true
         resetUITimer()
     }
@@ -196,9 +222,19 @@ fun CustomVideoControls(
         resumeAfterSleepTimerStatusDialog = false
     }
 
+    fun closeSleepTimerDialog() {
+        showSleepTimerDialog = false
+        if (resumeAfterActionDrawer) {
+            controller.play()
+            resumeAfterActionDrawer = false
+        }
+    }
+
     LaunchedEffect(sleepTimerActive, sleepTimerEndAtMs) {
         if (!sleepTimerActive || sleepTimerEndAtMs <= 0L) {
             sleepTimerRemainingMs = 0L
+            showSleepTimerStatusDialog = false
+            resumeAfterSleepTimerStatusDialog = false
             return@LaunchedEffect
         }
 
@@ -206,6 +242,9 @@ fun CustomVideoControls(
             val remaining = (sleepTimerEndAtMs - System.currentTimeMillis()).coerceAtLeast(0L)
             sleepTimerRemainingMs = remaining
             if (remaining <= 0L) {
+                showSleepTimerStatusDialog = false
+                resumeAfterSleepTimerStatusDialog = false
+                onSleepTimerCleared()
                 break
             }
             kotlinx.coroutines.delay(1000)
@@ -224,6 +263,12 @@ fun CustomVideoControls(
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (!showSleepTimerDialog) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.24f))
+            )
+
             // Header com gradiente
             Box(
                 modifier = Modifier
@@ -639,7 +684,6 @@ fun CustomVideoControls(
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(10f)
-                    .background(Color.Black.copy(alpha = 0.28f))
                     .clickable(
                         interactionSource = dismissInteractionSource,
                         indication = null
@@ -719,8 +763,9 @@ fun CustomVideoControls(
                             tint = if (isCasting) Color(0xFF4CAF50) else CtrlIconOn,
                             isActive = isCasting,
                             onClick = {
+                                val shouldResumeAfterCastDialog = resumeAfterActionDrawer
                                 closeActionDrawer(shouldResumePlayback = false)
-                                onCastClick()
+                                onCastClick(shouldResumeAfterCastDialog)
                                 resetUITimer()
                             }
                         )
@@ -731,8 +776,9 @@ fun CustomVideoControls(
                             tint = CtrlIconOn,
                             trailingLabel = currentVideoTagCount.takeIf { it > 0 }?.toString(),
                             onClick = {
+                                val shouldResumeAfterTagsDialog = resumeAfterActionDrawer
                                 closeActionDrawer(shouldResumePlayback = false)
-                                onTagsClick()
+                                onTagsClick(shouldResumeAfterTagsDialog)
                                 resetUITimer()
                             }
                         )
@@ -769,144 +815,193 @@ fun CustomVideoControls(
         }
 
         if (showSleepTimerDialog) {
-            AlertDialog(
-                onDismissRequest = {
-                    showSleepTimerDialog = false
-                    if (resumeAfterActionDrawer) {
-                        controller.play()
-                        resumeAfterActionDrawer = false
-                    }
-                },
-                containerColor = Color(0xFF1A1A2E),
-                titleContentColor = Color.White,
-                textContentColor = Color.White.copy(alpha = 0.85f),
-                title = {
-                    Text(stringResource(R.string.player_sleep_timer), fontWeight = FontWeight.SemiBold)
-                },
-                text = {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
+            ModalBottomSheet(
+                onDismissRequest = { closeSleepTimerDialog() },
+                sheetState = sleepTimerSheetState,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                dragHandle = {
+                    Surface(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(2.dp)
                     ) {
-                        Text(
-                            text = stringResource(R.string.player_sleep_timer_minutes_value, sleepTimerMinutes.toInt()),
-                            color = Color.White,
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Slider(
-                            value = sleepTimerMinutes,
-                            onValueChange = { value ->
-                                sleepTimerMinutes = (value / 5f).toInt().coerceIn(1, 18) * 5f
-                            },
-                            valueRange = 5f..90f,
-                            steps = 16,
-                            colors = SliderDefaults.colors(
-                                thumbColor = Color.White,
-                                activeTrackColor = Color.White.copy(alpha = 0.7f),
-                                inactiveTrackColor = Color.White.copy(alpha = 0.2f)
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                stringResource(R.string.player_sleep_timer_minutes_value, 5),
-                                color = Color.White.copy(alpha = 0.55f),
-                                fontSize = 11.sp
-                            )
-                            Text(
-                                stringResource(R.string.player_sleep_timer_minutes_value, 90),
-                                color = Color.White.copy(alpha = 0.55f),
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = {
-                            showSleepTimerDialog = false
-                            if (resumeAfterActionDrawer) {
-                                controller.play()
-                                resumeAfterActionDrawer = false
-                            }
-                        }
-                    ) {
-                        Text(stringResource(R.string.action_cancel))
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            val durationMs = sleepTimerMinutes.toLong() * 60_000L
-                            onSleepTimerStarted(System.currentTimeMillis() + durationMs)
-                            onSleepTimerConfirmed()
-                            MediaPlaybackService.startSleepTimer(
-                                context,
-                                durationMs
-                            )
-                            showSleepTimerDialog = false
-                            if (resumeAfterActionDrawer) {
-                                controller.play()
-                                resumeAfterActionDrawer = false
-                            }
-                        }
-                    ) {
-                        Text(stringResource(R.string.player_sleep_timer_start))
+                        Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
                     }
                 }
-            )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        stringResource(R.string.player_sleep_timer),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = formatSleepTimerOption(context, sleepTimerOptionsMs[sleepTimerOptionIndex.toInt()]),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Slider(
+                        modifier = Modifier.heightIn(min = 20.dp),
+                        value = sleepTimerOptionIndex,
+                        onValueChange = { value ->
+                            sleepTimerOptionIndex = value.toInt().coerceIn(0, sleepTimerOptionsMs.lastIndex).toFloat()
+                        },
+                        valueRange = 0f..sleepTimerOptionsMs.lastIndex.toFloat(),
+                        steps = (sleepTimerOptionsMs.size - 2).coerceAtLeast(0),
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        thumb = {
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(MaterialTheme.colorScheme.primary)
+                            )
+                        },
+                        track = { sliderState ->
+                            SliderDefaults.Track(
+                                sliderState = sliderState,
+                                modifier = Modifier.height(2.dp),
+                                colors = SliderDefaults.colors(
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                                ),
+                                thumbTrackGapSize = 0.dp,
+                                drawStopIndicator = null
+                            )
+                        }
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        if (BuildConfig.DEBUG) {
+                            Text(
+                                text = formatSleepTimerOption(context, sleepTimerOptionsMs.first()),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 11.sp
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.player_sleep_timer_minutes_value, 5),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
+                        )
+                        Text(
+                            stringResource(R.string.player_sleep_timer_minutes_value, 90),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { closeSleepTimerDialog() }) {
+                            Text(stringResource(R.string.action_cancel))
+                        }
+                        TextButton(
+                            onClick = {
+                                val durationMs = sleepTimerOptionsMs[sleepTimerOptionIndex.toInt()]
+                                onSleepTimerStarted(System.currentTimeMillis() + durationMs)
+                                onSleepTimerConfirmed()
+                                MediaPlaybackService.startSleepTimer(
+                                    context,
+                                    durationMs
+                                )
+                                closeSleepTimerDialog()
+                            }
+                        ) {
+                            Text(stringResource(R.string.player_sleep_timer_start))
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
         }
 
         if (showSleepTimerStatusDialog && sleepTimerActive) {
-            AlertDialog(
+            ModalBottomSheet(
                 onDismissRequest = { closeSleepTimerStatusDialog(shouldResumePlayback = true) },
-                containerColor = Color(0xFF1A1A2E),
-                titleContentColor = Color.White,
-                textContentColor = Color.White.copy(alpha = 0.85f),
-                title = {
-                    Text(stringResource(R.string.player_sleep_timer_active_title), fontWeight = FontWeight.SemiBold)
-                },
-                text = {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = stringResource(
-                                R.string.player_sleep_timer_remaining,
-                                formatRemainingTime(context, sleepTimerRemainingMs)
-                            ),
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.player_sleep_timer_cancel_prompt),
-                            color = Color.White.copy(alpha = 0.75f),
-                            fontSize = 14.sp
-                        )
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { closeSleepTimerStatusDialog(shouldResumePlayback = true) }) {
-                        Text(stringResource(R.string.close))
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            onSleepTimerCleared()
-                            MediaPlaybackService.clearSleepTimer(context)
-                            closeSleepTimerStatusDialog(shouldResumePlayback = true)
-                        }
+                sheetState = sleepTimerStatusSheetState,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                dragHandle = {
+                    Surface(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(2.dp)
                     ) {
-                        Text(stringResource(R.string.player_sleep_timer_cancel_action))
+                        Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
                     }
                 }
-            )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.player_sleep_timer_active_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.player_sleep_timer_remaining,
+                            formatRemainingTime(context, sleepTimerRemainingMs)
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.player_sleep_timer_cancel_prompt),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { closeSleepTimerStatusDialog(shouldResumePlayback = true) }) {
+                            Text(stringResource(R.string.close))
+                        }
+                        TextButton(
+                            onClick = {
+                                onSleepTimerCleared()
+                                MediaPlaybackService.clearSleepTimer(context)
+                                closeSleepTimerStatusDialog(shouldResumePlayback = true)
+                            }
+                        ) {
+                            Text(stringResource(R.string.player_sleep_timer_cancel_action))
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
         }
     }
 }
@@ -1152,6 +1247,11 @@ private fun formatSpeedLabel(speed: PlaybackSpeed): String = when (speed) {
 }
 
 private fun formatRemainingTime(context: Context, remainingMs: Long): String {
+    if (remainingMs in 1..59_999L) {
+        val seconds = kotlin.math.ceil(remainingMs / 1000.0).toInt()
+        return "${seconds}s"
+    }
+
     val totalMinutes = kotlin.math.ceil(remainingMs.coerceAtLeast(0L) / 60000.0).toInt()
     val hours = totalMinutes / 60
     val minutes = totalMinutes % 60
@@ -1161,4 +1261,13 @@ private fun formatRemainingTime(context: Context, remainingMs: Long): String {
         hours > 0 -> context.getString(R.string.player_sleep_timer_hours_value, hours)
         else -> context.getString(R.string.player_sleep_timer_only_minutes_value, minutes)
     }
+}
+
+private fun formatSleepTimerOption(context: Context, durationMs: Long): String {
+    if (durationMs in 1..59_999L) {
+        val seconds = kotlin.math.ceil(durationMs / 1000.0).toInt()
+        return "${seconds}s"
+    }
+
+    return context.getString(R.string.player_sleep_timer_minutes_value, (durationMs / 60_000L).toInt())
 }

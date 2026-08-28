@@ -19,13 +19,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,19 +55,13 @@ import androidx.media3.common.Tracks
 import kotlin.math.roundToInt
 import java.util.Locale
 
-private val DialogBg = Color(0xFF1A1A2E)
-private val AccentBlue = Color(0xFF6C8CFF)
-private val TextWhite = Color.White
-private val TextMuted = Color.White.copy(alpha = 0.5f)
-private val RowBg = Color.White.copy(alpha = 0.08f)
-private val RowBgSelected = Color.White.copy(alpha = 0.15f)
-
 private data class TrackOption(
     val groupIndex: Int,
     val trackIndex: Int,
     val title: String
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrackSelectionDialog(
     availableSubtitles: List<Tracks.Group>,
@@ -83,6 +82,7 @@ fun TrackSelectionDialog(
 ) {
     val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) }
+    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(Unit) { onOpen() }
 
@@ -119,20 +119,36 @@ fun TrackSelectionDialog(
 
     val tabTitles = listOf(stringResource(R.string.tab_subtitles), stringResource(R.string.tab_audio))
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = dismissAndClose,
-        containerColor = DialogBg,
-        titleContentColor = TextWhite,
-        textContentColor = TextMuted,
-        modifier = Modifier.fillMaxWidth(1f),
-        title = {
-                Text(
-                    text = stringResource(R.string.tracks_title),
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 18.sp
-                )
-        },
-        text = {
+        sheetState = bottomSheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        dragHandle = {
+            Surface(
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(2.dp)
+            ) {
+                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
+            }
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.tracks_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(12.dp))
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -141,7 +157,7 @@ fun TrackSelectionDialog(
                 TabRow(
                     selectedTabIndex = selectedTab,
                     containerColor = Color.Transparent,
-                    contentColor = TextWhite,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
                     divider = {},
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -149,12 +165,12 @@ fun TrackSelectionDialog(
                         Tab(
                             selected = selectedTab == index,
                             onClick = { selectedTab = index },
-                            selectedContentColor = TextWhite,
-                            unselectedContentColor = TextMuted,
+                            selectedContentColor = MaterialTheme.colorScheme.onSurface,
+                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             text = {
                                 Text(
                                     text = title,
-                                    fontSize = 13.sp,
+                                    style = MaterialTheme.typography.labelLarge,
                                     fontWeight = if (selectedTab == index) FontWeight.SemiBold else FontWeight.Normal
                                 )
                             }
@@ -222,8 +238,8 @@ fun TrackSelectionDialog(
                     if (audioOptions.isEmpty()) {
                         Text(
                             text = stringResource(R.string.no_tracks_available),
-                            fontSize = 13.sp,
-                            color = TextMuted,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 24.dp, start = 4.dp)
                         )
                     } else {
@@ -237,19 +253,18 @@ fun TrackSelectionDialog(
                                 TrackOptionRow(
                                     title = option.title,
                                     selected = selectedAudioTrack == option.groupIndex,
-                                onClick = {
-                                    onAudioSelected(option.groupIndex, option.trackIndex)
-                                    dismissAndClose()
-                                }
+                                    onClick = {
+                                        onAudioSelected(option.groupIndex, option.trackIndex)
+                                        dismissAndClose()
+                                    }
                                 )
                             }
                         }
                     }
                 }
             }
-        },
-        confirmButton = {}
-    )
+        }
+    }
 }
 
 @Composable
@@ -259,6 +274,13 @@ private fun AddSubtitleFileRow(
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(10.dp)
+    val accentColor = MaterialTheme.colorScheme.primary
+    val rowBgSelected = MaterialTheme.colorScheme.primaryContainer
+    val rowBg = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
+    val rowBgUnselected = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.16f)
+    val outlineColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
+    val textPrimary = MaterialTheme.colorScheme.onSurface
+    val textSelected = MaterialTheme.colorScheme.onPrimaryContainer
 
     Row(
         modifier = Modifier
@@ -266,7 +288,7 @@ private fun AddSubtitleFileRow(
             .clip(shape)
             .drawBehind {
                 drawRoundRect(
-                    color = if (selected) AccentBlue else Color.White.copy(alpha = 0.28f),
+                    color = if (selected) accentColor else outlineColor,
                     style = Stroke(
                         width = 1.dp.toPx(),
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 10f), 0f)
@@ -274,7 +296,7 @@ private fun AddSubtitleFileRow(
                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx(), 10.dp.toPx())
                 )
             }
-            .background(if (selected) RowBgSelected else Color.White.copy(alpha = 0.03f))
+            .background(if (selected) rowBgSelected else rowBgUnselected)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -284,21 +306,21 @@ private fun AddSubtitleFileRow(
             modifier = Modifier
                 .size(24.dp)
                 .clip(RoundedCornerShape(999.dp))
-                .background(AccentBlue.copy(alpha = 0.18f)),
+                .background(accentColor.copy(alpha = 0.18f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
                 contentDescription = null,
-                tint = if (selected) TextWhite else AccentBlue,
+                tint = if (selected) textSelected else accentColor,
                 modifier = Modifier.size(16.dp)
             )
         }
 
         Text(
             text = title,
-            color = if (selected) TextWhite else TextWhite,
-            fontSize = 13.sp,
+            color = if (selected) textSelected else textPrimary,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium
         )
 
@@ -308,7 +330,7 @@ private fun AddSubtitleFileRow(
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = null,
-                tint = AccentBlue,
+                tint = accentColor,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -320,11 +342,16 @@ private fun SubtitleSizeControl(
     subtitleSizeLevel: Int,
     onSubtitleSizeLevelChanged: (Int) -> Unit
 ) {
+    val rowBg = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
+    val accentColor = MaterialTheme.colorScheme.primary
+    val textPrimary = MaterialTheme.colorScheme.onSurface
+    val textMuted = MaterialTheme.colorScheme.onSurfaceVariant
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(RowBg)
+            .background(rowBg)
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         val labels = listOf(
@@ -335,8 +362,8 @@ private fun SubtitleSizeControl(
 
         Text(
             text = stringResource(R.string.subtitle_size_title),
-            color = TextWhite,
-            fontSize = 12.sp,
+            color = textPrimary,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(bottom = 1.dp)
         )
@@ -348,16 +375,16 @@ private fun SubtitleSizeControl(
             valueRange = 0f..2f,
             steps = 1,
             colors = SliderDefaults.colors(
-                thumbColor = AccentBlue,
-                activeTrackColor = AccentBlue,
-                inactiveTrackColor = Color.White.copy(alpha = 0.2f)
+                thumbColor = accentColor,
+                activeTrackColor = accentColor,
+                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
             ),
             thumb = {
                 Box(
                     modifier = Modifier
                         .size(12.dp)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(AccentBlue)
+                        .background(accentColor)
                 )
             },
             track = { sliderState ->
@@ -365,8 +392,8 @@ private fun SubtitleSizeControl(
                     sliderState = sliderState,
                     modifier = Modifier.height(2.dp),
                     colors = SliderDefaults.colors(
-                        activeTrackColor = AccentBlue,
-                        inactiveTrackColor = Color.White.copy(alpha = 0.2f)
+                        activeTrackColor = accentColor,
+                        inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
                     ),
                     thumbTrackGapSize = 0.dp,
                     drawStopIndicator = null
@@ -381,8 +408,8 @@ private fun SubtitleSizeControl(
             labels.forEachIndexed { index, label ->
                 Text(
                     text = label,
-                    color = if (subtitleSizeLevel == index) TextWhite else TextMuted,
-                    fontSize = 10.sp
+                    color = if (subtitleSizeLevel == index) textPrimary else textMuted,
+                    style = MaterialTheme.typography.labelSmall
                 )
             }
         }
@@ -393,8 +420,8 @@ private fun SubtitleSizeControl(
 private fun SectionLabel(title: String) {
     Text(
         text = title,
-        color = TextMuted,
-        fontSize = 12.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.Medium,
         modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 2.dp)
     )
@@ -406,11 +433,18 @@ private fun TrackOptionRow(
     selected: Boolean,
     onClick: () -> Unit
 ) {
+    val rowBg = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
+    val rowBgSelected = MaterialTheme.colorScheme.primaryContainer
+    val textPrimary = MaterialTheme.colorScheme.onSurface
+    val textSelected = MaterialTheme.colorScheme.onPrimaryContainer
+    val textMuted = MaterialTheme.colorScheme.onSurfaceVariant
+    val accentColor = MaterialTheme.colorScheme.primary
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(if (selected) RowBgSelected else RowBg)
+            .background(if (selected) rowBgSelected else rowBg)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -421,8 +455,8 @@ private fun TrackOptionRow(
             modifier = Modifier.weight(1f),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            fontSize = 13.sp,
-            color = if (selected) TextWhite else TextMuted,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (selected) textSelected else textPrimary,
             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal
         )
 
@@ -430,7 +464,7 @@ private fun TrackOptionRow(
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = null,
-                tint = AccentBlue,
+                tint = accentColor,
                 modifier = Modifier.size(18.dp)
             )
         } else {

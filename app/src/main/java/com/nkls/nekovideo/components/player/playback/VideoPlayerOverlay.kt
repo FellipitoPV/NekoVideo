@@ -822,8 +822,10 @@ fun VideoPlayerOverlay(
     }
 
     fun pausePlaybackForOverlayDialog() {
-        shouldResumeAfterOverlayDialog = true
-        mediaController?.pause()
+        shouldResumeAfterOverlayDialog = mediaController?.isPlaying == true
+        if (shouldResumeAfterOverlayDialog) {
+            mediaController?.pause()
+        }
     }
 
     fun resumePlaybackAfterOverlayDialog() {
@@ -1725,10 +1727,12 @@ fun VideoPlayerOverlay(
                             pausePlaybackForOverlayDialog()
                             showDeleteDialog = true
                         },
-                        onTagsClick = {
+                        onTagsClick = { shouldResumeAfterDrawer ->
                             if (currentVideoPath.isNotEmpty()) {
-                                shouldResumeAfterTagsDialog = true
-                                mediaController?.pause()
+                                shouldResumeAfterTagsDialog = shouldResumeAfterDrawer || mediaController?.isPlaying == true
+                                if (shouldResumeAfterTagsDialog) {
+                                    mediaController?.pause()
+                                }
                                 coroutineScope.launch {
                                     val scope = getTagScopeForPath(currentVideoPath)
                                     coroutineScope {
@@ -1778,8 +1782,11 @@ fun VideoPlayerOverlay(
                         },
                         isCasting = isCasting,
                         currentVideoTagCount = currentVideoTagCount,
-                        onCastClick = {
-                            pausePlaybackForOverlayDialog()
+                        onCastClick = { shouldResumeAfterDrawer ->
+                            shouldResumeAfterOverlayDialog = shouldResumeAfterDrawer || mediaController?.isPlaying == true
+                            if (shouldResumeAfterOverlayDialog) {
+                                mediaController?.pause()
+                            }
                             discoveredDevices = emptyList()
                             isDiscovering = true
                             showCastDevicePicker = true
