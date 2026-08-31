@@ -23,10 +23,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -52,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.Tracks
+import com.nkls.nekovideo.components.AppBottomSheet
 import kotlin.math.roundToInt
 import java.util.Locale
 
@@ -119,36 +118,16 @@ fun TrackSelectionDialog(
 
     val tabTitles = listOf(stringResource(R.string.tab_subtitles), stringResource(R.string.tab_audio))
 
-    ModalBottomSheet(
+    AppBottomSheet(
         onDismissRequest = dismissAndClose,
         sheetState = bottomSheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        dragHandle = {
-            Surface(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(2.dp)
-            ) {
-                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
-            }
-        }
+        title = stringResource(R.string.tracks_title)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Text(
-                text = stringResource(R.string.tracks_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider()
-            Spacer(modifier = Modifier.height(12.dp))
-
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

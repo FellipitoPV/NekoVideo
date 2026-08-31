@@ -1,0 +1,28 @@
+Anotacoes para proxima atualização
+
+- Player e controles:
+  - Sleep Timer agora some corretamente da UI quando termina, sem ficar preso em 0 min.
+  - Adicionada opcao de 15 segundos no Sleep Timer apenas em modo debug para testes rapidos.
+  - Padronizado o comportamento de pause/resume dos dialogs do player: so retoma se o video estava tocando antes.
+  - Corrigidos os fluxos de retomada ao fechar Tags e Cast quando abertos pelo action drawer.
+  - Adicionada camada escura global por tras dos controles para melhorar contraste em videos claros.
+  - Removida a scrim extra do action drawer, aproveitando a nova camada global da UI.
+
+- Bottom sheets e padronizacao visual:
+  - Sleep Timer configuracao e status agora usam bottom sheet.
+  - Dialog de Faixas/Legendas agora usa bottom sheet e visual alinhado ao restante do app.
+  - Dialog de velocidade do player agora usa bottom sheet, com melhor alinhamento e espacamento inferior.
+  - Dialog de criar pasta agora usa bottom sheet.
+  - Dialogs de renomear item, renomear item locked e renomear multiplos itens agora usam bottom sheet.
+  - Dialog de senha, oferta de biometria e troca de senha agora seguem o mesmo padrao visual de bottom sheet.
+  - Confirmacoes de desconectar cast agora usam bottom sheet compartilhado.
+  - Dialog de video ausente agora usa bottom sheet.
+
+- Infraestrutura de dialogs:
+  - Criado componente reutilizavel `AppBottomSheet` para unificar visual, drag handle, titulo, divider e padding base.
+  - Criado `CastDisconnectDialog` reutilizavel para evitar duplicacao entre TopBar e overlay de cast.
+
+- Foco e teclado:
+  - Ajustado foco de campos em varios bottom sheets para acontecer apenas apos o sheet estabilizar aberto.
+  - Corrigido cursor inicial para abrir no fim do texto nos dialogs de rename.
+  - Refinado comportamento de teclado nos dialogs de senha e troca de senha para reduzir conflitos com a animacao de entrada.

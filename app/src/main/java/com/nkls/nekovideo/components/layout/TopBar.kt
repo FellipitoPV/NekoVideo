@@ -20,13 +20,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -54,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.R
+import com.nkls.nekovideo.components.CastDisconnectDialog
 import com.nkls.nekovideo.components.helpers.DLNACastManager
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
@@ -125,30 +124,13 @@ fun TopBar(
     }
 
     if (showDisconnectDialog) {
-        AlertDialog(
-            onDismissRequest = { showDisconnectDialog = false },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.CastConnected,
-                    contentDescription = null,
-                    tint = Color(0xFF4CAF50)
-                )
-            },
-            title = { Text(stringResource(R.string.cast_disconnect_title)) },
-            text = { Text(stringResource(R.string.cast_disconnect_message, castManager.connectedDeviceName)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDisconnectDialog = false
-                    castManager.stopCasting()
-                    isCasting = false
-                }) {
-                    Text(stringResource(R.string.cast_disconnect_confirm), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDisconnectDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
+        CastDisconnectDialog(
+            deviceName = castManager.connectedDeviceName,
+            onDismiss = { showDisconnectDialog = false },
+            onConfirm = {
+                showDisconnectDialog = false
+                castManager.stopCasting()
+                isCasting = false
             }
         )
     }

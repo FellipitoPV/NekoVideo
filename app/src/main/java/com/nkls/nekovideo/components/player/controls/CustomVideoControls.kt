@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
@@ -96,6 +97,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.nkls.nekovideo.BuildConfig
 import com.nkls.nekovideo.R
+import com.nkls.nekovideo.components.AppBottomSheet
 import androidx.media3.session.MediaController
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.components.helpers.FilesManager
@@ -563,6 +565,7 @@ fun CustomVideoControls(
 
                             // Velocidade
                             var showSpeedDialog by remember { mutableStateOf(false) }
+                            val speedSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                             val speedActive = playbackSpeed.value != 1.0f
                             IconButton(
                                 onClick = {
@@ -583,61 +586,60 @@ fun CustomVideoControls(
                             }
 
                             if (showSpeedDialog) {
-                                androidx.compose.material3.AlertDialog(
-                                    onDismissRequest = { showSpeedDialog = false; onSpeedDialogClose() },
-                                    containerColor = Color(0xFF1A1A2E),
-                                    titleContentColor = Color.White,
-                                    textContentColor = Color.White.copy(alpha = 0.85f),
-                                    title = {
-                                        Text(stringResource(R.string.playback_speed_title), fontWeight = FontWeight.SemiBold)
+                                AppBottomSheet(
+                                    onDismissRequest = {
+                                        showSpeedDialog = false
+                                        onSpeedDialogClose()
                                     },
-                                    text = {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Text(
-                                                text = formatSpeedLabel(playbackSpeed),
-                                                color = Color.White,
-                                                fontSize = 40.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            Slider(
-                                                value = playbackSpeed.value,
-                                                onValueChange = {
-                                                    val closest = PlaybackSpeed.entries.minByOrNull { speed ->
-                                                        kotlin.math.abs(speed.value - it)
-                                                    }
-                                                    closest?.let { onPlaybackSpeedChange(it) }
-                                                },
-                                                valueRange = 0.25f..2.0f,
-                                                steps = 6,
-                                                colors = SliderDefaults.colors(
-                                                    thumbColor = Color.White,
-                                                    activeTrackColor = Color.White.copy(alpha = 0.7f),
-                                                    inactiveTrackColor = Color.White.copy(alpha = 0.2f)
-                                                ),
-                                                modifier = Modifier.fillMaxWidth()
-                                            )
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                PlaybackSpeed.entries.forEach { speed ->
-                                                    Text(
-                                                        text = formatSpeedLabel(speed),
-                                                        color = if (speed == playbackSpeed) Color.White
-                                                                else Color.White.copy(alpha = 0.4f),
-                                                        fontSize = 9.sp
-                                                    )
+                                    sheetState = speedSheetState,
+                                    title = stringResource(R.string.playback_speed_title),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    contentPadding = PaddingValues(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 28.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = formatSpeedLabel(playbackSpeed),
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            fontSize = 40.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Slider(
+                                            value = playbackSpeed.value,
+                                            onValueChange = {
+                                                val closest = PlaybackSpeed.entries.minByOrNull { speed ->
+                                                    kotlin.math.abs(speed.value - it)
                                                 }
+                                                closest?.let { onPlaybackSpeedChange(it) }
+                                            },
+                                            valueRange = 0.25f..2.0f,
+                                            steps = 6,
+                                            colors = SliderDefaults.colors(
+                                                thumbColor = MaterialTheme.colorScheme.primary,
+                                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                                            ),
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            PlaybackSpeed.entries.forEach { speed ->
+                                                Text(
+                                                    text = formatSpeedLabel(speed),
+                                                    color = if (speed == playbackSpeed) MaterialTheme.colorScheme.onSurface
+                                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    fontSize = 9.sp
+                                                )
                                             }
                                         }
-                                    },
-                                    confirmButton = {}
-                                )
+                                    }
+                                }
                             }
 
                             // Repeat mode

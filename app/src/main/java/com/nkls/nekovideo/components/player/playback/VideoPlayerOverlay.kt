@@ -24,14 +24,16 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -78,6 +80,7 @@ import androidx.media3.ui.SubtitleView
 import com.google.common.util.concurrent.MoreExecutors
 import com.nkls.nekovideo.MainActivity
 import com.nkls.nekovideo.MediaPlaybackService
+import com.nkls.nekovideo.components.AppBottomSheet
 import com.nkls.nekovideo.components.VideoTagsDialog
 import com.nkls.nekovideo.components.helpers.CastManager
 import com.nkls.nekovideo.components.helpers.DLNACastManager
@@ -133,6 +136,7 @@ private fun subtitleSizeSp(level: Int): Float {
 }
 
 @androidx.annotation.OptIn(UnstableApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("OpaqueUnitKey")
 @Composable
 fun VideoPlayerOverlay(
@@ -1192,22 +1196,23 @@ fun VideoPlayerOverlay(
     }
 
     if (showMissingVideoDialog) {
-        AlertDialog(
+        val missingVideoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+        AppBottomSheet(
             onDismissRequest = { },
-            title = {
-                Text(text = stringResource(R.string.video_not_found_title))
-            },
-            text = {
-                Text(
-                    text = stringResource(R.string.video_not_found_message, missingVideoTitle)
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { refreshLibraryAfterMissingVideo() }) {
-                    Text(text = stringResource(R.string.video_not_found_action_refresh))
-                }
+            sheetState = missingVideoSheetState,
+            title = stringResource(R.string.video_not_found_title)
+        ) {
+            Text(
+                text = stringResource(R.string.video_not_found_message, missingVideoTitle)
+            )
+            TextButton(
+                onClick = { refreshLibraryAfterMissingVideo() },
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text(text = stringResource(R.string.video_not_found_action_refresh))
             }
-        )
+        }
     }
 
     LaunchedEffect(mediaController, selectedExternalSubtitleUri, selectedExternalSubtitleName) {

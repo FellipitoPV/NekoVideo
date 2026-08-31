@@ -23,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nkls.nekovideo.R
+import com.nkls.nekovideo.components.CastDisconnectDialog
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.DLNACastManager
 import com.nkls.nekovideo.components.player.PlayerUtils.findActivity
@@ -272,31 +273,12 @@ fun CastControlsOverlay(
 
         // Disconnect confirmation dialog
         if (showDisconnectDialog) {
-            AlertDialog(
-                onDismissRequest = { showDisconnectDialog = false },
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.CastConnected,
-                        contentDescription = null,
-                        tint = Color(0xFF4CAF50)
-                    )
-                },
-                title = { Text(stringResource(R.string.cast_disconnect_title)) },
-                text = {
-                    Text(stringResource(R.string.cast_disconnect_message, deviceName))
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showDisconnectDialog = false
-                        onDisconnect()
-                    }) {
-                        Text(stringResource(R.string.cast_disconnect_confirm), color = MaterialTheme.colorScheme.error)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDisconnectDialog = false }) {
-                        Text(stringResource(R.string.cancel))
-                    }
+            CastDisconnectDialog(
+                deviceName = deviceName,
+                onDismiss = { showDisconnectDialog = false },
+                onConfirm = {
+                    showDisconnectDialog = false
+                    onDisconnect()
                 }
             )
         }
