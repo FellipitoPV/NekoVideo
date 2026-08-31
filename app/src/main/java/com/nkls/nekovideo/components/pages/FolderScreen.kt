@@ -82,7 +82,9 @@ import com.nkls.nekovideo.components.helpers.supportedVideoExtensions
 import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.services.FolderVideoScanner
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -104,6 +106,7 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.MediaItem as ExoMediaItem
@@ -1045,28 +1048,34 @@ fun FolderScreen(
         }
     }
 
-    // Função de refresh — usa GlobalScope interno do scanner para não ser cancelada por navegação
+    // Refresh manual continua global independente da pasta atual
     fun performRefresh() {
         FolderVideoScanner.startScan(context, forceRefresh = true)
     }
 
-    // ✅ Auto-refresh quando volta para a tela (opcional)
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME && scannerCache.isNotEmpty()) {
-                // Refresh suave em background quando volta para o app
-                coroutineScope.launch {
-                    delay(500)
-                    FolderVideoScanner.startScan(context, forceRefresh = false)
-                }
+    fun refreshCurrentFolderSilently(scope: CoroutineScope) {
+        if (isRootLevel || !hasPermission || isScanning) return
+
+        FolderVideoScanner.refreshPaths(
+            context = context,
+            paths = listOf(folderPath),
+            scope = scope,
+            showProgress = false,
+            cancelOngoing = false
+        )
+    }
+
+    LaunchedEffect(lifecycleOwner, folderPath, isRootLevel, hasPermission) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            if (isRootLevel) {
+                reloadContinueWatching()
+            } else {
+                delay(500)
+                refreshCurrentFolderSilently(this)
             }
 
-            if (event == Lifecycle.Event.ON_RESUME && isRootLevel) {
-                reloadContinueWatching()
-            }
+            awaitCancellation()
         }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     LaunchedEffect(isRootLevel, renameTrigger, scannerCache) {

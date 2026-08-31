@@ -26,3 +26,8 @@ Anotacoes para proxima atualização
   - Ajustado foco de campos em varios bottom sheets para acontecer apenas apos o sheet estabilizar aberto.
   - Corrigido cursor inicial para abrir no fim do texto nos dialogs de rename.
   - Refinado comportamento de teclado nos dialogs de senha e troca de senha para reduzir conflitos com a animacao de entrada.
+
+- Navegacao e refresh de pastas:
+  - FolderScreen agora faz refresh parcial e silencioso da pasta atual ao entrar nela.
+  - Ao voltar para o app em uma subpasta, a pasta atual tambem recebe refresh parcial silencioso automaticamente.
+  - O refresh manual continua global, evitando que o usuario precise usar refresh completo com frequencia so para atualizar a pasta aberta.

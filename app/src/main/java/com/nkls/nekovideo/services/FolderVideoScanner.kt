@@ -171,7 +171,13 @@ object FolderVideoScanner {
         }
     }
 
-    fun refreshPaths(context: Context, paths: List<String>, scope: CoroutineScope = GlobalScope) {
+    fun refreshPaths(
+        context: Context,
+        paths: List<String>,
+        scope: CoroutineScope = GlobalScope,
+        showProgress: Boolean = true,
+        cancelOngoing: Boolean = true
+    ) {
         val targetPaths = paths
             .map { File(it).absolutePath }
             .distinct()
@@ -182,8 +188,14 @@ object FolderVideoScanner {
 
         if (targetPaths.isEmpty()) return
 
-        scanJob?.cancel()
-        _isScanning.value = true
+        if (scanJob?.isActive == true) {
+            if (!cancelOngoing) return
+            scanJob?.cancel()
+        }
+
+        if (showProgress) {
+            _isScanning.value = true
+        }
 
         scanJob = scope.launch(Dispatchers.IO) {
             try {
@@ -210,7 +222,9 @@ object FolderVideoScanner {
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
-                _isScanning.value = false
+                if (showProgress) {
+                    _isScanning.value = false
+                }
             }
         }
     }
