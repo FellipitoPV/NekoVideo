@@ -138,15 +138,23 @@ fun ActionFAB(
         selectedItems.isNotEmpty() && selectedItems.all { java.io.File(it).isFile }
     }
 
-    val isSingleFolderSelection = remember(selectedItems) {
-        selectedItems.size == 1 && java.io.File(selectedItems.first()).isDirectory
+    val areAllSelectedItemsFolders = remember(selectedItems) {
+        selectedItems.isNotEmpty() && selectedItems.all { java.io.File(it).isDirectory }
     }
 
-    val isSelectedFolderPinned = remember(selectedItems, pinnedFolderPaths) {
-        isSingleFolderSelection && pinnedFolderPaths.contains(java.io.File(selectedItems.first()).absolutePath)
+    val areAllSelectedFoldersPinned = remember(selectedItems, pinnedFolderPaths, areAllSelectedItemsFolders) {
+        areAllSelectedItemsFolders && selectedItems.all { path ->
+            pinnedFolderPaths.contains(java.io.File(path).absolutePath)
+        }
     }
 
-    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder, hasOnlyFiles, tagsText, isSingleFolderSelection, isSelectedFolderPinned, pinFolderText, unpinFolderText) {
+    val areAllSelectedFoldersUnpinned = remember(selectedItems, pinnedFolderPaths, areAllSelectedItemsFolders) {
+        areAllSelectedItemsFolders && selectedItems.all { path ->
+            !pinnedFolderPaths.contains(java.io.File(path).absolutePath)
+        }
+    }
+
+    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder, hasOnlyFiles, tagsText, areAllSelectedItemsFolders, areAllSelectedFoldersPinned, areAllSelectedFoldersUnpinned, pinFolderText, unpinFolderText) {
         when {
             isMoveMode -> {
                 listOf(
@@ -177,12 +185,20 @@ fun ActionFAB(
                         actionsList.add(ActionItem(ActionType.TAGS, Icons.Default.LocalOffer, tagsText))
                     }
                 } else {
-                    if (isSingleFolderSelection) {
+                    if (areAllSelectedFoldersPinned) {
                         actionsList.add(
                             ActionItem(
-                                type = if (isSelectedFolderPinned) ActionType.UNPIN_FOLDER else ActionType.PIN_FOLDER,
-                                icon = if (isSelectedFolderPinned) Icons.Default.PushPin else Icons.Default.PushPin,
-                                title = if (isSelectedFolderPinned) unpinFolderText else pinFolderText
+                                type = ActionType.UNPIN_FOLDER,
+                                icon = Icons.Default.PushPin,
+                                title = unpinFolderText
+                            )
+                        )
+                    } else if (areAllSelectedFoldersUnpinned) {
+                        actionsList.add(
+                            ActionItem(
+                                type = ActionType.PIN_FOLDER,
+                                icon = Icons.Default.PushPin,
+                                title = pinFolderText
                             )
                         )
                     }

@@ -170,7 +170,7 @@ fun MainScreen(
     var showPlayerOverlay by remember { mutableStateOf(false) }
     var deletedVideoPath by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
-    var pendingUnpinPath by remember { mutableStateOf<String?>(null) }
+    var pendingUnpinPaths by remember { mutableStateOf<List<String>>(emptyList()) }
     var selectedExternalSubtitleUri by remember { mutableStateOf<Uri?>(null) }
     var selectedExternalSubtitleName by remember { mutableStateOf<String?>(null) }
 
@@ -1072,17 +1072,24 @@ fun MainScreen(
         )
     }
 
-    pendingUnpinPath?.let { unpinPath ->
+    if (pendingUnpinPaths.isNotEmpty()) {
+        val unpinLabel = if (pendingUnpinPaths.size == 1) {
+            PinnedFoldersStore.resolveDisplayName(context, pendingUnpinPaths.first())
+        } else {
+            "${pendingUnpinPaths.size} folders"
+        }
         UnpinFolderConfirmationDialog(
-            folderName = PinnedFoldersStore.resolveDisplayName(context, unpinPath),
+            folderName = unpinLabel,
             onDismiss = {
-                pendingUnpinPath = null
+                pendingUnpinPaths = emptyList()
                 selectedItems.clear()
             },
             onConfirm = {
-                PinnedFoldersStore.unpin(context, unpinPath)
+                pendingUnpinPaths.forEach { path ->
+                    PinnedFoldersStore.unpin(context, path)
+                }
                 SortRowMessageCenter.showSuccess(context.getString(R.string.unpin_folder_success))
-                pendingUnpinPath = null
+                pendingUnpinPaths = emptyList()
                 selectedItems.clear()
             }
         )
@@ -1326,24 +1333,31 @@ fun MainScreen(
                                 }
                             }
                             ActionType.PIN_FOLDER -> {
-                                val path = selectedItems.firstOrNull()
-                                if (path != null) {
+                                var hadSuccess = false
+                                var hadLimitReached = false
+                                var hadInvalid = false
+                                var hadAlreadyPinned = false
+
+                                selectedItems.forEach { path ->
                                     when (PinnedFoldersStore.pin(context, path)) {
-                                        PinFolderResult.Success ->
-                                            SortRowMessageCenter.showSuccess(context.getString(R.string.pin_folder_success))
-                                        PinFolderResult.AlreadyPinned ->
-                                            SortRowMessageCenter.showInfo(context.getString(R.string.pin_folder_already_pinned))
-                                        PinFolderResult.LimitReached ->
-                                            SortRowMessageCenter.showError(context.getString(R.string.pin_folder_limit_reached))
-                                        PinFolderResult.Invalid ->
-                                            SortRowMessageCenter.showError(context.getString(R.string.pin_folder_invalid))
+                                        PinFolderResult.Success -> hadSuccess = true
+                                        PinFolderResult.AlreadyPinned -> hadAlreadyPinned = true
+                                        PinFolderResult.LimitReached -> hadLimitReached = true
+                                        PinFolderResult.Invalid -> hadInvalid = true
                                     }
+                                }
+
+                                when {
+                                    hadSuccess -> SortRowMessageCenter.showSuccess(context.getString(R.string.pin_folder_success))
+                                    hadLimitReached -> SortRowMessageCenter.showError(context.getString(R.string.pin_folder_limit_reached))
+                                    hadInvalid -> SortRowMessageCenter.showError(context.getString(R.string.pin_folder_invalid))
+                                    hadAlreadyPinned -> SortRowMessageCenter.showInfo(context.getString(R.string.pin_folder_already_pinned))
                                 }
                                 selectedItems.clear()
                             }
                             ActionType.UNPIN_FOLDER -> {
-                                selectedItems.firstOrNull()?.let { path ->
-                                    pendingUnpinPath = path
+                                if (selectedItems.isNotEmpty()) {
+                                    pendingUnpinPaths = selectedItems.toList()
                                 }
                             }
                         }
