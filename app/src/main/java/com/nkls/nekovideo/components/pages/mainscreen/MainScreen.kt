@@ -105,6 +105,7 @@ import com.nkls.nekovideo.components.player.MiniPlayerImproved
 import com.nkls.nekovideo.components.player.PlaybackThumbnailCoordinator
 import com.nkls.nekovideo.components.player.VideoPlayerOverlay
 import com.nkls.nekovideo.components.settings.AboutSettingsScreen
+import com.nkls.nekovideo.components.settings.ChangelogSettingsScreen
 import com.nkls.nekovideo.components.settings.StorageSettingsScreen
 import com.nkls.nekovideo.components.settings.TagsSettingsScreen
 import com.nkls.nekovideo.components.settings.DisplaySettingsScreen
@@ -132,7 +133,7 @@ fun MainScreen(
     hostActivity: ComponentActivity,
     intent: Intent?,
     themeManager: ThemeManager,
-    notificationReceived: Boolean = false,
+    openPlayerRequestCount: Int = 0,
     lastAction: String? = null,
     lastTime: Long = 0,
     externalVideoReceived: Boolean = false,
@@ -646,9 +647,12 @@ fun MainScreen(
         }
     }
 
-    // ✅ Ao clicar na notificação, NÃO abre o overlay automaticamente
-    // O usuário pode usar o mini player e abrir o overlay se desejar
-    // (Código removido para evitar problema de navegação com back press)
+    LaunchedEffect(openPlayerRequestCount, lastAction, lastTime) {
+        if (openPlayerRequestCount > 0 && lastAction == "OPEN_PLAYER") {
+            delay(100)
+            openPlayerOverlay()
+        }
+    }
 
     LaunchedEffect(currentTheme, configuration.uiMode, showPlayerOverlay) {
         if (!showPlayerOverlay) {
@@ -1537,6 +1541,9 @@ fun MainScreen(
                 }
                 composable("settings/about") {
                     AboutSettingsScreen()
+                }
+                composable("settings/changelog") {
+                    ChangelogSettingsScreen()
                 }
                 composable("settings/display") {
                     DisplaySettingsScreen()

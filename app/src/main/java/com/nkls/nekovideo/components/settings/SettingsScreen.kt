@@ -1,8 +1,6 @@
 package com.nkls.nekovideo.components.settings
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.Image
@@ -123,14 +121,6 @@ import java.util.Locale
 
 @Composable
 fun SettingsScreen(navController: NavController) {
-    val context = LocalContext.current
-    val donateIntent = remember {
-        Intent(Intent.ACTION_VIEW, Uri.parse("https://ko-fi.com/fellipepv")).apply {
-            addCategory(Intent.CATEGORY_BROWSABLE)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-    }
-
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         @Suppress("UnusedBoxWithConstraintsScope")
         val isCompact = this.maxWidth > 600.dp
@@ -213,14 +203,105 @@ fun SettingsScreen(navController: NavController) {
 
             item {
                 SettingsCategoryCard(
-                    icon = Icons.Default.Favorite,
-                    title = stringResource(R.string.settings_support_developer),
-                    subtitle = stringResource(R.string.settings_support_developer_desc),
-                    onClick = { context.startActivity(donateIntent) },
+                    icon = Icons.Default.Schedule,
+                    title = stringResource(R.string.settings_changelog, BuildConfig.VERSION_NAME),
+                    subtitle = stringResource(R.string.settings_changelog_desc),
+                    onClick = { navController.navigate("settings/changelog") },
                     isCompact = isCompact
                 )
             }
 
+        }
+    }
+}
+
+@Composable
+fun ChangelogSettingsScreen() {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text(
+                text = stringResource(R.string.changelog_latest_title, BuildConfig.VERSION_NAME),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        item {
+            ChangelogCard(
+                title = stringResource(R.string.changelog_pinned_folders_title),
+                body = stringResource(R.string.changelog_pinned_folders_desc)
+            )
+        }
+
+        item {
+            ChangelogCard(
+                title = stringResource(R.string.changelog_continue_watching_title),
+                body = stringResource(R.string.changelog_continue_watching_desc)
+            )
+        }
+
+        item {
+            ChangelogCard(
+                title = stringResource(R.string.changelog_external_player_title),
+                body = stringResource(R.string.changelog_external_player_desc)
+            )
+        }
+
+        item {
+            ChangelogCard(
+                title = stringResource(R.string.changelog_background_playback_title),
+                body = stringResource(R.string.changelog_background_playback_desc)
+            )
+        }
+
+        item {
+            ChangelogCard(
+                title = stringResource(R.string.changelog_dark_theme_title),
+                body = stringResource(R.string.changelog_dark_theme_desc)
+            )
+        }
+
+        item {
+            ChangelogCard(
+                title = stringResource(R.string.changelog_pip_title),
+                body = stringResource(R.string.changelog_pip_desc)
+            )
+        }
+
+        item {
+            ChangelogCard(
+                title = stringResource(R.string.changelog_credits_title),
+                body = stringResource(R.string.changelog_credits_desc)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChangelogCard(title: String, body: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

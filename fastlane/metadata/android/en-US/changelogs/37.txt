@@ -1,0 +1,5 @@
+New: pinned folders on the home screen and more reliable Continue Watching progress sync.
+
+Improved external player behavior: when opened from another app, back now stops playback and returns to the source app.
+
+Added Background playback setting, AMOLED dark theme, and manual-only Picture-in-Picture.

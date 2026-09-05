@@ -183,6 +183,24 @@
     <string name="settings_tags_desc">Управление тегами для обычных и приватных видео</string>
     <string name="settings_about">О программе</string>
     <string name="settings_about_desc">Информация о приложении и поддержка</string>
+    <string name="settings_changelog">Changelog (v%1$s)</string>
+    <string name="settings_changelog_desc">Посмотрите, что изменилось и как использовать новые функции</string>
+    <string name="changelog_title">Changelog</string>
+    <string name="changelog_latest_title">Что нового в v%1$s</string>
+    <string name="changelog_pinned_folders_title">Закрепленные папки</string>
+    <string name="changelog_pinned_folders_desc">Теперь можно закреплять часто используемые папки на главном экране. Выберите папку и используйте действие закрепления; закрепленные папки появляются в корне с быстрым доступом, возможностью открепления и теми же правилами видимости приватных папок.</string>
+    <string name="changelog_continue_watching_title">Более надежное продолжение просмотра</string>
+    <string name="changelog_continue_watching_desc">Карточка Продолжить просмотр теперь надежнее синхронизирует прогресс. Позиция сохраняется при паузе, закрытии плеера и периодически во время воспроизведения.</string>
+    <string name="changelog_external_player_title">Улучшенный внешний плеер</string>
+    <string name="changelog_external_player_desc">При открытии видео в NekoVideo из другого приложения кнопка назад системы или плеера теперь останавливает воспроизведение и возвращает прямо в исходное приложение.</string>
+    <string name="changelog_background_playback_title">Фоновое воспроизведение</string>
+    <string name="changelog_background_playback_desc">Эта опция находится в Настройки > Воспроизведение. Если включена, видео продолжает играть при закрытии плеера. Если отключена, закрытие плеера останавливает воспроизведение, а HOME ставит видео на паузу.</string>
+    <string name="changelog_dark_theme_title">Темная тема AMOLED</string>
+    <string name="changelog_dark_theme_desc">Темный режим теперь использует настоящий черный цвет и почти черные поверхности для лучшего опыта на OLED-экранах без потери читаемости.</string>
+    <string name="changelog_pip_title">Ручной Picture-in-Picture</string>
+    <string name="changelog_pip_desc">Автоматический PiP удален. Чтобы использовать Picture-in-Picture, запустите PiP вручную во время воспроизведения.</string>
+    <string name="changelog_credits_title">Благодарности</string>
+    <string name="changelog_credits_desc">Спасибо @shuaici за вклад в закрепленные папки и синхронизацию Продолжить просмотр, а также @abandonedwar за предложения по внешнему плееру, фоновому режиму и темной теме.</string>
     <string name="settings_security">Безопасность и конфиденциальность</string>
     <string name="settings_security_desc">Биометрия и настройки пароля</string>
     <string name="security_title">Безопасность и конфиденциальность</string>
@@ -312,8 +330,6 @@
     <string name="about_app_version">Версия приложения</string>
     <string name="about_source_code">Исходный код</string>
     <string name="about_source_code_desc">Посмотреть на GitHub</string>
-    <string name="settings_support_developer">Поддержать разработчика</string>
-    <string name="settings_support_developer_desc">Уберите рекламу с Premium и помогите развитию проекта</string>
     <string name="about_report_bug">Сообщить об ошибке</string>
     <string name="about_report_bug_desc">Сообщить о проблемах или предложениях на GitHub; может потребоваться вход</string>
 

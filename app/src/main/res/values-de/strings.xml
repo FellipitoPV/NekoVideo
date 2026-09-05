@@ -183,6 +183,24 @@
     <string name="settings_tags_desc">Tags für normale und private Videos verwalten</string>
     <string name="settings_about">Über</string>
     <string name="settings_about_desc">App-Informationen und Support</string>
+    <string name="settings_changelog">Changelog (v%1$s)</string>
+    <string name="settings_changelog_desc">Sieh, was sich geändert hat und wie du die Neuerungen nutzt</string>
+    <string name="changelog_title">Changelog</string>
+    <string name="changelog_latest_title">Neu in v%1$s</string>
+    <string name="changelog_pinned_folders_title">Angeheftete Ordner</string>
+    <string name="changelog_pinned_folders_desc">Häufig verwendete Ordner können jetzt auf dem Startbildschirm angeheftet werden. Wähle einen Ordner und nutze die Anheften-Aktion; angeheftete Ordner erscheinen auf der Root-Seite mit Schnellzugriff, Entfernen-Unterstützung und denselben Sichtbarkeitsregeln für private Ordner.</string>
+    <string name="changelog_continue_watching_title">Zuverlässigeres Weiterschauen</string>
+    <string name="changelog_continue_watching_desc">Die Weiterschauen-Karte synchronisiert den Fortschritt jetzt zuverlässiger. Die Position wird beim Pausieren, beim Schließen des Players und regelmäßig während der Wiedergabe gespeichert.</string>
+    <string name="changelog_external_player_title">Verbesserter externer Player</string>
+    <string name="changelog_external_player_desc">Wenn ein Video aus einer anderen App in NekoVideo geöffnet wird, stoppt Zurück über das System oder den Player jetzt die Wiedergabe und kehrt direkt zur ursprünglichen App zurück.</string>
+    <string name="changelog_background_playback_title">Hintergrundwiedergabe</string>
+    <string name="changelog_background_playback_desc">Diese Option ist unter Einstellungen > Wiedergabe verfügbar. Aktiviert läuft das Video beim Schließen des Players weiter. Deaktiviert stoppt das Schließen des Players die Wiedergabe und HOME pausiert das Video.</string>
+    <string name="changelog_dark_theme_title">AMOLED-Dunkelmodus</string>
+    <string name="changelog_dark_theme_desc">Der Dunkelmodus nutzt jetzt echtes Schwarz mit nahezu schwarzen Oberflächen für eine bessere OLED-Erfahrung bei guter Lesbarkeit.</string>
+    <string name="changelog_pip_title">Manuelles Picture-in-Picture</string>
+    <string name="changelog_pip_desc">Automatisches PiP wurde entfernt. Um Picture-in-Picture zu verwenden, starte PiP während der Wiedergabe manuell.</string>
+    <string name="changelog_credits_title">Credits</string>
+    <string name="changelog_credits_desc">Danke an @shuaici für Beiträge zu angehefteten Ordnern und Weiterschauen-Synchronisierung sowie an @abandonedwar für Vorschläge zum externen Player, zur Hintergrundwiedergabe und zum dunklen Design.</string>
     <string name="settings_security">Sicherheit &amp; Datenschutz</string>
     <string name="settings_security_desc">Biometrie- und Passwortoptionen</string>
     <string name="security_title">Sicherheit &amp; Datenschutz</string>
@@ -312,8 +330,6 @@
     <string name="about_app_version">App-Version</string>
     <string name="about_source_code">Quellcode</string>
     <string name="about_source_code_desc">Auf GitHub ansehen</string>
-    <string name="settings_support_developer">Entwickler unterstützen</string>
-    <string name="settings_support_developer_desc">Entfernen Sie Werbung mit Premium und unterstützen Sie die Entwicklung</string>
     <string name="about_report_bug">Fehler melden</string>
     <string name="about_report_bug_desc">Probleme oder Vorschlage auf GitHub melden; Anmeldung kann erforderlich sein</string>
 

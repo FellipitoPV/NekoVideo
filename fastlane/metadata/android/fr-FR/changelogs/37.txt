@@ -1,0 +1,5 @@
+Nouveau : dossiers épinglés sur l'écran d'accueil et synchronisation plus fiable de Continuer à regarder.
+
+Lecteur externe amélioré : ouvert depuis une autre app, le retour arrête la lecture et revient à l'app d'origine.
+
+Ajout de la lecture en arrière-plan, du thème sombre AMOLED et du PiP manuel.

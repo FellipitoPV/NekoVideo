@@ -22,6 +22,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -86,11 +87,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     // NOVO: Variável para controlar intent da notificação
-    private var notificationIntentReceived = false
     private var lastIntentAction: String? = null
     private var lastIntentTime: Long = 0
 
-    private var _notificationReceived = mutableStateOf(false)
+    private var _openPlayerRequestCount = mutableIntStateOf(0)
     private var _lastIntentAction = mutableStateOf<String?>(null)
     private var _lastIntentTime = mutableStateOf(0L)
     private var _openFolderPath = mutableStateOf<String?>(null)
@@ -170,7 +170,7 @@ class MainActivity : AppCompatActivity() {
 
         when (intent?.action) {
             "OPEN_PLAYER" -> {
-                notificationIntentReceived = true
+                _openPlayerRequestCount.intValue += 1
             }
             "android.intent.action.VIEW" -> {
                 val videoUri = intent.data
@@ -209,6 +209,8 @@ class MainActivity : AppCompatActivity() {
 
         // PROCESSAR intent inicial
         handleNotificationIntent(intent)
+        _lastIntentAction.value = lastIntentAction
+        _lastIntentTime.value = lastIntentTime
 
         // 🚀 Carrega cache e inicia scan se necessário
         FolderVideoScanner.loadCacheFromDisk(this)
@@ -222,7 +224,7 @@ class MainActivity : AppCompatActivity() {
             val currentTheme by themeManager.themeMode.collectAsState()
             val configuration = LocalConfiguration.current
 
-            val notificationState = _notificationReceived.value
+            val openPlayerRequestCount = _openPlayerRequestCount.intValue
             val actionState = _lastIntentAction.value
             val timeState = _lastIntentTime.value
             val folderPathState = _openFolderPath.value
@@ -241,7 +243,7 @@ class MainActivity : AppCompatActivity() {
                         hostActivity = this@MainActivity,
                         intent = intent,
                         themeManager = themeManager,
-                        notificationReceived = notificationState,
+                        openPlayerRequestCount = openPlayerRequestCount,
                         lastAction = actionState,
                         lastTime = timeState,
                         openFolderPath = folderPathState,
@@ -322,7 +324,6 @@ class MainActivity : AppCompatActivity() {
         handleNotificationIntent(intent)
 
         // Atualizar states
-        _notificationReceived.value = notificationIntentReceived
         _lastIntentAction.value = lastIntentAction
         _lastIntentTime.value = lastIntentTime
 

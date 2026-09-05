@@ -1,0 +1,5 @@
+Neu: angeheftete Ordner auf dem Startbildschirm und zuverlässigere Weiterschauen-Synchronisierung.
+
+Verbesserter externer Player: Beim Öffnen aus einer anderen App stoppt Zurück die Wiedergabe und kehrt zur Quell-App zurück.
+
+Neue Hintergrundwiedergabe-Option, AMOLED-Dunkelmodus und nur manuelles PiP.

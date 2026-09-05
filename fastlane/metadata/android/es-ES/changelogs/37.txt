@@ -1,0 +1,5 @@
+Nuevo: carpetas fijadas en la pantalla inicial y sincronización más confiable de Continuar viendo.
+
+Mejorado el modo reproductor externo: al abrir desde otra app, volver ahora detiene la reproducción y regresa a la app de origen.
+
+Nueva opción de reproducción en segundo plano, tema oscuro AMOLED y PiP solo manual.

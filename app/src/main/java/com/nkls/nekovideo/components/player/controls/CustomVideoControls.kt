@@ -321,6 +321,25 @@ fun CustomVideoControls(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            IconButton(
+                                onClick = {
+                                    resetUITimer()
+                                    onPiPClick()
+                                },
+                                modifier = Modifier
+                                    .background(CtrlBtnBg, CircleShape)
+                                    .size(44.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PictureInPicture,
+                                    contentDescription = stringResource(R.string.player_picture_in_picture),
+                                    tint = CtrlIconOn,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
                         if (sleepTimerActive) {
                             IconButton(
                                 onClick = { openSleepTimerStatusDialog() },
@@ -747,18 +766,6 @@ fun CustomVideoControls(
                             .weight(1f)
                             .verticalScroll(actionDrawerScrollState)
                     ) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            DrawerActionItem(
-                                icon = Icons.Default.PictureInPicture,
-                                label = stringResource(R.string.player_picture_in_picture),
-                                tint = CtrlIconOn,
-                                onClick = {
-                                    closeActionDrawer(shouldResumePlayback = false)
-                                    onPiPClick()
-                                }
-                            )
-                        }
-
                         DrawerActionItem(
                             icon = if (isCasting) Icons.Default.CastConnected else Icons.Default.Cast,
                             label = stringResource(if (isCasting) R.string.player_casting else R.string.player_cast),

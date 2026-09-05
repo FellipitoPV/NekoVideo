@@ -205,6 +205,13 @@ fun TopBar(
                         fontWeight = FontWeight.Medium
                     )
                 }
+                currentRoute == "settings/changelog" -> {
+                    Text(
+                        text = stringResource(R.string.changelog_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
                 currentRoute == "settings/security" -> {
                     Text(
                         text = stringResource(R.string.security_title),

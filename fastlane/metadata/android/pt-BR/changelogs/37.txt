@@ -1,0 +1,5 @@
+Novo: pastas fixadas na tela inicial e sincronização mais confiável do Continuar Assistindo.
+
+Melhorado o uso como player externo: ao abrir por outro app, voltar agora encerra a reprodução e retorna ao app de origem.
+
+Adicionada opção de reprodução em segundo plano, tema escuro AMOLED e PiP apenas manual.

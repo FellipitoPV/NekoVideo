@@ -183,6 +183,24 @@
     <string name="settings_tags_desc">Administra tags para videos normales y privados</string>
     <string name="settings_about">Acerca de</string>
     <string name="settings_about_desc">Información de la app y soporte</string>
+    <string name="settings_changelog">Changelog (v%1$s)</string>
+    <string name="settings_changelog_desc">Ve qué cambió y cómo usar las novedades</string>
+    <string name="changelog_title">Changelog</string>
+    <string name="changelog_latest_title">Novedades de v%1$s</string>
+    <string name="changelog_pinned_folders_title">Carpetas fijadas</string>
+    <string name="changelog_pinned_folders_desc">Ahora puedes fijar carpetas usadas con frecuencia en la pantalla inicial. Selecciona una carpeta y usa la acción de fijar; las carpetas fijadas aparecen en la raíz con acceso rápido, opción para desfijar y las mismas reglas de visibilidad de carpetas privadas.</string>
+    <string name="changelog_continue_watching_title">Continuar viendo más confiable</string>
+    <string name="changelog_continue_watching_desc">La tarjeta Continuar viendo ahora sincroniza mejor el progreso. La posición se guarda al pausar, al cerrar el reproductor y periódicamente durante la reproducción.</string>
+    <string name="changelog_external_player_title">Reproductor externo mejorado</string>
+    <string name="changelog_external_player_desc">Al abrir un video en NekoVideo desde otra app, volver con el sistema o con el botón del reproductor ahora detiene la reproducción y regresa directamente a la app de origen.</string>
+    <string name="changelog_background_playback_title">Reproducción en segundo plano</string>
+    <string name="changelog_background_playback_desc">Esta opción está en Configuración > Reproducción. Activada, el video sigue reproduciéndose al cerrar el reproductor. Desactivada, cerrar el reproductor detiene la reproducción y HOME pausa el video.</string>
+    <string name="changelog_dark_theme_title">Tema oscuro AMOLED</string>
+    <string name="changelog_dark_theme_desc">El modo oscuro ahora usa negro real con superficies casi negras para mejorar la experiencia en pantallas OLED sin perder legibilidad.</string>
+    <string name="changelog_pip_title">Picture-in-Picture manual</string>
+    <string name="changelog_pip_desc">El PiP automático fue eliminado. Para usar Picture-in-Picture, inicia PiP manualmente durante la reproducción.</string>
+    <string name="changelog_credits_title">Créditos</string>
+    <string name="changelog_credits_desc">Gracias a @shuaici por las contribuciones de carpetas fijadas y sincronización de Continuar viendo, y a @abandonedwar por las sugerencias de reproductor externo, segundo plano y tema oscuro.</string>
     <string name="settings_security">Seguridad y Privacidad</string>
     <string name="settings_security_desc">Opciones de biometría y contraseña</string>
     <string name="security_title">Seguridad y Privacidad</string>
@@ -312,8 +330,6 @@
     <string name="about_app_version">Versión de la App</string>
     <string name="about_source_code">Código Fuente</string>
     <string name="about_source_code_desc">Ver en GitHub</string>
-    <string name="settings_support_developer">Apoyar al desarrollador</string>
-    <string name="settings_support_developer_desc">Quita los anuncios con Premium y ayuda al desarrollo</string>
     <string name="about_report_bug">Reportar Error</string>
     <string name="about_report_bug_desc">Reportar problemas o sugerencias en GitHub; puede requerir iniciar sesion</string>
 

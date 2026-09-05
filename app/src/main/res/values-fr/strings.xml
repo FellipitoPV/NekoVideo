@@ -183,6 +183,24 @@
     <string name="settings_tags_desc">Gérer les tags pour les vidéos normales et privées</string>
     <string name="settings_about">À Propos</string>
     <string name="settings_about_desc">Informations de lapplication et support</string>
+    <string name="settings_changelog">Changelog (v%1$s)</string>
+    <string name="settings_changelog_desc">Voir les changements et comment utiliser les nouveautés</string>
+    <string name="changelog_title">Changelog</string>
+    <string name="changelog_latest_title">Nouveautés de la v%1$s</string>
+    <string name="changelog_pinned_folders_title">Dossiers épinglés</string>
+    <string name="changelog_pinned_folders_desc">Vous pouvez maintenant épingler les dossiers utilisés fréquemment sur l\'écran d\'accueil. Sélectionnez un dossier et utilisez l\'action d\'épinglage; les dossiers épinglés apparaissent à la racine avec un accès rapide, la possibilité de les retirer et les mêmes règles de visibilité des dossiers privés.</string>
+    <string name="changelog_continue_watching_title">Reprise de lecture plus fiable</string>
+    <string name="changelog_continue_watching_desc">La carte Continuer à regarder synchronise mieux la progression. La position est enregistrée lors de la pause, à la fermeture du lecteur et périodiquement pendant la lecture.</string>
+    <string name="changelog_external_player_title">Lecteur externe amélioré</string>
+    <string name="changelog_external_player_desc">Lorsqu\'une vidéo est ouverte dans NekoVideo depuis une autre app, le retour système ou le bouton retour du lecteur arrête maintenant la lecture et revient directement à l\'app d\'origine.</string>
+    <string name="changelog_background_playback_title">Lecture en arrière-plan</string>
+    <string name="changelog_background_playback_desc">Cette option se trouve dans Paramètres > Lecture. Activée, la vidéo continue lors de la fermeture du lecteur. Désactivée, fermer le lecteur arrête la lecture et HOME met la vidéo en pause.</string>
+    <string name="changelog_dark_theme_title">Thème sombre AMOLED</string>
+    <string name="changelog_dark_theme_desc">Le mode sombre utilise maintenant du noir réel avec des surfaces presque noires pour améliorer l\'expérience sur les écrans OLED sans perdre en lisibilité.</string>
+    <string name="changelog_pip_title">Picture-in-Picture manuel</string>
+    <string name="changelog_pip_desc">Le PiP automatique a été supprimé. Pour utiliser Picture-in-Picture, lancez le PiP manuellement pendant la lecture.</string>
+    <string name="changelog_credits_title">Crédits</string>
+    <string name="changelog_credits_desc">Merci à @shuaici pour les contributions aux dossiers épinglés et à la synchronisation de Continuer à regarder, et à @abandonedwar pour les suggestions sur le lecteur externe, l\'arrière-plan et le thème sombre.</string>
     <string name="settings_security">Sécurité et Confidentialité</string>
     <string name="settings_security_desc">Options biométriques et mot de passe</string>
     <string name="security_title">Sécurité et Confidentialité</string>
@@ -312,8 +330,6 @@
     <string name="about_app_version">Version de lApp</string>
     <string name="about_source_code">Code Source</string>
     <string name="about_source_code_desc">Voir sur GitHub</string>
-    <string name="settings_support_developer">Soutenir le développeur</string>
-    <string name="settings_support_developer_desc">Supprimez les publicités avec Premium et aidez le développement</string>
     <string name="about_report_bug">Signaler un Bug</string>
     <string name="about_report_bug_desc">Signaler des problemes ou des suggestions sur GitHub; une connexion peut etre requise</string>
 

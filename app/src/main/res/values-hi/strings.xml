@@ -183,6 +183,24 @@
     <string name="settings_tags_desc">सामान्य और निजी वीडियो के लिए टैग्स प्रबंधित करें</string>
     <string name="settings_about">के बारे में</string>
     <string name="settings_about_desc">ऐप की जानकारी और सहायता</string>
+    <string name="settings_changelog">Changelog (v%1$s)</string>
+    <string name="settings_changelog_desc">देखें क्या बदला और नई सुविधाओं का उपयोग कैसे करें</string>
+    <string name="changelog_title">Changelog</string>
+    <string name="changelog_latest_title">v%1$s में नया</string>
+    <string name="changelog_pinned_folders_title">पिन किए गए फोल्डर</string>
+    <string name="changelog_pinned_folders_desc">अब आप होम स्क्रीन पर अक्सर उपयोग किए जाने वाले फोल्डर पिन कर सकते हैं। एक फोल्डर चुनें और पिन action उपयोग करें; पिन किए गए फोल्डर root पर quick access, unpin support और निजी फोल्डर visibility rules के साथ दिखते हैं।</string>
+    <string name="changelog_continue_watching_title">अधिक भरोसेमंद Continue Watching</string>
+    <string name="changelog_continue_watching_desc">Continue Watching card अब progress को अधिक भरोसेमंद तरीके से sync करता है। position pause करने, player बंद करने और playback के दौरान समय-समय पर save होती है।</string>
+    <string name="changelog_external_player_title">बेहतर external player</string>
+    <string name="changelog_external_player_desc">किसी दूसरे app से NekoVideo में video खोलने पर system back या player back button अब playback रोकता है और सीधे source app पर लौटता है।</string>
+    <string name="changelog_background_playback_title">बैकग्राउंड प्लेबैक</string>
+    <string name="changelog_background_playback_desc">यह option Settings > Playback में है। enabled होने पर player बंद करने के बाद video चलता रहता है। disabled होने पर player बंद करने से playback रुकता है और HOME video को pause करता है।</string>
+    <string name="changelog_dark_theme_title">AMOLED dark theme</string>
+    <string name="changelog_dark_theme_desc">Dark mode अब OLED screens पर बेहतर अनुभव और readability बनाए रखने के लिए true black और near-black surfaces का उपयोग करता है।</string>
+    <string name="changelog_pip_title">Manual Picture-in-Picture</string>
+    <string name="changelog_pip_desc">Automatic PiP हटा दिया गया है। Picture-in-Picture उपयोग करने के लिए playback के दौरान PiP manually शुरू करें।</string>
+    <string name="changelog_credits_title">Credits</string>
+    <string name="changelog_credits_desc">Pinned folders और Continue Watching sync contributions के लिए @shuaici को धन्यवाद, और external player, background playback और dark theme suggestions के लिए @abandonedwar को धन्यवाद।</string>
     <string name="settings_security">सुरक्षा और गोपनीयता</string>
     <string name="settings_security_desc">बायोमेट्रिक्स और पासवर्ड विकल्प</string>
     <string name="security_title">सुरक्षा और गोपनीयता</string>
@@ -312,8 +330,6 @@
     <string name="about_app_version">ऐप वर्जन</string>
     <string name="about_source_code">सोर्स कोड</string>
     <string name="about_source_code_desc">GitHub पर देखें</string>
-    <string name="settings_support_developer">डेवलपर को सपोर्ट करें</string>
-    <string name="settings_support_developer_desc">प्रीमियम के साथ विज्ञापन हटाएं और विकास में मदद करें</string>
     <string name="about_report_bug">बग रिपोर्ट करें</string>
     <string name="about_report_bug_desc">GitHub पर समस्याओं या सुझावों की रिपोर्ट करें; लॉगिन की आवश्यकता हो सकती है</string>
 

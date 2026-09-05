@@ -1,0 +1,5 @@
+नया: home screen पर pinned folders और अधिक भरोसेमंद Continue Watching progress sync.
+
+External player बेहतर हुआ: दूसरे app से खोलने पर back अब playback रोकता है और source app पर लौटता है।
+
+Background playback option, AMOLED dark theme और manual-only PiP जोड़ा गया।
