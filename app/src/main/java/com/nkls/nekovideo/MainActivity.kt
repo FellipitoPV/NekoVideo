@@ -100,9 +100,6 @@ class MainActivity : AppCompatActivity() {
     val isInPiPMode: Boolean get() = _isInPiPMode.value
     val isInPiPModeState get() = _isInPiPMode  // ✅ Expor State para Compose observar
 
-    private var playerIsVisible = false
-    private var playerIsPlaying = false
-
     // ✅ FUNÇÕES PIP
     fun enterPiPMode() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -127,11 +124,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun setPlayerState(isVisible: Boolean, isPlaying: Boolean) {
-        playerIsVisible = isVisible
-        playerIsPlaying = isPlaying
-    }
-
     override fun onPictureInPictureModeChanged(
         isInPictureInPictureMode: Boolean,
         newConfig: android.content.res.Configuration
@@ -140,17 +132,6 @@ class MainActivity : AppCompatActivity() {
         _isInPiPMode.value = isInPictureInPictureMode
 
         Log.d("MainActivity", "PiP mode: $isInPictureInPictureMode")
-    }
-
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-
-        val autoPipEnabled = getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
-            .getBoolean("auto_pip", true)
-
-        if (autoPipEnabled && playerIsVisible && playerIsPlaying) {
-            enterPiPMode()
-        }
     }
 
     private fun handleExternalVideo(videoUri: Uri) {
@@ -285,10 +266,33 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun pausePlaybackForBackgroundIfNeeded() {
+        if (isFinishing) return
+
+        val backgroundPlaybackEnabled = getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            .getBoolean("background_playback", true)
+        if (!backgroundPlaybackEnabled && !_isInPiPMode.value) {
+            val controller = MediaControllerManager.getCurrentController()
+            if (controller != null) {
+                MediaPlaybackService.pauseForBackground(this)
+            }
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        pausePlaybackForBackgroundIfNeeded()
+        super.onUserLeaveHint()
+    }
+
     override fun onPause() {
         super.onPause()
         keepScreenOn(false)
         OptimizedThumbnailManager.cancelLoading("")
+    }
+
+    override fun onStop() {
+        super.onStop()
+        pausePlaybackForBackgroundIfNeeded()
     }
 
     override fun onDestroy() {

@@ -272,14 +272,12 @@
     <string name="playback_controls">Controls</string>
     <string name="playback_features">Features</string>
 
-    <string name="playback_auto_hide_controls">Auto Hide Controls</string>
-    <string name="playback_auto_hide_controls_desc">Hide automatically during playback</string>
+    <string name="playback_background_playback">Background playback</string>
+    <string name="playback_background_playback_desc">Keep video playing when closing the player</string>
     <string name="playback_double_tap_seek">Double Tap Seek</string>
     <string name="playback_double_tap_seek_desc">Seconds to skip forward/backward</string>
     <string name="playback_keep_screen_on">Keep Screen On</string>
     <string name="playback_keep_screen_on_desc">Dont turn off screen during playback</string>
-    <string name="playback_pip">Auto PIP</string>
-    <string name="playback_pip_desc">Enter picture-in-picture when leaving the app during playback</string>
     <string name="playback_continue_watching">Continue Watching</string>
     <string name="playback_continue_watching_enabled">Enable continue watching</string>
     <string name="playback_continue_watching_enabled_desc">Save where you stopped and resume later</string>

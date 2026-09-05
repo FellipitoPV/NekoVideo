@@ -1,33 +1,24 @@
-Anotacoes para proxima atualização
+Anotacoes para proxima atualizacao
 
-- Player e controles:
-  - Sleep Timer agora some corretamente da UI quando termina, sem ficar preso em 0 min.
-  - Adicionada opcao de 15 segundos no Sleep Timer apenas em modo debug para testes rapidos.
-  - Padronizado o comportamento de pause/resume dos dialogs do player: so retoma se o video estava tocando antes.
-  - Corrigidos os fluxos de retomada ao fechar Tags e Cast quando abertos pelo action drawer.
-  - Adicionada camada escura global por tras dos controles para melhorar contraste em videos claros.
-  - Removida a scrim extra do action drawer, aproveitando a nova camada global da UI.
+- Contribuicao baseada no PR do usuario `shuaici`:
+  - Adicionado sistema de pastas fixadas (`Pinned folders`) com persistencia local.
+  - Adicionadas acoes de fixar e desfixar pastas.
+  - Corrigida a sincronizacao do `Continue Watching`, com persistencia mais confiavel do progresso.
+  - O progresso do `Continue Watching` agora pode ser salvo ao pausar, ao fechar o player e periodicamente durante a reproducao.
 
-- Bottom sheets e padronizacao visual:
-  - Sleep Timer configuracao e status agora usam bottom sheet.
-  - Dialog de Faixas/Legendas agora usa bottom sheet e visual alinhado ao restante do app.
-  - Dialog de velocidade do player agora usa bottom sheet, com melhor alinhamento e espacamento inferior.
-  - Dialog de criar pasta agora usa bottom sheet.
-  - Dialogs de renomear item, renomear item locked e renomear multiplos itens agora usam bottom sheet.
-  - Dialog de senha, oferta de biometria e troca de senha agora seguem o mesmo padrao visual de bottom sheet.
-  - Confirmacoes de desconectar cast agora usam bottom sheet compartilhado.
-  - Dialog de video ausente agora usa bottom sheet.
+- Ajustes locais aplicados por cima da contribuicao do `shuaici`:
+  - As pastas fixadas na root agora usam o mesmo card visual das pastas normais, em vez de uma secao separada maior.
+  - Pastas fixadas agora exibem um indicador visual de pin dentro do icone da pasta.
+  - Na root, pastas fixadas mostram o caminho em uma unica linha com rolagem horizontal para evitar aumentar a altura do card.
+  - Fora da root, pastas fixadas mantem apenas o destaque visual de pin e continuam exibindo os contadores normais da pasta.
+  - As acoes de fixar e desfixar agora suportam selecao multipla quando todos os itens selecionados sao pastas no mesmo estado.
+  - O refresh da root foi ajustado para atualizar imediatamente apos desfixar pastas.
+  - Pastas privadas/ocultas fixadas agora respeitam as mesmas regras de visibilidade do restante do app.
 
-- Infraestrutura de dialogs:
-  - Criado componente reutilizavel `AppBottomSheet` para unificar visual, drag handle, titulo, divider e padding base.
-  - Criado `CastDisconnectDialog` reutilizavel para evitar duplicacao entre TopBar e overlay de cast.
-
-- Foco e teclado:
-  - Ajustado foco de campos em varios bottom sheets para acontecer apenas apos o sheet estabilizar aberto.
-  - Corrigido cursor inicial para abrir no fim do texto nos dialogs de rename.
-  - Refinado comportamento de teclado nos dialogs de senha e troca de senha para reduzir conflitos com a animacao de entrada.
-
-- Navegacao e refresh de pastas:
-  - FolderScreen agora faz refresh parcial e silencioso da pasta atual ao entrar nela.
-  - Ao voltar para o app em uma subpasta, a pasta atual tambem recebe refresh parcial silencioso automaticamente.
-  - O refresh manual continua global, evitando que o usuario precise usar refresh completo com frequencia so para atualizar a pasta aberta.
+- Melhorias sugeridas por `@abandonedwar`:
+  - Ao abrir o NekoVideo como player externo por outro app, voltar pelo sistema ou pelo botao do player agora encerra a reproducao e fecha o app, retornando diretamente ao app de origem.
+  - Adicionada a configuracao `Reproducao em segundo plano`, ativada por padrao, para controlar se o video continua tocando ao fechar o player.
+  - Quando a reproducao em segundo plano esta desativada, fechar o player interrompe o playback e sair pelo HOME pausa o video sem perder o estado do player.
+  - O PiP automatico foi removido; o modo Picture-in-Picture agora e acionado apenas manualmente pelo usuario.
+  - O tema escuro agora usa uma paleta preta estilo AMOLED, com fundo preto real e containers quase pretos para manter a hierarquia visual.
+  - Removida a configuracao de ocultar controles, mantendo a ocultacao automatica como comportamento padrao do player.

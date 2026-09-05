@@ -272,14 +272,12 @@
     <string name="playback_controls">控制</string>
     <string name="playback_features">功能</string>
 
-    <string name="playback_auto_hide_controls">自动隐藏控制栏</string>
-    <string name="playback_auto_hide_controls_desc">播放时自动隐藏</string>
+    <string name="playback_background_playback">后台播放</string>
+    <string name="playback_background_playback_desc">关闭播放器时继续播放视频</string>
     <string name="playback_double_tap_seek">双击快进/快退</string>
     <string name="playback_double_tap_seek_desc">快进或快退的秒数</string>
     <string name="playback_keep_screen_on">保持屏幕常亮</string>
     <string name="playback_keep_screen_on_desc">播放时不关闭屏幕</string>
-    <string name="playback_pip">自动画中画</string>
-    <string name="playback_pip_desc">播放时离开应用自动进入画中画</string>
     <string name="playback_continue_watching">继续观看</string>
     <string name="playback_continue_watching_enabled">启用继续观看</string>
     <string name="playback_continue_watching_enabled_desc">保存播放进度，稍后继续观看</string>

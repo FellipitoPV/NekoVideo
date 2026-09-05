@@ -277,14 +277,12 @@
     <string name="playback_controls">Controles</string>
     <string name="playback_features">Funcionalidades</string>
 
-    <string name="playback_auto_hide_controls">Ocultar Controles</string>
-    <string name="playback_auto_hide_controls_desc">Esconder automaticamente durante reprodução</string>
+    <string name="playback_background_playback">Reprodução em segundo plano</string>
+    <string name="playback_background_playback_desc">Manter o vídeo tocando ao fechar o player</string>
     <string name="playback_double_tap_seek">Pulo Duplo Toque</string>
     <string name="playback_double_tap_seek_desc">Segundos para avançar/voltar</string>
     <string name="playback_keep_screen_on">Manter Tela Ligada</string>
     <string name="playback_keep_screen_on_desc">Não desligar tela durante reprodução</string>
-    <string name="playback_pip">PIP automático</string>
-    <string name="playback_pip_desc">Entrar em picture-in-picture ao sair do app durante a reprodução</string>
     <string name="playback_continue_watching">Continuar Assistindo</string>
     <string name="playback_continue_watching_enabled">Ativar continuar assistindo</string>
     <string name="playback_continue_watching_enabled_desc">Salvar onde você parou e permitir retomar depois</string>

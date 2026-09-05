@@ -259,14 +259,12 @@
     <string name="playback_controls">Steuerung</string>
     <string name="playback_features">Funktionen</string>
 
-    <string name="playback_auto_hide_controls">Steuerung automatisch ausblenden</string>
-    <string name="playback_auto_hide_controls_desc">Automatisch während der Wiedergabe ausblenden</string>
+    <string name="playback_background_playback">Hintergrundwiedergabe</string>
+    <string name="playback_background_playback_desc">Video weiter abspielen, wenn der Player geschlossen wird</string>
     <string name="playback_double_tap_seek">Doppeltipp-Suche</string>
     <string name="playback_double_tap_seek_desc">Sekunden zum Vor-/Zurückspringen</string>
     <string name="playback_keep_screen_on">Bildschirm an lassen</string>
     <string name="playback_keep_screen_on_desc">Bildschirm während Wiedergabe nicht ausschalten</string>
-    <string name="playback_pip">Bild-in-Bild</string>
-    <string name="playback_pip_desc">Wiedergabe in schwebendem Fenster fortsetzen</string>
     <string name="playback_continue_watching">Weiterschauen</string>
     <string name="playback_continue_watching_enabled">Weiterschauen aktivieren</string>
     <string name="playback_continue_watching_enabled_desc">Speichert, wo du aufgehört hast, und ermöglicht späteres Fortsetzen</string>

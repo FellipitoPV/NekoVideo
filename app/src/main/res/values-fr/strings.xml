@@ -259,14 +259,12 @@
     <string name="playback_controls">Contrôles</string>
     <string name="playback_features">Fonctionnalités</string>
 
-    <string name="playback_auto_hide_controls">Masquer les Contrôles Automatiquement</string>
-    <string name="playback_auto_hide_controls_desc">Masquer automatiquement pendant la lecture</string>
+    <string name="playback_background_playback">Lecture en arrière-plan</string>
+    <string name="playback_background_playback_desc">Garder la vidéo en lecture lors de la fermeture du lecteur</string>
     <string name="playback_double_tap_seek">Recherche par Double Tap</string>
     <string name="playback_double_tap_seek_desc">Secondes à avancer/reculer</string>
     <string name="playback_keep_screen_on">Garder lÉcran Allumé</string>
     <string name="playback_keep_screen_on_desc">Ne pas éteindre lécran pendant la lecture</string>
-    <string name="playback_pip">Image dans lImage</string>
-    <string name="playback_pip_desc">Continuer la lecture dans une fenêtre flottante</string>
     <string name="playback_continue_watching">Continuer à regarder</string>
     <string name="playback_continue_watching_enabled">Activer la reprise de lecture</string>
     <string name="playback_continue_watching_enabled_desc">Enregistrer où vous vous êtes arrêté et reprendre plus tard</string>

@@ -55,6 +55,7 @@ class MediaPlaybackService : MediaSessionService() {
         const val ACTION_REQUEST_SLEEP_TIMER_STATE = "nekovideo.action.REQUEST_SLEEP_TIMER_STATE"
         const val ACTION_REFRESH_CURRENT_ARTWORK = "nekovideo.action.REFRESH_CURRENT_ARTWORK"
         const val ACTION_PERSIST_CONTINUE_WATCHING = "nekovideo.action.PERSIST_CONTINUE_WATCHING"
+        const val ACTION_PAUSE_FOR_BACKGROUND = "nekovideo.action.PAUSE_FOR_BACKGROUND"
         const val EXTRA_SLEEP_TIMER_DURATION_MS = "sleep_timer_duration_ms"
         private const val PROGRESS_PERSIST_INTERVAL_MS = 10_000L
         const val BROADCAST_SLEEP_TIMER_STATE_CHANGED = "nekovideo.broadcast.SLEEP_TIMER_STATE_CHANGED"
@@ -143,6 +144,13 @@ class MediaPlaybackService : MediaSessionService() {
         fun persistContinueWatching(context: Context) {
             val intent = Intent(context, MediaPlaybackService::class.java).apply {
                 action = ACTION_PERSIST_CONTINUE_WATCHING
+            }
+            context.startService(intent)
+        }
+
+        fun pauseForBackground(context: Context) {
+            val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                action = ACTION_PAUSE_FOR_BACKGROUND
             }
             context.startService(intent)
         }
@@ -631,6 +639,21 @@ class MediaPlaybackService : MediaSessionService() {
             }
             ACTION_PERSIST_CONTINUE_WATCHING -> {
                 persistContinueWatchingState()
+            }
+            ACTION_PAUSE_FOR_BACKGROUND -> {
+                persistContinueWatchingState()
+                ContinueWatchingStore.setPlaybackActive(false)
+                player?.run {
+                    playWhenReady = false
+                    pause()
+                }
+                abandonAudioFocus()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                } else {
+                    @Suppress("DEPRECATION")
+                    stopForeground(true)
+                }
             }
         }
         return super.onStartCommand(intent, flags, startId)

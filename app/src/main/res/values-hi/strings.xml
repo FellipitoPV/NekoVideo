@@ -259,14 +259,12 @@
     <string name="playback_controls">कंट्रोल्स</string>
     <string name="playback_features">फीचर्स</string>
 
-    <string name="playback_auto_hide_controls">कंट्रोल्स को ऑटो छुपाएं</string>
-    <string name="playback_auto_hide_controls_desc">प्लेबैक के दौरान स्वचालित रूप से छुपाएं</string>
+    <string name="playback_background_playback">बैकग्राउंड प्लेबैक</string>
+    <string name="playback_background_playback_desc">प्लेयर बंद करने पर वीडियो चलाते रहें</string>
     <string name="playback_double_tap_seek">डबल टैप सीक</string>
     <string name="playback_double_tap_seek_desc">आगे/पीछे जाने के लिए सेकंड</string>
     <string name="playback_keep_screen_on">स्क्रीन चालू रखें</string>
     <string name="playback_keep_screen_on_desc">प्लेबैक के दौरान स्क्रीन बंद न करें</string>
-    <string name="playback_pip">पिक्चर इन पिक्चर</string>
-    <string name="playback_pip_desc">फ्लोटिंग विंडो में प्लेबैक जारी रखें</string>
     <string name="playback_continue_watching">देखना जारी रखें</string>
     <string name="playback_continue_watching_enabled">देखना जारी रखें सक्षम करें</string>
     <string name="playback_continue_watching_enabled_desc">जहाँ आपने छोड़ा था उसे सहेजें और बाद में फिर से शुरू करें</string>

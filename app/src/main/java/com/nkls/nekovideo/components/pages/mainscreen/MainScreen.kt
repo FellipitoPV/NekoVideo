@@ -57,6 +57,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.activity.SystemBarStyle
@@ -168,11 +169,17 @@ fun MainScreen(
     val pinnedFolders by PinnedFoldersStore.entries.collectAsState()
 
     var showPlayerOverlay by remember { mutableStateOf(false) }
+    var isExternalPlayerSession by rememberSaveable { mutableStateOf(false) }
     var deletedVideoPath by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var pendingUnpinPaths by remember { mutableStateOf<List<String>>(emptyList()) }
     var selectedExternalSubtitleUri by remember { mutableStateOf<Uri?>(null) }
     var selectedExternalSubtitleName by remember { mutableStateOf<String?>(null) }
+
+    fun openPlayerOverlay(externalSession: Boolean = false) {
+        isExternalPlayerSession = externalSession
+        showPlayerOverlay = true
+    }
 
     val subtitlePickerKey = remember { "subtitle_picker_${UUID.randomUUID()}" }
     var subtitleFilePicker by remember { mutableStateOf<ActivityResultLauncher<Array<String>>?>(null) }
@@ -393,7 +400,7 @@ fun MainScreen(
             if (clickedVideoIndex >= 0) {
                 PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
                 MediaPlaybackService.startWithPlaylist(context, videos, clickedVideoIndex, effectiveResumePositionMs)
-                showPlayerOverlay = true
+                openPlayerOverlay()
             }
         } else {
             val videos = videoItems.map { "file://${it.path}" }
@@ -401,12 +408,12 @@ fun MainScreen(
             if (clickedVideoIndex >= 0) {
                 PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
                 MediaPlaybackService.startWithPlaylist(context, videos, clickedVideoIndex, effectiveResumePositionMs)
-                showPlayerOverlay = true
+                openPlayerOverlay()
             } else {
                 val videoUri = "file://$itemPath"
                 PlaylistManager.setPlaylist(listOf(videoUri), startIndex = 0, shuffle = false)
                 MediaPlaybackService.startWithPlaylist(context, listOf(videoUri), 0, effectiveResumePositionMs)
-                showPlayerOverlay = true
+                openPlayerOverlay()
             }
         }
     }
@@ -484,7 +491,7 @@ fun MainScreen(
             } else {
                 PlaylistManager.setPlaylist(shuffleCandidates, startIndex = 0, shuffle = true)
                 MediaPlaybackService.startWithPlaylist(context, PlaylistManager.getFullPlaylist(), 0)
-                showPlayerOverlay = true
+                openPlayerOverlay()
             }
             selectedItems.clear()
         } else {
@@ -602,7 +609,24 @@ fun MainScreen(
     }
 
     fun closePlayerOverlay() {
-        MediaPlaybackService.persistContinueWatching(context)
+        if (isExternalPlayerSession) {
+            MediaPlaybackService.stopService(context)
+            showPlayerOverlay = false
+            isInPiPMode = false
+            isExternalPlayerSession = false
+            hostActivity.finish()
+            return
+        }
+
+        val backgroundPlaybackEnabled = context
+            .getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            .getBoolean("background_playback", true)
+
+        if (backgroundPlaybackEnabled) {
+            MediaPlaybackService.persistContinueWatching(context)
+        } else {
+            MediaPlaybackService.stopService(context)
+        }
         showPlayerOverlay = false
         isInPiPMode = false
     }
@@ -674,7 +698,7 @@ fun MainScreen(
             // Aguardar serviço de mídia inicializar
             delay(800)
 
-            showPlayerOverlay = true
+            openPlayerOverlay(externalSession = true)
 
             val activity = context.findActivity() as? MainActivity
             activity?.resetExternalVideoFlag()
@@ -684,7 +708,7 @@ fun MainScreen(
     LaunchedEffect(autoOpenOverlay) {
         if (autoOpenOverlay) {
             delay(100) // Pequeno delay para estabilizar
-            showPlayerOverlay = true
+            openPlayerOverlay()
         }
     }
 
@@ -1377,7 +1401,7 @@ fun MainScreen(
         bottomBar = {
             if (currentRoute != "video_player" && currentRoute?.startsWith("settings") != true && !showPlayerOverlay) {
                 MiniPlayerImproved(
-                    onOpenPlayer = { showPlayerOverlay = true },
+                    onOpenPlayer = { openPlayerOverlay() },
                     modifier = Modifier.navigationBarsPadding()
                 )
             }

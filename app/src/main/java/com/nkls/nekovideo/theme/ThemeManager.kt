@@ -15,7 +15,8 @@ class ThemeManager(private val context: Context) {
     val themeMode: StateFlow<String> = _themeMode
 
     private fun getDarkMode(): String {
-        return prefs.getString("dark_mode", "system") ?: "system"
+        val savedMode = prefs.getString("dark_mode", "system") ?: "system"
+        return if (savedMode == "amoled") "dark" else savedMode
     }
 
     fun updateTheme(mode: String) {

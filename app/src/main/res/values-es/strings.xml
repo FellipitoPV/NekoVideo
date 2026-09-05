@@ -259,14 +259,12 @@
     <string name="playback_controls">Controles</string>
     <string name="playback_features">Características</string>
 
-    <string name="playback_auto_hide_controls">Ocultar Controles Automáticamente</string>
-    <string name="playback_auto_hide_controls_desc">Ocultar automáticamente durante la reproducción</string>
+    <string name="playback_background_playback">Reproducción en segundo plano</string>
+    <string name="playback_background_playback_desc">Mantener el video reproduciéndose al cerrar el reproductor</string>
     <string name="playback_double_tap_seek">Buscar con Doble Toque</string>
     <string name="playback_double_tap_seek_desc">Segundos para saltar adelante/atrás</string>
     <string name="playback_keep_screen_on">Mantener Pantalla Encendida</string>
     <string name="playback_keep_screen_on_desc">No apagar la pantalla durante la reproducción</string>
-    <string name="playback_pip">Imagen en Imagen</string>
-    <string name="playback_pip_desc">Continuar reproducción en ventana flotante</string>
     <string name="playback_continue_watching">Continuar viendo</string>
     <string name="playback_continue_watching_enabled">Activar continuar viendo</string>
     <string name="playback_continue_watching_enabled_desc">Guardar dónde lo dejaste y permitir reanudar después</string>

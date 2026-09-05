@@ -230,8 +230,7 @@ fun PlaybackSettingsScreen() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
 
-    var autoHideControls by remember { mutableStateOf(prefs.getBoolean("auto_hide_controls", true)) }
-    var autoPip by remember { mutableStateOf(prefs.getBoolean("auto_pip", true)) }
+    var backgroundPlayback by remember { mutableStateOf(prefs.getBoolean("background_playback", true)) }
     var doubleTapSeek by remember { mutableIntStateOf(prefs.getInt("double_tap_seek", 10)) }
     var continueWatchingEnabled by remember {
         mutableStateOf(ContinueWatchingSettings.isEnabled(context))
@@ -259,27 +258,13 @@ fun PlaybackSettingsScreen() {
 
             item {
                 SettingsSwitchItem(
-                    icon = Icons.Default.VisibilityOff,
-                    title = stringResource(R.string.playback_auto_hide_controls),
-                    subtitle = stringResource(R.string.playback_auto_hide_controls_desc),
-                    checked = autoHideControls,
-                    onCheckedChange = {
-                        autoHideControls = it
-                        prefs.edit { putBoolean("auto_hide_controls", it) }
-                    },
-                    isCompact = isCompact
-                )
-            }
-
-            item {
-                SettingsSwitchItem(
                     icon = Icons.Default.PlayArrow,
-                    title = stringResource(R.string.playback_pip),
-                    subtitle = stringResource(R.string.playback_pip_desc),
-                    checked = autoPip,
+                    title = stringResource(R.string.playback_background_playback),
+                    subtitle = stringResource(R.string.playback_background_playback_desc),
+                    checked = backgroundPlayback,
                     onCheckedChange = {
-                        autoPip = it
-                        prefs.edit { putBoolean("auto_pip", it) }
+                        backgroundPlayback = it
+                        prefs.edit { putBoolean("background_playback", it) }
                     },
                     isCompact = isCompact
                 )

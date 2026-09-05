@@ -27,12 +27,22 @@ fun NekoVideoTheme(
 
     val colorScheme = if (isDarkMode) {
         darkColorScheme(
-            primary = Color(0xFF1A73E8), // Azul suave para destaques
-            background = Color(0xFF121212),
-            surface = Color(0xFF121212), // Fundo escuro
-            surfaceVariant = Color(0xFF2C2C2C), // Fundo secundário
-            onSurface = Color(0xFFE0E0E0), // Texto e ícones claros
-            onPrimary = Color.White // Texto sobre elementos primários
+            primary = Color(0xFF4D9DFF),
+            background = Color.Black,
+            onBackground = Color(0xFFEDEDED),
+            surface = Color.Black,
+            onSurface = Color(0xFFEDEDED),
+            surfaceVariant = Color(0xFF111111),
+            onSurfaceVariant = Color(0xFFC9C9C9),
+            surfaceDim = Color.Black,
+            surfaceContainerLowest = Color.Black,
+            surfaceContainerLow = Color(0xFF050505),
+            surfaceContainer = Color(0xFF0A0A0A),
+            surfaceContainerHigh = Color(0xFF111111),
+            surfaceContainerHighest = Color(0xFF171717),
+            outline = Color(0xFF5F6368),
+            outlineVariant = Color(0xFF2A2A2A),
+            onPrimary = Color.Black
         )
     } else {
         lightColorScheme(

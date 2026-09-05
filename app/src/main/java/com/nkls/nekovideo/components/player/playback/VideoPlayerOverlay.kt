@@ -969,10 +969,6 @@ fun VideoPlayerOverlay(
         )
     }
 
-    LaunchedEffect(isVisible, isPlaying) {
-        (activity as? MainActivity)?.setPlayerState(isVisible, isPlaying)
-    }
-
     // ✅ RECEPTOR DE COMANDOS PIP
     DisposableEffect(Unit) {
         val receiver = object : BroadcastReceiver() {
