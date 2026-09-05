@@ -375,6 +375,8 @@ class MediaPlaybackService : MediaSessionService() {
 
                 processPendingSeekIfNeeded(currentPlayer)
             }
+
+            scheduleCurrentPlaybackProcessing()
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -782,6 +784,8 @@ class MediaPlaybackService : MediaSessionService() {
                 return@launch
             }
 
+            val artworkTarget = withContext(Dispatchers.Main) { getCurrentArtworkTarget() } ?: return@launch
+            ensureThumbnailAvailable(artworkTarget)
             refreshCurrentMediaItemMetadata()
         }
     }
@@ -798,6 +802,22 @@ class MediaPlaybackService : MediaSessionService() {
         val title: String,
         val isLocked: Boolean
     )
+
+    private suspend fun ensureThumbnailAvailable(target: CurrentArtworkTarget): Boolean = withContext(Dispatchers.IO) {
+        try {
+            if (target.isLocked) {
+                FolderLockManager.getLockedThumbnail(target.videoPath)
+                    ?: FolderLockManager.generateAndSaveLockedThumbnail(target.videoPath)
+            } else {
+                OptimizedThumbnailManager.getCachedThumbnail(target.videoPath)
+                    ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(this@MediaPlaybackService, target.videoPath)
+                    ?: OptimizedThumbnailManager.generateThumbnailSync(this@MediaPlaybackService, target.videoPath)
+            }
+        } catch (e: Exception) {
+            Log.w("MediaPlaybackService", "Falha ao garantir thumbnail: ${e.message}")
+            null
+        } != null
+    }
 
     /**
      * Atualiza os metadados do MediaItem atual para refletir thumbnails recém-geradas
