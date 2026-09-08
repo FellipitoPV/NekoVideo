@@ -1417,7 +1417,10 @@ fun ProcessingDialog(
     title: String,
     message: String
 ) {
-    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val bottomSheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { it != SheetValue.Hidden }
+    )
 
     AppBottomSheet(
         onDismissRequest = { },
