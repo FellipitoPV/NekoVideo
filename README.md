@@ -15,10 +15,11 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Folder-based local video library
 - Modern player built on Media3 / ExoPlayer
 - Picture-in-Picture, mini player, and background playback
+- Continue Watching with reliable progress sync across sessions
+- Pinned folders for quick access from the home screen
 - DLNA / UPnP casting to TVs and renderers on the local network
 - Private folders with password protection, hidden folders, and biometric unlock support
-- Video tags with separate normal/private scopes
-- Built-in MP4 metadata repair via remux
+- Video tags with separate normal/private scopes and automatic backups
 - No ads, no analytics, no cloud dependency
 
 ## What The App Does
@@ -32,6 +33,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Lets you search items inside the current folder
 - Supports sorting by name, date, and file size
 - Can show video duration and file size in the grid/list
+- Allows pinning up to 10 folders for quick access from the home screen
 - Allows creating folders, renaming items, moving items, deleting items, and sharing videos
 - Supports opening videos from other apps via `VIEW` and `SEND_MULTIPLE` intents
 
@@ -42,16 +44,31 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Shuffle playback for the current folder tree
 - Double-tap seek with configurable skip duration
 - Gesture-based seeking in the player
+- Playback speed control (0.25x to 2x)
+- Repeat modes: normal, repeat playlist, and repeat one
+- Sleep timer that pauses playback after a chosen duration
+- Keep screen on during playback
 - Audio track and subtitle track selection
+- External subtitle file selection and subtitle size adjustment
 - Automatic orientation behavior based on the video
-- Background playback through `MediaSessionService`
+- Background playback through `MediaSessionService`, configurable in settings
 - Media notification and lock-screen controls
 - Persistent mini player while browsing the app
+- Continue Watching: resumes where you left off on both the home card and inside folders, preserving the selected audio/subtitle tracks and external subtitles
+
+### Continue Watching
+
+- Shows a resume card on the home screen for the last video in progress
+- Saves progress on pause, on player close, and periodically while playing
+- Clears the card automatically when a video reaches ~95% completion
+- Remembers the selected audio track, subtitle track, and external subtitle file
+- Configurable minimum video duration (1-30 minutes) before progress is tracked
+- Option to include or exclude private videos from progress tracking
+- Option to clear all continue-watching history from settings
 
 ### Picture-in-Picture
 
-- Supports Android PiP mode
-- Can enter PiP automatically when leaving the app
+- Supports Android PiP mode (entered manually during playback)
 - Includes previous, play/pause, and next PiP actions
 
 ### DLNA Casting
@@ -68,6 +85,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Keep separate tag scopes for normal content and private content
 - Shuffle videos using tag include/exclude filters
 - Preserves tag references when files or folders are renamed or moved
+- Automatic tag backups saved on-device, with import/merge and manual export
 
 ### Private Folders and Protected Content
 
@@ -79,19 +97,14 @@ The app focuses on local playback, folder-based organization, private folders, t
 
 Important: the current protection model is not full-file encryption for every byte of the video. It uses password-derived data, obfuscated file and folder names, protected manifests, and on-the-fly header deobfuscation during playback.
 
-### Video Utilities
-
-- Repairs some problematic MP4 files by remuxing them without re-encoding
-- Rewrites container metadata while preserving original media streams
-
 ### Settings
 
-- Playback settings for auto-hide controls, auto PiP, and double-tap seek duration
-- Interface settings for theme and app language
+- Playback settings for background playback, auto-hide controls, double-tap seek duration, continue watching, and sleep timer
+- Interface settings for theme (light, dark, or system; dark mode uses pure black / AMOLED styling) and app language
 - Display settings for durations and file sizes
-- Storage settings for clearing thumbnail cache
+- Storage settings for clearing the thumbnail cache and continue-watching history
 - Security settings for password changes and biometric unlock
-- Tag management screens for normal and private tags
+- Tag management screens with backup and restore for normal and private tags
 
 ## Supported Languages
 
@@ -104,6 +117,8 @@ The app currently includes support for:
 - German
 - Russian
 - Hindi
+- Chinese (Simplified)
+- Chinese (Traditional)
 - System default mode
 
 ## Tech Stack
@@ -146,7 +161,7 @@ Project info:
 
 - `minSdk = 30`
 - `targetSdk = 36`
-- Current app version in the project: `1.2.0`
+- Current app version in the project: `1.3.15`
 
 ## License
 
@@ -154,4 +169,4 @@ This project is licensed under the GNU General Public License v3.0.
 
 See [LICENSE](LICENSE) for the full text.
 
-Copyright © 2025 NKL's
+Copyright © 2025-2026 NKL's
