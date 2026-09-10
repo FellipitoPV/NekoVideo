@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -21,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,6 +33,8 @@ fun AppBottomSheet(
     title: String? = null,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+    sheetMaxWidth: Dp = BottomSheetDefaults.SheetMaxWidth,
+    navigationBarsPadding: Boolean = true,
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(12.dp),
     content: @Composable ColumnScope.() -> Unit
@@ -38,6 +42,7 @@ fun AppBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
+        sheetMaxWidth = sheetMaxWidth,
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
         dragHandle = {
@@ -51,9 +56,8 @@ fun AppBottomSheet(
         }
     ) {
         Column(
-            modifier = modifier
+            modifier = (if (navigationBarsPadding) modifier.navigationBarsPadding() else modifier)
                 .fillMaxWidth()
-                .navigationBarsPadding()
                 .padding(contentPadding),
             horizontalAlignment = horizontalAlignment,
             verticalArrangement = verticalArrangement

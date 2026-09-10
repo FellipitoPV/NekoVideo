@@ -826,7 +826,7 @@ fun VideoPlayerOverlay(
     }
 
     fun pausePlaybackForOverlayDialog() {
-        shouldResumeAfterOverlayDialog = mediaController?.isPlaying == true
+        shouldResumeAfterOverlayDialog = shouldResumeAfterOverlayDialog || mediaController?.isPlaying == true
         if (shouldResumeAfterOverlayDialog) {
             mediaController?.pause()
         }

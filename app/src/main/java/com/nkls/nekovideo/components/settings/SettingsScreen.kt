@@ -118,6 +118,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 
 @Composable
 fun SettingsScreen(navController: NavController) {
@@ -322,6 +323,7 @@ fun PlaybackSettingsScreen() {
     var continueWatchingIncludePrivate by remember {
         mutableStateOf(ContinueWatchingSettings.shouldIncludePrivateVideos(context))
     }
+    val continueWatchingMinDurationOptions = listOf(5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90)
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         @Suppress("UnusedBoxWithConstraintsScope")
@@ -391,8 +393,8 @@ fun PlaybackSettingsScreen() {
                     title = stringResource(R.string.playback_continue_watching_min_duration),
                     subtitle = stringResource(R.string.playback_continue_watching_min_duration_desc),
                     value = continueWatchingMinMinutes,
-                    range = 1..30,
-                    step = 1,
+                    range = 5..90,
+                    discreteValues = continueWatchingMinDurationOptions,
                     onValueChange = {
                         continueWatchingMinMinutes = it
                         prefs.edit { putInt("continue_watching_min_duration_minutes", it) }
@@ -1728,6 +1730,7 @@ private fun SettingsSliderItem(
     value: Int,
     range: IntRange,
     step: Int = 1,
+    discreteValues: List<Int>? = null,
     onValueChange: (Int) -> Unit,
     valueFormatter: (Int) -> String = { currentValue ->
         if (title.contains("Cache")) "${currentValue}MB" else currentValue.toString()
@@ -1735,7 +1738,17 @@ private fun SettingsSliderItem(
     enabled: Boolean = true,
     isCompact: Boolean = false
 ) {
-    var sliderValue by remember(value) { mutableIntStateOf(value) }
+    fun nearestDiscreteIndex(currentValue: Int): Int {
+        val values = discreteValues ?: return currentValue
+        return values.indices.minByOrNull { index -> abs(values[index] - currentValue) } ?: 0
+    }
+
+    var sliderValue by remember(value, discreteValues) {
+        mutableIntStateOf(discreteValues?.get(nearestDiscreteIndex(value)) ?: value)
+    }
+    var sliderPosition by remember(value, discreteValues) {
+        mutableIntStateOf(discreteValues?.let { nearestDiscreteIndex(value) } ?: value)
+    }
 
     Card(
         modifier = Modifier
@@ -1786,15 +1799,22 @@ private fun SettingsSliderItem(
             Spacer(modifier = Modifier.height(if (isCompact) 4.dp else 8.dp))
 
             Slider(
-                value = sliderValue.toFloat(),
+                value = sliderPosition.toFloat(),
                 enabled = enabled,
                 onValueChange = {
-                    val newValue = (it.toInt() / step) * step
+                    val newValue = discreteValues?.get(it.toInt().coerceIn(0, discreteValues.lastIndex))
+                        ?: ((it.toInt() / step) * step)
+                    sliderPosition = discreteValues?.indexOf(newValue) ?: newValue
                     sliderValue = newValue
                     onValueChange(newValue)
                 },
-                valueRange = range.first.toFloat()..range.last.toFloat(),
-                steps = (range.last - range.first) / step - 1,
+                valueRange = if (discreteValues != null) {
+                    0f..discreteValues.lastIndex.toFloat()
+                } else {
+                    range.first.toFloat()..range.last.toFloat()
+                },
+                steps = discreteValues?.let { (it.size - 2).coerceAtLeast(0) }
+                    ?: ((range.last - range.first) / step - 1),
                 colors = SliderDefaults.colors(
                     thumbColor = MaterialTheme.colorScheme.primary,
                     activeTrackColor = MaterialTheme.colorScheme.primary

@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -60,6 +61,12 @@ private data class TrackOption(
     val title: String
 )
 
+private enum class SubtitleSelectionMode {
+    External,
+    Internal,
+    Off
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrackSelectionDialog(
@@ -82,10 +89,47 @@ fun TrackSelectionDialog(
     val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val initialSubtitleMode = remember(isExternalSubtitleSelected, selectedSubtitleTrack) {
+        when {
+            isExternalSubtitleSelected -> SubtitleSelectionMode.External
+            selectedSubtitleTrack != null -> SubtitleSelectionMode.Internal
+            else -> SubtitleSelectionMode.Off
+        }
+    }
+    var pendingSubtitleMode by remember { mutableStateOf(initialSubtitleMode) }
+    var pendingSubtitleGroup by remember { mutableStateOf(selectedSubtitleTrack) }
+    var pendingSubtitleTrack by remember { mutableStateOf<Int?>(null) }
+    var pendingAudioGroup by remember { mutableStateOf(selectedAudioTrack) }
+    var pendingAudioTrack by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(Unit) { onOpen() }
 
-    val dismissAndClose = { onDismiss(); onClose() }
+    val dismissAndClose = {
+        when (pendingSubtitleMode) {
+            SubtitleSelectionMode.Off -> {
+                if (initialSubtitleMode != SubtitleSelectionMode.Off) {
+                    onSubtitlesDisabled()
+                }
+            }
+            SubtitleSelectionMode.Internal -> {
+                val groupIndex = pendingSubtitleGroup
+                val trackIndex = pendingSubtitleTrack
+                if (groupIndex != null && trackIndex != null) {
+                    onSubtitleSelected(groupIndex, trackIndex)
+                }
+            }
+            SubtitleSelectionMode.External -> Unit
+        }
+
+        val audioGroup = pendingAudioGroup
+        val audioTrack = pendingAudioTrack
+        if (audioGroup != null && audioTrack != null) {
+            onAudioSelected(audioGroup, audioTrack)
+        }
+
+        onDismiss()
+        onClose()
+    }
 
     val subtitleOptions = buildList {
         availableSubtitles.forEachIndexed { groupIndex, group ->
@@ -121,6 +165,7 @@ fun TrackSelectionDialog(
     AppBottomSheet(
         onDismissRequest = dismissAndClose,
         sheetState = bottomSheetState,
+        navigationBarsPadding = false,
         title = stringResource(R.string.tracks_title)
     ) {
         Column(
@@ -168,10 +213,10 @@ fun TrackSelectionDialog(
                             AddSubtitleFileRow(
                                 title = selectedExternalSubtitleName
                                     ?: stringResource(R.string.subtitle_file_select),
-                                selected = isExternalSubtitleSelected,
+                                selected = pendingSubtitleMode == SubtitleSelectionMode.External,
                                 onClick = {
+                                    pendingSubtitleMode = SubtitleSelectionMode.External
                                     onExternalSubtitleClick()
-                                    dismissAndClose()
                                 }
                             )
                         }
@@ -194,10 +239,11 @@ fun TrackSelectionDialog(
                         item {
                             TrackOptionRow(
                                 title = stringResource(R.string.subtitles_off),
-                                selected = selectedSubtitleTrack == null && !isExternalSubtitleSelected,
+                                selected = pendingSubtitleMode == SubtitleSelectionMode.Off,
                                 onClick = {
-                                    onSubtitlesDisabled()
-                                    dismissAndClose()
+                                    pendingSubtitleMode = SubtitleSelectionMode.Off
+                                    pendingSubtitleGroup = null
+                                    pendingSubtitleTrack = null
                                 }
                             )
                         }
@@ -205,10 +251,13 @@ fun TrackSelectionDialog(
                         items(subtitleOptions) { option ->
                             TrackOptionRow(
                                 title = option.title,
-                                selected = selectedSubtitleTrack == option.groupIndex,
+                                selected = pendingSubtitleMode == SubtitleSelectionMode.Internal &&
+                                    pendingSubtitleGroup == option.groupIndex &&
+                                    (pendingSubtitleTrack == null || pendingSubtitleTrack == option.trackIndex),
                                 onClick = {
-                                    onSubtitleSelected(option.groupIndex, option.trackIndex)
-                                    dismissAndClose()
+                                    pendingSubtitleMode = SubtitleSelectionMode.Internal
+                                    pendingSubtitleGroup = option.groupIndex
+                                    pendingSubtitleTrack = option.trackIndex
                                 }
                             )
                         }
@@ -231,10 +280,11 @@ fun TrackSelectionDialog(
                             items(audioOptions) { option ->
                                 TrackOptionRow(
                                     title = option.title,
-                                    selected = selectedAudioTrack == option.groupIndex,
+                                    selected = pendingAudioGroup == option.groupIndex &&
+                                        (pendingAudioTrack == null || pendingAudioTrack == option.trackIndex),
                                     onClick = {
-                                        onAudioSelected(option.groupIndex, option.trackIndex)
-                                        dismissAndClose()
+                                        pendingAudioGroup = option.groupIndex
+                                        pendingAudioTrack = option.trackIndex
                                     }
                                 )
                             }
