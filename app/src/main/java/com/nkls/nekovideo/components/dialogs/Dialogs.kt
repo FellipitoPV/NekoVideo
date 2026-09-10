@@ -37,6 +37,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SheetValue
@@ -73,7 +74,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.SecureFlagPolicy
 import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.AppBottomSheet
 import com.nkls.nekovideo.components.helpers.CastManager
@@ -1427,6 +1428,10 @@ fun ProcessingDialog(
         sheetState = bottomSheetState,
         title = title,
         horizontalAlignment = Alignment.CenterHorizontally,
+        properties = ModalBottomSheetProperties(
+            securePolicy = SecureFlagPolicy.Inherit,
+            shouldDismissOnBackPress = false
+        ),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             start = 16.dp,
             top = 12.dp,

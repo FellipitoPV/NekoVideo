@@ -15,6 +15,7 @@ import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -37,6 +38,7 @@ fun AppBottomSheet(
     navigationBarsPadding: Boolean = true,
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(12.dp),
+    properties: ModalBottomSheetProperties = ModalBottomSheetProperties(),
     content: @Composable ColumnScope.() -> Unit
 ) {
     ModalBottomSheet(
@@ -45,6 +47,7 @@ fun AppBottomSheet(
         sheetMaxWidth = sheetMaxWidth,
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
+        properties = properties,
         dragHandle = {
             Surface(
                 modifier = Modifier.padding(vertical = 8.dp),

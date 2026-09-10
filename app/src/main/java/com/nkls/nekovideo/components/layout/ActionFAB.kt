@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 import com.nkls.nekovideo.R
+import com.nkls.nekovideo.components.helpers.FilesManager
 
 enum class ActionType {
     UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS, PASTE,
@@ -154,7 +155,12 @@ fun ActionFAB(
         }
     }
 
-    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder, hasOnlyFiles, tagsText, areAllSelectedItemsFolders, areAllSelectedFoldersPinned, areAllSelectedFoldersUnpinned, pinFolderText, unpinFolderText) {
+    val hasNekoPrivateFolderSelected = remember(selectedItems) {
+        val nekoPrivatePath = java.io.File(FilesManager.SecureStorage.getNekoPrivateFolderPath()).absolutePath
+        selectedItems.any { path -> java.io.File(path).absolutePath == nekoPrivatePath }
+    }
+
+    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder, hasOnlyFiles, tagsText, areAllSelectedItemsFolders, areAllSelectedFoldersPinned, areAllSelectedFoldersUnpinned, pinFolderText, unpinFolderText, hasNekoPrivateFolderSelected) {
         when {
             isMoveMode -> {
                 listOf(
@@ -185,7 +191,7 @@ fun ActionFAB(
                         actionsList.add(ActionItem(ActionType.TAGS, Icons.Default.LocalOffer, tagsText))
                     }
                 } else {
-                    if (areAllSelectedFoldersPinned) {
+                    if (areAllSelectedFoldersPinned && !hasNekoPrivateFolderSelected) {
                         actionsList.add(
                             ActionItem(
                                 type = ActionType.UNPIN_FOLDER,
@@ -193,7 +199,7 @@ fun ActionFAB(
                                 title = unpinFolderText
                             )
                         )
-                    } else if (areAllSelectedFoldersUnpinned) {
+                    } else if (areAllSelectedFoldersUnpinned && !isRootDirectory && !hasNekoPrivateFolderSelected) {
                         actionsList.add(
                             ActionItem(
                                 type = ActionType.PIN_FOLDER,
@@ -204,23 +210,23 @@ fun ActionFAB(
                     }
 
                     // All actions available in non-locked folders (even inside secure_videos)
-                    if (!isSecureMode) {
+                    if (!isSecureMode && !hasNekoPrivateFolderSelected) {
                         actionsList.add(ActionItem(ActionType.SECURE, Icons.Default.Lock, protectText))
                     }
 
                     // Lock/Unlock available in both secure and normal mode
-                    if (hasLockedFolders) {
+                    if (hasLockedFolders && !hasNekoPrivateFolderSelected) {
                         actionsList.add(ActionItem(ActionType.UNPRIVATIZE, Icons.Default.LockOpen, unprivatizeText))
                     }
-                    if (hasLockableFolders) {
+                    if (hasLockableFolders && !hasNekoPrivateFolderSelected) {
                         actionsList.add(ActionItem(ActionType.PRIVATIZE, Icons.Default.Lock, privatizeText))
                     }
 
-                    actionsList.addAll(listOf(
-                        ActionItem(ActionType.DELETE, Icons.Default.Delete, deleteText),
-                        ActionItem(ActionType.RENAME, Icons.Default.Edit, renameText),
-                        ActionItem(ActionType.MOVE, Icons.AutoMirrored.Filled.DriveFileMove, moveText)
-                    ))
+                    if (!hasNekoPrivateFolderSelected) {
+                        actionsList.add(ActionItem(ActionType.DELETE, Icons.Default.Delete, deleteText))
+                        actionsList.add(ActionItem(ActionType.RENAME, Icons.Default.Edit, renameText))
+                        actionsList.add(ActionItem(ActionType.MOVE, Icons.AutoMirrored.Filled.DriveFileMove, moveText))
+                    }
 
                     if (hasOnlyFiles) {
                         actionsList.add(ActionItem(ActionType.SHARE, Icons.Default.Share, shareText))

@@ -1,6 +1,8 @@
 package com.nkls.nekovideo.components.layout
 
 import android.util.Log
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -39,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -80,9 +83,30 @@ fun TopBar(
     val coroutineScope = rememberCoroutineScope()
     val maxTapInterval = 500L
     var tapCount by remember { mutableIntStateOf(0) }
+    val appIconScale = remember { Animatable(1f) }
 
     val density = LocalDensity.current
     var isCompact by remember { mutableStateOf(false) }
+
+    fun handleAppIconTap() {
+        coroutineScope.launch {
+            appIconScale.stop()
+            appIconScale.snapTo(0.86f)
+            appIconScale.animateTo(1f, animationSpec = tween(durationMillis = 120))
+        }
+
+        tapCount++
+        if (tapCount == 1) {
+            coroutineScope.launch {
+                delay(maxTapInterval)
+                if (tapCount < 3) tapCount = 0
+            }
+        }
+        if (tapCount >= 3) {
+            tapCount = 0
+            onPasswordDialog()
+        }
+    }
 
     // Cast state
     val castManager = remember { DLNACastManager.getInstance(context) }
@@ -226,17 +250,7 @@ fun TopBar(
                         modifier = Modifier
                             .pointerInput(Unit) {
                                 detectTapGestures { _ ->
-                                    tapCount++
-                                    if (tapCount == 1) {
-                                        coroutineScope.launch {
-                                            delay(maxTapInterval)
-                                            if (tapCount < 3) tapCount = 0
-                                        }
-                                    }
-                                    if (tapCount >= 3) {
-                                        tapCount = 0
-                                        onPasswordDialog()
-                                    }
+                                    handleAppIconTap()
                                 }
                             }
                     ) {
@@ -244,7 +258,12 @@ fun TopBar(
                             painter = painterResource(id = R.drawable.topbaricon),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier
+                                .size(32.dp)
+                                .graphicsLayer {
+                                    scaleX = appIconScale.value
+                                    scaleY = appIconScale.value
+                                }
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
@@ -270,21 +289,13 @@ fun TopBar(
                             tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier
                                 .size(28.dp)
+                                .graphicsLayer {
+                                    scaleX = appIconScale.value
+                                    scaleY = appIconScale.value
+                                }
                                 .pointerInput(Unit) {
                                     detectTapGestures { _ ->
-                                        tapCount++
-                                        if (tapCount == 1) {
-                                            coroutineScope.launch {
-                                                delay(maxTapInterval)
-                                                if (tapCount < 3) {
-                                                    tapCount = 0
-                                                }
-                                            }
-                                        }
-                                        if (tapCount >= 3) {
-                                            tapCount = 0
-                                            onPasswordDialog()
-                                        }
+                                        handleAppIconTap()
                                     }
                                 }
                         )
@@ -362,19 +373,7 @@ fun TopBar(
                             .clickable(enabled = true, onClick = { })
                             .pointerInput(Unit) {
                                 detectTapGestures { _ ->
-                                    tapCount++
-                                    if (tapCount == 1) {
-                                        coroutineScope.launch {
-                                            delay(maxTapInterval)
-                                            if (tapCount < 3) {
-                                                tapCount = 0
-                                            }
-                                        }
-                                    }
-                                    if (tapCount >= 3) {
-                                        tapCount = 0
-                                        onPasswordDialog()
-                                    }
+                                    handleAppIconTap()
                                 }
                             }
                     ) {
@@ -382,7 +381,12 @@ fun TopBar(
                             painter = painterResource(id = R.drawable.topbaricon),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier
+                                .size(32.dp)
+                                .graphicsLayer {
+                                    scaleX = appIconScale.value
+                                    scaleY = appIconScale.value
+                                }
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
