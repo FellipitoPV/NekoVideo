@@ -90,6 +90,8 @@
     <string name="cast_notification_channel_name">投屏控制</string>
     <string name="cast_notification_casting_to">正在投屏到 %s</string>
     <string name="cast_notification_idle">准备投屏</string>
+    <string name="cast_tracks_info_title">投屏时的字幕和音频</string>
+    <string name="cast_tracks_info_message">通过 DLNA 投屏时，NekoVideo 会把视频发送到接收设备，但字幕和音轨控制取决于正在播放视频的智能电视、电视盒子或其他设备。\n\n如果视频包含字幕或多个音轨，请在接收设备上打开播放选项，查看它是否检测到这些轨道，并在那里进行切换。\n\n并非所有 DLNA 设备都支持在投屏过程中切换字幕或音频。</string>
     <string name="previous">上一个</string>
     <string name="play">播放</string>
     <string name="pause">暂停</string>

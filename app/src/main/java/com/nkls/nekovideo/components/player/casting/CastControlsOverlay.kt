@@ -4,6 +4,8 @@ import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -23,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nkls.nekovideo.R
+import com.nkls.nekovideo.components.AppBottomSheet
 import com.nkls.nekovideo.components.CastDisconnectDialog
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.DLNACastManager
@@ -32,6 +35,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CastControlsOverlay(
     castManager: DLNACastManager,
@@ -43,6 +47,7 @@ fun CastControlsOverlay(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val overlayInteractionSource = remember { MutableInteractionSource() }
 
     var isPlaying by remember { mutableStateOf(castManager.isPlaying) }
     var currentPosition by remember { mutableStateOf(castManager.currentPositionMs) }
@@ -52,6 +57,7 @@ fun CastControlsOverlay(
     var currentVideoPath by remember { mutableStateOf(castManager.currentVideoPath) }
     var thumbnailBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var showDisconnectDialog by remember { mutableStateOf(false) }
+    var showTrackInfoDialog by remember { mutableStateOf(false) }
 
     // Poll state from the DLNA manager
     LaunchedEffect(Unit) {
@@ -104,7 +110,15 @@ fun CastControlsOverlay(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = overlayInteractionSource,
+                indication = null,
+                onClick = {}
+            )
+    ) {
 
         // Background: thumbnail (if available) or solid black
         val thumb = thumbnailBitmap
@@ -135,6 +149,8 @@ fun CastControlsOverlay(
                         colors = listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent)
                     )
                 )
+                .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility.only(WindowInsetsSides.Top))
+                .windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility.only(WindowInsetsSides.Horizontal))
                 .padding(16.dp)
         ) {
             Row(
@@ -283,6 +299,21 @@ fun CastControlsOverlay(
             )
         }
 
+        if (showTrackInfoDialog) {
+            val trackInfoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            AppBottomSheet(
+                onDismissRequest = { showTrackInfoDialog = false },
+                sheetState = trackInfoSheetState,
+                title = stringResource(R.string.cast_tracks_info_title)
+            ) {
+                Text(
+                    text = stringResource(R.string.cast_tracks_info_message),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
         // Seek bar at bottom
         if (duration > 0) {
             var tempPosition by remember { mutableStateOf(currentPosition) }
@@ -296,8 +327,37 @@ fun CastControlsOverlay(
                             colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
                         )
                     )
+                    .windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility.only(WindowInsetsSides.Bottom))
                     .padding(24.dp)
             ) {
+                IconButton(
+                    onClick = { showTrackInfoDialog = true },
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .background(Color.Black.copy(alpha = 0.55f), CircleShape)
+                        .size(48.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Subtitles,
+                            contentDescription = stringResource(R.string.cast_tracks_info_title),
+                            tint = Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(14.dp)
+                                .background(Color.Black, CircleShape)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 Slider(
                     value = if (isSeeking) tempPosition.toFloat() else currentPosition.toFloat(),
                     onValueChange = { newValue ->

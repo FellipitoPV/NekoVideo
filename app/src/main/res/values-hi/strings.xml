@@ -79,6 +79,8 @@
     <string name="cast_notification_channel_name">कास्ट नियंत्रण</string>
     <string name="cast_notification_casting_to">%s पर कास्ट हो रहा है</string>
     <string name="cast_notification_idle">कास्ट के लिए तैयार</string>
+    <string name="cast_tracks_info_title">कास्ट में उपशीर्षक और ऑडियो</string>
+    <string name="cast_tracks_info_message">DLNA के माध्यम से कास्ट करते समय, NekoVideo वीडियो को प्राप्त करने वाले डिवाइस पर भेजता है, लेकिन उपशीर्षक और ऑडियो ट्रैक का नियंत्रण उस Smart TV, TV Box या अन्य डिवाइस पर निर्भर करता है जो वीडियो चला रहा है।\n\nयदि वीडियो में उपशीर्षक या एक से अधिक ऑडियो ट्रैक हैं, तो प्राप्त करने वाले डिवाइस की प्लेबैक सेटिंग खोलें और देखें कि क्या वह इन ट्रैक्स को पहचानता है ताकि आप वहीं से बदल सकें।\n\nहर DLNA डिवाइस कास्ट के दौरान उपशीर्षक या ऑडियो बदलने का समर्थन नहीं करता।</string>
     <string name="previous">पिछला</string>
     <string name="play">चलाएं</string>
     <string name="pause">रोकें</string>

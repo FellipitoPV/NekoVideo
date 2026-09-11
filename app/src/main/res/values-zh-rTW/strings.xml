@@ -90,6 +90,8 @@
     <string name="cast_notification_channel_name">投放控制</string>
     <string name="cast_notification_casting_to">正在投放至 %s</string>
     <string name="cast_notification_idle">準備投放</string>
+    <string name="cast_tracks_info_title">投放時的字幕和音訊</string>
+    <string name="cast_tracks_info_message">透過 DLNA 投放時，NekoVideo 會將影片傳送到接收裝置，但字幕和音軌控制取決於正在播放影片的智慧電視、電視盒或其他裝置。\n\n如果影片包含字幕或多個音軌，請在接收裝置上開啟播放選項，確認它是否偵測到這些軌道，並在該裝置上切換。\n\n並非所有 DLNA 裝置都支援在投放期間切換字幕或音訊。</string>
     <string name="previous">上一個</string>
     <string name="play">播放</string>
     <string name="pause">暫停</string>

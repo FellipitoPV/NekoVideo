@@ -79,6 +79,8 @@
     <string name="cast_notification_channel_name">Contrôles de diffusion</string>
     <string name="cast_notification_casting_to">Diffusion vers %s</string>
     <string name="cast_notification_idle">Prêt à diffuser</string>
+    <string name="cast_tracks_info_title">Sous-titres et audio en Cast</string>
+    <string name="cast_tracks_info_message">Lors d’une diffusion par DLNA, NekoVideo envoie la vidéo à l’appareil récepteur, mais le contrôle des sous-titres et des pistes audio dépend de la Smart TV, TV Box ou autre appareil qui lit la vidéo.\n\nSi la vidéo contient des sous-titres ou plusieurs pistes audio, ouvrez les options de lecture sur l’appareil récepteur et vérifiez s’il détecte ces pistes pour les changer directement depuis celui-ci.\n\nTous les appareils DLNA ne permettent pas de changer les sous-titres ou l’audio pendant la diffusion.</string>
     <string name="previous">Précédent</string>
     <string name="play">Lire</string>
     <string name="pause">Pause</string>

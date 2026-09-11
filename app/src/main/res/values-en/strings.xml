@@ -90,6 +90,8 @@
     <string name="cast_notification_channel_name">Cast Controls</string>
     <string name="cast_notification_casting_to">Casting to %s</string>
     <string name="cast_notification_idle">Ready to cast</string>
+    <string name="cast_tracks_info_title">Subtitles and audio on Cast</string>
+    <string name="cast_tracks_info_message">When casting through DLNA, NekoVideo sends the video to the receiving device, but subtitle and audio track controls depend on the Smart TV, TV Box, or other device playing it.\n\nIf the video has subtitles or more than one audio track, open the playback options on the receiving device and check whether it detects those tracks so you can switch them there.\n\nNot every DLNA device supports changing subtitles or audio during casting.</string>
     <string name="previous">Previous</string>
     <string name="play">Play</string>
     <string name="pause">Pause</string>

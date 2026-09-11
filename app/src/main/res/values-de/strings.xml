@@ -79,6 +79,8 @@
     <string name="cast_notification_channel_name">Cast-Steuerung</string>
     <string name="cast_notification_casting_to">Wird auf %s übertragen</string>
     <string name="cast_notification_idle">Bereit zum Übertragen</string>
+    <string name="cast_tracks_info_title">Untertitel und Audio beim Cast</string>
+    <string name="cast_tracks_info_message">Beim Übertragen per DLNA sendet NekoVideo das Video an das Empfangsgerät. Die Steuerung von Untertiteln und Audiospuren hängt jedoch vom Smart-TV, der TV-Box oder einem anderen Gerät ab, das das Video wiedergibt.\n\nWenn das Video Untertitel oder mehrere Audiospuren enthält, öffnen Sie die Wiedergabeoptionen auf dem Empfangsgerät und prüfen Sie, ob diese Spuren dort erkannt und gewechselt werden können.\n\nNicht jedes DLNA-Gerät unterstützt das Wechseln von Untertiteln oder Audio während der Übertragung.</string>
     <string name="previous">Zurück</string>
     <string name="play">Abspielen</string>
     <string name="pause">Pause</string>

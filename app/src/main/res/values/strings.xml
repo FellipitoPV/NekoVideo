@@ -91,6 +91,8 @@
     <string name="cast_notification_channel_name">Controles de Cast</string>
     <string name="cast_notification_casting_to">Transmitindo para %s</string>
     <string name="cast_notification_idle">Pronto para transmitir</string>
+    <string name="cast_tracks_info_title">Legendas e áudio no Cast</string>
+    <string name="cast_tracks_info_message">Ao transmitir por DLNA, o NekoVideo envia o vídeo para o dispositivo receptor, mas o controle de legendas e faixas de áudio depende da Smart TV, TV Box ou outro aparelho que está reproduzindo.\n\nSe o vídeo tiver legendas ou mais de uma faixa de áudio, abra as opções de reprodução no próprio dispositivo receptor e verifique se ele detecta essas trilhas para alternar por lá.\n\nNem todos os dispositivos DLNA oferecem suporte para trocar legendas ou áudio durante a transmissão.</string>
     <string name="previous">Anterior</string>
     <string name="play">Reproduzir</string>
     <string name="pause">Pausar</string>

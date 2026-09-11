@@ -79,6 +79,8 @@
     <string name="cast_notification_channel_name">Управление трансляцией</string>
     <string name="cast_notification_casting_to">Трансляция на %s</string>
     <string name="cast_notification_idle">Готово к трансляции</string>
+    <string name="cast_tracks_info_title">Субтитры и аудио в Cast</string>
+    <string name="cast_tracks_info_message">При трансляции через DLNA NekoVideo отправляет видео на принимающее устройство, но управление субтитрами и аудиодорожками зависит от Smart TV, TV Box или другого устройства, которое воспроизводит видео.\n\nЕсли в видео есть субтитры или несколько аудиодорожек, откройте параметры воспроизведения на принимающем устройстве и проверьте, обнаруживает ли оно эти дорожки, чтобы переключать их там.\n\nНе все DLNA-устройства поддерживают смену субтитров или аудио во время трансляции.</string>
     <string name="previous">Назад</string>
     <string name="play">Воспроизвести</string>
     <string name="pause">Пауза</string>
