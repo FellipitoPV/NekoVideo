@@ -1,0 +1,5 @@
+Sélecteur de sous-titres et de pistes audio amélioré, avec une meilleure mise en page en paysage et application des choix à la fermeture.
+
+Continuer à regarder propose désormais des limites de durée plus pratiques, jusqu'à 90 minutes.
+
+Améliorations Cast/DLNA, infos sur les pistes et sous-titres, zones sûres respectées et actions plus cohérentes.

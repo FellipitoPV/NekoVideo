@@ -1,0 +1,5 @@
+Verbesserter Untertitel- und Audiospur-Wähler im Player, mit besserem Querformat-Layout und Übernahme der Änderungen beim Schließen.
+
+Weiterschauen hat jetzt praktischere Dauergrenzen, mit einem Wähler bis zu 90 Minuten.
+
+Verbesserungen für Cast/DLNA, Hinweise zu Spuren und Untertiteln, sichere Bereiche und konsistentere Aktionen.

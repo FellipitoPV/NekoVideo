@@ -1,0 +1,5 @@
+Melhorado o seletor de legendas e áudio no player, com layout ajustado em landscape e aplicação das escolhas ao fechar o dialog.
+
+Continue Watching agora tem limites de duração mais práticos, com seletor expandido até 90 minutos.
+
+Melhorias no Cast/DLNA, avisos sobre faixas e legendas, áreas seguras respeitadas e ações da interface mais consistentes.

@@ -1,0 +1,5 @@
+Mejorado el selector de subtítulos y audio del reproductor, con mejor diseño en horizontal y cambios aplicados al cerrar el diálogo.
+
+Continuar viendo ahora tiene límites de duración más prácticos, con selector ampliado hasta 90 minutos.
+
+Mejoras en Cast/DLNA, avisos sobre pistas y subtítulos, áreas seguras y acciones de interfaz más consistentes.

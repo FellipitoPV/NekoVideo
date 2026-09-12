@@ -1,0 +1,5 @@
+Improved the player's subtitle and audio track selector, with better landscape layout and changes applied when closing the dialog.
+
+Continue Watching now has more practical duration limits, with the selector expanded up to 90 minutes.
+
+Improved Cast/DLNA, track and subtitle guidance, safe area handling, and more consistent interface actions.

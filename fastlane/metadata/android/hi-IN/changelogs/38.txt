@@ -1,0 +1,5 @@
+Player में subtitle और audio track selector बेहतर किया गया है, landscape layout सुधरा है और बदलाव dialog बंद करने पर लागू होते हैं.
+
+Continue Watching में अब duration limits अधिक व्यावहारिक हैं, selector 90 मिनट तक बढ़ाया गया है.
+
+Cast/DLNA, track और subtitle guidance, safe areas और interface actions को अधिक consistent बनाया गया है.
