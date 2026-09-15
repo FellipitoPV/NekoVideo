@@ -1,0 +1,5 @@
+Verbesserte Wiedergabeleistung fuer Videos in privaten Ordnern, besonders beim schnellen Wechseln vieler Elemente.
+
+Die waehrend der Wiedergabe verwendeten Vorschaubilder wurden optimiert, um Ruckler und hohe Geraetebelastung zu reduzieren.
+
+Mehr Stabilitaet fuer grosse Playlists im Player.

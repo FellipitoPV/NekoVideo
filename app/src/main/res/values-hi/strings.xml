@@ -189,14 +189,26 @@
     <string name="settings_changelog_desc">देखें क्या बदला और नई सुविधाओं का उपयोग कैसे करें</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">v%1$s में नया</string>
-    <string name="changelog_pinned_folders_title">Subtitle और audio selector</string>
-    <string name="changelog_pinned_folders_desc">Player selector को landscape mode के लिए सुधारा गया है, extra side spacing हटाई गई है और subtitles तथा audio tracks चुनने पर dialog अपने आप बंद नहीं होता।</string>
-    <string name="changelog_continue_watching_title">अधिक व्यावहारिक Continue Watching</string>
-    <string name="changelog_continue_watching_desc">Minimum duration selector अब अधिक उपयोगी steps इस्तेमाल करता है: 30 मिनट तक 5-minute intervals और उसके बाद 10-minute intervals, नए 90-minute maximum के साथ।</string>
-    <string name="changelog_external_player_title">Cast/DLNA सुधार</string>
-    <string name="changelog_external_player_desc">Cast overlay अब subtitles और audio के लिए guidance दिखाता है, यह समझाते हुए कि track switching TV, TV Box या receiving device पर निर्भर करता है।</string>
-    <string name="changelog_background_playback_title">अधिक सुरक्षित Cast overlay</string>
-    <string name="changelog_background_playback_desc">Cast top bar और timeline अब Android safe areas का बेहतर पालन करते हैं, और overlay पीछे के content पर taps block करता है ताकि गलती से दूसरा video न खुले।</string>
+    <string-array name="changelog_item_titles">
+        <item>तेज़ private folders</item>
+        <item>Optimized thumbnails</item>
+        <item>बड़ी playlists अधिक stable</item>
+        <item>अधिक smooth playback</item>
+    </string-array>
+    <string-array name="changelog_item_descriptions">
+        <item>Private folders में videos को जल्दी-जल्दी बदलने पर होने वाली रुकावट की समस्या ठीक की गई।</item>
+        <item>Playback के दौरान इस्तेमाल होने वाली thumbnails को device load कम करने के लिए optimize किया गया।</item>
+        <item>बहुत सारे videos वाली lists में navigate करते समय player stability बेहतर की गई।</item>
+        <item>Videos को जल्दी skip करने पर player artwork updates अब unnecessary work से बचते हैं।</item>
+    </string-array>
+    <string name="changelog_pinned_folders_title">तेज़ private folders</string>
+    <string name="changelog_pinned_folders_desc">Private folders में videos को जल्दी-जल्दी बदलने पर होने वाली रुकावट की समस्या ठीक की गई।</string>
+    <string name="changelog_continue_watching_title">Optimized thumbnails</string>
+    <string name="changelog_continue_watching_desc">Playback के दौरान इस्तेमाल होने वाली thumbnails को device load कम करने के लिए optimize किया गया।</string>
+    <string name="changelog_external_player_title">बड़ी playlists अधिक stable</string>
+    <string name="changelog_external_player_desc">बहुत सारे videos वाली lists में navigate करते समय player stability बेहतर की गई।</string>
+    <string name="changelog_background_playback_title">अधिक smooth playback</string>
+    <string name="changelog_background_playback_desc">Videos को जल्दी skip करने पर player artwork updates अब unnecessary work से बचते हैं।</string>
     <string name="changelog_dark_theme_title">अधिक सुरक्षित actions</string>
     <string name="changelog_dark_theme_desc">Move, make private, remove private और delete जैसी actions के दौरान processing dialog अब outside tap, back press या drag से manually बंद नहीं किया जा सकता।</string>
     <string name="changelog_pip_title">Special private folder</string>

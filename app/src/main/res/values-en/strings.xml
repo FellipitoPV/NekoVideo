@@ -200,14 +200,26 @@
     <string name="settings_changelog_desc">See what changed and how to use the new features</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">What\'s new in v%1$s</string>
-    <string name="changelog_pinned_folders_title">Subtitle and audio selector</string>
-    <string name="changelog_pinned_folders_desc">The player selector was adjusted for landscape mode, removes extra side spacing, and lets you choose subtitles and audio tracks without closing automatically.</string>
-    <string name="changelog_continue_watching_title">More practical Continue Watching</string>
-    <string name="changelog_continue_watching_desc">The minimum duration selector now uses more useful steps: 5-minute intervals up to 30 minutes and 10-minute intervals after that, with a new 90-minute maximum.</string>
-    <string name="changelog_external_player_title">Cast/DLNA improvements</string>
-    <string name="changelog_external_player_desc">The Cast overlay now shows guidance for subtitles and audio, explaining that track switching depends on the TV, TV Box, or receiving device.</string>
-    <string name="changelog_background_playback_title">Safer Cast overlay</string>
-    <string name="changelog_background_playback_desc">The Cast top bar and timeline now better respect Android safe areas, and the overlay blocks taps on content behind it to avoid opening another video by mistake.</string>
+    <string-array name="changelog_item_titles">
+        <item>Faster private folders</item>
+        <item>Optimized thumbnails</item>
+        <item>More stable large playlists</item>
+        <item>Smoother playback</item>
+    </string-array>
+    <string-array name="changelog_item_descriptions">
+        <item>Fixed an issue that could cause stutters when quickly switching between videos in private folders.</item>
+        <item>Thumbnails used during playback were optimized to reduce device load.</item>
+        <item>Improved player stability when navigating lists with many videos.</item>
+        <item>Player artwork updates now avoid unnecessary work when videos are skipped quickly.</item>
+    </string-array>
+    <string name="changelog_pinned_folders_title">Faster private folders</string>
+    <string name="changelog_pinned_folders_desc">Fixed an issue that could cause stutters when quickly switching between videos in private folders.</string>
+    <string name="changelog_continue_watching_title">Optimized thumbnails</string>
+    <string name="changelog_continue_watching_desc">Thumbnails used during playback were optimized to reduce device load.</string>
+    <string name="changelog_external_player_title">More stable large playlists</string>
+    <string name="changelog_external_player_desc">Improved player stability when navigating lists with many videos.</string>
+    <string name="changelog_background_playback_title">Smoother playback</string>
+    <string name="changelog_background_playback_desc">Player artwork updates now avoid unnecessary work when videos are skipped quickly.</string>
     <string name="changelog_dark_theme_title">Safer actions</string>
     <string name="changelog_dark_theme_desc">During actions like move, make private, remove private, and delete, the processing dialog can no longer be closed manually by tapping outside, pressing back, or dragging.</string>
     <string name="changelog_pip_title">Special private folder</string>

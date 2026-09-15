@@ -1,0 +1,5 @@
+Performances ameliorees lors de la lecture de videos dans les dossiers prives, surtout en passant rapidement entre de nombreux elements.
+
+Les miniatures utilisees pendant la lecture ont ete optimisees pour reduire les blocages et la charge excessive de l'appareil.
+
+Meilleure stabilite pour les grandes playlists dans le lecteur.

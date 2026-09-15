@@ -1,0 +1,5 @@
+Mejorado el rendimiento al reproducir videos de carpetas privadas, especialmente al cambiar rapidamente entre muchos elementos.
+
+Las miniaturas usadas durante la reproduccion fueron optimizadas para reducir bloqueos y carga excesiva del dispositivo.
+
+Mas estabilidad para listas de reproduccion grandes en el reproductor.

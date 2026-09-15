@@ -1,0 +1,5 @@
+Improved playback performance for videos in private folders, especially when quickly switching through many items.
+
+Thumbnails used during playback were optimized to reduce stutter and excessive device load.
+
+Better stability for large playlists in the player.

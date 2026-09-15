@@ -189,14 +189,26 @@
     <string name="settings_changelog_desc">Voir les changements et comment utiliser les nouveautés</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Nouveautés de la v%1$s</string>
-    <string name="changelog_pinned_folders_title">Sélecteur de sous-titres et audio</string>
-    <string name="changelog_pinned_folders_desc">Le sélecteur du lecteur a été ajusté en mode paysage, supprime les espaces latéraux en trop et permet de choisir sous-titres et pistes audio sans se fermer automatiquement.</string>
-    <string name="changelog_continue_watching_title">Continuer à regarder plus pratique</string>
-    <string name="changelog_continue_watching_desc">Le sélecteur de durée minimale utilise maintenant des pas plus utiles : 5 minutes jusqu\'à 30 minutes, puis 10 minutes, avec une nouvelle limite de 90 minutes.</string>
-    <string name="changelog_external_player_title">Améliorations Cast/DLNA</string>
-    <string name="changelog_external_player_desc">L\'overlay Cast affiche maintenant une aide sur les sous-titres et l\'audio, indiquant que le changement de piste dépend du téléviseur, de la TV Box ou de l\'appareil récepteur.</string>
-    <string name="changelog_background_playback_title">Overlay Cast plus sûr</string>
-    <string name="changelog_background_playback_desc">La barre supérieure et la timeline Cast respectent mieux les zones sûres Android, et l\'overlay bloque les touches sur le contenu derrière lui pour éviter d\'ouvrir une autre vidéo par erreur.</string>
+    <string-array name="changelog_item_titles">
+        <item>Dossiers privés plus rapides</item>
+        <item>Miniatures optimisées</item>
+        <item>Grandes playlists plus stables</item>
+        <item>Lecture plus fluide</item>
+    </string-array>
+    <string-array name="changelog_item_descriptions">
+        <item>Correction d\'un problème pouvant provoquer des blocages lors du passage rapide entre des vidéos de dossiers privés.</item>
+        <item>Les miniatures utilisées pendant la lecture ont été optimisées pour réduire la charge de l\'appareil.</item>
+        <item>Stabilité améliorée du lecteur lors de la navigation dans des listes contenant beaucoup de vidéos.</item>
+        <item>Les mises à jour des illustrations du lecteur évitent maintenant le travail inutile lorsque les vidéos sont passées rapidement.</item>
+    </string-array>
+    <string name="changelog_pinned_folders_title">Dossiers privés plus rapides</string>
+    <string name="changelog_pinned_folders_desc">Correction d\'un problème pouvant provoquer des blocages lors du passage rapide entre des vidéos de dossiers privés.</string>
+    <string name="changelog_continue_watching_title">Miniatures optimisées</string>
+    <string name="changelog_continue_watching_desc">Les miniatures utilisées pendant la lecture ont été optimisées pour réduire la charge de l\'appareil.</string>
+    <string name="changelog_external_player_title">Grandes playlists plus stables</string>
+    <string name="changelog_external_player_desc">Stabilité améliorée du lecteur lors de la navigation dans des listes contenant beaucoup de vidéos.</string>
+    <string name="changelog_background_playback_title">Lecture plus fluide</string>
+    <string name="changelog_background_playback_desc">Les mises à jour des illustrations du lecteur évitent maintenant le travail inutile lorsque les vidéos sont passées rapidement.</string>
     <string name="changelog_dark_theme_title">Actions plus sûres</string>
     <string name="changelog_dark_theme_desc">Pendant les actions comme déplacer, rendre privé, retirer le privé et supprimer, le dialogue de traitement ne peut plus être fermé manuellement par touche extérieure, retour ou glissement.</string>
     <string name="changelog_pip_title">Dossier privé spécial</string>

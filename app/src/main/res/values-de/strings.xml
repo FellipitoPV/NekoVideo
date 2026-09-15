@@ -189,14 +189,26 @@
     <string name="settings_changelog_desc">Sieh, was sich geändert hat und wie du die Neuerungen nutzt</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Neu in v%1$s</string>
-    <string name="changelog_pinned_folders_title">Untertitel- und Audiowähler</string>
-    <string name="changelog_pinned_folders_desc">Der Player-Wähler wurde für das Querformat angepasst, entfernt zusätzlichen Seitenabstand und erlaubt die Auswahl von Untertiteln und Audiospuren ohne automatisches Schließen.</string>
-    <string name="changelog_continue_watching_title">Praktischeres Weiterschauen</string>
-    <string name="changelog_continue_watching_desc">Der Wähler für die Mindestdauer nutzt jetzt nützlichere Schritte: 5 Minuten bis 30 Minuten und danach 10 Minuten, mit einem neuen Maximum von 90 Minuten.</string>
-    <string name="changelog_external_player_title">Cast/DLNA-Verbesserungen</string>
-    <string name="changelog_external_player_desc">Das Cast-Overlay zeigt jetzt Hinweise zu Untertiteln und Audio und erklärt, dass das Wechseln von Spuren vom Fernseher, der TV-Box oder dem Empfangsgerät abhängt.</string>
-    <string name="changelog_background_playback_title">Sichereres Cast-Overlay</string>
-    <string name="changelog_background_playback_desc">Die Cast-Topbar und Timeline beachten Android-Sicherheitsbereiche besser, und das Overlay blockiert Tippen auf Inhalte dahinter, damit nicht versehentlich ein anderes Video geöffnet wird.</string>
+    <string-array name="changelog_item_titles">
+        <item>Schnellere private Ordner</item>
+        <item>Optimierte Vorschaubilder</item>
+        <item>Stabilere große Playlists</item>
+        <item>Flüssigere Wiedergabe</item>
+    </string-array>
+    <string-array name="changelog_item_descriptions">
+        <item>Ein Problem wurde behoben, das beim schnellen Wechseln zwischen Videos in privaten Ordnern zu Rucklern führen konnte.</item>
+        <item>Vorschaubilder während der Wiedergabe wurden optimiert, um die Gerätebelastung zu reduzieren.</item>
+        <item>Verbesserte Stabilität des Players beim Navigieren durch Listen mit vielen Videos.</item>
+        <item>Artwork-Aktualisierungen des Players vermeiden jetzt unnötige Arbeit, wenn Videos schnell übersprungen werden.</item>
+    </string-array>
+    <string name="changelog_pinned_folders_title">Schnellere private Ordner</string>
+    <string name="changelog_pinned_folders_desc">Ein Problem wurde behoben, das beim schnellen Wechseln zwischen Videos in privaten Ordnern zu Rucklern führen konnte.</string>
+    <string name="changelog_continue_watching_title">Optimierte Vorschaubilder</string>
+    <string name="changelog_continue_watching_desc">Vorschaubilder während der Wiedergabe wurden optimiert, um die Gerätebelastung zu reduzieren.</string>
+    <string name="changelog_external_player_title">Stabilere große Playlists</string>
+    <string name="changelog_external_player_desc">Verbesserte Stabilität des Players beim Navigieren durch Listen mit vielen Videos.</string>
+    <string name="changelog_background_playback_title">Flüssigere Wiedergabe</string>
+    <string name="changelog_background_playback_desc">Artwork-Aktualisierungen des Players vermeiden jetzt unnötige Arbeit, wenn Videos schnell übersprungen werden.</string>
     <string name="changelog_dark_theme_title">Sicherere Aktionen</string>
     <string name="changelog_dark_theme_desc">Bei Aktionen wie Verschieben, Privat machen, Privat entfernen und Löschen kann der Verarbeitungsdialog nicht mehr manuell durch Tippen außerhalb, Zurück oder Ziehen geschlossen werden.</string>
     <string name="changelog_pip_title">Spezieller privater Ordner</string>

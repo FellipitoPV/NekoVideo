@@ -200,14 +200,26 @@
     <string name="settings_changelog_desc">查看更新内容以及如何使用新功能</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">v%1$s 新功能</string>
-    <string name="changelog_pinned_folders_title">字幕和音轨选择器</string>
-    <string name="changelog_pinned_folders_desc">播放器选择器已针对横屏优化，移除多余侧边距，并允许选择字幕和音轨而不会自动关闭。</string>
-    <string name="changelog_continue_watching_title">更实用的继续观看</string>
-    <string name="changelog_continue_watching_desc">最小时长选择器现在使用更实用的步进：30 分钟以内每 5 分钟递增，之后每 10 分钟递增，最大值提升到 90 分钟。</string>
-    <string name="changelog_external_player_title">Cast/DLNA 改进</string>
-    <string name="changelog_external_player_desc">Cast 浮层现在会显示字幕和音频提示，说明切换轨道取决于电视、电视盒或接收设备。</string>
-    <string name="changelog_background_playback_title">更安全的 Cast 浮层</string>
-    <string name="changelog_background_playback_desc">Cast 顶栏和时间轴会更好地遵守 Android 安全区域，浮层也会阻止点击后方内容，避免误打开其他视频。</string>
+    <string-array name="changelog_item_titles">
+        <item>私密文件夹更快</item>
+        <item>缩略图已优化</item>
+        <item>大型播放列表更稳定</item>
+        <item>播放更流畅</item>
+    </string-array>
+    <string-array name="changelog_item_descriptions">
+        <item>修复了快速切换私密文件夹中的视频时可能出现卡顿的问题。</item>
+        <item>优化了播放期间使用的缩略图，以降低设备负载。</item>
+        <item>提升了播放器在浏览大量视频列表时的稳定性。</item>
+        <item>快速跳过视频时，播放器封面更新现在会避免不必要的工作。</item>
+    </string-array>
+    <string name="changelog_pinned_folders_title">私密文件夹更快</string>
+    <string name="changelog_pinned_folders_desc">修复了快速切换私密文件夹中的视频时可能出现卡顿的问题。</string>
+    <string name="changelog_continue_watching_title">缩略图已优化</string>
+    <string name="changelog_continue_watching_desc">优化了播放期间使用的缩略图，以降低设备负载。</string>
+    <string name="changelog_external_player_title">大型播放列表更稳定</string>
+    <string name="changelog_external_player_desc">提升了播放器在浏览大量视频列表时的稳定性。</string>
+    <string name="changelog_background_playback_title">播放更流畅</string>
+    <string name="changelog_background_playback_desc">快速跳过视频时，播放器封面更新现在会避免不必要的工作。</string>
     <string name="changelog_dark_theme_title">更安全的操作</string>
     <string name="changelog_dark_theme_desc">执行移动、设为私密、取消私密和删除等操作时，处理对话框不能再通过点击外部、返回键或拖动手动关闭。</string>
     <string name="changelog_pip_title">特殊私密文件夹</string>

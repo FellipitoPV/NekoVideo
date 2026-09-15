@@ -189,14 +189,26 @@
     <string name="settings_changelog_desc">Ve qué cambió y cómo usar las novedades</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Novedades de v%1$s</string>
-    <string name="changelog_pinned_folders_title">Selector de subtítulos y audio</string>
-    <string name="changelog_pinned_folders_desc">El selector del reproductor se ajustó para el modo horizontal, elimina el espacio lateral extra y permite elegir subtítulos y pistas de audio sin cerrarse automáticamente.</string>
-    <string name="changelog_continue_watching_title">Continuar viendo más práctico</string>
-    <string name="changelog_continue_watching_desc">El selector de duración mínima ahora usa pasos más útiles: intervalos de 5 minutos hasta 30 minutos y de 10 minutos después, con un nuevo máximo de 90 minutos.</string>
-    <string name="changelog_external_player_title">Mejoras en Cast/DLNA</string>
-    <string name="changelog_external_player_desc">El overlay de Cast ahora muestra una guía sobre subtítulos y audio, explicando que el cambio de pistas depende de la TV, TV Box o dispositivo receptor.</string>
-    <string name="changelog_background_playback_title">Overlay de Cast más seguro</string>
-    <string name="changelog_background_playback_desc">La barra superior y la timeline de Cast respetan mejor las áreas seguras de Android, y el overlay bloquea toques en el contenido detrás para evitar abrir otro video por error.</string>
+    <string-array name="changelog_item_titles">
+        <item>Carpetas privadas más rápidas</item>
+        <item>Miniaturas optimizadas</item>
+        <item>Listas grandes más estables</item>
+        <item>Reproducción más fluida</item>
+    </string-array>
+    <string-array name="changelog_item_descriptions">
+        <item>Se corrigió un problema que podía causar bloqueos al cambiar rápidamente entre videos de carpetas privadas.</item>
+        <item>Las miniaturas usadas durante la reproducción fueron optimizadas para reducir la carga del dispositivo.</item>
+        <item>Mejorada la estabilidad del reproductor al navegar por listas con muchos videos.</item>
+        <item>Las actualizaciones de arte del reproductor ahora evitan trabajo innecesario cuando los videos se saltan rápidamente.</item>
+    </string-array>
+    <string name="changelog_pinned_folders_title">Carpetas privadas más rápidas</string>
+    <string name="changelog_pinned_folders_desc">Se corrigió un problema que podía causar bloqueos al cambiar rápidamente entre videos de carpetas privadas.</string>
+    <string name="changelog_continue_watching_title">Miniaturas optimizadas</string>
+    <string name="changelog_continue_watching_desc">Las miniaturas usadas durante la reproducción fueron optimizadas para reducir la carga del dispositivo.</string>
+    <string name="changelog_external_player_title">Listas grandes más estables</string>
+    <string name="changelog_external_player_desc">Mejorada la estabilidad del reproductor al navegar por listas con muchos videos.</string>
+    <string name="changelog_background_playback_title">Reproducción más fluida</string>
+    <string name="changelog_background_playback_desc">Las actualizaciones de arte del reproductor ahora evitan trabajo innecesario cuando los videos se saltan rápidamente.</string>
     <string name="changelog_dark_theme_title">Acciones más seguras</string>
     <string name="changelog_dark_theme_desc">Durante acciones como mover, hacer privado, quitar privado y eliminar, el diálogo de procesamiento ya no puede cerrarse manualmente tocando fuera, volviendo atrás o arrastrando.</string>
     <string name="changelog_pip_title">Carpeta privada especial</string>

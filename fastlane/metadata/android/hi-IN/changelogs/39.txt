@@ -1,0 +1,5 @@
+Private folders ke videos chalate waqt performance behtar ki gayi hai, khaaskar jab bahut saare items ko jaldi switch kiya jaye.
+
+Playback ke dauran use hone wali thumbnails ko optimize kiya gaya hai taaki stutter aur device load kam ho.
+
+Player me badi playlists ke liye behtar stability.

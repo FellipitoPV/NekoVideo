@@ -1,0 +1,5 @@
+Melhorado o desempenho ao reproduzir videos de pastas privadas, especialmente ao trocar rapidamente entre muitos itens.
+
+As miniaturas usadas durante a reproducao foram otimizadas para reduzir travamentos e uso excessivo do dispositivo.
+
+Mais estabilidade para playlists grandes no player.

@@ -200,14 +200,26 @@
     <string name="settings_changelog_desc">查看更新內容以及如何使用新功能</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">v%1$s 新功能</string>
-    <string name="changelog_pinned_folders_title">字幕與音軌選擇器</string>
-    <string name="changelog_pinned_folders_desc">播放器選擇器已針對橫向模式最佳化，移除多餘側邊距，並允許選擇字幕與音軌而不會自動關閉。</string>
-    <string name="changelog_continue_watching_title">更實用的繼續觀看</string>
-    <string name="changelog_continue_watching_desc">最短時長選擇器現在使用更實用的級距：30 分鐘內每 5 分鐘遞增，之後每 10 分鐘遞增，最大值提升到 90 分鐘。</string>
-    <string name="changelog_external_player_title">Cast/DLNA 改進</string>
-    <string name="changelog_external_player_desc">Cast 浮層現在會顯示字幕與音訊提示，說明切換軌道取決於電視、電視盒或接收裝置。</string>
-    <string name="changelog_background_playback_title">更安全的 Cast 浮層</string>
-    <string name="changelog_background_playback_desc">Cast 頂欄和時間軸會更好地遵守 Android 安全區域，浮層也會阻止點擊後方內容，避免誤開其他影片。</string>
+    <string-array name="changelog_item_titles">
+        <item>私密資料夾更快</item>
+        <item>縮圖已最佳化</item>
+        <item>大型播放清單更穩定</item>
+        <item>播放更流暢</item>
+    </string-array>
+    <string-array name="changelog_item_descriptions">
+        <item>修正了快速切換私密資料夾中的影片時可能出現卡頓的問題。</item>
+        <item>最佳化播放期間使用的縮圖，以降低裝置負載。</item>
+        <item>提升播放器在瀏覽大量影片清單時的穩定性。</item>
+        <item>快速跳過影片時，播放器封面更新現在會避免不必要的工作。</item>
+    </string-array>
+    <string name="changelog_pinned_folders_title">私密資料夾更快</string>
+    <string name="changelog_pinned_folders_desc">修正了快速切換私密資料夾中的影片時可能出現卡頓的問題。</string>
+    <string name="changelog_continue_watching_title">縮圖已最佳化</string>
+    <string name="changelog_continue_watching_desc">最佳化播放期間使用的縮圖，以降低裝置負載。</string>
+    <string name="changelog_external_player_title">大型播放清單更穩定</string>
+    <string name="changelog_external_player_desc">提升播放器在瀏覽大量影片清單時的穩定性。</string>
+    <string name="changelog_background_playback_title">播放更流暢</string>
+    <string name="changelog_background_playback_desc">快速跳過影片時，播放器封面更新現在會避免不必要的工作。</string>
     <string name="changelog_dark_theme_title">更安全的操作</string>
     <string name="changelog_dark_theme_desc">執行移動、設為私密、取消私密和刪除等操作時，處理對話框不能再透過點擊外部、返回鍵或拖曳手動關閉。</string>
     <string name="changelog_pip_title">特殊私密資料夾</string>

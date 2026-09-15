@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
@@ -93,6 +94,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -218,6 +220,9 @@ fun SettingsScreen(navController: NavController) {
 
 @Composable
 fun ChangelogSettingsScreen() {
+    val changelogItems = stringArrayResource(R.array.changelog_item_titles)
+        .zip(stringArrayResource(R.array.changelog_item_descriptions))
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -232,53 +237,8 @@ fun ChangelogSettingsScreen() {
             )
         }
 
-        item {
-            ChangelogCard(
-                title = stringResource(R.string.changelog_pinned_folders_title),
-                body = stringResource(R.string.changelog_pinned_folders_desc)
-            )
-        }
-
-        item {
-            ChangelogCard(
-                title = stringResource(R.string.changelog_continue_watching_title),
-                body = stringResource(R.string.changelog_continue_watching_desc)
-            )
-        }
-
-        item {
-            ChangelogCard(
-                title = stringResource(R.string.changelog_external_player_title),
-                body = stringResource(R.string.changelog_external_player_desc)
-            )
-        }
-
-        item {
-            ChangelogCard(
-                title = stringResource(R.string.changelog_background_playback_title),
-                body = stringResource(R.string.changelog_background_playback_desc)
-            )
-        }
-
-        item {
-            ChangelogCard(
-                title = stringResource(R.string.changelog_dark_theme_title),
-                body = stringResource(R.string.changelog_dark_theme_desc)
-            )
-        }
-
-        item {
-            ChangelogCard(
-                title = stringResource(R.string.changelog_pip_title),
-                body = stringResource(R.string.changelog_pip_desc)
-            )
-        }
-
-        item {
-            ChangelogCard(
-                title = stringResource(R.string.changelog_credits_title),
-                body = stringResource(R.string.changelog_credits_desc)
-            )
+        items(changelogItems) { (title, description) ->
+            ChangelogCard(title = title, body = description)
         }
     }
 }

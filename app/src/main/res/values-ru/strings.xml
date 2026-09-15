@@ -189,14 +189,26 @@
     <string name="settings_changelog_desc">Посмотрите, что изменилось и как использовать новые функции</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Что нового в v%1$s</string>
-    <string name="changelog_pinned_folders_title">Выбор субтитров и аудио</string>
-    <string name="changelog_pinned_folders_desc">Выбор в плеере адаптирован для альбомного режима, убирает лишние боковые отступы и позволяет выбирать субтитры и аудиодорожки без автоматического закрытия.</string>
-    <string name="changelog_continue_watching_title">Удобнее Продолжить просмотр</string>
-    <string name="changelog_continue_watching_desc">Выбор минимальной длительности теперь использует более удобные шаги: по 5 минут до 30 минут и по 10 минут после этого, с новым максимумом 90 минут.</string>
-    <string name="changelog_external_player_title">Улучшения Cast/DLNA</string>
-    <string name="changelog_external_player_desc">Оверлей Cast теперь показывает подсказку по субтитрам и аудио, объясняя, что переключение дорожек зависит от телевизора, TV Box или принимающего устройства.</string>
-    <string name="changelog_background_playback_title">Более безопасный оверлей Cast</string>
-    <string name="changelog_background_playback_desc">Верхняя панель и таймлайн Cast лучше учитывают безопасные области Android, а оверлей блокирует нажатия на контент позади, чтобы случайно не открыть другое видео.</string>
+    <string-array name="changelog_item_titles">
+        <item>Быстрее приватные папки</item>
+        <item>Оптимизированные миниатюры</item>
+        <item>Стабильнее большие плейлисты</item>
+        <item>Более плавное воспроизведение</item>
+    </string-array>
+    <string-array name="changelog_item_descriptions">
+        <item>Исправлена проблема, из-за которой могли появляться зависания при быстром переключении видео в приватных папках.</item>
+        <item>Миниатюры, используемые во время воспроизведения, оптимизированы для снижения нагрузки на устройство.</item>
+        <item>Улучшена стабильность плеера при навигации по спискам с большим количеством видео.</item>
+        <item>Обновления обложек плеера теперь избегают лишней работы при быстром пропуске видео.</item>
+    </string-array>
+    <string name="changelog_pinned_folders_title">Быстрее приватные папки</string>
+    <string name="changelog_pinned_folders_desc">Исправлена проблема, из-за которой могли появляться зависания при быстром переключении видео в приватных папках.</string>
+    <string name="changelog_continue_watching_title">Оптимизированные миниатюры</string>
+    <string name="changelog_continue_watching_desc">Миниатюры, используемые во время воспроизведения, оптимизированы для снижения нагрузки на устройство.</string>
+    <string name="changelog_external_player_title">Стабильнее большие плейлисты</string>
+    <string name="changelog_external_player_desc">Улучшена стабильность плеера при навигации по спискам с большим количеством видео.</string>
+    <string name="changelog_background_playback_title">Более плавное воспроизведение</string>
+    <string name="changelog_background_playback_desc">Обновления обложек плеера теперь избегают лишней работы при быстром пропуске видео.</string>
     <string name="changelog_dark_theme_title">Более безопасные действия</string>
     <string name="changelog_dark_theme_desc">Во время действий вроде перемещения, сделать приватным, убрать приватность и удаления окно обработки больше нельзя закрыть вручную нажатием снаружи, кнопкой назад или перетаскиванием.</string>
     <string name="changelog_pip_title">Специальная приватная папка</string>
