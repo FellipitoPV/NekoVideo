@@ -16,7 +16,6 @@ import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.DLNACastManager
-import com.nkls.nekovideo.components.helpers.FolderLockManager
 
 /**
  * Foreground service that publishes a media-style notification for DLNA cast,
@@ -110,14 +109,9 @@ class DLNACastService : Service() {
     /** Returns thumbnail from RAM cache → disk cache → null (avoids generation at this stage). */
     private fun loadThumbnail(): Bitmap? {
         val path = castManager.currentVideoPath.ifEmpty { return null }
-        return if (path.startsWith("locked://")) {
-            FolderLockManager.getLockedThumbnail(path.removePrefix("locked://"))
-        } else {
-            val cleanPath = path.removePrefix("file://")
-            val key = cleanPath.hashCode().toString()
-            OptimizedThumbnailManager.thumbnailCache.get(key)
-                ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(this, cleanPath)
-        }
+        val cleanPath = path.removePrefix("locked://").removePrefix("file://")
+        return OptimizedThumbnailManager.getCachedThumbnail(cleanPath)
+            ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(this, path)
     }
 
     // ── Notification ──────────────────────────────────────────────────────────

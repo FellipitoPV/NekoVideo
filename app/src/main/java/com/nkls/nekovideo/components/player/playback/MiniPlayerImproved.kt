@@ -30,7 +30,6 @@ import com.nkls.nekovideo.R
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.helpers.DLNACastManager
-import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.PlaylistNavigator
 import kotlinx.coroutines.Dispatchers
@@ -484,14 +483,9 @@ private fun formatTime(timeMs: Long): String {
 private suspend fun loadExistingThumbnail(context: android.content.Context, videoUri: String): Bitmap? =
     withContext(Dispatchers.IO) {
         try {
-            if (videoUri.startsWith("locked://")) {
-                val path = videoUri.removePrefix("locked://")
-                FolderLockManager.getLockedThumbnail(path)
-            } else {
-                val cleanPath = videoUri.removePrefix("file://")
-                OptimizedThumbnailManager.getCachedThumbnail(cleanPath)
-                    ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(context, cleanPath)
-            }
+            val cleanPath = videoUri.removePrefix("locked://").removePrefix("file://")
+            OptimizedThumbnailManager.getCachedThumbnail(cleanPath)
+                ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(context, videoUri)
         } catch (e: Exception) {
             null
         }

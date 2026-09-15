@@ -139,7 +139,27 @@ object OptimizedThumbnailManager {
 
     // Função pública síncrona para buscar do disco
     fun loadThumbnailFromDiskSync(context: Context, videoPath: String): Bitmap? {
-        return loadThumbnailFromDisk(context, videoPath)
+        val cleanPath = cleanThumbnailPath(videoPath)
+        val thumbnail = if (isLockedThumbnailPath(videoPath)) {
+            FolderLockManager.getLockedThumbnail(cleanPath)
+        } else {
+            loadThumbnailFromDisk(context, cleanPath)
+        }
+
+        if (thumbnail != null && !thumbnail.isRecycled) {
+            thumbnailCache.put(cleanPath.hashCode().toString(), thumbnail)
+        }
+
+        return thumbnail
+    }
+
+    private fun cleanThumbnailPath(videoPath: String): String {
+        return videoPath.removePrefix("locked://").removePrefix("file://")
+    }
+
+    private fun isLockedThumbnailPath(videoPath: String): Boolean {
+        val cleanPath = cleanThumbnailPath(videoPath)
+        return videoPath.startsWith("locked://") || LockedPlaybackSession.getXorKeyForFile(cleanPath) != null
     }
 
     /**
@@ -180,7 +200,8 @@ object OptimizedThumbnailManager {
      */
     fun generateThumbnailSync(context: Context, videoPath: String): Bitmap? {
         // Primeiro verifica se já existe em cache (RAM ou disco)
-        val key = videoPath.hashCode().toString()
+        val cleanPath = cleanThumbnailPath(videoPath)
+        val key = cleanPath.hashCode().toString()
 
         // 1. Verifica RAM
         val ramBitmap = thumbnailCache.get(key)
@@ -189,31 +210,38 @@ object OptimizedThumbnailManager {
         }
 
         // 2. Verifica disco
-        val diskBitmap = loadThumbnailFromDisk(context, videoPath)
+        val diskBitmap = loadThumbnailFromDiskSync(context, cleanPath)
         if (diskBitmap != null) {
             thumbnailCache.put(key, diskBitmap)
             return diskBitmap
         }
 
+        val thumbnailSize = getThumbnailSizeFromSettings(context)
+
+        if (isLockedThumbnailPath(videoPath)) {
+            return FolderLockManager.generateAndSaveLockedThumbnail(cleanPath, thumbnailSize)?.also { thumbnail ->
+                if (!thumbnail.isRecycled) {
+                    thumbnailCache.put(key, thumbnail)
+                }
+            }
+        }
+
         // 3. Gera nova thumbnail
         val retriever = MediaMetadataRetriever()
         return try {
-            val cleanPath = videoPath.removePrefix("file://")
             if (!File(cleanPath).exists()) return null
 
             retriever.setDataSource(cleanPath)
 
-            // Pega frame do meio do vídeo
-            val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-            val middleTimeUs = (durationMs * 1000L) / 2
-            val bitmap = retriever.getFrameAtTime(
-                middleTimeUs,
-                MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+            val bitmap = retriever.getScaledFrameAtTime(
+                getMiddleFrameTimeUs(retriever),
+                MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                thumbnailSize,
+                thumbnailSize
             )
 
             if (bitmap != null) {
                 // Redimensiona para tamanho otimizado COM CENTER CROP
-                val thumbnailSize = getThumbnailSizeFromSettings(context)
                 val scaledBitmap = createCenterCroppedThumbnail(bitmap, thumbnailSize)
 
                 // Salva no cache central do app
@@ -243,13 +271,17 @@ object OptimizedThumbnailManager {
         }
     }
 
+    private fun getMiddleFrameTimeUs(retriever: MediaMetadataRetriever): Long {
+        val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+        return (durationMs * 1000L) / 2
+    }
+
     /**
      * Obtém thumbnail de forma síncrona: busca em cache ou gera se necessário.
      * DEVE ser chamada em thread de background (IO).
      */
     fun getOrGenerateThumbnailSync(context: Context, videoPath: String): Bitmap? {
-        val cleanPath = videoPath.removePrefix("file://")
-        return generateThumbnailSync(context, cleanPath)
+        return generateThumbnailSync(context, videoPath)
     }
 
     /**
@@ -429,7 +461,7 @@ object OptimizedThumbnailManager {
 
     // Busca em RAM apenas (disco é feito no loadVideoMetadataWithDelay)
     fun getCachedThumbnail(videoPath: String): Bitmap? {
-        val key = videoPath.hashCode().toString()
+        val key = cleanThumbnailPath(videoPath).hashCode().toString()
 
         val ramBitmap = thumbnailCache.get(key)
         if (ramBitmap != null && !ramBitmap.isRecycled) {
@@ -451,7 +483,7 @@ object OptimizedThumbnailManager {
         onStateChanged: (ThumbnailState) -> Unit = {}
     ) {
         ensureCacheInitialized(context)
-        val key = videoPath.hashCode().toString()
+        val key = cleanThumbnailPath(videoPath).hashCode().toString()
 
         activeJobs[key]?.cancel()
 
@@ -465,10 +497,8 @@ object OptimizedThumbnailManager {
             if (ramBitmap != null && !ramBitmap.isRecycled) {
                 ramBitmap
             } else {
-                // Busca do disco (cache central, com fallback legado)
-                loadThumbnailFromDisk(context, videoPath)?.also { diskBitmap ->
-                    thumbnailCache.put(key, diskBitmap)
-                }
+                // Busca do disco (cache central, pasta segura, com fallback legado)
+                loadThumbnailFromDiskSync(context, videoPath)
             }
         } else null
 
@@ -517,7 +547,7 @@ object OptimizedThumbnailManager {
                         async(Dispatchers.IO) { getFileSize(videoPath) }
                     } else null
 
-                    // Gera thumbnail se necessário — usa sempre MediaMetadataRetriever no frame do meio
+                    // Gera thumbnail se necessário em tamanho reduzido.
                     val thumbnail = if (showThumbnails && cachedThumbnail == null) {
                         withContext(Dispatchers.IO) {
                             generateThumbnailSync(context, videoPath)

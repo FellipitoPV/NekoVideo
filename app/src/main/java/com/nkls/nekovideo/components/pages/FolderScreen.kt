@@ -1680,8 +1680,7 @@ private fun ContinueWatchingCard(
 
     LaunchedEffect(entry.videoPath) {
         thumbnail = withContext(Dispatchers.IO) {
-            FolderLockManager.getLockedThumbnail(entry.videoPath)
-                ?: OptimizedThumbnailManager.getCachedThumbnail(entry.videoPath)
+            OptimizedThumbnailManager.getCachedThumbnail(entry.videoPath)
                 ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(context, entry.videoPath)
                 ?: OptimizedThumbnailManager.getOrGenerateThumbnailSync(context, entry.videoPath)
         }
@@ -1859,9 +1858,11 @@ private fun MediaCard(
                                 return@launch
                             }
                         } else {
-                            // 2. Lê do disco (pasta segura)
-                            val lockedThumb = FolderLockManager.getLockedThumbnail(item.path)
-                                ?: if (isSecureMode) FolderLockManager.generateAndSaveLockedThumbnail(item.path) else null
+                            // 2. Lê/gera via gerenciador central, incluindo pasta segura
+                            val lockedThumb = if (isSecureMode) {
+                                OptimizedThumbnailManager.loadThumbnailFromDiskSync(context, item.path)
+                                    ?: OptimizedThumbnailManager.generateThumbnailSync(context, item.path)
+                            } else null
                             if (lockedThumb != null) {
                                 val cacheKey = item.path.hashCode().toString()
                                 OptimizedThumbnailManager.thumbnailCache.put(cacheKey, lockedThumb)

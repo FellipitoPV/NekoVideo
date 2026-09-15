@@ -31,7 +31,6 @@ import kotlinx.coroutines.*
 import android.net.Uri
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
-import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.HybridDataSourceFactory
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
@@ -58,6 +57,7 @@ class MediaPlaybackService : MediaSessionService() {
         const val ACTION_PAUSE_FOR_BACKGROUND = "nekovideo.action.PAUSE_FOR_BACKGROUND"
         const val EXTRA_SLEEP_TIMER_DURATION_MS = "sleep_timer_duration_ms"
         private const val PROGRESS_PERSIST_INTERVAL_MS = 10_000L
+        private const val PLAYBACK_ARTWORK_REFRESH_DELAY_MS = 2_500L
         const val BROADCAST_SLEEP_TIMER_STATE_CHANGED = "nekovideo.broadcast.SLEEP_TIMER_STATE_CHANGED"
         const val EXTRA_SLEEP_TIMER_ACTIVE = "sleep_timer_active"
         const val EXTRA_SLEEP_TIMER_END_AT_MS = "sleep_timer_end_at_ms"
@@ -780,6 +780,8 @@ class MediaPlaybackService : MediaSessionService() {
         }
 
         currentPlaybackProcessingJob = preloadScope.launch {
+            delay(PLAYBACK_ARTWORK_REFRESH_DELAY_MS)
+
             if (activeSeekIndex != null || pendingSeekIndex != null) {
                 return@launch
             }
@@ -805,14 +807,9 @@ class MediaPlaybackService : MediaSessionService() {
 
     private suspend fun ensureThumbnailAvailable(target: CurrentArtworkTarget): Boolean = withContext(Dispatchers.IO) {
         try {
-            if (target.isLocked) {
-                FolderLockManager.getLockedThumbnail(target.videoPath)
-                    ?: FolderLockManager.generateAndSaveLockedThumbnail(target.videoPath)
-            } else {
-                OptimizedThumbnailManager.getCachedThumbnail(target.videoPath)
-                    ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(this@MediaPlaybackService, target.videoPath)
-                    ?: OptimizedThumbnailManager.generateThumbnailSync(this@MediaPlaybackService, target.videoPath)
-            }
+            OptimizedThumbnailManager.getCachedThumbnail(target.videoPath)
+                ?: OptimizedThumbnailManager.loadThumbnailFromDiskSync(this@MediaPlaybackService, target.videoPath)
+                ?: OptimizedThumbnailManager.generateThumbnailSync(this@MediaPlaybackService, target.videoPath)
         } catch (e: Exception) {
             Log.w("MediaPlaybackService", "Falha ao garantir thumbnail: ${e.message}")
             null
@@ -888,11 +885,7 @@ class MediaPlaybackService : MediaSessionService() {
     }
 
     private suspend fun buildCurrentArtworkUpdate(target: CurrentArtworkTarget): ArtworkUpdate? = withContext(Dispatchers.IO) {
-        val thumbnail = if (target.isLocked) {
-            FolderLockManager.getLockedThumbnail(target.videoPath)
-        } else {
-            loadThumbnailWithContext(target.videoPath)
-        } ?: return@withContext null
+        val thumbnail = loadThumbnailWithContext(target.videoPath) ?: return@withContext null
 
         ArtworkUpdate(
             mediaUri = target.mediaUri,

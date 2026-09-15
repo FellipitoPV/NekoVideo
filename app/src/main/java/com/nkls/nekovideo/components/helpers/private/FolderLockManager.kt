@@ -1270,7 +1270,7 @@ object FolderLockManager {
      * Generates and saves a thumbnail for a locked video using the active XOR session.
      * Uses a custom MediaDataSource to reverse XOR on-the-fly without touching the file.
      */
-    fun generateAndSaveLockedThumbnail(videoPath: String): Bitmap? {
+    fun generateAndSaveLockedThumbnail(videoPath: String, targetSize: Int = 120): Bitmap? {
         val file = File(videoPath)
         val folder = file.parentFile ?: return null
         val xorKey = LockedPlaybackSession.getXorKeyForFile(videoPath) ?: return null
@@ -1283,7 +1283,12 @@ object FolderLockManager {
             retriever.setDataSource(XorMediaDataSource(file, xorKey))
             val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
             val middleTimeUs = (durationMs * 1000L) / 2
-            val bitmap = retriever.getFrameAtTime(middleTimeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            val bitmap = retriever.getScaledFrameAtTime(
+                middleTimeUs,
+                MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                targetSize,
+                targetSize
+            )
             if (bitmap != null) {
                 val thumbFile = File(thumbsDir, file.name)
                 val baos = java.io.ByteArrayOutputStream()
