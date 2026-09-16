@@ -286,8 +286,12 @@
     <string name="tags_backup_import_success">備份已匯入：新增 %1$d 個標籤，恢復 %2$d 個關聯</string>
     <string name="tags_backup_action_failed">無法完成備份操作</string>
     <string name="tags_create_hint">建立新標籤</string>
+    <string name="tags_list_title">標籤清單</string>
+    <string name="tags_count">%1$d 個標籤</string>
     <string name="tags_empty_scope">此類別中尚無標籤</string>
     <string name="tags_delete">刪除標籤</string>
+    <string name="tags_delete_confirm_title">刪除標籤？</string>
+    <string name="tags_delete_confirm_message">刪除「%1$s」？該標籤將從使用它的影片中移除。</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">設定</string>
@@ -306,6 +310,10 @@
     <string name="playback_background_playback_desc">關閉播放器時繼續播放影片</string>
     <string name="playback_double_tap_seek">雙擊快轉/倒轉</string>
     <string name="playback_double_tap_seek_desc">快轉或倒轉的秒數</string>
+    <string name="playback_drag_seek">拖曳快轉/倒轉</string>
+    <string name="playback_drag_seek_desc">控制項隱藏時水平拖曳以跳轉影片</string>
+    <string name="playback_volume_brightness_gestures">音量和亮度手勢</string>
+    <string name="playback_volume_brightness_gestures_desc">控制項隱藏時在兩側垂直拖曳以調整音量和亮度</string>
     <string name="playback_keep_screen_on">保持螢幕常亮</string>
     <string name="playback_keep_screen_on_desc">播放時不關閉螢幕</string>
     <string name="playback_continue_watching">繼續觀看</string>

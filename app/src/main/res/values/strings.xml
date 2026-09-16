@@ -291,8 +291,12 @@
     <string name="tags_backup_import_success">Backup importado: %1$d tags novas e %2$d vinculacoes restauradas</string>
     <string name="tags_backup_action_failed">Nao foi possivel concluir a operacao de backup</string>
     <string name="tags_create_hint">Criar nova tag</string>
+    <string name="tags_list_title">Lista de tags</string>
+    <string name="tags_count">%1$d tags</string>
     <string name="tags_empty_scope">Nenhuma tag criada nesta categoria</string>
     <string name="tags_delete">Excluir tag</string>
+    <string name="tags_delete_confirm_title">Excluir tag?</string>
+    <string name="tags_delete_confirm_message">Excluir "%1$s"? A tag será removida dos vídeos que usam ela.</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Configurações</string>
@@ -311,6 +315,10 @@
     <string name="playback_background_playback_desc">Manter o vídeo tocando ao fechar o player</string>
     <string name="playback_double_tap_seek">Pulo Duplo Toque</string>
     <string name="playback_double_tap_seek_desc">Segundos para avançar/voltar</string>
+    <string name="playback_drag_seek">Arrastar para avançar/voltar</string>
+    <string name="playback_drag_seek_desc">Arraste na horizontal com os controles ocultos para pular o vídeo</string>
+    <string name="playback_volume_brightness_gestures">Gestos de volume e brilho</string>
+    <string name="playback_volume_brightness_gestures_desc">Arraste na vertical nas laterais com os controles ocultos para ajustar volume e brilho</string>
     <string name="playback_keep_screen_on">Manter Tela Ligada</string>
     <string name="playback_keep_screen_on_desc">Não desligar tela durante reprodução</string>
     <string name="playback_continue_watching">Continuar Assistindo</string>

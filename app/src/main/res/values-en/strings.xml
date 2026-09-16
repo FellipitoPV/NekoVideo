@@ -286,8 +286,12 @@
     <string name="tags_backup_import_success">Backup imported: %1$d new tags and %2$d restored links</string>
     <string name="tags_backup_action_failed">Could not complete the backup operation</string>
     <string name="tags_create_hint">Create new tag</string>
+    <string name="tags_list_title">Tag list</string>
+    <string name="tags_count">%1$d tags</string>
     <string name="tags_empty_scope">No tags created in this category</string>
     <string name="tags_delete">Delete tag</string>
+    <string name="tags_delete_confirm_title">Delete tag?</string>
+    <string name="tags_delete_confirm_message">Delete "%1$s"? The tag will be removed from videos that use it.</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Settings</string>
@@ -306,6 +310,10 @@
     <string name="playback_background_playback_desc">Keep video playing when closing the player</string>
     <string name="playback_double_tap_seek">Double Tap Seek</string>
     <string name="playback_double_tap_seek_desc">Seconds to skip forward/backward</string>
+    <string name="playback_drag_seek">Drag to seek</string>
+    <string name="playback_drag_seek_desc">Drag horizontally with controls hidden to skip through the video</string>
+    <string name="playback_volume_brightness_gestures">Volume and brightness gestures</string>
+    <string name="playback_volume_brightness_gestures_desc">Drag vertically on the sides with controls hidden to adjust volume and brightness</string>
     <string name="playback_keep_screen_on">Keep Screen On</string>
     <string name="playback_keep_screen_on_desc">Dont turn off screen during playback</string>
     <string name="playback_continue_watching">Continue Watching</string>

@@ -275,8 +275,12 @@
     <string name="tags_backup_import_success">Sauvegarde importée : %1$d nouveaux tags et %2$d liens restaurés</string>
     <string name="tags_backup_action_failed">Impossible de terminer lopération de sauvegarde</string>
     <string name="tags_create_hint">Créer un nouveau tag</string>
+    <string name="tags_list_title">Liste des tags</string>
+    <string name="tags_count">%1$d tags</string>
     <string name="tags_empty_scope">Aucun tag créé dans cette catégorie</string>
     <string name="tags_delete">Supprimer le tag</string>
+    <string name="tags_delete_confirm_title">Supprimer le tag ?</string>
+    <string name="tags_delete_confirm_message">Supprimer "%1$s" ? Le tag sera retiré des vidéos qui lutilisent.</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Paramètres</string>
@@ -295,6 +299,10 @@
     <string name="playback_background_playback_desc">Garder la vidéo en lecture lors de la fermeture du lecteur</string>
     <string name="playback_double_tap_seek">Recherche par Double Tap</string>
     <string name="playback_double_tap_seek_desc">Secondes à avancer/reculer</string>
+    <string name="playback_drag_seek">Glisser pour avancer/reculer</string>
+    <string name="playback_drag_seek_desc">Glissez horizontalement avec les contrôles masqués pour parcourir la vidéo</string>
+    <string name="playback_volume_brightness_gestures">Gestes de volume et luminosité</string>
+    <string name="playback_volume_brightness_gestures_desc">Glissez verticalement sur les côtés avec les contrôles masqués pour régler le volume et la luminosité</string>
     <string name="playback_keep_screen_on">Garder lÉcran Allumé</string>
     <string name="playback_keep_screen_on_desc">Ne pas éteindre lécran pendant la lecture</string>
     <string name="playback_continue_watching">Continuer à regarder</string>

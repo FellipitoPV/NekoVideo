@@ -275,8 +275,12 @@
     <string name="tags_backup_import_success">Backup importiert: %1$d neue Tags und %2$d wiederhergestellte Verknüpfungen</string>
     <string name="tags_backup_action_failed">Der Backup-Vorgang konnte nicht abgeschlossen werden</string>
     <string name="tags_create_hint">Neuen Tag erstellen</string>
+    <string name="tags_list_title">Tag-Liste</string>
+    <string name="tags_count">%1$d Tags</string>
     <string name="tags_empty_scope">In dieser Kategorie wurden keine Tags erstellt</string>
     <string name="tags_delete">Tag löschen</string>
+    <string name="tags_delete_confirm_title">Tag löschen?</string>
+    <string name="tags_delete_confirm_message">"%1$s" löschen? Der Tag wird von Videos entfernt, die ihn verwenden.</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Einstellungen</string>
@@ -295,6 +299,10 @@
     <string name="playback_background_playback_desc">Video weiter abspielen, wenn der Player geschlossen wird</string>
     <string name="playback_double_tap_seek">Doppeltipp-Suche</string>
     <string name="playback_double_tap_seek_desc">Sekunden zum Vor-/Zurückspringen</string>
+    <string name="playback_drag_seek">Ziehen zum Spulen</string>
+    <string name="playback_drag_seek_desc">Bei ausgeblendeten Steuerungen horizontal ziehen, um im Video zu springen</string>
+    <string name="playback_volume_brightness_gestures">Gesten für Lautstärke und Helligkeit</string>
+    <string name="playback_volume_brightness_gestures_desc">Bei ausgeblendeten Steuerungen seitlich vertikal ziehen, um Lautstärke und Helligkeit anzupassen</string>
     <string name="playback_keep_screen_on">Bildschirm an lassen</string>
     <string name="playback_keep_screen_on_desc">Bildschirm während Wiedergabe nicht ausschalten</string>
     <string name="playback_continue_watching">Weiterschauen</string>

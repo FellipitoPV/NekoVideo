@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material3.Icon
@@ -43,13 +45,29 @@ import com.nkls.nekovideo.R
 @Composable
 fun GestureIndicators(
     seekInfo: String?,
-    seekAlignment: Alignment = Alignment.Center
+    seekAlignment: Alignment = Alignment.Center,
+    volumeInfo: String? = null,
+    brightnessInfo: String? = null
 ) {
     var displayedSeekInfo by remember { mutableStateOf<String?>(null) }
+    var displayedVolumeInfo by remember { mutableStateOf<String?>(null) }
+    var displayedBrightnessInfo by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(seekInfo) {
         if (seekInfo != null) {
             displayedSeekInfo = seekInfo
+        }
+    }
+
+    LaunchedEffect(volumeInfo) {
+        if (volumeInfo != null) {
+            displayedVolumeInfo = volumeInfo
+        }
+    }
+
+    LaunchedEffect(brightnessInfo) {
+        if (brightnessInfo != null) {
+            displayedBrightnessInfo = brightnessInfo
         }
     }
 
@@ -117,6 +135,79 @@ fun GestureIndicators(
                     }
                 }
             }
+        }
+
+        AnimatedVisibility(
+            visible = brightnessInfo != null,
+            enter = fadeIn(animationSpec = tween(200)) + scaleIn(animationSpec = tween(200)),
+            exit = fadeOut(animationSpec = tween(200)) + scaleOut(animationSpec = tween(200)),
+            modifier = Modifier.align(Alignment.CenterStart)
+        ) {
+            val currentBrightnessInfo = displayedBrightnessInfo ?: brightnessInfo ?: return@AnimatedVisibility
+
+            GestureValueIndicator(
+                text = currentBrightnessInfo,
+                icon = { modifier ->
+                    Icon(
+                        imageVector = Icons.Default.Brightness6,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = modifier
+                    )
+                }
+            )
+        }
+
+        AnimatedVisibility(
+            visible = volumeInfo != null,
+            enter = fadeIn(animationSpec = tween(200)) + scaleIn(animationSpec = tween(200)),
+            exit = fadeOut(animationSpec = tween(200)) + scaleOut(animationSpec = tween(200)),
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            val currentVolumeInfo = displayedVolumeInfo ?: volumeInfo ?: return@AnimatedVisibility
+
+            GestureValueIndicator(
+                text = currentVolumeInfo,
+                icon = { modifier ->
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = modifier
+                    )
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun GestureValueIndicator(
+    text: String,
+    icon: @Composable (Modifier) -> Unit
+) {
+    Box(
+        modifier = Modifier.padding(32.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            icon(Modifier.size(28.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = text,
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                style = TextStyle(
+                    shadow = Shadow(
+                        color = Color.Black,
+                        offset = Offset(2f, 2f),
+                        blurRadius = 4f
+                    )
+                )
+            )
         }
     }
 }

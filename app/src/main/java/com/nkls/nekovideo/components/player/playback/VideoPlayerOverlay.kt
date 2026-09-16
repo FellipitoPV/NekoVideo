@@ -7,9 +7,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import android.util.TypedValue
 import android.view.WindowManager
@@ -103,11 +105,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 private const val BUFFERING_RECOVERY_TIMEOUT_MS = 15_000L
 private const val MAX_BUFFERING_RECOVERY_ATTEMPTS = 3
 private const val BUFFERING_UI_STALL_TIMEOUT_MS = 900L
 private const val BUFFERING_PROGRESS_EPSILON_MS = 200L
+private const val VERTICAL_GESTURE_FULL_RANGE_RATIO = 0.6f
 
 private data class PreferredTrack(
     val label: String?,
@@ -153,6 +157,8 @@ fun VideoPlayerOverlay(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val activity = lifecycleOwner as? ComponentActivity
+    val dragSeekEnabled = SettingsManager.isDragSeekEnabled(context)
+    val volumeBrightnessGesturesEnabled = SettingsManager.areVolumeBrightnessGesturesEnabled(context)
     var mediaController by remember { mutableStateOf<MediaController?>(null) }
     var isFullscreen by remember { mutableStateOf(false) }
     var hasRefreshed by remember { mutableStateOf(false) }
@@ -222,15 +228,19 @@ fun VideoPlayerOverlay(
         uiTimer = 4
     }
 
-    // Estados para controles de gestos (apenas seek - brilho/volume removidos)
+    // Estados para controles de gestos
     var seekIndicator by remember { mutableStateOf<String?>(null) }
     var seekSide by remember { mutableStateOf(Alignment.Center) }
+    var volumeIndicator by remember { mutableStateOf<String?>(null) }
+    var brightnessIndicator by remember { mutableStateOf<String?>(null) }
 
     val coroutineScope = rememberCoroutineScope()
 
     var lastTapTime by remember { mutableStateOf(0L) }
     var tapCount by remember { mutableStateOf(0) }
-    val doubleTapTimeWindow = 300L // 300ms para detectar double tap
+    var accumulatedDoubleTapSeek by remember { mutableStateOf(0L) }
+    var lastDoubleTapSeekForward by remember { mutableStateOf<Boolean?>(null) }
+    val doubleTapTimeWindow = 400L // 400ms para detectar double tap e taps acumulados
 
     // ✅ Esconder controles quando entrar no PIP
     LaunchedEffect(isInPiPMode) {
@@ -1104,6 +1114,20 @@ fun VideoPlayerOverlay(
         }
     }
 
+    LaunchedEffect(volumeIndicator) {
+        if (volumeIndicator != null) {
+            delay(500)
+            volumeIndicator = null
+        }
+    }
+
+    LaunchedEffect(brightnessIndicator) {
+        if (brightnessIndicator != null) {
+            delay(500)
+            brightnessIndicator = null
+        }
+    }
+
     LaunchedEffect(Unit) {
         castManager.setConnectionStatusListener { connected ->
             isCasting = connected
@@ -1562,12 +1586,14 @@ fun VideoPlayerOverlay(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black)
-                    .pointerInput(hasLoadedVideo, currentPlaybackState) {
+                    .pointerInput(hasLoadedVideo, currentPlaybackState, dragSeekEnabled, volumeBrightnessGesturesEnabled) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = true)
                             val downTime = System.currentTimeMillis()
                             val downX = down.position.x
+                            val downY = down.position.y
                             val screenWidth = size.width.toFloat()
+                            val screenHeight = size.height.toFloat()
 
                             val edgeMargin = size.width * 0.05f
                             val isNearEdge = down.position.x < edgeMargin || down.position.x > size.width - edgeMargin || down.position.y > size.height - 100.dp.toPx()
@@ -1578,89 +1604,149 @@ fun VideoPlayerOverlay(
 
                             if (touchSlopResult != null) {
                                 if (!isNearEdge && !controlsVisible) {
+                                    val initialDragX = touchSlopResult.position.x - downX
+                                    val initialDragY = touchSlopResult.position.y - downY
                                     val initialPosition = mediaController?.currentPosition ?: 0L
                                     val videoDuration = mediaController?.duration?.takeIf { it > 0 } ?: 0L
                                     val seekSensitivity = screenWidth / 30f
-                                    var totalDragX = touchSlopResult.position.x - downX
+                                    val isHorizontalGesture = abs(initialDragX) >= abs(initialDragY)
 
-                                    var lastSeekSeconds = 0
+                                    if (isHorizontalGesture && dragSeekEnabled) {
+                                        var totalDragX = initialDragX
+                                        var lastSeekSeconds = 0
 
-                                    do {
-                                        val seekSeconds = (totalDragX / seekSensitivity).toInt()
+                                        do {
+                                            val seekSeconds = (totalDragX / seekSensitivity).toInt()
 
-                                        if (seekSeconds != lastSeekSeconds) {
-                                            lastSeekSeconds = seekSeconds
-                                            seekIndicator = if (seekSeconds > 0) "+${seekSeconds}s" else "${seekSeconds}s"
-                                            seekSide = if (seekSeconds > 0) Alignment.CenterEnd else Alignment.CenterStart
+                                            if (seekSeconds != lastSeekSeconds) {
+                                                lastSeekSeconds = seekSeconds
+                                                seekIndicator = if (seekSeconds > 0) "+${seekSeconds}s" else "${seekSeconds}s"
+                                                seekSide = if (seekSeconds > 0) Alignment.CenterEnd else Alignment.CenterStart
+                                            }
+
+                                            val event = awaitPointerEvent()
+                                            val change = event.changes.firstOrNull() ?: break
+                                            totalDragX = change.position.x - downX
+                                            change.consume()
+                                        } while (change.pressed)
+
+                                        val finalSeekSeconds = (totalDragX / seekSensitivity).toInt()
+
+                                        if (finalSeekSeconds != 0 && duration > 0) {
+                                            mediaController?.let { controller ->
+                                                val newPosition = (initialPosition + finalSeekSeconds * 1000L)
+                                                    .coerceIn(0, videoDuration)
+                                                controller.seekTo(newPosition)
+                                            }
                                         }
+                                    } else if (!isHorizontalGesture && volumeBrightnessGesturesEnabled) {
+                                        val isBrightnessGesture = downX < screenWidth / 2f
+                                        val gestureRange = screenHeight * VERTICAL_GESTURE_FULL_RANGE_RATIO
+                                        val window = activity?.window
+                                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                                        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                                        val initialVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                        val initialBrightness = window?.attributes?.screenBrightness
+                                            ?.takeIf { it >= 0f }
+                                            ?: (runCatching {
+                                                Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS) / 255f
+                                            }.getOrDefault(0.5f))
 
-                                        val event = awaitPointerEvent()
-                                        val change = event.changes.firstOrNull() ?: break
-                                        totalDragX = change.position.x - downX
-                                        change.consume()
-                                    } while (change.pressed)
+                                        var totalDragY = initialDragY
 
-                                    val finalSeekSeconds = (totalDragX / seekSensitivity).toInt()
+                                        do {
+                                            val delta = (-totalDragY / gestureRange).coerceIn(-1f, 1f)
 
-                                    if (finalSeekSeconds != 0 && duration > 0) {
-                                        mediaController?.let { controller ->
-                                            val newPosition = (initialPosition + finalSeekSeconds * 1000L)
-                                                .coerceIn(0, videoDuration)
-                                            controller.seekTo(newPosition)
+                                            if (isBrightnessGesture) {
+                                                val newBrightness = (initialBrightness + delta).coerceIn(0.01f, 1f)
+                                                window?.attributes = window?.attributes?.apply {
+                                                    screenBrightness = newBrightness
+                                                }
+                                                brightnessIndicator = "${(newBrightness * 100).roundToInt()}%"
+                                            } else {
+                                                val newVolume = (initialVolume + delta * maxVolume)
+                                                    .roundToInt()
+                                                    .coerceIn(0, maxVolume)
+                                                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
+                                                volumeIndicator = "${(newVolume * 100f / maxVolume).roundToInt()}%"
+                                            }
+
+                                            val event = awaitPointerEvent()
+                                            val change = event.changes.firstOrNull() ?: break
+                                            totalDragY = change.position.y - downY
+                                            change.consume()
+                                        } while (change.pressed)
+
+                                        if (isBrightnessGesture) {
+                                            volumeIndicator = null
+                                        } else {
+                                            brightnessIndicator = null
                                         }
+                                    } else {
+                                        do {
+                                            val event = awaitPointerEvent()
+                                            val change = event.changes.firstOrNull() ?: break
+                                            change.consume()
+                                        } while (change.pressed)
                                     }
                                 }
                             } else {
                                 val currentTime = System.currentTimeMillis()
+                                val isContinuingTapSequence = tapCount > 0 &&
+                                    (currentTime - lastTapTime) <= doubleTapTimeWindow
+                                tapCount = if (isContinuingTapSequence) tapCount + 1 else 1
+                                lastTapTime = currentTime
 
-                                // Se é o primeiro tap ou passou muito tempo desde o último
-                                if (tapCount == 0 || (currentTime - lastTapTime) > doubleTapTimeWindow) {
-                                    tapCount = 1
-                                    lastTapTime = currentTime
+                                if (tapCount == 1) {
+                                    accumulatedDoubleTapSeek = 0L
+                                    lastDoubleTapSeekForward = null
 
                                     // Toggle da UI imediatamente (sem delay!)
                                     controlsVisible = !controlsVisible
                                     if (controlsVisible) {
                                         resetUITimer()
                                     }
-
-                                    // Inicia timer para detectar se vai ter um segundo tap
-                                    coroutineScope.launch {
-                                        delay(doubleTapTimeWindow)
-                                        // Se passou o tempo e ainda é apenas 1 tap, mantém o estado atual
-                                        if (tapCount == 1) {
-                                            tapCount = 0
-                                        }
-                                    }
-
-                                } else if (tapCount == 1 && (currentTime - lastTapTime) <= doubleTapTimeWindow) {
-                                    // É um double tap!
-                                    tapCount = 0
-
+                                } else {
                                     // Esconde a UI imediatamente
                                     controlsVisible = false
 
-                                    // Executa a lógica de seek
-                                    val doubleTapSeek =
-                                        SettingsManager.getDoubleTapSeek(context) * 1000L
+                                    val doubleTapSeek = SettingsManager.getDoubleTapSeek(context) * 1000L
+                                    val isForwardSeek = downX >= screenWidth / 2
+
+                                    accumulatedDoubleTapSeek = if (lastDoubleTapSeekForward == isForwardSeek) {
+                                        accumulatedDoubleTapSeek + doubleTapSeek
+                                    } else {
+                                        doubleTapSeek
+                                    }
+                                    lastDoubleTapSeekForward = isForwardSeek
 
                                     mediaController?.let { controller ->
                                         val currentPos = controller.currentPosition
 
-                                        if (downX < screenWidth / 2) {
+                                        if (!isForwardSeek) {
                                             // Lado esquerdo - voltar
                                             val newPosition =
                                                 (currentPos - doubleTapSeek).coerceAtLeast(0)
                                             controller.seekTo(newPosition)
-                                            seekIndicator = "-${doubleTapSeek / 1000}s"
+                                            seekIndicator = "-${accumulatedDoubleTapSeek / 1000}s"
                                             seekSide = Alignment.CenterStart
                                         } else {
                                             // Lado direito - avançar
                                             val newPosition = currentPos + doubleTapSeek
                                             controller.seekTo(newPosition)
-                                            seekIndicator = "+${doubleTapSeek / 1000}s"
+                                            seekIndicator = "+${accumulatedDoubleTapSeek / 1000}s"
                                             seekSide = Alignment.CenterEnd
                                         }
+                                    }
+                                }
+
+                                val tapSequenceTime = currentTime
+                                coroutineScope.launch {
+                                    delay(doubleTapTimeWindow)
+                                    if (lastTapTime == tapSequenceTime) {
+                                        tapCount = 0
+                                        accumulatedDoubleTapSeek = 0L
+                                        lastDoubleTapSeekForward = null
                                     }
                                 }
                             }
@@ -1681,10 +1767,12 @@ fun VideoPlayerOverlay(
                     )
                 }
 
-                // Indicadores visuais (apenas seek - brilho/volume removidos)
+                // Indicadores visuais de gestos
                 GestureIndicators(
                     seekInfo = seekIndicator,
-                    seekAlignment = seekSide
+                    seekAlignment = seekSide,
+                    volumeInfo = volumeIndicator,
+                    brightnessInfo = brightnessIndicator
                 )
 
                 if (hasLoadedVideo && showBlockingBufferingUi && !isSeekingActive && !isPlaying && !hasRenderedFirstFrame) {

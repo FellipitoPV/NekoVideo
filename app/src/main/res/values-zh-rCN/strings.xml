@@ -286,8 +286,12 @@
     <string name="tags_backup_import_success">备份已导入：新增 %1$d 个标签，恢复 %2$d 个关联</string>
     <string name="tags_backup_action_failed">无法完成备份操作</string>
     <string name="tags_create_hint">创建新标签</string>
+    <string name="tags_list_title">标签列表</string>
+    <string name="tags_count">%1$d 个标签</string>
     <string name="tags_empty_scope">此类别中尚无标签</string>
     <string name="tags_delete">删除标签</string>
+    <string name="tags_delete_confirm_title">删除标签？</string>
+    <string name="tags_delete_confirm_message">删除“%1$s”？该标签将从使用它的视频中移除。</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">设置</string>
@@ -306,6 +310,10 @@
     <string name="playback_background_playback_desc">关闭播放器时继续播放视频</string>
     <string name="playback_double_tap_seek">双击快进/快退</string>
     <string name="playback_double_tap_seek_desc">快进或快退的秒数</string>
+    <string name="playback_drag_seek">拖动快进/快退</string>
+    <string name="playback_drag_seek_desc">控件隐藏时水平拖动以跳转视频</string>
+    <string name="playback_volume_brightness_gestures">音量和亮度手势</string>
+    <string name="playback_volume_brightness_gestures_desc">控件隐藏时在两侧垂直拖动以调整音量和亮度</string>
     <string name="playback_keep_screen_on">保持屏幕常亮</string>
     <string name="playback_keep_screen_on_desc">播放时不关闭屏幕</string>
     <string name="playback_continue_watching">继续观看</string>

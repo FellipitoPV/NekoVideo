@@ -275,8 +275,12 @@
     <string name="tags_backup_import_success">Копия импортирована: %1$d новых тегов и %2$d восстановленных связей</string>
     <string name="tags_backup_action_failed">Не удалось завершить операцию резервного копирования</string>
     <string name="tags_create_hint">Создать новый тег</string>
+    <string name="tags_list_title">Список тегов</string>
+    <string name="tags_count">%1$d тегов</string>
     <string name="tags_empty_scope">В этой категории нет созданных тегов</string>
     <string name="tags_delete">Удалить тег</string>
+    <string name="tags_delete_confirm_title">Удалить тег?</string>
+    <string name="tags_delete_confirm_message">Удалить "%1$s"? Тег будет удален из видео, где он используется.</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">Настройки</string>
@@ -295,6 +299,10 @@
     <string name="playback_background_playback_desc">Продолжать воспроизведение при закрытии плеера</string>
     <string name="playback_double_tap_seek">Поиск двойным касанием</string>
     <string name="playback_double_tap_seek_desc">Секунд для перехода вперед/назад</string>
+    <string name="playback_drag_seek">Перемотка перетаскиванием</string>
+    <string name="playback_drag_seek_desc">Перетаскивайте горизонтально при скрытых элементах управления, чтобы перемещаться по видео</string>
+    <string name="playback_volume_brightness_gestures">Жесты громкости и яркости</string>
+    <string name="playback_volume_brightness_gestures_desc">Перетаскивайте вертикально по краям при скрытых элементах управления, чтобы менять громкость и яркость</string>
     <string name="playback_keep_screen_on">Не выключать экран</string>
     <string name="playback_keep_screen_on_desc">Не выключать экран во время воспроизведения</string>
     <string name="playback_continue_watching">Продолжить просмотр</string>

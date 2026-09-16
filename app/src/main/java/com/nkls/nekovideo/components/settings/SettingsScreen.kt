@@ -3,6 +3,13 @@ package com.nkls.nekovideo.components.settings
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.asImageBitmap
@@ -12,12 +19,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,6 +46,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocalOffer
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Schedule
@@ -56,6 +64,7 @@ import com.nkls.nekovideo.components.ChangePasswordDialog
 import com.nkls.nekovideo.components.PasswordDialog
 import com.nkls.nekovideo.components.helpers.BiometricHelper
 import com.nkls.nekovideo.components.helpers.FilesManager
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -64,8 +73,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -90,6 +97,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -113,14 +122,119 @@ import com.nkls.nekovideo.components.helpers.ContinueWatchingStore
 import com.nkls.nekovideo.components.helpers.VideoProgressStore
 import com.nkls.nekovideo.components.helpers.VideoTagStore
 import com.nkls.nekovideo.services.FolderVideoScanner
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
+
+private sealed interface PlaybackSettingItem {
+    val visible: Boolean
+
+    data class Section(
+        val titleRes: Int,
+        override val visible: Boolean = true
+    ) : PlaybackSettingItem
+
+    data class Switch(
+        val icon: ImageVector,
+        val titleRes: Int,
+        val subtitleRes: Int,
+        val checked: Boolean,
+        val enabled: Boolean = true,
+        override val visible: Boolean = true,
+        val onCheckedChange: (Boolean) -> Unit
+    ) : PlaybackSettingItem
+
+    data class Slider(
+        val icon: ImageVector,
+        val titleRes: Int,
+        val subtitleRes: Int,
+        val value: Int,
+        val range: IntRange,
+        val step: Int = 1,
+        val discreteValues: List<Int>? = null,
+        val enabled: Boolean = true,
+        override val visible: Boolean = true,
+        val valueFormatter: (Int) -> String = { it.toString() },
+        val onValueChange: (Int) -> Unit
+    ) : PlaybackSettingItem
+}
+
+private sealed interface InterfaceSettingItem {
+    val visible: Boolean
+
+    data class Section(
+        val titleRes: Int,
+        override val visible: Boolean = true
+    ) : InterfaceSettingItem
+
+    data class Dropdown(
+        val icon: ImageVector,
+        val titleRes: Int,
+        val subtitleRes: Int,
+        val options: List<Pair<String, String>>,
+        val selectedValue: String,
+        override val visible: Boolean = true,
+        val onValueChange: (String) -> Unit
+    ) : InterfaceSettingItem
+}
+
+private sealed interface DisplaySettingItem {
+    val visible: Boolean
+
+    data class Section(
+        val titleRes: Int,
+        override val visible: Boolean = true
+    ) : DisplaySettingItem
+
+    data class Switch(
+        val icon: ImageVector,
+        val titleRes: Int,
+        val subtitleRes: Int,
+        val checked: Boolean,
+        val enabled: Boolean = true,
+        override val visible: Boolean = true,
+        val onCheckedChange: (Boolean) -> Unit
+    ) : DisplaySettingItem
+}
+
+private sealed interface SecuritySettingItem {
+    val visible: Boolean
+
+    data class Section(
+        val titleRes: Int,
+        override val visible: Boolean = true
+    ) : SecuritySettingItem
+
+    data class Action(
+        val icon: ImageVector,
+        val titleRes: Int,
+        val subtitleRes: Int,
+        val enabled: Boolean = true,
+        override val visible: Boolean = true,
+        val onClick: () -> Unit
+    ) : SecuritySettingItem
+
+    data class Switch(
+        val icon: ImageVector,
+        val titleRes: Int,
+        val subtitleRes: Int,
+        val checked: Boolean,
+        val enabled: Boolean = true,
+        override val visible: Boolean = true,
+        val onCheckedChange: (Boolean) -> Unit
+    ) : SecuritySettingItem
+
+    data class Info(
+        val icon: ImageVector,
+        val messageRes: Int,
+        override val visible: Boolean = true
+    ) : SecuritySettingItem
+}
 
 @Composable
 fun SettingsScreen(navController: NavController) {
@@ -274,6 +388,8 @@ fun PlaybackSettingsScreen() {
 
     var backgroundPlayback by remember { mutableStateOf(prefs.getBoolean("background_playback", true)) }
     var doubleTapSeek by remember { mutableIntStateOf(prefs.getInt("double_tap_seek", 10)) }
+    var dragSeekEnabled by remember { mutableStateOf(prefs.getBoolean("drag_seek_enabled", true)) }
+    var volumeBrightnessGesturesEnabled by remember { mutableStateOf(prefs.getBoolean("volume_brightness_gestures_enabled", true)) }
     var continueWatchingEnabled by remember {
         mutableStateOf(ContinueWatchingSettings.isEnabled(context))
     }
@@ -284,6 +400,87 @@ fun PlaybackSettingsScreen() {
         mutableStateOf(ContinueWatchingSettings.shouldIncludePrivateVideos(context))
     }
     val continueWatchingMinDurationOptions = listOf(5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90)
+    val playbackSettingsItems = listOf(
+        PlaybackSettingItem.Section(R.string.playback_controls),
+        PlaybackSettingItem.Switch(
+            icon = Icons.Default.PlayArrow,
+            titleRes = R.string.playback_background_playback,
+            subtitleRes = R.string.playback_background_playback_desc,
+            checked = backgroundPlayback,
+            onCheckedChange = {
+                backgroundPlayback = it
+                prefs.edit { putBoolean("background_playback", it) }
+            }
+        ),
+        PlaybackSettingItem.Slider(
+            icon = Icons.Default.SkipNext,
+            titleRes = R.string.playback_double_tap_seek,
+            subtitleRes = R.string.playback_double_tap_seek_desc,
+            value = doubleTapSeek,
+            range = 5..30,
+            step = 5,
+            onValueChange = {
+                doubleTapSeek = it
+                prefs.edit { putInt("double_tap_seek", it) }
+            }
+        ),
+        PlaybackSettingItem.Switch(
+            icon = Icons.Default.SkipNext,
+            titleRes = R.string.playback_drag_seek,
+            subtitleRes = R.string.playback_drag_seek_desc,
+            checked = dragSeekEnabled,
+            onCheckedChange = {
+                dragSeekEnabled = it
+                prefs.edit { putBoolean("drag_seek_enabled", it) }
+            }
+        ),
+        PlaybackSettingItem.Switch(
+            icon = Icons.Default.PlayArrow,
+            titleRes = R.string.playback_volume_brightness_gestures,
+            subtitleRes = R.string.playback_volume_brightness_gestures_desc,
+            checked = volumeBrightnessGesturesEnabled,
+            onCheckedChange = {
+                volumeBrightnessGesturesEnabled = it
+                prefs.edit { putBoolean("volume_brightness_gestures_enabled", it) }
+            }
+        ),
+        PlaybackSettingItem.Section(R.string.playback_continue_watching),
+        PlaybackSettingItem.Switch(
+            icon = Icons.Default.PlayArrow,
+            titleRes = R.string.playback_continue_watching_enabled,
+            subtitleRes = R.string.playback_continue_watching_enabled_desc,
+            checked = continueWatchingEnabled,
+            onCheckedChange = {
+                continueWatchingEnabled = it
+                prefs.edit { putBoolean("continue_watching_enabled", it) }
+            }
+        ),
+        PlaybackSettingItem.Slider(
+            icon = Icons.Default.Schedule,
+            titleRes = R.string.playback_continue_watching_min_duration,
+            subtitleRes = R.string.playback_continue_watching_min_duration_desc,
+            value = continueWatchingMinMinutes,
+            range = 5..90,
+            discreteValues = continueWatchingMinDurationOptions,
+            valueFormatter = { "$it min" },
+            visible = continueWatchingEnabled,
+            onValueChange = {
+                continueWatchingMinMinutes = it
+                prefs.edit { putInt("continue_watching_min_duration_minutes", it) }
+            }
+        ),
+        PlaybackSettingItem.Switch(
+            icon = Icons.Default.Lock,
+            titleRes = R.string.playback_continue_watching_private,
+            subtitleRes = R.string.playback_continue_watching_private_desc,
+            checked = continueWatchingIncludePrivate,
+            visible = continueWatchingEnabled,
+            onCheckedChange = {
+                continueWatchingIncludePrivate = it
+                prefs.edit { putBoolean("continue_watching_include_private", it) }
+            }
+        )
+    )
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         @Suppress("UnusedBoxWithConstraintsScope")
@@ -295,91 +492,55 @@ fun PlaybackSettingsScreen() {
                 .padding(if (isCompact) 8.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
         ) {
-            item {
-                SettingsSectionHeader(stringResource(R.string.playback_controls), isCompact)
+            items(playbackSettingsItems) { settingItem ->
+                AnimatedVisibility(
+                    visible = settingItem.visible,
+                    enter = fadeIn(animationSpec = tween(180)) + expandVertically(animationSpec = tween(220)),
+                    exit = fadeOut(animationSpec = tween(120)) + shrinkVertically(animationSpec = tween(180))
+                ) {
+                    RenderPlaybackSettingItem(settingItem, isCompact)
+                }
             }
+        }
+    }
+}
 
-            item {
-                SettingsSwitchItem(
-                    icon = Icons.Default.PlayArrow,
-                    title = stringResource(R.string.playback_background_playback),
-                    subtitle = stringResource(R.string.playback_background_playback_desc),
-                    checked = backgroundPlayback,
-                    onCheckedChange = {
-                        backgroundPlayback = it
-                        prefs.edit { putBoolean("background_playback", it) }
-                    },
-                    isCompact = isCompact
-                )
-            }
+@Composable
+private fun RenderPlaybackSettingItem(
+    item: PlaybackSettingItem,
+    isCompact: Boolean
+) {
+    when (item) {
+        is PlaybackSettingItem.Section -> {
+            SettingsSectionHeader(stringResource(item.titleRes), isCompact)
+        }
 
-            item {
-                SettingsSliderItem(
-                    icon = Icons.Default.SkipNext,
-                    title = stringResource(R.string.playback_double_tap_seek),
-                    subtitle = stringResource(R.string.playback_double_tap_seek_desc),
-                    value = doubleTapSeek,
-                    range = 5..30,
-                    step = 5,
-                    onValueChange = {
-                        doubleTapSeek = it
-                        prefs.edit { putInt("double_tap_seek", it) }
-                    },
-                    isCompact = isCompact
-                )
-            }
+        is PlaybackSettingItem.Switch -> {
+            SettingsSwitchItem(
+                icon = item.icon,
+                title = stringResource(item.titleRes),
+                subtitle = stringResource(item.subtitleRes),
+                checked = item.checked,
+                onCheckedChange = item.onCheckedChange,
+                enabled = item.enabled,
+                isCompact = isCompact
+            )
+        }
 
-            item {
-                SettingsSectionHeader(stringResource(R.string.playback_continue_watching), isCompact)
-            }
-
-            item {
-                SettingsSwitchItem(
-                    icon = Icons.Default.PlayArrow,
-                    title = stringResource(R.string.playback_continue_watching_enabled),
-                    subtitle = stringResource(R.string.playback_continue_watching_enabled_desc),
-                    checked = continueWatchingEnabled,
-                    onCheckedChange = {
-                        continueWatchingEnabled = it
-                        prefs.edit { putBoolean("continue_watching_enabled", it) }
-                    },
-                    isCompact = isCompact
-                )
-            }
-
-            item {
-                SettingsSliderItem(
-                    icon = Icons.Default.Schedule,
-                    title = stringResource(R.string.playback_continue_watching_min_duration),
-                    subtitle = stringResource(R.string.playback_continue_watching_min_duration_desc),
-                    value = continueWatchingMinMinutes,
-                    range = 5..90,
-                    discreteValues = continueWatchingMinDurationOptions,
-                    onValueChange = {
-                        continueWatchingMinMinutes = it
-                        prefs.edit { putInt("continue_watching_min_duration_minutes", it) }
-                    },
-                    valueFormatter = { "$it min" },
-                    enabled = continueWatchingEnabled,
-                    isCompact = isCompact
-                )
-            }
-
-            item {
-                SettingsSwitchItem(
-                    icon = Icons.Default.Lock,
-                    title = stringResource(R.string.playback_continue_watching_private),
-                    subtitle = stringResource(R.string.playback_continue_watching_private_desc),
-                    checked = continueWatchingIncludePrivate,
-                    onCheckedChange = {
-                        continueWatchingIncludePrivate = it
-                        prefs.edit { putBoolean("continue_watching_include_private", it) }
-                    },
-                    enabled = continueWatchingEnabled,
-                    isCompact = isCompact
-                )
-            }
-
+        is PlaybackSettingItem.Slider -> {
+            SettingsSliderItem(
+                icon = item.icon,
+                title = stringResource(item.titleRes),
+                subtitle = stringResource(item.subtitleRes),
+                value = item.value,
+                range = item.range,
+                step = item.step,
+                discreteValues = item.discreteValues,
+                onValueChange = item.onValueChange,
+                valueFormatter = item.valueFormatter,
+                enabled = item.enabled,
+                isCompact = isCompact
+            )
         }
     }
 }
@@ -407,70 +568,29 @@ fun InterfaceSettingsScreen(themeManager: ThemeManager) {
         "zh" to stringResource(R.string.language_chinese),
         "zh-TW" to stringResource(R.string.language_chinese_traditional)
     )
-
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        @Suppress("UnusedBoxWithConstraintsScope")
-        val isCompact = this.maxWidth > 600.dp
-
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(if (isCompact) 8.dp else 16.dp),
-            verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
-        ) {
-
-            item {
-                SettingsSectionHeader(stringResource(R.string.settings_interface), isCompact)
+    val interfaceSettingsItems = listOf(
+        InterfaceSettingItem.Section(R.string.settings_interface),
+        InterfaceSettingItem.Dropdown(
+            icon = Icons.Default.Palette,
+            titleRes = R.string.settings_dark_mode,
+            subtitleRes = R.string.settings_dark_mode_desc,
+            options = darkModeOptions,
+            selectedValue = currentTheme,
+            onValueChange = { newTheme ->
+                themeManager.updateTheme(newTheme)
             }
-
-            item {
-                SettingsDropdownItem(
-                    icon = Icons.Default.Palette,
-                    title = stringResource(R.string.settings_dark_mode),
-                    subtitle = stringResource(R.string.settings_dark_mode_desc),
-                    options = darkModeOptions,
-                    selectedValue = currentTheme,
-                    onValueChange = { newTheme ->
-                        themeManager.updateTheme(newTheme)
-                    },
-                    isCompact = isCompact
-                )
+        ),
+        InterfaceSettingItem.Section(R.string.settings_language),
+        InterfaceSettingItem.Dropdown(
+            icon = Icons.Default.Language,
+            titleRes = R.string.settings_app_language,
+            subtitleRes = R.string.settings_app_language_desc,
+            options = languageOptions,
+            selectedValue = currentLanguage,
+            onValueChange = { newLanguage ->
+                LanguageManager.updateLanguage(newLanguage)
             }
-
-            item {
-                SettingsSectionHeader(stringResource(R.string.settings_language), isCompact)
-            }
-
-            item {
-                SettingsDropdownItem(
-                    icon = Icons.Default.Language,
-                    title = stringResource(R.string.settings_app_language),
-                    subtitle = stringResource(R.string.settings_app_language_desc),
-                    options = languageOptions,
-                    selectedValue = currentLanguage,
-                    onValueChange = { newLanguage ->
-                        LanguageManager.updateLanguage(newLanguage)
-                    },
-                    isCompact = isCompact
-                )
-            }
-
-        }
-    }
-}
-
-@Composable
-fun DisplaySettingsScreen() {
-    val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
-
-    var showDurations by remember { mutableStateOf(prefs.getBoolean("show_durations", true)) }
-    var showFileSizes by remember { mutableStateOf(prefs.getBoolean("show_file_sizes", false)) }
-    listOf(
-        "low" to stringResource(R.string.quality_low),
-        "medium" to stringResource(R.string.quality_medium),
-        "high" to stringResource(R.string.quality_high),
-        "original" to stringResource(R.string.quality_original)
+        )
     )
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -483,56 +603,137 @@ fun DisplaySettingsScreen() {
                 .padding(if (isCompact) 8.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
         ) {
-            item {
-                SettingsSectionHeader(stringResource(R.string.display_video_info), isCompact)
+            items(interfaceSettingsItems) { settingItem ->
+                AnimatedVisibility(
+                    visible = settingItem.visible,
+                    enter = fadeIn(animationSpec = tween(180)) + expandVertically(animationSpec = tween(220)),
+                    exit = fadeOut(animationSpec = tween(120)) + shrinkVertically(animationSpec = tween(180))
+                ) {
+                    RenderInterfaceSettingItem(settingItem, isCompact)
+                }
             }
-
-            item {
-                SettingsSwitchItem(
-                    icon = Icons.Default.Schedule,
-                    title = stringResource(R.string.display_show_durations),
-                    subtitle = stringResource(R.string.display_show_durations_desc),
-                    checked = showDurations,
-                    onCheckedChange = {
-                        showDurations = it
-                        prefs.edit { putBoolean("show_durations", it) }
-                    },
-                    isCompact = isCompact
-                )
-            }
-
-            item {
-                SettingsSwitchItem(
-                    icon = Icons.Default.Storage,
-                    title = stringResource(R.string.display_show_file_sizes),
-                    subtitle = stringResource(R.string.display_show_file_sizes_desc),
-                    checked = showFileSizes,
-                    onCheckedChange = {
-                        showFileSizes = it
-                        prefs.edit { putBoolean("show_file_sizes", it) }
-                    },
-                    isCompact = isCompact
-                )
-            }
-
-//        item {
-//            SettingsSectionHeader(stringResource(R.string.display_quality))
-//        }
-
-//        item {
-//            SettingsDropdownItem(
-//                icon = Icons.Default.HighQuality,
-//                title = stringResource(R.string.display_thumbnail_quality),
-//                subtitle = stringResource(R.string.display_thumbnail_quality_desc),
-//                options = qualityOptions,
-//                selectedValue = thumbnailQuality,
-//                onValueChange = {
-//                    thumbnailQuality = it
-//                    prefs.edit().putString("thumbnail_quality", it).apply()
-//                }
-//            )
-//        }
         }
+    }
+}
+
+@Composable
+private fun RenderInterfaceSettingItem(
+    item: InterfaceSettingItem,
+    isCompact: Boolean
+) {
+    when (item) {
+        is InterfaceSettingItem.Section -> {
+            SettingsSectionHeader(stringResource(item.titleRes), isCompact)
+        }
+
+        is InterfaceSettingItem.Dropdown -> {
+            SettingsDropdownItem(
+                icon = item.icon,
+                title = stringResource(item.titleRes),
+                subtitle = stringResource(item.subtitleRes),
+                options = item.options,
+                selectedValue = item.selectedValue,
+                onValueChange = item.onValueChange,
+                isCompact = isCompact
+            )
+        }
+    }
+}
+
+@Composable
+fun DisplaySettingsScreen() {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
+
+    var showDurations by remember { mutableStateOf(prefs.getBoolean("show_durations", true)) }
+    var showFileSizes by remember { mutableStateOf(prefs.getBoolean("show_file_sizes", false)) }
+    val displaySettingsItems = listOf(
+        DisplaySettingItem.Section(R.string.display_video_info),
+        DisplaySettingItem.Switch(
+            icon = Icons.Default.Schedule,
+            titleRes = R.string.display_show_durations,
+            subtitleRes = R.string.display_show_durations_desc,
+            checked = showDurations,
+            onCheckedChange = {
+                showDurations = it
+                prefs.edit { putBoolean("show_durations", it) }
+            }
+        ),
+        DisplaySettingItem.Switch(
+            icon = Icons.Default.Storage,
+            titleRes = R.string.display_show_file_sizes,
+            subtitleRes = R.string.display_show_file_sizes_desc,
+            checked = showFileSizes,
+            onCheckedChange = {
+                showFileSizes = it
+                prefs.edit { putBoolean("show_file_sizes", it) }
+            }
+        )
+    )
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        @Suppress("UnusedBoxWithConstraintsScope")
+        val isCompact = this.maxWidth > 600.dp
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isCompact) 8.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
+        ) {
+            items(displaySettingsItems) { settingItem ->
+                AnimatedVisibility(
+                    visible = settingItem.visible,
+                    enter = fadeIn(animationSpec = tween(180)) + expandVertically(animationSpec = tween(220)),
+                    exit = fadeOut(animationSpec = tween(120)) + shrinkVertically(animationSpec = tween(180))
+                ) {
+                    RenderDisplaySettingItem(settingItem, isCompact)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RenderDisplaySettingItem(
+    item: DisplaySettingItem,
+    isCompact: Boolean
+) {
+    when (item) {
+        is DisplaySettingItem.Section -> {
+            SettingsSectionHeader(stringResource(item.titleRes), isCompact)
+        }
+
+        is DisplaySettingItem.Switch -> {
+            SettingsSwitchItem(
+                icon = item.icon,
+                title = stringResource(item.titleRes),
+                subtitle = stringResource(item.subtitleRes),
+                checked = item.checked,
+                onCheckedChange = item.onCheckedChange,
+                enabled = item.enabled,
+                isCompact = isCompact
+            )
+        }
+    }
+}
+
+private fun formatStorageUsage(bytes: Long): String? {
+    if (bytes <= 0L) return null
+
+    val units = listOf("B", "KB", "MB", "GB")
+    var value = bytes.toDouble()
+    var unitIndex = 0
+
+    while (value >= 1024.0 && unitIndex < units.lastIndex) {
+        value /= 1024.0
+        unitIndex++
+    }
+
+    return if (unitIndex == 0) {
+        "${bytes} ${units[unitIndex]}"
+    } else {
+        String.format(Locale.getDefault(), "%.1f %s", value, units[unitIndex])
     }
 }
 
@@ -540,6 +741,33 @@ fun DisplaySettingsScreen() {
 @Composable
 fun StorageSettingsScreen() {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var thumbnailCacheBytes by remember { mutableStateOf(0L) }
+    var watchHistoryBytes by remember { mutableStateOf(0L) }
+
+    fun updateStorageUsage() {
+        coroutineScope.launch {
+            val folderPaths = FolderVideoScanner.cache.value.keys
+            val thumbnailBytes = withContext(Dispatchers.IO) {
+                OptimizedThumbnailManager.getDiskCacheSize(context, folderPaths)
+            }
+            val historyBytes = withContext(Dispatchers.IO) {
+                ContinueWatchingStore.storageBytes(context) + VideoProgressStore.storageBytes(context)
+            }
+            thumbnailCacheBytes = thumbnailBytes
+            watchHistoryBytes = historyBytes
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        val folderPaths = FolderVideoScanner.cache.value.keys
+        thumbnailCacheBytes = withContext(Dispatchers.IO) {
+            OptimizedThumbnailManager.getDiskCacheSize(context, folderPaths)
+        }
+        watchHistoryBytes = withContext(Dispatchers.IO) {
+            ContinueWatchingStore.storageBytes(context) + VideoProgressStore.storageBytes(context)
+        }
+    }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         @Suppress("UnusedBoxWithConstraintsScope")
@@ -559,12 +787,16 @@ fun StorageSettingsScreen() {
                 SettingsClickableItem(
                     icon = Icons.Default.Image,
                     title = stringResource(R.string.storage_clear_thumbnails),
-                    subtitle = stringResource(R.string.storage_clear_thumbnails_desc),
+                    subtitle = formatStorageUsage(thumbnailCacheBytes),
                     onClick = {
-                        CoroutineScope(Dispatchers.IO).launch {
+                        coroutineScope.launch {
                             val folderPaths = FolderVideoScanner.cache.value.keys
-                            OptimizedThumbnailManager.clearCache()
-                            OptimizedThumbnailManager.clearAllDiskThumbnails(context, folderPaths)
+                            withContext(Dispatchers.IO) {
+                                OptimizedThumbnailManager.clearCache()
+                                OptimizedThumbnailManager.clearAllDiskThumbnails(context, folderPaths)
+                            }
+                            thumbnailCacheBytes = 0L
+                            updateStorageUsage()
                         }
                         SortRowMessageCenter.showSuccess(context.getString(R.string.storage_clear_thumbnails_success))
                     },
@@ -576,10 +808,12 @@ fun StorageSettingsScreen() {
                 SettingsClickableItem(
                     icon = Icons.Default.Schedule,
                     title = stringResource(R.string.storage_clear_continue_watching),
-                    subtitle = stringResource(R.string.storage_clear_continue_watching_desc),
+                    subtitle = formatStorageUsage(watchHistoryBytes),
                     onClick = {
                         ContinueWatchingStore.clear(context)
                         VideoProgressStore.clearAll(context)
+                        watchHistoryBytes = 0L
+                        updateStorageUsage()
                         SortRowMessageCenter.showSuccess(
                             context.getString(R.string.storage_clear_continue_watching_success)
                         )
@@ -668,47 +902,6 @@ fun TagsSettingsScreen() {
                 .padding(if (isCompact) 8.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
         ) {
-            item { SettingsSectionHeader(stringResource(R.string.tags_backup_section), isCompact) }
-            item {
-                Text(
-                    text = if (lastAutomaticBackupAt > 0L && hasAutomaticBackup) {
-                        stringResource(
-                            R.string.tags_backup_auto_status,
-                            formatBackupTimestamp(lastAutomaticBackupAt)
-                        )
-                    } else {
-                        stringResource(R.string.tags_backup_auto_status_empty)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = if (isCompact) 4.dp else 8.dp)
-                )
-            }
-            if (shouldOfferImport) {
-                item {
-                SettingsClickableItem(
-                    icon = Icons.Default.Folder,
-                    title = stringResource(R.string.tags_backup_import),
-                    subtitle = stringResource(R.string.tags_backup_import_desc),
-                    onClick = {
-                        coroutineScope.launch {
-                            val result = withContext(Dispatchers.IO) {
-                                VideoTagStore.importLatestAutomaticBackup(context)
-                            }
-
-                            if (result.isSuccess) {
-                                showImportSuccessToast(result.getOrThrow())
-                                refreshToken++
-                            } else {
-                                SortRowMessageCenter.showError(context.getString(R.string.tags_backup_action_failed))
-                            }
-                        }
-                    },
-                    isCompact = isCompact
-                )
-            }
-            }
-
             item { SettingsSectionHeader(stringResource(R.string.tags_normal_section), isCompact) }
             item {
                 TagScopeManagerCard(
@@ -735,39 +928,23 @@ fun TagsSettingsScreen() {
             item { SettingsSectionHeader(stringResource(R.string.tags_private_section), isCompact) }
             if (!privateUnlocked) {
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(if (isCompact) 12.dp else 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.tags_private_locked_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = if (hasPassword) stringResource(R.string.tags_private_locked_desc) else stringResource(R.string.tags_private_password_required),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Button(
-                                onClick = { showPrivatePasswordDialog = true },
-                                enabled = hasPassword,
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                                    contentColor = MaterialTheme.colorScheme.onSurface
-                                )
-                            ) {
-                                Text(stringResource(R.string.tags_private_unlock))
+                    SettingsClickableItem(
+                        icon = Icons.Default.Lock,
+                        title = stringResource(R.string.tags_private_locked_title),
+                        subtitle = if (hasPassword) {
+                            stringResource(R.string.tags_private_locked_desc)
+                        } else {
+                            stringResource(R.string.tags_private_password_required)
+                        },
+                        onClick = {
+                            if (hasPassword) {
+                                showPrivatePasswordDialog = true
+                            } else {
+                                SortRowMessageCenter.showInfo(context.getString(R.string.tags_private_password_required))
                             }
-                        }
-                    }
+                        },
+                        isCompact = isCompact
+                    )
                 }
             } else {
                 item {
@@ -789,6 +966,32 @@ fun TagsSettingsScreen() {
                             VideoTagStore.deleteTag(context, tagId)
                             refreshToken++
                         }
+                    )
+                }
+            }
+
+            if (shouldOfferImport) {
+                item { SettingsSectionHeader(stringResource(R.string.tags_backup_section), isCompact) }
+                item {
+                    SettingsClickableItem(
+                        icon = Icons.Default.Folder,
+                        title = stringResource(R.string.tags_backup_import),
+                        subtitle = stringResource(R.string.tags_backup_import_desc),
+                        onClick = {
+                            coroutineScope.launch {
+                                val result = withContext(Dispatchers.IO) {
+                                    VideoTagStore.importLatestAutomaticBackup(context)
+                                }
+
+                                if (result.isSuccess) {
+                                    showImportSuccessToast(result.getOrThrow())
+                                    refreshToken++
+                                } else {
+                                    SortRowMessageCenter.showError(context.getString(R.string.tags_backup_action_failed))
+                                }
+                            }
+                        },
+                        isCompact = isCompact
                     )
                 }
             }
@@ -853,6 +1056,39 @@ fun SecuritySettingsScreen() {
         )
     }
 
+    val securitySettingsItems = listOf(
+        SecuritySettingItem.Section(R.string.change_password_section),
+        SecuritySettingItem.Action(
+            icon = Icons.Default.Lock,
+            titleRes = R.string.change_password,
+            subtitleRes = if (hasPassword) R.string.change_password_desc else R.string.biometric_no_password,
+            enabled = hasPassword,
+            onClick = { showChangePasswordDialog = true }
+        ),
+        SecuritySettingItem.Section(R.string.biometric_section),
+        SecuritySettingItem.Info(
+            icon = Icons.Default.Lock,
+            messageRes = R.string.biometric_no_password,
+            visible = !hasPassword
+        ),
+        SecuritySettingItem.Info(
+            icon = Icons.Default.Fingerprint,
+            messageRes = R.string.biometric_not_available,
+            visible = hasPassword && !biometricAvailable
+        ),
+        SecuritySettingItem.Switch(
+            icon = Icons.Default.Fingerprint,
+            titleRes = R.string.biometric_unlock,
+            subtitleRes = R.string.biometric_unlock_desc,
+            checked = biometricEnabled,
+            visible = hasPassword && biometricAvailable,
+            onCheckedChange = { enabled ->
+                pendingAction = if (enabled) "enable" else "disable"
+                showPasswordConfirmDialog = true
+            }
+        )
+    )
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         @Suppress("UnusedBoxWithConstraintsScope")
         val isCompact = this.maxWidth > 600.dp
@@ -863,126 +1099,58 @@ fun SecuritySettingsScreen() {
                 .padding(if (isCompact) 8.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
         ) {
-            item { SettingsSectionHeader(stringResource(R.string.change_password_section), isCompact) }
-
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    onClick = { if (hasPassword) showChangePasswordDialog = true }
+            items(securitySettingsItems) { settingItem ->
+                AnimatedVisibility(
+                    visible = settingItem.visible,
+                    enter = fadeIn(animationSpec = tween(180)) + expandVertically(animationSpec = tween(220)),
+                    exit = fadeOut(animationSpec = tween(120)) + shrinkVertically(animationSpec = tween(180))
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(if (isCompact) 10.dp else 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Lock,
-                            contentDescription = null,
-                            tint = if (hasPassword) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(if (isCompact) 10.dp else 16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.change_password),
-                                style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium,
-                                color = if (hasPassword) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = if (hasPassword) stringResource(R.string.change_password_desc) else stringResource(R.string.biometric_no_password),
-                                style = if (isCompact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = if (hasPassword) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        )
-                    }
+                    RenderSecuritySettingItem(settingItem, isCompact)
                 }
             }
+        }
+    }
+}
 
-            item { SettingsSectionHeader(stringResource(R.string.biometric_section), isCompact) }
+@Composable
+private fun RenderSecuritySettingItem(
+    item: SecuritySettingItem,
+    isCompact: Boolean
+) {
+    when (item) {
+        is SecuritySettingItem.Section -> {
+            SettingsSectionHeader(stringResource(item.titleRes), isCompact)
+        }
 
-            item {
-                when {
-                    !hasPassword -> {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Lock,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Text(
-                                    text = stringResource(R.string.biometric_no_password),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                    !biometricAvailable -> {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Fingerprint,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Text(
-                                    text = stringResource(R.string.biometric_not_available),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                    else -> {
-                        SettingsSwitchItem(
-                            icon = Icons.Default.Fingerprint,
-                            title = stringResource(R.string.biometric_unlock),
-                            subtitle = stringResource(R.string.biometric_unlock_desc),
-                            checked = biometricEnabled,
-                            onCheckedChange = { enabled ->
-                                pendingAction = if (enabled) "enable" else "disable"
-                                showPasswordConfirmDialog = true
-                            },
-                            isCompact = isCompact
-                        )
-                    }
-                }
-            }
+        is SecuritySettingItem.Action -> {
+            SettingsClickableItem(
+                icon = item.icon,
+                title = stringResource(item.titleRes),
+                subtitle = stringResource(item.subtitleRes),
+                enabled = item.enabled,
+                onClick = item.onClick,
+                isCompact = isCompact
+            )
+        }
+
+        is SecuritySettingItem.Switch -> {
+            SettingsSwitchItem(
+                icon = item.icon,
+                title = stringResource(item.titleRes),
+                subtitle = stringResource(item.subtitleRes),
+                checked = item.checked,
+                onCheckedChange = item.onCheckedChange,
+                enabled = item.enabled,
+                isCompact = isCompact
+            )
+        }
+
+        is SecuritySettingItem.Info -> {
+            SettingsInfoItem(
+                icon = item.icon,
+                message = stringResource(item.messageRes),
+                isCompact = isCompact
+            )
         }
     }
 }
@@ -1062,61 +1230,12 @@ fun AboutSettingsScreen() {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Card de reportar bug — destaque com cor de erro
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { openBugReport() },
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(
-                            MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.BugReport,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.about_report_bug),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = stringResource(R.string.about_report_bug_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
-                )
-            }
-        }
+        SettingsClickableItem(
+            icon = Icons.Default.BugReport,
+            title = stringResource(R.string.about_report_bug),
+            subtitle = stringResource(R.string.about_report_bug_desc),
+            onClick = { openBugReport() }
+        )
     }
 }
 
@@ -1129,16 +1248,12 @@ private fun TagScopeManagerCard(
     onRenameTag: suspend (Long, String) -> Result<Unit>,
     onDeleteTag: suspend (Long) -> Unit
 ) {
-    var isSelectionMode by remember(scope) { mutableStateOf(false) }
-    var selectedTagIds by remember(scope) { mutableStateOf(setOf<Long>()) }
+    var isExpanded by remember(scope) { mutableStateOf(false) }
     var showCreateSheet by remember(scope) { mutableStateOf(false) }
     var renameTarget by remember(scope) { mutableStateOf<TagEntity?>(null) }
+    var deleteTarget by remember(scope) { mutableStateOf<TagEntity?>(null) }
+    var expandedMenuTagId by remember(scope) { mutableStateOf<Long?>(null) }
     val coroutineScope = rememberCoroutineScope()
-
-    fun exitSelectionMode() {
-        isSelectionMode = false
-        selectedTagIds = emptySet()
-    }
 
     if (showCreateSheet) {
         TagNameBottomSheet(
@@ -1170,6 +1285,34 @@ private fun TagScopeManagerCard(
         }
     }
 
+    deleteTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text(stringResource(R.string.tags_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.tags_delete_confirm_message, target.name)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            onDeleteTag(target.id)
+                            deleteTarget = null
+                        }
+                    }
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_delete),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -1181,173 +1324,170 @@ private fun TagScopeManagerCard(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isExpanded = !isExpanded },
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(
-                    onClick = { showCreateSheet = true },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                        contentColor = MaterialTheme.colorScheme.onSurface
+                Icon(
+                    imageVector = Icons.Default.LocalOffer,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
+                )
+                Spacer(modifier = Modifier.width(if (isCompact) 10.dp else 12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.tags_list_title),
+                        style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium
                     )
-                ) {
-                    Text(stringResource(R.string.video_tags_create))
+                    Text(
+                        text = stringResource(R.string.tags_count, tags.size),
+                        style = if (isCompact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-
-                Button(
-                    onClick = {
-                        if (isSelectionMode) {
-                            exitSelectionMode()
-                        } else {
-                            isSelectionMode = true
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSelectionMode) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-                        },
-                        contentColor = if (isSelectionMode) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        }
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(stringResource(R.string.edit_tag))
-                }
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
-            if (tags.isNotEmpty()) {
-                Row(
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = fadeIn(animationSpec = tween(180)) + expandVertically(animationSpec = tween(220)),
+                exit = fadeOut(animationSpec = tween(120)) + shrinkVertically(animationSpec = tween(180))
+            ) {
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    if (isSelectionMode) {
+                    Button(
+                        onClick = { showCreateSheet = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocalOffer,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(stringResource(R.string.video_tags_create))
+                    }
+
+                    if (tags.isEmpty()) {
                         Text(
-                            text = "${selectedTagIds.size}/${tags.size}",
-                            style = MaterialTheme.typography.bodySmall,
+                            text = stringResource(R.string.tags_empty_scope),
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
-                        Spacer(modifier = Modifier.width(1.dp))
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        if (isSelectionMode) {
-                            IconButton(
-                                onClick = {
-                                    val selectedId = selectedTagIds.singleOrNull() ?: return@IconButton
-                                    val selectedTag = tags.firstOrNull { it.id == selectedId } ?: return@IconButton
-                                    renameTarget = selectedTag
-                                    exitSelectionMode()
-                                },
-                                enabled = selectedTagIds.size == 1
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = stringResource(R.string.action_rename)
-                                )
-                            }
-
-                            IconButton(
-                                onClick = {
-                                    val idsToDelete = selectedTagIds.toList()
-                                    if (idsToDelete.isEmpty()) return@IconButton
-
-                                    coroutineScope.launch {
-                                        idsToDelete.forEach { tagId ->
-                                            onDeleteTag(tagId)
-                                        }
-                                        exitSelectionMode()
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = if (isCompact) 280.dp else 360.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(tags, key = { it.id }) { tag ->
+                                TagManagementRow(
+                                    tag = tag,
+                                    isMenuExpanded = expandedMenuTagId == tag.id,
+                                    onMenuClick = { expandedMenuTagId = tag.id },
+                                    onDismissMenu = { expandedMenuTagId = null },
+                                    onRenameClick = {
+                                        expandedMenuTagId = null
+                                        renameTarget = tag
+                                    },
+                                    onDeleteClick = {
+                                        expandedMenuTagId = null
+                                        deleteTarget = tag
                                     }
-                                },
-                                enabled = selectedTagIds.isNotEmpty()
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = stringResource(R.string.tags_delete),
-                                    tint = if (selectedTagIds.isNotEmpty()) {
-                                        MaterialTheme.colorScheme.error
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    }
-                                )
-                            }
-
-                            IconButton(onClick = { exitSelectionMode() }) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = stringResource(R.string.action_cancel)
                                 )
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
 
-            if (tags.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.tags_empty_scope),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+@Composable
+private fun TagManagementRow(
+    tag: TagEntity,
+    isMenuExpanded: Boolean,
+    onMenuClick: () -> Unit,
+    onDismissMenu: () -> Unit,
+    onRenameClick: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
+                RoundedCornerShape(8.dp)
+            )
+            .padding(start = 12.dp, top = 6.dp, bottom = 6.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.LocalOffer,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = tag.name,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium
+        )
+        Box {
+            IconButton(onClick = onMenuClick) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = stringResource(R.string.player_more_actions)
                 )
-            } else {
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    tags.forEach { tag ->
-                        val isSelected = tag.id in selectedTagIds
-                        AssistChip(
-                            onClick = {
-                                if (isSelectionMode) {
-                                    selectedTagIds = if (isSelected) {
-                                        selectedTagIds - tag.id
-                                    } else {
-                                        selectedTagIds + tag.id
-                                    }
-                                }
-                            },
-                            label = { Text(tag.name) },
-                            leadingIcon = if (isSelectionMode) {
-                                {
-                                    Icon(
-                                        imageVector = if (isSelected) Icons.Default.Check else Icons.Default.LocalOffer,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            } else {
-                                null
-                            },
-                            colors = AssistChipDefaults.assistChipColors(
-                                containerColor = when {
-                                    isSelectionMode && isSelected -> MaterialTheme.colorScheme.primaryContainer
-                                    else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
-                                },
-                                labelColor = when {
-                                    isSelectionMode && isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
-                                    else -> MaterialTheme.colorScheme.onSurface
-                                }
-                            )
+            }
+            DropdownMenu(
+                expanded = isMenuExpanded,
+                onDismissRequest = onDismissMenu
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_rename)) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = null
                         )
-                    }
-                }
+                    },
+                    onClick = onRenameClick
+                )
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = stringResource(R.string.action_delete),
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    onClick = onDeleteClick
+                )
             }
         }
     }
@@ -1580,11 +1720,17 @@ private fun SettingsSwitchItem(
                     style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium
                 )
-                Text(
-                    text = subtitle,
-                    style = if (isCompact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                AnimatedVisibility(
+                    visible = checked,
+                    enter = fadeIn(animationSpec = tween(180)) + expandVertically(animationSpec = tween(220)),
+                    exit = fadeOut(animationSpec = tween(120)) + shrinkVertically(animationSpec = tween(180))
+                ) {
+                    Text(
+                        text = subtitle,
+                        style = if (isCompact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Switch(
@@ -1788,8 +1934,92 @@ private fun SettingsSliderItem(
 private fun SettingsClickableItem(
     icon: ImageVector,
     title: String,
-    subtitle: String,
+    subtitle: String?,
+    enabled: Boolean = true,
     onClick: () -> Unit,
+    isCompact: Boolean = false
+) {
+    val coroutineScope = rememberCoroutineScope()
+    var showClickFeedback by remember { mutableStateOf(false) }
+    val feedbackIconScale by animateFloatAsState(
+        targetValue = if (showClickFeedback) 1.18f else 1f,
+        animationSpec = tween(160),
+        label = "settingsActionFeedbackScale"
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.6f),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = enabled) {
+                    showClickFeedback = true
+                    coroutineScope.launch {
+                        delay(650)
+                        showClickFeedback = false
+                    }
+                    onClick()
+                }
+                .padding(if (isCompact) 10.dp else 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
+            )
+
+            Spacer(modifier = Modifier.width(if (isCompact) 10.dp else 16.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                text = title,
+                style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                AnimatedVisibility(
+                    visible = !subtitle.isNullOrBlank(),
+                    enter = fadeIn(animationSpec = tween(180)) + expandVertically(animationSpec = tween(220)),
+                    exit = fadeOut(animationSpec = tween(120)) + shrinkVertically(animationSpec = tween(180))
+                ) {
+                    Text(
+                        text = subtitle.orEmpty(),
+                        style = if (isCompact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Icon(
+                imageVector = if (showClickFeedback) Icons.Default.Check else Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = if (showClickFeedback) {
+                    Color(0xFF2E7D32)
+                } else {
+                    if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                },
+                modifier = Modifier
+                    .size(20.dp)
+                    .scale(feedbackIconScale)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsInfoItem(
+    icon: ImageVector,
+    message: String,
     isCompact: Boolean = false
 ) {
     Card(
@@ -1801,39 +2031,20 @@ private fun SettingsClickableItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onClick() }
                 .padding(if (isCompact) 10.dp else 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(if (isCompact) 10.dp else 12.dp)
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = title,
-                tint = MaterialTheme.colorScheme.primary,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(if (isCompact) 20.dp else 24.dp)
             )
-
-            Spacer(modifier = Modifier.width(if (isCompact) 10.dp else 16.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = title,
-                    style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = subtitle,
-                    style = if (isCompact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Abrir",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+            Text(
+                text = message,
+                style = if (isCompact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -1855,6 +2066,16 @@ object SettingsManager {
     fun getDoubleTapSeek(context: Context): Int {
         return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
             .getInt("double_tap_seek", 10)
+    }
+
+    fun isDragSeekEnabled(context: Context): Boolean {
+        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            .getBoolean("drag_seek_enabled", true)
+    }
+
+    fun areVolumeBrightnessGesturesEnabled(context: Context): Boolean {
+        return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            .getBoolean("volume_brightness_gestures_enabled", true)
     }
 
     fun getPlaybackSpeed(context: Context): Float {

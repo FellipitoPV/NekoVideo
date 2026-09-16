@@ -275,8 +275,12 @@
     <string name="tags_backup_import_success">बैकअप आयात हुआ: %1$d नई टैग और %2$d पुनर्स्थापित लिंक</string>
     <string name="tags_backup_action_failed">बैकअप क्रिया पूरी नहीं हो सकी</string>
     <string name="tags_create_hint">नई टैग बनाएं</string>
+    <string name="tags_list_title">टैग सूची</string>
+    <string name="tags_count">%1$d टैग</string>
     <string name="tags_empty_scope">इस श्रेणी में कोई टैग नहीं बनाई गई</string>
     <string name="tags_delete">टैग हटाएं</string>
+    <string name="tags_delete_confirm_title">टैग हटाएं?</string>
+    <string name="tags_delete_confirm_message">"%1$s" हटाएं? यह टैग उन वीडियो से हट जाएगी जो इसका उपयोग करते हैं।</string>
 
     <!-- TopAppBar -->
     <string name="settings_title">सेटिंग्स</string>
@@ -295,6 +299,10 @@
     <string name="playback_background_playback_desc">प्लेयर बंद करने पर वीडियो चलाते रहें</string>
     <string name="playback_double_tap_seek">डबल टैप सीक</string>
     <string name="playback_double_tap_seek_desc">आगे/पीछे जाने के लिए सेकंड</string>
+    <string name="playback_drag_seek">खींचकर आगे/पीछे जाएं</string>
+    <string name="playback_drag_seek_desc">कंट्रोल्स छिपे होने पर वीडियो में जाने के लिए क्षैतिज रूप से खींचें</string>
+    <string name="playback_volume_brightness_gestures">वॉल्यूम और ब्राइटनेस जेस्चर</string>
+    <string name="playback_volume_brightness_gestures_desc">कंट्रोल्स छिपे होने पर किनारों पर लंबवत खींचकर वॉल्यूम और ब्राइटनेस बदलें</string>
     <string name="playback_keep_screen_on">स्क्रीन चालू रखें</string>
     <string name="playback_keep_screen_on_desc">प्लेबैक के दौरान स्क्रीन बंद न करें</string>
     <string name="playback_continue_watching">देखना जारी रखें</string>

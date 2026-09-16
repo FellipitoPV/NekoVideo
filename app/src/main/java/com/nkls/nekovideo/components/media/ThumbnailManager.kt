@@ -638,6 +638,20 @@ object OptimizedThumbnailManager {
         }
     }
 
+    fun getDiskCacheSize(context: Context, folderPaths: Collection<String>): Long {
+        val centralSize = File(context.cacheDir, CENTRAL_THUMBS_DIR).sizeRecursively()
+        val legacySize = folderPaths.sumOf { folderPath ->
+            File(folderPath, THUMBS_DIR).sizeRecursively()
+        }
+        return centralSize + legacySize
+    }
+
+    private fun File.sizeRecursively(): Long {
+        if (!exists()) return 0L
+        if (isFile) return length()
+        return listFiles()?.sumOf { it.sizeRecursively() } ?: 0L
+    }
+
     // Limpa thumbnail de um vídeo específico (RAM + disco)
     fun clearCacheForPath(context: Context, videoPath: String) {
         val key = videoPath.hashCode().toString()

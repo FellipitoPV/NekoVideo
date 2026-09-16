@@ -95,6 +95,15 @@ object VideoProgressStore {
         bumpChangeVersion()
     }
 
+    fun storageBytes(context: Context): Long {
+        if (context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).all.isEmpty()) return 0L
+
+        return File(context.applicationInfo.dataDir, "shared_prefs/$PREFS_NAME.xml")
+            .takeIf { it.exists() }
+            ?.length()
+            ?: 0L
+    }
+
     private fun positionKey(videoPath: String): String = "$KEY_POSITION_PREFIX$videoPath"
 
     private fun durationKey(videoPath: String): String = "$KEY_DURATION_PREFIX$videoPath"
