@@ -18,6 +18,7 @@ import android.util.Log
 import android.util.LruCache
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -396,6 +397,25 @@ private fun hasSecureSubfolderInCache(
     }
 }
 
+private fun shouldCountVisibleSubfolder(
+    child: File,
+    folderCache: Map<String, FolderInfo>,
+    showPrivateFolders: Boolean
+): Boolean {
+    if (!child.isDirectory || child.name == ".neko_thumbs") return false
+    if (showPrivateFolders) return true
+
+    val childInfo = folderCache[child.absolutePath]
+    val isPrivate = child.name.startsWith(".") ||
+        File(child, ".nomedia").exists() ||
+        File(child, ".nekovideo").exists() ||
+        childInfo?.isSecure == true ||
+        childInfo?.isLocked == true ||
+        FolderLockManager.isLocked(child.absolutePath)
+
+    return !isPrivate
+}
+
 // ATUALIZAR loadNormalContentFromCache
 private fun loadNormalContentFromCache(
     context: Context,
@@ -483,21 +503,25 @@ private fun loadNormalContentFromCache(
             }
             val directSubfolderCount = when {
                 isFolderLocked -> try {
-                    subfolder.listFiles()?.count { it.isDirectory && it.name != ".neko_thumbs" } ?: 0
+                    subfolder.listFiles()?.count { child ->
+                        shouldCountVisibleSubfolder(child, folderCache, showPrivateFolders)
+                    } ?: 0
                 } catch (e: Exception) { 0 }
                 isSecure -> try {
-                    subfolder.listFiles()?.count {
-                        it.isDirectory && !it.name.startsWith(".")
+                    subfolder.listFiles()?.count { child ->
+                        shouldCountVisibleSubfolder(child, folderCache, showPrivateFolders)
                     } ?: 0
                 } catch (e: Exception) {
                     folderCache.count { (cachedPath, cachedInfo) ->
                         File(cachedPath).parent == subfolder.absolutePath &&
-                        (cachedInfo.hasVideos || cachedInfo.isLocked)
+                        (cachedInfo.hasVideos || cachedInfo.isLocked) &&
+                        (showPrivateFolders || (!cachedInfo.isSecure && !cachedInfo.isLocked && !File(cachedPath).name.startsWith(".")))
                     }
                 }
                 else -> folderCache.count { (cachedPath, cachedInfo) ->
                     File(cachedPath).parent == subfolder.absolutePath &&
-                    (cachedInfo.hasVideos || cachedInfo.isLocked)
+                    (cachedInfo.hasVideos || cachedInfo.isLocked) &&
+                    (showPrivateFolders || (!cachedInfo.isSecure && !cachedInfo.isLocked && !File(cachedPath).name.startsWith(".")))
                 }
             }
             val totalFolderSize = when {
@@ -618,7 +642,7 @@ private fun buildPinnedFolderItem(
         }
     }
     val subfolderCount = children.count { child ->
-        child.isDirectory && child.name != ".neko_thumbs"
+        shouldCountVisibleSubfolder(child, folderCache, showPrivateFolders)
     }
     val totalFolderSize = if (isLocked) {
         0L
@@ -1076,7 +1100,7 @@ fun SortRow(
 @Composable
 fun FolderScreen(
     folderPath: String,
-    onFolderClick: (String, SortType) -> Unit,
+    onFolderClick: (String, SortType, Boolean) -> Unit,
     onContinueWatchingClick: (ContinueWatchingEntry) -> Unit = {},
     selectedItems: MutableList<String>,
     onSelectionChange: (List<String>) -> Unit,
@@ -1149,6 +1173,26 @@ fun FolderScreen(
     var searchQuery by remember { mutableStateOf("") }
     var isSearchExpanded by remember { mutableStateOf(false) }
     var previewingPath by remember(folderPath) { mutableStateOf<String?>(null) }
+    var previousShowPrivateFolders by remember { mutableStateOf(showPrivateFolders) }
+    var pendingPrivateFolderReveal by remember(folderPath) { mutableStateOf(false) }
+    var visiblePathsBeforePrivateReveal by remember(folderPath) { mutableStateOf<Set<String>>(emptySet()) }
+    var privateFolderRevealPaths by remember(folderPath) { mutableStateOf<Set<String>>(emptySet()) }
+
+    LaunchedEffect(showPrivateFolders, folderPath) {
+        if (showPrivateFolders && !previousShowPrivateFolders) {
+            visiblePathsBeforePrivateReveal = itemsByPath[folderPath]
+                ?.map { it.path }
+                ?.toSet()
+                .orEmpty()
+            pendingPrivateFolderReveal = true
+        } else if (!showPrivateFolders) {
+            pendingPrivateFolderReveal = false
+            visiblePathsBeforePrivateReveal = emptySet()
+            privateFolderRevealPaths = emptySet()
+        }
+
+        previousShowPrivateFolders = showPrivateFolders
+    }
 
     LaunchedEffect(selectedItems.size) {
         if (selectedItems.isEmpty()) {
@@ -1235,6 +1279,14 @@ fun FolderScreen(
             } else {
                 allItems
             }
+        }
+
+        if (pendingPrivateFolderReveal) {
+            privateFolderRevealPaths = loadedItems
+                .filter { item -> item.isFolder && item.path !in visiblePathsBeforePrivateReveal }
+                .map { it.path }
+                .toSet()
+            pendingPrivateFolderReveal = false
         }
 
         // Atualiza o cache mantendo apenas pastas relevantes (limita memória)
@@ -1335,7 +1387,8 @@ fun FolderScreen(
                 ) { targetPath ->
                     // Usa os items específicos deste path do cache
                     val pathItems = itemsByPath[targetPath] ?: emptyList()
-                    val isPathLoading = targetPath in loadingPaths
+                    val isPathLoading = targetPath in loadingPaths ||
+                        (targetPath == folderPath && targetPath !in itemsByPath)
                     val listState = rememberSaveable(targetPath, saver = LazyListState.Saver) {
                         LazyListState()
                     }
@@ -1557,10 +1610,14 @@ fun FolderScreen(
                                                 isSecureMode = isSecureMode,
                                                 isMoveMode = isMoveMode,
                                                 itemsToMove = itemsToMove,
+                                                privateFolderRevealPaths = privateFolderRevealPaths,
                                                 progressByPath = progressByPath,
                                                 tagChangeEvent = tagChangeEvent,
                                                 onFolderClick = onFolderClick,
                                                 onSelectionChange = onSelectionChange,
+                                                onPrivateFolderRevealFinished = { path ->
+                                                    privateFolderRevealPaths = privateFolderRevealPaths - path
+                                                },
                                                 onPreviewToggle = { path ->
                                                     previewingPath = if (previewingPath == path) null else path
                                                 },
@@ -1621,10 +1678,12 @@ private fun MediaRow(
     isSecureMode: Boolean,
     isMoveMode: Boolean,
     itemsToMove: List<String>,
+    privateFolderRevealPaths: Set<String>,
     progressByPath: Map<String, VideoProgressEntry>,
     tagChangeEvent: Long,
-    onFolderClick: (String, SortType) -> Unit,
+    onFolderClick: (String, SortType, Boolean) -> Unit,
     onSelectionChange: (List<String>) -> Unit,
+    onPrivateFolderRevealFinished: (String) -> Unit,
     onPreviewToggle: (String) -> Unit,
     onPreviewFinished: (String) -> Unit,
 ) {
@@ -1638,6 +1697,7 @@ private fun MediaRow(
                 isSelected = item.path in selectedItems,
                 isPreviewing = previewingPath == item.path,
                 isBeingMoved = isMoveMode && item.path in itemsToMove,
+                shouldRevealAnimate = item.path in privateFolderRevealPaths,
                 canPreview = selectedItems.isNotEmpty(),
                 showThumbnails = showThumbnails,
                 showDurations = showDurations,
@@ -1651,12 +1711,15 @@ private fun MediaRow(
                         if (item.path in selectedItems) selectedItems.remove(item.path) else selectedItems.add(item.path)
                         onSelectionChange(selectedItems.toList())
                         } else {
-                            onFolderClick(item.path, sortType)
+                            onFolderClick(item.path, sortType, item.isFolder)
                         }
                 },
                 onLongPress = {
                     if (item.path in selectedItems) selectedItems.remove(item.path) else selectedItems.add(item.path)
                     onSelectionChange(selectedItems.toList())
+                },
+                onRevealAnimationFinished = {
+                    onPrivateFolderRevealFinished(item.path)
                 },
                 onPreviewToggle = {
                     onPreviewToggle(item.path)
@@ -1786,6 +1849,7 @@ private fun MediaCard(
     isSelected: Boolean,
     isPreviewing: Boolean,
     isBeingMoved: Boolean = false,
+    shouldRevealAnimate: Boolean = false,
     canPreview: Boolean,
     showThumbnails: Boolean,
     showDurations: Boolean,
@@ -1796,6 +1860,7 @@ private fun MediaCard(
     modifier: Modifier = Modifier,
     onTap: () -> Unit,
     onLongPress: () -> Unit,
+    onRevealAnimationFinished: () -> Unit = {},
     onPreviewToggle: () -> Unit,
     onPreviewFinished: () -> Unit
 ) {
@@ -1811,6 +1876,27 @@ private fun MediaCard(
     // ✅ NOVO: Estado para controlar tentativas de regeneração
     var retryCount by remember(item.path) { mutableStateOf(0) }
     var hasError by remember(item.path) { mutableStateOf(false) }
+    val revealScale = remember(item.path, shouldRevealAnimate) {
+        Animatable(if (shouldRevealAnimate) 0.9f else 1f)
+    }
+    val revealAlpha = remember(item.path, shouldRevealAnimate) {
+        Animatable(if (shouldRevealAnimate) 0.75f else 1f)
+    }
+
+    LaunchedEffect(shouldRevealAnimate, item.path) {
+        if (shouldRevealAnimate) {
+            launch {
+                revealAlpha.animateTo(1f, animationSpec = tween(220))
+            }
+            revealScale.animateTo(1.03f, animationSpec = tween(260))
+            revealScale.animateTo(1f, animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            ))
+
+            onRevealAnimationFinished()
+        }
+    }
 
     val randomColor = remember(item.path) {
         if (!item.isFolder) getRandomColor(item.path) else Color.Transparent
@@ -1944,6 +2030,8 @@ private fun MediaCard(
     Card(
         modifier = modifier
             .aspectRatio(1f)
+            .scale(revealScale.value)
+            .alpha(revealAlpha.value)
             .combinedClickable(onClick = onTap, onLongClick = onLongPress)
             .border(
                 width = when {
@@ -1992,6 +2080,7 @@ private fun MediaCard(
                     onPreviewFinished = onPreviewFinished
                 )
             }
+
         }
     }
 }

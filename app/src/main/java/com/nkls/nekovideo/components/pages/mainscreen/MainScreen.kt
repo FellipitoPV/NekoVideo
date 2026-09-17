@@ -1462,8 +1462,8 @@ fun MainScreen(
                                 resumePositionMs = entry.positionMs
                             )
                         },
-                        onFolderClick = { itemPath, currentSortType ->
-                            if (File(itemPath).isDirectory) {
+                        onFolderClick = { itemPath, currentSortType, isFolder ->
+                            if (isFolder) {
                                 if (FolderLockManager.isLocked(itemPath)) {
                                     val pwd = sessionPassword ?: LockedPlaybackSession.sessionPassword
                                     if (pwd != null) {
@@ -1491,20 +1491,7 @@ fun MainScreen(
                                     folderNavState.navigateTo(itemPath)
                                 }
                             } else {
-                                val items = loadFolderContent(
-                                    context = context,
-                                    folderPath = folderPath,
-                                    sortType = currentSortType,
-                                    isSecureMode = isSecure,
-                                    isRootLevel = isAtRootLevel,
-                                    showPrivateFolders = showPrivateFolders
-                                )
-                                val item = items.find { it.path == itemPath }
-                                if (item?.isFolder == true) {
-                                    folderNavState.navigateTo(itemPath)
-                                } else {
-                                    openVideoFromFolder(folderPath, itemPath, currentSortType)
-                                }
+                                openVideoFromFolder(folderPath, itemPath, currentSortType)
                             }
                         },
                         selectedItems = selectedItems,
