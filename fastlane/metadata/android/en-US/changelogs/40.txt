@@ -1,0 +1,5 @@
+New player gestures: adjust volume and brightness by swiping on the sides of the screen, with options to customize these controls.
+
+Double tap to seek forward or back now stacks quick taps, making larger skips easier during playback.
+
+Improvements to settings, tags, storage, and folder navigation, including refinements for private folders.

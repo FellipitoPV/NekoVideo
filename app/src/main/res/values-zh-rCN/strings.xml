@@ -201,16 +201,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">v%1$s 新功能</string>
     <string-array name="changelog_item_titles">
-        <item>私密文件夹更快</item>
-        <item>缩略图已优化</item>
-        <item>大型播放列表更稳定</item>
-        <item>播放更流畅</item>
+        <item>新的播放器手势</item>
+        <item>双击累加跳转</item>
+        <item>更清晰的设置</item>
+        <item>标签和存储改进</item>
+        <item>文件夹响应更快</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>修复了快速切换私密文件夹中的视频时可能出现卡顿的问题。</item>
-        <item>优化了播放期间使用的缩略图，以降低设备负载。</item>
-        <item>提升了播放器在浏览大量视频列表时的稳定性。</item>
-        <item>快速跳过视频时，播放器封面更新现在会避免不必要的工作。</item>
+        <item>播放时现在可以在屏幕两侧滑动来调节音量和亮度。</item>
+        <item>快速双击快进或后退现在会累加，可跳过 10 秒、20 秒、30 秒或更多。</item>
+        <item>设置页面加入条件选项、更清晰的说明和操作反馈。</item>
+        <item>标签管理已重新设计，存储页面会在清理前显示缓存和历史大小。</item>
+        <item>文件夹导航已优化，新显示的私密文件夹会以平滑动画出现。</item>
     </string-array>
     <string name="changelog_pinned_folders_title">私密文件夹更快</string>
     <string name="changelog_pinned_folders_desc">修复了快速切换私密文件夹中的视频时可能出现卡顿的问题。</string>

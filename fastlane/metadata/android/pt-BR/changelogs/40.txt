@@ -1,0 +1,5 @@
+Novos gestos no player: ajuste volume e brilho arrastando nas laterais da tela, com opcoes para personalizar esses controles.
+
+O double tap para avancar e voltar agora acumula toques rapidos, facilitando pulos maiores durante a reproducao.
+
+Melhorias nas configuracoes, tags, armazenamento e navegacao por pastas, incluindo ajustes para pastas privadas.

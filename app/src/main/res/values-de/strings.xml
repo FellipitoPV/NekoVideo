@@ -190,16 +190,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Neu in v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>Schnellere private Ordner</item>
-        <item>Optimierte Vorschaubilder</item>
-        <item>Stabilere große Playlists</item>
-        <item>Flüssigere Wiedergabe</item>
+        <item>Neue Player-Gesten</item>
+        <item>Gestapeltes Doppeltippen</item>
+        <item>Klarere Einstellungen</item>
+        <item>Verbesserte Tags und Speicheransicht</item>
+        <item>Reaktionsschnellere Ordner</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Ein Problem wurde behoben, das beim schnellen Wechseln zwischen Videos in privaten Ordnern zu Rucklern führen konnte.</item>
-        <item>Vorschaubilder während der Wiedergabe wurden optimiert, um die Gerätebelastung zu reduzieren.</item>
-        <item>Verbesserte Stabilität des Players beim Navigieren durch Listen mit vielen Videos.</item>
-        <item>Artwork-Aktualisierungen des Players vermeiden jetzt unnötige Arbeit, wenn Videos schnell übersprungen werden.</item>
+        <item>Lautstärke und Helligkeit können jetzt während der Wiedergabe durch Wischen an den Bildschirmseiten angepasst werden.</item>
+        <item>Schnelle Tipps zum Vor- oder Zurückspringen werden nun addiert, damit 10s, 20s, 30s und mehr möglich sind.</item>
+        <item>Die Einstellungen haben bedingte Optionen, klarere Beschreibungen und visuelles Feedback für Aktionen erhalten.</item>
+        <item>Die Tag-Verwaltung wurde überarbeitet und der Speicherbereich zeigt Größen vor dem Leeren an.</item>
+        <item>Die Ordnernavigation wurde optimiert und neu sichtbare private Ordner erscheinen mit einer sanften Animation.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Schnellere private Ordner</string>
     <string name="changelog_pinned_folders_desc">Ein Problem wurde behoben, das beim schnellen Wechseln zwischen Videos in privaten Ordnern zu Rucklern führen konnte.</string>

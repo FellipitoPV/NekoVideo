@@ -1,0 +1,5 @@
+Player mein naye gestures: screen ke sides par swipe karke volume aur brightness adjust karein, aur in controls ko customize karne ke options bhi milte hain.
+
+Forward/back ke liye double tap ab fast taps ko jodta hai, jisse playback ke dauran bade skips karna aasan hota hai.
+
+Settings, tags, storage aur folder navigation mein sudhar, private folders ke liye bhi behtar polish ke saath.

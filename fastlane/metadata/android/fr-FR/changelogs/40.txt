@@ -1,0 +1,5 @@
+Nouveaux gestes dans le lecteur : ajustez le volume et la luminosite en glissant sur les cotes de l'ecran, avec des options de personnalisation.
+
+Le double appui pour avancer ou reculer additionne maintenant les appuis rapides, pour sauter plus facilement de plus grandes durees.
+
+Ameliorations des reglages, des tags, du stockage et de la navigation dans les dossiers, avec des ajustements pour les dossiers prives.

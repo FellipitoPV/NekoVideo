@@ -190,16 +190,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Novedades de v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>Carpetas privadas más rápidas</item>
-        <item>Miniaturas optimizadas</item>
-        <item>Listas grandes más estables</item>
-        <item>Reproducción más fluida</item>
+        <item>Nuevos gestos del reproductor</item>
+        <item>Doble toque acumulativo</item>
+        <item>Configuración más clara</item>
+        <item>Etiquetas y almacenamiento refinados</item>
+        <item>Carpetas más ágiles</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Se corrigió un problema que podía causar bloqueos al cambiar rápidamente entre videos de carpetas privadas.</item>
-        <item>Las miniaturas usadas durante la reproducción fueron optimizadas para reducir la carga del dispositivo.</item>
-        <item>Mejorada la estabilidad del reproductor al navegar por listas con muchos videos.</item>
-        <item>Las actualizaciones de arte del reproductor ahora evitan trabajo innecesario cuando los videos se saltan rápidamente.</item>
+        <item>Ahora puedes ajustar volumen y brillo deslizando en los laterales de la pantalla durante la reproducción.</item>
+        <item>Los toques rápidos para avanzar o retroceder ahora se acumulan, permitiendo saltar 10s, 20s, 30s y más.</item>
+        <item>La pantalla de configuración recibió opciones condicionales, descripciones más limpias y feedback visual.</item>
+        <item>La gestión de etiquetas fue rediseñada y almacenamiento ahora muestra tamaños antes de limpiar.</item>
+        <item>La navegación por carpetas fue optimizada y las carpetas privadas recién visibles aparecen con una animación suave.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Carpetas privadas más rápidas</string>
     <string name="changelog_pinned_folders_desc">Se corrigió un problema que podía causar bloqueos al cambiar rápidamente entre videos de carpetas privadas.</string>

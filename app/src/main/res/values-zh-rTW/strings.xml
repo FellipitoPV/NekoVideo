@@ -201,16 +201,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">v%1$s 新功能</string>
     <string-array name="changelog_item_titles">
-        <item>私密資料夾更快</item>
-        <item>縮圖已最佳化</item>
-        <item>大型播放清單更穩定</item>
-        <item>播放更流暢</item>
+        <item>新的播放器手勢</item>
+        <item>雙擊累加跳轉</item>
+        <item>更清楚的設定</item>
+        <item>標籤和儲存空間改進</item>
+        <item>資料夾回應更快</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>修正了快速切換私密資料夾中的影片時可能出現卡頓的問題。</item>
-        <item>最佳化播放期間使用的縮圖，以降低裝置負載。</item>
-        <item>提升播放器在瀏覽大量影片清單時的穩定性。</item>
-        <item>快速跳過影片時，播放器封面更新現在會避免不必要的工作。</item>
+        <item>播放時現在可以在螢幕兩側滑動來調整音量和亮度。</item>
+        <item>快速雙擊快轉或倒退現在會累加，可跳過 10 秒、20 秒、30 秒或更多。</item>
+        <item>設定頁面加入條件選項、更清楚的說明和操作回饋。</item>
+        <item>標籤管理已重新設計，儲存空間頁面會在清理前顯示快取和歷史大小。</item>
+        <item>資料夾導覽已最佳化，新顯示的私人資料夾會以平滑動畫出現。</item>
     </string-array>
     <string name="changelog_pinned_folders_title">私密資料夾更快</string>
     <string name="changelog_pinned_folders_desc">修正了快速切換私密資料夾中的影片時可能出現卡頓的問題。</string>

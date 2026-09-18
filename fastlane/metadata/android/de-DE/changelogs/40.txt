@@ -1,0 +1,5 @@
+Neue Player-Gesten: Lautstaerke und Helligkeit lassen sich durch Wischen an den Bildschirmseiten anpassen, mit Optionen zur Anpassung.
+
+Doppeltippen zum Vor- und Zurueckspringen sammelt schnelle Tipper nun, damit groessere Spruenge einfacher sind.
+
+Verbesserungen an Einstellungen, Tags, Speicher und Ordnernavigation, inklusive Feinschliff fuer private Ordner.

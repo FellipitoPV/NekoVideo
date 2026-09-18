@@ -201,16 +201,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">What\'s new in v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>Faster private folders</item>
-        <item>Optimized thumbnails</item>
-        <item>More stable large playlists</item>
-        <item>Smoother playback</item>
+        <item>New player gestures</item>
+        <item>Stacking double tap</item>
+        <item>Clearer settings</item>
+        <item>Refined tags and storage</item>
+        <item>More responsive folders</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Fixed an issue that could cause stutters when quickly switching between videos in private folders.</item>
-        <item>Thumbnails used during playback were optimized to reduce device load.</item>
-        <item>Improved player stability when navigating lists with many videos.</item>
-        <item>Player artwork updates now avoid unnecessary work when videos are skipped quickly.</item>
+        <item>You can now adjust volume and brightness by swiping on the sides of the screen during playback.</item>
+        <item>Quick taps to seek forward or back now stack, letting you skip 10s, 20s, 30s and more.</item>
+        <item>The settings screen now has conditional options, cleaner descriptions, and visual feedback for actions.</item>
+        <item>Tag management was redesigned, and storage now shows cache and history sizes before clearing.</item>
+        <item>Folder navigation was optimized, and newly visible private folders now appear with a smooth animation.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Faster private folders</string>
     <string name="changelog_pinned_folders_desc">Fixed an issue that could cause stutters when quickly switching between videos in private folders.</string>

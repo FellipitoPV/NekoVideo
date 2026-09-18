@@ -206,16 +206,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Novidades da v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>Pastas privadas mais rápidas</item>
-        <item>Miniaturas otimizadas</item>
-        <item>Playlists grandes mais estáveis</item>
-        <item>Reprodução mais fluida</item>
+        <item>Novos gestos no player</item>
+        <item>Double tap acumulativo</item>
+        <item>Configurações mais claras</item>
+        <item>Tags e armazenamento refinados</item>
+        <item>Pastas mais responsivas</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Corrigido um problema que podia causar travamentos ao trocar rapidamente entre vídeos de pastas privadas.</item>
-        <item>As miniaturas usadas durante a reprodução foram otimizadas para reduzir carga no dispositivo.</item>
-        <item>Melhorada a estabilidade do player ao navegar por listas com muitos vídeos.</item>
-        <item>A atualização das artes do player agora evita trabalho desnecessário quando vídeos são pulados rapidamente.</item>
+        <item>Agora é possível ajustar volume e brilho arrastando nas laterais da tela durante a reprodução.</item>
+        <item>Toques rápidos para avançar ou voltar agora se acumulam, permitindo pular 10s, 20s, 30s e mais.</item>
+        <item>A tela de configurações recebeu opções condicionais, descrições mais limpas e feedback visual nas ações.</item>
+        <item>O gerenciamento de tags foi redesenhado e a tela de armazenamento agora mostra tamanhos antes da limpeza.</item>
+        <item>A navegação entre pastas foi otimizada e pastas privadas recém-visíveis aparecem com uma animação suave.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Pastas privadas mais rápidas</string>
     <string name="changelog_pinned_folders_desc">Corrigido um problema que podia causar travamentos ao trocar rapidamente entre vídeos de pastas privadas.</string>

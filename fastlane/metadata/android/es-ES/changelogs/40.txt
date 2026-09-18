@@ -1,0 +1,5 @@
+Nuevos gestos en el reproductor: ajusta volumen y brillo deslizando en los laterales de la pantalla, con opciones para personalizar estos controles.
+
+El doble toque para avanzar o retroceder ahora acumula toques rapidos, facilitando saltos mas grandes durante la reproduccion.
+
+Mejoras en configuracion, etiquetas, almacenamiento y navegacion por carpetas, incluyendo ajustes para carpetas privadas.

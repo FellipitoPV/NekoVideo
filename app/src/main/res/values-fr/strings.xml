@@ -190,16 +190,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Nouveautés de la v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>Dossiers privés plus rapides</item>
-        <item>Miniatures optimisées</item>
-        <item>Grandes playlists plus stables</item>
-        <item>Lecture plus fluide</item>
+        <item>Nouveaux gestes du lecteur</item>
+        <item>Double appui cumulatif</item>
+        <item>Réglages plus clairs</item>
+        <item>Tags et stockage améliorés</item>
+        <item>Dossiers plus réactifs</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Correction d\'un problème pouvant provoquer des blocages lors du passage rapide entre des vidéos de dossiers privés.</item>
-        <item>Les miniatures utilisées pendant la lecture ont été optimisées pour réduire la charge de l\'appareil.</item>
-        <item>Stabilité améliorée du lecteur lors de la navigation dans des listes contenant beaucoup de vidéos.</item>
-        <item>Les mises à jour des illustrations du lecteur évitent maintenant le travail inutile lorsque les vidéos sont passées rapidement.</item>
+        <item>Vous pouvez maintenant ajuster le volume et la luminosité en glissant sur les côtés de l\'écran pendant la lecture.</item>
+        <item>Les appuis rapides pour avancer ou reculer se cumulent désormais, pour sauter 10s, 20s, 30s et plus.</item>
+        <item>Les réglages ont reçu des options conditionnelles, des descriptions plus claires et un feedback visuel.</item>
+        <item>La gestion des tags a été repensée et le stockage affiche les tailles avant le nettoyage.</item>
+        <item>La navigation dans les dossiers a été optimisée et les dossiers privés nouvellement visibles apparaissent avec une animation douce.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Dossiers privés plus rapides</string>
     <string name="changelog_pinned_folders_desc">Correction d\'un problème pouvant provoquer des blocages lors du passage rapide entre des vidéos de dossiers privés.</string>

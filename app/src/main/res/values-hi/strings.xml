@@ -190,16 +190,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">v%1$s में नया</string>
     <string-array name="changelog_item_titles">
-        <item>तेज़ private folders</item>
-        <item>Optimized thumbnails</item>
-        <item>बड़ी playlists अधिक stable</item>
-        <item>अधिक smooth playback</item>
+        <item>नए प्लेयर जेस्चर</item>
+        <item>स्टैक होने वाला डबल टैप</item>
+        <item>ज़्यादा साफ़ सेटिंग्स</item>
+        <item>बेहतर टैग और स्टोरेज</item>
+        <item>ज़्यादा तेज़ फ़ोल्डर</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Private folders में videos को जल्दी-जल्दी बदलने पर होने वाली रुकावट की समस्या ठीक की गई।</item>
-        <item>Playback के दौरान इस्तेमाल होने वाली thumbnails को device load कम करने के लिए optimize किया गया।</item>
-        <item>बहुत सारे videos वाली lists में navigate करते समय player stability बेहतर की गई।</item>
-        <item>Videos को जल्दी skip करने पर player artwork updates अब unnecessary work से बचते हैं।</item>
+        <item>अब playback के दौरान screen के किनारों पर swipe करके volume और brightness बदली जा सकती है।</item>
+        <item>आगे या पीछे जाने के लिए तेज़ taps अब जुड़ते हैं, जिससे 10s, 20s, 30s और अधिक skip करना आसान है।</item>
+        <item>Settings screen में conditional options, साफ़ descriptions और actions के लिए visual feedback जोड़ा गया।</item>
+        <item>Tag management को नया रूप मिला और storage अब साफ़ करने से पहले cache और history size दिखाता है।</item>
+        <item>Folder navigation बेहतर हुआ और नई दिखने वाली private folders अब smooth animation के साथ आती हैं।</item>
     </string-array>
     <string name="changelog_pinned_folders_title">तेज़ private folders</string>
     <string name="changelog_pinned_folders_desc">Private folders में videos को जल्दी-जल्दी बदलने पर होने वाली रुकावट की समस्या ठीक की गई।</string>
