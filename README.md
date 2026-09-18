@@ -43,7 +43,8 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Folder playback with playlist navigation
 - Shuffle playback for the current folder tree
 - Double-tap seek with configurable skip duration
-- Gesture-based seeking in the player
+- Gesture-based seeking in the player, including stacked double-tap skips
+- Vertical swipe gestures for volume and brightness control
 - Playback speed control (0.25x to 2x)
 - Repeat modes: normal, repeat playlist, and repeat one
 - Sleep timer that pauses playback after a chosen duration
@@ -99,7 +100,7 @@ Important: the current protection model is not full-file encryption for every by
 
 ### Settings
 
-- Playback settings for background playback, auto-hide controls, double-tap seek duration, continue watching, and sleep timer
+- Playback settings for background playback, auto-hide controls, seek gestures, volume/brightness gestures, continue watching, and sleep timer
 - Interface settings for theme (light, dark, or system; dark mode uses pure black / AMOLED styling) and app language
 - Display settings for durations and file sizes
 - Storage settings for clearing the thumbnail cache and continue-watching history
@@ -161,7 +162,7 @@ Project info:
 
 - `minSdk = 30`
 - `targetSdk = 36`
-- Current app version in the project: `1.3.15`
+- Current app version in the project: `1.5.0`
 
 ## License
 
