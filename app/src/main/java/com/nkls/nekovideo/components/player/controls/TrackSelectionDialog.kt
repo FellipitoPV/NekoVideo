@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -87,6 +88,16 @@ fun TrackSelectionDialog(
     onClose: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isCompact = configuration.screenWidthDp > configuration.screenHeightDp || configuration.screenHeightDp < 560
+    val contentMaxHeight = if (isCompact) {
+        (configuration.screenHeightDp * 0.72f).dp
+    } else {
+        360.dp
+    }
+    val contentMinHeight = if (isCompact) 180.dp else 220.dp
+    val listTopPadding = if (isCompact) 6.dp else 12.dp
+    val listItemSpacing = if (isCompact) 4.dp else 6.dp
     var selectedTab by remember { mutableIntStateOf(0) }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val initialSubtitleMode = remember(isExternalSubtitleSelected, selectedSubtitleTrack) {
@@ -165,18 +176,18 @@ fun TrackSelectionDialog(
     AppBottomSheet(
         onDismissRequest = dismissAndClose,
         sheetState = bottomSheetState,
+        contentPadding = if (isCompact) androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp) else androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         navigationBarsPadding = false,
         title = stringResource(R.string.tracks_title)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 220.dp, max = 360.dp)
+                    .heightIn(min = contentMinHeight, max = contentMaxHeight)
             ) {
                 TabRow(
                     selectedTabIndex = selectedTab,
@@ -206,14 +217,15 @@ fun TrackSelectionDialog(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(top = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                            .padding(top = listTopPadding),
+                        verticalArrangement = Arrangement.spacedBy(listItemSpacing)
                     ) {
                         item {
                             AddSubtitleFileRow(
                                 title = selectedExternalSubtitleName
                                     ?: stringResource(R.string.subtitle_file_select),
                                 selected = pendingSubtitleMode == SubtitleSelectionMode.External,
+                                compact = isCompact,
                                 onClick = {
                                     pendingSubtitleMode = SubtitleSelectionMode.External
                                     onExternalSubtitleClick()
@@ -224,6 +236,7 @@ fun TrackSelectionDialog(
                         item {
                             SubtitleSizeControl(
                                 subtitleSizeLevel = subtitleSizeLevel,
+                                compact = isCompact,
                                 onSubtitleSizeLevelChanged = onSubtitleSizeLevelChanged
                             )
                         }
@@ -240,6 +253,7 @@ fun TrackSelectionDialog(
                             TrackOptionRow(
                                 title = stringResource(R.string.subtitles_off),
                                 selected = pendingSubtitleMode == SubtitleSelectionMode.Off,
+                                compact = isCompact,
                                 onClick = {
                                     pendingSubtitleMode = SubtitleSelectionMode.Off
                                     pendingSubtitleGroup = null
@@ -254,6 +268,7 @@ fun TrackSelectionDialog(
                                 selected = pendingSubtitleMode == SubtitleSelectionMode.Internal &&
                                     pendingSubtitleGroup == option.groupIndex &&
                                     (pendingSubtitleTrack == null || pendingSubtitleTrack == option.trackIndex),
+                                compact = isCompact,
                                 onClick = {
                                     pendingSubtitleMode = SubtitleSelectionMode.Internal
                                     pendingSubtitleGroup = option.groupIndex
@@ -274,14 +289,15 @@ fun TrackSelectionDialog(
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(top = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                .padding(top = listTopPadding),
+                            verticalArrangement = Arrangement.spacedBy(listItemSpacing)
                         ) {
                             items(audioOptions) { option ->
                                 TrackOptionRow(
                                     title = option.title,
                                     selected = pendingAudioGroup == option.groupIndex &&
                                         (pendingAudioTrack == null || pendingAudioTrack == option.trackIndex),
+                                    compact = isCompact,
                                     onClick = {
                                         pendingAudioGroup = option.groupIndex
                                         pendingAudioTrack = option.trackIndex
@@ -300,6 +316,7 @@ fun TrackSelectionDialog(
 private fun AddSubtitleFileRow(
     title: String,
     selected: Boolean,
+    compact: Boolean,
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(10.dp)
@@ -327,7 +344,7 @@ private fun AddSubtitleFileRow(
             }
             .background(if (selected) rowBgSelected else rowBgUnselected)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = if (compact) 8.dp else 12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -369,6 +386,7 @@ private fun AddSubtitleFileRow(
 @Composable
 private fun SubtitleSizeControl(
     subtitleSizeLevel: Int,
+    compact: Boolean,
     onSubtitleSizeLevelChanged: (Int) -> Unit
 ) {
     val rowBg = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
@@ -381,7 +399,7 @@ private fun SubtitleSizeControl(
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .background(rowBg)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 12.dp, vertical = if (compact) 4.dp else 6.dp)
     ) {
         val labels = listOf(
             stringResource(R.string.subtitle_size_small),
@@ -398,7 +416,7 @@ private fun SubtitleSizeControl(
         )
 
         Slider(
-            modifier = Modifier.heightIn(min = 20.dp),
+            modifier = Modifier.heightIn(min = if (compact) 16.dp else 20.dp),
             value = subtitleSizeLevel.toFloat(),
             onValueChange = { onSubtitleSizeLevelChanged(it.roundToInt().coerceIn(0, 2)) },
             valueRange = 0f..2f,
@@ -460,6 +478,7 @@ private fun SectionLabel(title: String) {
 private fun TrackOptionRow(
     title: String,
     selected: Boolean,
+    compact: Boolean,
     onClick: () -> Unit
 ) {
     val rowBg = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
@@ -475,7 +494,7 @@ private fun TrackOptionRow(
             .clip(RoundedCornerShape(10.dp))
             .background(if (selected) rowBgSelected else rowBg)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = if (compact) 8.dp else 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {

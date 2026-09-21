@@ -92,6 +92,7 @@ import com.nkls.nekovideo.components.ProcessingDialog
 import com.nkls.nekovideo.components.ShuffleTagsDialog
 import com.nkls.nekovideo.components.ShuffleTagFilter
 import com.nkls.nekovideo.components.VideoTagsDialog
+import com.nkls.nekovideo.components.buildVideoPreviewUri
 import com.nkls.nekovideo.components.helpers.BiometricHelper
 import com.nkls.nekovideo.components.LockedRenameDialog
 import com.nkls.nekovideo.components.RenameDialog
@@ -812,17 +813,20 @@ fun MainScreen(
     }
 
     if (showVideoTagsDialog) {
+        val targetVideos = selectedItems.filter { File(it).isFile }
+        val previewVideoPath = targetVideos.singleOrNull()
         VideoTagsDialog(
             selectedVideoCount = selectedItems.size,
             tags = availableTags,
             initialSelectedTagIds = commonSelectedTagIds,
+            previewVideoTitle = previewVideoPath?.let { File(it).name },
+            previewVideoUri = previewVideoPath?.let { buildVideoPreviewUri(it, currentTagScope() == TagScope.PRIVATE) },
             onDismiss = { showVideoTagsDialog = false },
             onManageTags = {
                 invalidateTagCaches()
                 navController.navigate("settings/tags")
             },
             onSave = { selectedTagIds ->
-                val targetVideos = selectedItems.filter { File(it).isFile }
                 if (targetVideos.isEmpty()) {
                     Result.failure(IllegalStateException(context.getString(R.string.no_videos_found)))
                 } else {

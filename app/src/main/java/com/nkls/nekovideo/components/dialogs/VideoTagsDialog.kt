@@ -1,5 +1,6 @@
 package com.nkls.nekovideo.components
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AssistChip
@@ -23,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -47,6 +52,8 @@ fun VideoTagsDialog(
     selectedVideoCount: Int,
     tags: List<TagEntity>,
     initialSelectedTagIds: Set<Long>,
+    previewVideoTitle: String? = null,
+    previewVideoUri: Uri? = null,
     onDismiss: () -> Unit,
     onManageTags: () -> Unit,
     onSave: suspend (Set<Long>) -> Result<Unit>
@@ -58,8 +65,10 @@ fun VideoTagsDialog(
     val dialogTags = remember(tags) { mutableStateListOf<TagEntity>().apply { addAll(tags) } }
     var selectedTagIds by remember(initialSelectedTagIds) { mutableStateOf(initialSelectedTagIds) }
     var isSaving by remember { mutableStateOf(false) }
+    var isPreviewVisible by remember(previewVideoUri) { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val canPreviewVideo = selectedVideoCount == 1 && previewVideoUri != null
 
     AppBottomSheet(
         onDismissRequest = { if (!isSaving) onDismiss() },
@@ -83,6 +92,51 @@ fun VideoTagsDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
+            }
+
+            if (canPreviewVideo) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = previewVideoTitle.orEmpty(),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                        TextButton(
+                            onClick = { isPreviewVisible = !isPreviewVisible },
+                            enabled = !isSaving,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isPreviewVisible) Icons.Default.Stop else Icons.Default.Visibility,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(if (isPreviewVisible) "Parar preview" else "Preview")
+                        }
+                    }
+
+                    if (isPreviewVisible) {
+                        previewVideoUri?.let { uri ->
+                            FloatingVideoPreview(
+                                title = previewVideoTitle.orEmpty(),
+                                videoUri = uri,
+                                onClose = { isPreviewVisible = false },
+                                onPreviewFinished = { isPreviewVisible = false }
+                            )
+                        }
+                    }
+                }
             }
 
             if (dialogTags.isEmpty()) {
