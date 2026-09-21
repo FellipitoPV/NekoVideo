@@ -4,7 +4,6 @@ import android.content.Intent
 import android.content.Context
 import android.os.Build
 import android.util.Log
-import android.widget.Toast
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.activity.ComponentActivity
@@ -19,14 +18,17 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -36,15 +38,26 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderSpecial
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,6 +67,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -173,6 +187,7 @@ fun MainScreen(
     var pendingUnpinPaths by remember { mutableStateOf<List<String>>(emptyList()) }
     var selectedExternalSubtitleUri by remember { mutableStateOf<Uri?>(null) }
     var selectedExternalSubtitleName by remember { mutableStateOf<String?>(null) }
+    var lastRootBackPressTime by remember { mutableStateOf(0L) }
 
     fun openPlayerOverlay(externalSession: Boolean = false) {
         isExternalPlayerSession = externalSession
@@ -219,8 +234,11 @@ fun MainScreen(
     var isMoveMode by remember { mutableStateOf(false) }
     var itemsToMove by remember { mutableStateOf<List<String>>(emptyList()) }
     var moveSourceLockedFolder by remember { mutableStateOf<String?>(null) }
+    var showMoveDestinationDialog by remember { mutableStateOf(false) }
     var showFolderActions by remember { mutableStateOf(false) }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
+    var createFolderTargetPath by remember { mutableStateOf<String?>(null) }
+    var moveDestinationRefreshToken by remember { mutableStateOf(0) }
     var isLocking by remember { mutableStateOf(false) }
     var isUnlocking by remember { mutableStateOf(false) }
     var isMoving by remember { mutableStateOf(false) }
@@ -955,39 +973,108 @@ fun MainScreen(
         )
     }
 
+    if (showMoveDestinationDialog) {
+        MoveDestinationDialog(
+            startPath = folderPath,
+            itemsToMove = itemsToMove,
+            showPrivateFolders = showPrivateFolders,
+            hasPrivateAccess = (sessionPassword ?: LockedPlaybackSession.sessionPassword) != null,
+            refreshToken = moveDestinationRefreshToken,
+            isSecureFolder = ::isSecureFolder,
+            onCreateFolder = { targetPath ->
+                createFolderTargetPath = targetPath
+                showCreateFolderDialog = true
+            },
+            onDismiss = {
+                showMoveDestinationDialog = false
+                itemsToMove = emptyList()
+                moveSourceLockedFolder = null
+            },
+            onMoveTo = { destinationPath ->
+                coroutineScope.launch {
+                    val movedItems = itemsToMove.toList()
+                    val destIsLocked = FolderLockManager.isLocked(destinationPath)
+                    val sourceLockedFolder = moveSourceLockedFolder
+                    val pwd = sessionPassword ?: LockedPlaybackSession.sessionPassword
+
+                    showMoveDestinationDialog = false
+                    selectedItems.clear()
+
+                    val pasted = LockedFolderOperations.pasteItems(
+                        context = context,
+                        movedItems = movedItems,
+                        destinationPath = destinationPath,
+                        sourceLockedFolder = sourceLockedFolder,
+                        password = pwd,
+                        destinationIsLocked = destIsLocked,
+                        onMoveStateChange = {
+                            isMoving = it
+                            if (!it) moveProgress = ""
+                        },
+                        onMoveProgress = { current, total -> moveProgress = "$current/$total" },
+                        onLockStateChange = {
+                            isLocking = it
+                            if (!it) lockProgress = ""
+                        },
+                        onLockProgress = { current, total -> lockProgress = "$current/$total" },
+                        onError = { message -> SortRowMessageCenter.showError(message) },
+                        onSuccess = { SortRowMessageCenter.showSuccess(context.getString(R.string.items_moved)) }
+                    )
+
+                    itemsToMove = emptyList()
+                    moveSourceLockedFolder = null
+                    renameTrigger++
+
+                    if (pasted) {
+                        refreshAffectedPaths(movedItems.mapNotNull { File(it).parent } + destinationPath)
+                    }
+                }
+            }
+        )
+    }
+
     if (showCreateFolderDialog) {
-        val isInsideLockedForCreate = FolderLockManager.isLocked(folderPath) &&
+        val targetCreateFolderPath = createFolderTargetPath ?: folderPath
+        val isCreatingFromMoveDialog = createFolderTargetPath != null
+        val isInsideLockedForCreate = FolderLockManager.isLocked(targetCreateFolderPath) &&
                 LockedPlaybackSession.isActive &&
-                LockedPlaybackSession.hasSessionForFolder(folderPath)
+                LockedPlaybackSession.hasSessionForFolder(targetCreateFolderPath)
 
         CreateFolderDialog(
-            currentPath = folderPath,
+            currentPath = targetCreateFolderPath,
             isInsideLockedFolder = isInsideLockedForCreate,
-            onDismiss = { showCreateFolderDialog = false },
+            onDismiss = {
+                showCreateFolderDialog = false
+                createFolderTargetPath = null
+            },
             onFolderCreated = { folderName ->
                 if (isInsideLockedForCreate) {
                     // Create locked subfolder using session password
                     val pwd = sessionPassword ?: LockedPlaybackSession.sessionPassword
                     if (pwd != null) {
                         coroutineScope.launch {
-                            val subfolderPath = File(folderPath, folderName).absolutePath
+                            val subfolderPath = File(targetCreateFolderPath, folderName).absolutePath
                             val success = withContext(Dispatchers.IO) {
                                 FolderLockManager.createEmptyLockedFolder(context, subfolderPath, pwd)
                             }
                             if (success) {
                                 withContext(Dispatchers.IO) {
-                                    FolderLockManager.addSubfolderToLockedFolder(context, folderPath, subfolderPath, pwd)
+                                    FolderLockManager.addSubfolderToLockedFolder(context, targetCreateFolderPath, subfolderPath, pwd)
                                 }
                                 SortRowMessageCenter.showSuccess(context.getString(R.string.folder_created))
                             }
                             renameTrigger++
-                            refreshAffectedPaths(listOf(folderPath))
+                            if (isCreatingFromMoveDialog) moveDestinationRefreshToken++
+                            refreshAffectedPaths(listOf(targetCreateFolderPath))
+                            createFolderTargetPath = null
                         }
                     }
                 } else {
                     renameTrigger++
+                    if (isCreatingFromMoveDialog) moveDestinationRefreshToken++
                     SortRowMessageCenter.showSuccess(context.getString(R.string.folder_created))
-                    refreshAffectedPaths(listOf(folderPath))
+                    refreshAffectedPaths(listOf(targetCreateFolderPath))
+                    createFolderTargetPath = null
                 }
             },
         )
@@ -1293,9 +1380,8 @@ fun MainScreen(
                                         LockedPlaybackSession.hasSessionForFolder(folderPath)
                                 moveSourceLockedFolder = if (isFromLocked) folderPath else null
                                 itemsToMove = selectedItems.toList()
-                                selectedItems.clear()
-                                isMoveMode = true
-                                SortRowMessageCenter.showPersistentInfo(context.getString(R.string.move_mode_activated))
+                                isMoveMode = false
+                                showMoveDestinationDialog = true
                             }
                             ActionType.CANCEL_MOVE -> {
                                 isMoveMode = false
@@ -1564,7 +1650,13 @@ fun MainScreen(
 
         // BackHandler para ignorar voltar na root (não fecha o app)
         BackHandler(enabled = !showPlayerOverlay && isAtRootLevel && currentRoute == "folder") {
-            // Não fazer nada - apenas consumir o evento para não fechar o app
+            val now = System.currentTimeMillis()
+            if (now - lastRootBackPressTime <= 2500L) {
+                hostActivity.moveTaskToBack(true)
+            } else {
+                lastRootBackPressTime = now
+                SortRowMessageCenter.showInfo(context.getString(R.string.press_back_again_to_exit), durationMs = 2500L)
+            }
         }
 
         // BackHandler para o overlay - PRIORIDADE MÁXIMA (registrado por último)
@@ -1608,6 +1700,300 @@ fun MainScreen(
             }
         )
 
+    }
+}
+
+@Composable
+private fun MoveDestinationDialog(
+    startPath: String,
+    itemsToMove: List<String>,
+    showPrivateFolders: Boolean,
+    hasPrivateAccess: Boolean,
+    refreshToken: Int,
+    isSecureFolder: (String) -> Boolean,
+    onCreateFolder: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onMoveTo: (String) -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val pathStack = remember(startPath) { mutableStateListOf(startPath) }
+    val currentPath = pathStack.lastOrNull() ?: startPath
+    val foldersByPath = remember { mutableStateMapOf<String, List<com.nkls.nekovideo.components.MediaItem>>() }
+    var cacheRefreshToken by remember { mutableStateOf(refreshToken) }
+    var folders by remember(currentPath) { mutableStateOf(foldersByPath[currentPath].orEmpty()) }
+    var isLoadingFolders by remember(currentPath) { mutableStateOf(foldersByPath[currentPath] == null) }
+
+    fun isInvalidDestination(destinationPath: String): Boolean {
+        return itemsToMove.any { itemPath ->
+            val item = File(itemPath)
+            item.isDirectory && (
+                destinationPath == item.absolutePath ||
+                    destinationPath.startsWith(item.absolutePath + File.separator)
+                )
+        }
+    }
+
+    fun canUseLockedFolder(folderPath: String): Boolean {
+        return !FolderLockManager.isLocked(folderPath) || hasPrivateAccess || LockedPlaybackSession.hasSessionForFolder(folderPath)
+    }
+
+    fun isPrivateDestination(folderPath: String): Boolean {
+        val folder = File(folderPath)
+        val nekoPrivatePath = FilesManager.SecureStorage.getNekoPrivateFolderPath()
+        return folderPath == nekoPrivatePath ||
+            folder.name.startsWith(".") ||
+            File(folder, ".nomedia").exists() ||
+            File(folder, ".nekovideo").exists()
+    }
+
+    fun destinationDisplayName(folder: com.nkls.nekovideo.components.MediaItem): String {
+        return if (folder.path == FilesManager.SecureStorage.getNekoPrivateFolderPath()) {
+            context.getString(R.string.neko_private_folder_name)
+        } else {
+            folder.displayName
+        }
+    }
+
+    fun parentPath(): String? {
+        if (currentPath == FolderNavigationState.ROOT_PATH) return null
+
+        val parent = File(currentPath).parent ?: return FolderNavigationState.ROOT_PATH
+        return when {
+            parent == currentPath -> null
+            !parent.startsWith(FolderNavigationState.ROOT_PATH) -> FolderNavigationState.ROOT_PATH
+            else -> parent
+        }
+    }
+
+    LaunchedEffect(currentPath, showPrivateFolders, refreshToken) {
+        if (cacheRefreshToken != refreshToken) {
+            foldersByPath.clear()
+            cacheRefreshToken = refreshToken
+        }
+
+        foldersByPath[currentPath]?.let { cachedFolders ->
+            folders = cachedFolders
+            isLoadingFolders = false
+            return@LaunchedEffect
+        }
+
+        isLoadingFolders = true
+        val currentIsSecure = isSecureFolder(currentPath)
+        val currentIsRoot = currentPath == FolderNavigationState.ROOT_PATH
+        val loadedFolders = withContext(Dispatchers.IO) {
+            loadFolderContent(
+                context = context,
+                folderPath = currentPath,
+                sortType = SortType.NAME_ASC,
+                isSecureMode = currentIsSecure,
+                isRootLevel = currentIsRoot,
+                showPrivateFolders = showPrivateFolders
+            )
+                .filter { it.isFolder }
+                .filterNot { isInvalidDestination(it.path) }
+        }
+        foldersByPath[currentPath] = loadedFolders
+        folders = loadedFolders
+        isLoadingFolders = false
+    }
+
+    val isCurrentInvalid = isInvalidDestination(currentPath)
+    val isSameSourceFolder = itemsToMove.isNotEmpty() && itemsToMove.all { File(it).parent == currentPath }
+    val canMoveHere = itemsToMove.isNotEmpty() && canUseLockedFolder(currentPath) && !isCurrentInvalid && !isSameSourceFolder
+    val currentFolderName = if (currentPath == FolderNavigationState.ROOT_PATH) {
+        stringResource(R.string.move_destination_root)
+    } else {
+        File(currentPath).name.takeIf { it.isNotBlank() } ?: stringResource(R.string.move_destination_root)
+    }
+    val parentDestinationPath = parentPath()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.move_destination_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Folder,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = currentFolderName,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    TextButton(onClick = { onCreateFolder(currentPath) }) {
+                        Icon(
+                            imageVector = Icons.Default.CreateNewFolder,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(stringResource(R.string.action_create_folder))
+                    }
+                }
+
+                HorizontalDivider()
+
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 360.dp),
+                    contentPadding = PaddingValues(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (parentDestinationPath != null) {
+                        item(key = "parent_folder") {
+                            MoveDestinationFolderTile(
+                                name = "...",
+                                isLocked = false,
+                                isPrivate = false,
+                                onClick = {
+                                    pathStack.add(parentDestinationPath)
+                                }
+                            )
+                        }
+                    }
+
+                    when {
+                        isLoadingFolders -> {
+                            item(key = "loading") {
+                                MoveDestinationStatusTile(stringResource(R.string.loading))
+                            }
+                        }
+                        folders.isEmpty() && parentDestinationPath == null -> {
+                            item(key = "empty") {
+                                MoveDestinationStatusTile(stringResource(R.string.move_destination_no_folders))
+                            }
+                        }
+                        else -> {
+                            items(folders, key = { it.path }) { folder ->
+                                MoveDestinationFolderTile(
+                                    name = destinationDisplayName(folder),
+                                    isLocked = FolderLockManager.isLocked(folder.path),
+                                    isPrivate = isPrivateDestination(folder.path),
+                                    onClick = { pathStack.add(folder.path) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = canMoveHere,
+                onClick = { onMoveTo(currentPath) }
+            ) {
+                Text(stringResource(R.string.move_destination_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun MoveDestinationFolderTile(
+    name: String,
+    isLocked: Boolean,
+    isPrivate: Boolean,
+    onClick: () -> Unit
+) {
+    val containerColor = when {
+        isLocked -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.18f)
+        isPrivate -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.42f)
+        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
+    }
+    val iconTint = when {
+        isLocked -> MaterialTheme.colorScheme.error
+        isPrivate -> MaterialTheme.colorScheme.secondary
+        else -> MaterialTheme.colorScheme.primary
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(104.dp)
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f),
+                shape = RoundedCornerShape(14.dp)
+            )
+            .background(
+                color = containerColor,
+                shape = RoundedCornerShape(14.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier.size(38.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isPrivate && !isLocked) Icons.Default.FolderSpecial else Icons.Default.Folder,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(34.dp)
+            )
+            if (isLocked) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onError,
+                    modifier = Modifier
+                        .size(15.dp)
+                        .align(Alignment.Center)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = name,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun MoveDestinationStatusTile(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(104.dp)
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                shape = RoundedCornerShape(14.dp)
+            )
+            .padding(8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

@@ -49,6 +49,11 @@
     <string name="move_mode_activated">Modo mover activado. Navega al destino y pega.</string>
     <string name="move_operation_cancelled">Operación de mover cancelada</string>
     <string name="items_moved">¡Elementos movidos!</string>
+    <string name="move_destination_title">Mover a...</string>
+    <string name="move_destination_subtitle">Elige la carpeta de destino para %1$d elemento(s)</string>
+    <string name="move_destination_root">Almacenamiento interno</string>
+    <string name="move_destination_no_folders">No hay subcarpetas disponibles aquí</string>
+    <string name="move_destination_confirm">Mover aquí</string>
     <string name="files_secured">¡Archivos asegurados!</string>
     <string name="items_deleted_locked">¡Elementos eliminados!</string>
     <string name="folder_created">Carpeta creada</string>
@@ -85,6 +90,7 @@
     <string name="play">Reproducir</string>
     <string name="pause">Pausar</string>
     <string name="next">Siguiente</string>
+    <string name="press_back_again_to_exit">Presiona volver otra vez para salir</string>
 
     <!-- Premium -->
     <string name="premium_title">Eliminar Anuncios</string>

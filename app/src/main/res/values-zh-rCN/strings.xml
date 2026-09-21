@@ -60,6 +60,11 @@
     <string name="move_mode_activated">已启用移动模式。请前往目标位置并粘贴。</string>
     <string name="move_operation_cancelled">已取消移动操作</string>
     <string name="items_moved">项目已移动！</string>
+    <string name="move_destination_title">移动到...</string>
+    <string name="move_destination_subtitle">为 %1$d 个项目选择目标文件夹</string>
+    <string name="move_destination_root">内部存储</string>
+    <string name="move_destination_no_folders">此处没有可用的子文件夹</string>
+    <string name="move_destination_confirm">移动到此处</string>
     <string name="items_deleted_locked">项目已删除！</string>
     <string name="files_secured">文件已保护！</string>
     <string name="folder_created">文件夹已创建</string>
@@ -96,6 +101,7 @@
     <string name="play">播放</string>
     <string name="pause">暂停</string>
     <string name="next">下一个</string>
+    <string name="press_back_again_to_exit">再次按返回键退出</string>
 
     <!-- Premium -->
     <string name="premium_title">移除广告</string>

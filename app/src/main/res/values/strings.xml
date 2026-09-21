@@ -61,6 +61,11 @@
     <string name="move_mode_activated">Modo mover ativado. Navegue até o destino e cole.</string>
     <string name="move_operation_cancelled">Operação de mover cancelada</string>
     <string name="items_moved">Itens movidos!</string>
+    <string name="move_destination_title">Mover para...</string>
+    <string name="move_destination_subtitle">Escolha a pasta de destino para %1$d item(s)</string>
+    <string name="move_destination_root">Armazenamento interno</string>
+    <string name="move_destination_no_folders">Nenhuma subpasta disponível aqui</string>
+    <string name="move_destination_confirm">Mover para cá</string>
     <string name="items_deleted_locked">Itens excluídos!</string>
     <string name="files_secured">Arquivos protegidos!</string>
     <string name="folder_created">Pasta criada</string>
@@ -97,6 +102,7 @@
     <string name="play">Reproduzir</string>
     <string name="pause">Pausar</string>
     <string name="next">Próximo</string>
+    <string name="press_back_again_to_exit">Pressione voltar novamente para sair</string>
 
     <!-- Premium -->
     <string name="premium_title">Remover Anúncios</string>

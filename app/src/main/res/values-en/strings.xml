@@ -60,6 +60,11 @@
     <string name="move_mode_activated">Move mode activated. Navigate to destination and paste.</string>
     <string name="move_operation_cancelled">Move operation cancelled</string>
     <string name="items_moved">Items moved!</string>
+    <string name="move_destination_title">Move to...</string>
+    <string name="move_destination_subtitle">Choose the destination folder for %1$d item(s)</string>
+    <string name="move_destination_root">Internal storage</string>
+    <string name="move_destination_no_folders">No subfolders available here</string>
+    <string name="move_destination_confirm">Move here</string>
     <string name="items_deleted_locked">Items deleted!</string>
     <string name="files_secured">Files secured!</string>
     <string name="folder_created">Folder created</string>
@@ -96,6 +101,7 @@
     <string name="play">Play</string>
     <string name="pause">Pause</string>
     <string name="next">Next</string>
+    <string name="press_back_again_to_exit">Press back again to exit</string>
 
     <!-- Premium -->
     <string name="premium_title">Remove Ads</string>

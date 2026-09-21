@@ -49,6 +49,11 @@
     <string name="move_mode_activated">Mode déplacement activé. Naviguez vers la destination et collez.</string>
     <string name="move_operation_cancelled">Opération de déplacement annulée</string>
     <string name="items_moved">Éléments déplacés!</string>
+    <string name="move_destination_title">Déplacer vers...</string>
+    <string name="move_destination_subtitle">Choisissez le dossier de destination pour %1$d élément(s)</string>
+    <string name="move_destination_root">Stockage interne</string>
+    <string name="move_destination_no_folders">Aucun sous-dossier disponible ici</string>
+    <string name="move_destination_confirm">Déplacer ici</string>
     <string name="files_secured">Fichiers sécurisés!</string>
     <string name="items_deleted_locked">Éléments supprimés !</string>
     <string name="folder_created">Dossier créé</string>
@@ -85,6 +90,7 @@
     <string name="play">Lire</string>
     <string name="pause">Pause</string>
     <string name="next">Suivant</string>
+    <string name="press_back_again_to_exit">Appuyez encore sur retour pour quitter</string>
 
     <!-- Premium -->
     <string name="premium_title">Supprimer les Publicités</string>

@@ -49,6 +49,11 @@
     <string name="move_mode_activated">Режим перемещения активирован. Перейдите к назначению и вставьте.</string>
     <string name="move_operation_cancelled">Операция перемещения отменена</string>
     <string name="items_moved">Элементы перемещены!</string>
+    <string name="move_destination_title">Переместить в...</string>
+    <string name="move_destination_subtitle">Выберите папку назначения для %1$d элемент(ов)</string>
+    <string name="move_destination_root">Внутренняя память</string>
+    <string name="move_destination_no_folders">Здесь нет доступных подпапок</string>
+    <string name="move_destination_confirm">Переместить сюда</string>
     <string name="files_secured">Файлы защищены!</string>
     <string name="items_deleted_locked">Элементы удалены!</string>
     <string name="folder_created">Папка создана</string>
@@ -85,6 +90,7 @@
     <string name="play">Воспроизвести</string>
     <string name="pause">Пауза</string>
     <string name="next">Далее</string>
+    <string name="press_back_again_to_exit">Нажмите назад ещё раз, чтобы выйти</string>
 
     <!-- Premium -->
     <string name="premium_title">Убрать Рекламу</string>

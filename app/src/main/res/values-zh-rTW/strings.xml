@@ -60,6 +60,11 @@
     <string name="move_mode_activated">已啟用移動模式。請前往目標位置並貼上。</string>
     <string name="move_operation_cancelled">已取消移動操作</string>
     <string name="items_moved">項目已移動！</string>
+    <string name="move_destination_title">移動到...</string>
+    <string name="move_destination_subtitle">為 %1$d 個項目選擇目標資料夾</string>
+    <string name="move_destination_root">內部儲存空間</string>
+    <string name="move_destination_no_folders">此處沒有可用的子資料夾</string>
+    <string name="move_destination_confirm">移動到此處</string>
     <string name="items_deleted_locked">項目已刪除！</string>
     <string name="files_secured">檔案已保護！</string>
     <string name="folder_created">資料夾已建立</string>
@@ -96,6 +101,7 @@
     <string name="play">播放</string>
     <string name="pause">暫停</string>
     <string name="next">下一個</string>
+    <string name="press_back_again_to_exit">再次按返回鍵離開</string>
 
     <!-- Premium -->
     <string name="premium_title">移除廣告</string>

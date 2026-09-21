@@ -49,6 +49,11 @@
     <string name="move_mode_activated">Verschiebemodus aktiviert. Navigieren Sie zum Ziel und fügen Sie ein.</string>
     <string name="move_operation_cancelled">Verschiebeoperation abgebrochen</string>
     <string name="items_moved">Elemente verschoben!</string>
+    <string name="move_destination_title">Verschieben nach...</string>
+    <string name="move_destination_subtitle">Zielordner für %1$d Element(e) auswählen</string>
+    <string name="move_destination_root">Interner Speicher</string>
+    <string name="move_destination_no_folders">Hier sind keine Unterordner verfügbar</string>
+    <string name="move_destination_confirm">Hierher verschieben</string>
     <string name="files_secured">Dateien gesichert!</string>
     <string name="items_deleted_locked">Elemente gelöscht!</string>
     <string name="folder_created">Ordner erstellt</string>
@@ -85,6 +90,7 @@
     <string name="play">Abspielen</string>
     <string name="pause">Pause</string>
     <string name="next">Weiter</string>
+    <string name="press_back_again_to_exit">Drücken Sie erneut Zurück, um zu beenden</string>
 
     <!-- Premium -->
     <string name="premium_title">Werbung Entfernen</string>

@@ -49,6 +49,11 @@
     <string name="move_mode_activated">मूव मोड सक्रिय। गंतव्य पर जाएं और पेस्ट करें।</string>
     <string name="move_operation_cancelled">मूव ऑपरेशन रद्द किया गया</string>
     <string name="items_moved">आइटम मूव किए गए!</string>
+    <string name="move_destination_title">यहां ले जाएं...</string>
+    <string name="move_destination_subtitle">%1$d आइटम के लिए गंतव्य फ़ोल्डर चुनें</string>
+    <string name="move_destination_root">आंतरिक संग्रहण</string>
+    <string name="move_destination_no_folders">यहां कोई सबफ़ोल्डर उपलब्ध नहीं है</string>
+    <string name="move_destination_confirm">यहां ले जाएं</string>
     <string name="files_secured">फ़ाइलें सुरक्षित!</string>
     <string name="items_deleted_locked">आइटम हटाए गए!</string>
     <string name="folder_created">फ़ोल्डर बनाया गया</string>
@@ -85,6 +90,7 @@
     <string name="play">चलाएं</string>
     <string name="pause">रोकें</string>
     <string name="next">अगला</string>
+    <string name="press_back_again_to_exit">बाहर निकलने के लिए फिर से वापस दबाएं</string>
 
     <!-- Premium -->
     <string name="premium_title">विज्ञापन हटाएं</string>
