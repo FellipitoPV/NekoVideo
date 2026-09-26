@@ -1,0 +1,7 @@
+Le lecteur prend maintenant en charge le zoom par pincement et le déplacement de la vidéo zoomée.
+
+La boîte de dialogue des tags permet maintenant de prévisualiser une seule vidéo sans ouvrir le lecteur complet.
+
+Le sélecteur audio et sous-titres est plus compact en mode paysage et sur les petits écrans.
+
+Lors de l'ouverture de vidéos ou du lancement du shuffle avec une playlist active, l'app demande maintenant confirmation avant de remplacer la playlist actuelle. Le shuffle respecte aussi la visibilité des dossiers privés.

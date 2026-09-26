@@ -148,6 +148,8 @@
     <string name="shuffle_tags_description">Toque na tag para alternar entre usar, ignorar e neutro. Se nenhuma tag estiver marcada para usar, o shuffle considera todos os vídeos e exclui apenas as tags ignoradas.</string>
     <string name="shuffle_tags_empty">Nenhuma tag criada ainda. Adicione tags aos vídeos primeiro.</string>
     <string name="shuffle_tags_confirm">Criar shuffle</string>
+    <string name="new_playlist_confirm_title">Nova playlist?</string>
+    <string name="new_playlist_confirm_message">Já existe uma playlist ativa. Iniciar uma nova playlist vai substituir a atual. Deseja continuar?</string>
     <string name="shuffle_tags_no_match">Nenhum vídeo com as tags selecionadas foi encontrado</string>
     <string name="shuffle_tags_mode_neutral">Neutro</string>
     <string name="shuffle_tags_mode_include">Usar no shuffle</string>
@@ -212,18 +214,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Novidades da v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>Novos gestos no player</item>
-        <item>Double tap acumulativo</item>
-        <item>Configurações mais claras</item>
-        <item>Tags e armazenamento refinados</item>
-        <item>Pastas mais responsivas</item>
+        <item>Zoom no player</item>
+        <item>Preview no diálogo de tags</item>
+        <item>Áudio e legendas compactos</item>
+        <item>Playlists com confirmação</item>
+        <item>Melhorias gerais</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Agora é possível ajustar volume e brilho arrastando nas laterais da tela durante a reprodução.</item>
-        <item>Toques rápidos para avançar ou voltar agora se acumulam, permitindo pular 10s, 20s, 30s e mais.</item>
-        <item>A tela de configurações recebeu opções condicionais, descrições mais limpas e feedback visual nas ações.</item>
-        <item>O gerenciamento de tags foi redesenhado e a tela de armazenamento agora mostra tamanhos antes da limpeza.</item>
-        <item>A navegação entre pastas foi otimizada e pastas privadas recém-visíveis aparecem com uma animação suave.</item>
+        <item>Use o gesto de pinça para aproximar o vídeo e arraste para mover a imagem ampliada.</item>
+        <item>Ao selecionar apenas um vídeo, o diálogo de tags agora permite ver uma prévia rápida sem abrir o player completo.</item>
+        <item>O seletor de áudio e legendas se adapta melhor em landscape e telas menores, com layout mais enxuto.</item>
+        <item>Ao abrir um vídeo ou iniciar o shuffle com playlist ativa, o app confirma antes de substituir a lista atual. O shuffle também respeita a visibilidade das pastas privadas.</item>
+        <item>Diálogos mais consistentes, correções de build e ajustes nas traduções.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Pastas privadas mais rápidas</string>
     <string name="changelog_pinned_folders_desc">Corrigido um problema que podia causar travamentos ao trocar rapidamente entre vídeos de pastas privadas.</string>

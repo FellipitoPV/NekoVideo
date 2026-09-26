@@ -1,0 +1,7 @@
+The player now supports pinch-to-zoom and panning while zoomed.
+
+The tags dialog can now preview a single selected video without opening the full player.
+
+The audio and subtitle selector is now more compact in landscape and on smaller screens.
+
+When opening videos or starting shuffle with an active playlist, the app now asks before replacing the current playlist. Shuffle also respects private folder visibility.

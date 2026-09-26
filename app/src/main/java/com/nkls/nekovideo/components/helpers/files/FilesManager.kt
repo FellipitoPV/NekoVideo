@@ -563,12 +563,23 @@ object FilesManager {
 
             if (!folder.exists() || !folder.isDirectory) return videos
 
+            fun canEnterPrivateFolder(directory: File): Boolean {
+                if (showPrivateFolders || isSecure) return true
+
+                val isPrivateDirectory = directory.name.startsWith(".") ||
+                        File(directory, ".nomedia").exists() ||
+                        File(directory, ".nekovideo").exists() ||
+                        FolderLockManager.isLocked(directory.absolutePath)
+
+                return !isPrivateDirectory
+            }
+
             // If this folder is locked, get videos from manifest and continue scanning subfolders
             if (FolderLockManager.isLocked(path) && sessionPassword != null) {
                 videos.addAll(getLockedVideos(path, sessionPassword))
                 // Continue into subdirectories for recursive locked subfolder support
                 File(path).listFiles()?.forEach { file ->
-                    if (file.isDirectory && file.name !in listOf(".neko_thumbs")) {
+                    if (file.isDirectory && file.name !in listOf(".neko_thumbs") && canEnterPrivateFolder(file)) {
                         videos.addAll(scanFolder(file.absolutePath, true))
                     }
                 }
@@ -584,13 +595,7 @@ object FilesManager {
                             videos.add("file://${file.absolutePath}")
                         }
                         file.isDirectory && file.name !in listOf(".neko_thumbs") -> {
-                            val shouldEnter = if (file.name.startsWith(".")) {
-                                showPrivateFolders || isSecure
-                            } else {
-                                true
-                            }
-
-                            if (shouldEnter) {
+                            if (canEnterPrivateFolder(file)) {
                                 val subFolderSecure = isSecureFolder(file.absolutePath)
                                 videos.addAll(scanFolder(file.absolutePath, subFolderSecure))
                             }

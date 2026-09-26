@@ -30,6 +30,17 @@
     <string name="action_move">Mover</string>
     <string name="action_share">Compartir</string>
     <string name="action_tags">Tags</string>
+    <string name="action_pin_folder">Fijar carpeta</string>
+    <string name="action_unpin_folder">Desfijar carpeta</string>
+    <string name="pinned_folders_title">Carpetas fijadas</string>
+    <string name="pinned_folder_unavailable">Carpeta no encontrada</string>
+    <string name="pin_folder_success">Carpeta fijada</string>
+    <string name="unpin_folder_success">Carpeta desfijada</string>
+    <string name="unpin_folder_confirm_title">¿Desfijar carpeta?</string>
+    <string name="unpin_folder_confirm_message">¿Quitar "%1$s" de las carpetas fijadas?</string>
+    <string name="pin_folder_already_pinned">Esta carpeta ya está fijada</string>
+    <string name="pin_folder_limit_reached">Límite de carpetas fijadas alcanzado</string>
+    <string name="pin_folder_invalid">Solo se pueden fijar carpetas existentes</string>
     <string name="share_videos">Compartir videos</string>
     <string name="action_shuffle_play">Aleatorio</string>
     <string name="action_create_folder">Nueva Carpeta</string>
@@ -138,6 +149,8 @@
     <string name="shuffle_tags_empty">Aún no hay tags creadas. Primero agrega tags a los videos.</string>
     <string name="shuffle_tags_hint_message">Mantén pulsado para abrir el filtro de tags</string>
     <string name="shuffle_tags_confirm">Crear shuffle</string>
+    <string name="new_playlist_confirm_title">¿Nueva playlist?</string>
+    <string name="new_playlist_confirm_message">Ya existe una playlist activa. Iniciar una nueva playlist reemplazará la actual. ¿Deseas continuar?</string>
     <string name="shuffle_tags_no_match">No se encontraron videos con las tags seleccionadas</string>
     <string name="shuffle_tags_mode_neutral">Neutral</string>
     <string name="shuffle_tags_mode_include">Usar en shuffle</string>
@@ -196,18 +209,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Novedades de v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>Nuevos gestos del reproductor</item>
-        <item>Doble toque acumulativo</item>
-        <item>Configuración más clara</item>
-        <item>Etiquetas y almacenamiento refinados</item>
-        <item>Carpetas más ágiles</item>
+        <item>Zoom en el reproductor</item>
+        <item>Preview en el diálogo de tags</item>
+        <item>Audio y subtítulos compactos</item>
+        <item>Confirmación de playlist</item>
+        <item>Mejoras generales</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Ahora puedes ajustar volumen y brillo deslizando en los laterales de la pantalla durante la reproducción.</item>
-        <item>Los toques rápidos para avanzar o retroceder ahora se acumulan, permitiendo saltar 10s, 20s, 30s y más.</item>
-        <item>La pantalla de configuración recibió opciones condicionales, descripciones más limpias y feedback visual.</item>
-        <item>La gestión de etiquetas fue rediseñada y almacenamiento ahora muestra tamaños antes de limpiar.</item>
-        <item>La navegación por carpetas fue optimizada y las carpetas privadas recién visibles aparecen con una animación suave.</item>
+        <item>Usa el gesto de pinza para acercar el video y arrastra para mover la imagen ampliada.</item>
+        <item>Cuando solo hay un video seleccionado, el diálogo de tags ahora muestra una vista previa rápida sin abrir el reproductor completo.</item>
+        <item>El selector de audio y subtítulos se adapta mejor en horizontal y en pantallas pequeñas con un diseño más compacto.</item>
+        <item>Al abrir un video o iniciar shuffle con una playlist activa, la app pregunta antes de reemplazar la lista actual. El shuffle también respeta la visibilidad de las carpetas privadas.</item>
+        <item>Diálogos más consistentes, correcciones de build y ajustes de traducción.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Carpetas privadas más rápidas</string>
     <string name="changelog_pinned_folders_desc">Se corrigió un problema que podía causar bloqueos al cambiar rápidamente entre videos de carpetas privadas.</string>

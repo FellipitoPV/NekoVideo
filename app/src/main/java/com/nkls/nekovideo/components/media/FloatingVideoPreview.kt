@@ -1,10 +1,12 @@
 package com.nkls.nekovideo.components
 
 import android.net.Uri
+import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,12 +32,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.C
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.MediaItem as ExoMediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -64,6 +68,7 @@ fun buildVideoPreviewUri(videoPath: String, isSecureMode: Boolean): Uri? {
 }
 
 @Composable
+@OptIn(UnstableApi::class)
 fun FloatingVideoPreview(
     title: String,
     videoUri: Uri,
@@ -77,6 +82,8 @@ fun FloatingVideoPreview(
     var hasSignalledFinish by remember(videoUri) { mutableStateOf(false) }
     var aspectRatio by remember(videoUri) { mutableStateOf(16f / 9f) }
     var isLoadingPreview by remember(videoUri) { mutableStateOf(true) }
+    var videoDurationMs by remember { mutableStateOf(0L) }
+    var currentPositionMs by remember { mutableStateOf(0L) }
 
     fun finishPreview() {
         if (!hasSignalledFinish) {
@@ -154,6 +161,8 @@ fun FloatingVideoPreview(
                 return@LaunchedEffect
             }
 
+            videoDurationMs = durationMs
+
             suspend fun playWindow(startMs: Long, requestedDurationMs: Long) {
                 val maxStart = (durationMs - 500L).coerceAtLeast(0L)
                 val segmentStart = startMs.coerceIn(0L, maxStart)
@@ -170,6 +179,7 @@ fun FloatingVideoPreview(
                     while (isActive) {
                         if (player.playbackState == Player.STATE_ENDED) break
                         if (player.currentPosition >= targetPosition) break
+                        currentPositionMs = player.currentPosition
                         delay(if (player.isPlaying) 50L else 100L)
                     }
                 }
@@ -262,6 +272,31 @@ fun FloatingVideoPreview(
                             color = Color.White,
                             strokeWidth = 2.5.dp,
                             modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .align(Alignment.BottomCenter),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    val fullProgress = if (videoDurationMs > 0) {
+                        (currentPositionMs.toFloat() / videoDurationMs.toFloat()).coerceIn(0f, 1f)
+                    } else 0f
+                    val progressWidth = previewWidth * fullProgress
+                    Box(
+                        modifier = Modifier
+                            .width(previewWidth)
+                            .height(3.dp)
+                            .background(Color.White.copy(alpha = 0.3f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(progressWidth)
+                                .height(3.dp)
+                                .background(MaterialTheme.colorScheme.primary)
                         )
                     }
                 }

@@ -24,12 +24,19 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -112,6 +120,7 @@ private const val MAX_BUFFERING_RECOVERY_ATTEMPTS = 3
 private const val BUFFERING_UI_STALL_TIMEOUT_MS = 900L
 private const val BUFFERING_PROGRESS_EPSILON_MS = 200L
 private const val VERTICAL_GESTURE_FULL_RANGE_RATIO = 0.6f
+private const val MAX_VIDEO_ZOOM = 4f
 
 private data class PreferredTrack(
     val label: String?,
@@ -140,7 +149,7 @@ private fun subtitleSizeSp(level: Int): Float {
 }
 
 @androidx.annotation.OptIn(UnstableApi::class)
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @SuppressLint("OpaqueUnitKey")
 @Composable
 fun VideoPlayerOverlay(
@@ -204,6 +213,9 @@ fun VideoPlayerOverlay(
     var bufferingRecoveryAttempts by remember { mutableIntStateOf(0) }
     var showMissingVideoDialog by remember { mutableStateOf(false) }
     var missingVideoTitle by remember { mutableStateOf("") }
+    var videoZoom by remember { mutableStateOf(1f) }
+    var videoOffsetX by remember { mutableStateOf(0f) }
+    var videoOffsetY by remember { mutableStateOf(0f) }
     var lastPlaybackProgressAtMs by remember { mutableStateOf(System.currentTimeMillis()) }
     var lastPlaybackProgressPosition by remember { mutableStateOf(0L) }
     var showBlockingBufferingUi by remember { mutableStateOf(false) }
@@ -241,6 +253,23 @@ fun VideoPlayerOverlay(
     var accumulatedDoubleTapSeek by remember { mutableStateOf(0L) }
     var lastDoubleTapSeekForward by remember { mutableStateOf<Boolean?>(null) }
     val doubleTapTimeWindow = 400L // 400ms para detectar double tap e taps acumulados
+
+    fun resetVideoZoom() {
+        videoZoom = 1f
+        videoOffsetX = 0f
+        videoOffsetY = 0f
+    }
+
+    fun coerceVideoPan(width: Int, height: Int, zoom: Float) {
+        val maxOffsetX = width * (zoom - 1f) / 2f
+        val maxOffsetY = height * (zoom - 1f) / 2f
+        videoOffsetX = videoOffsetX.coerceIn(-maxOffsetX, maxOffsetX)
+        videoOffsetY = videoOffsetY.coerceIn(-maxOffsetY, maxOffsetY)
+    }
+
+    LaunchedEffect(currentVideoPath) {
+        resetVideoZoom()
+    }
 
     // ✅ Esconder controles quando entrar no PIP
     LaunchedEffect(isInPiPMode) {
@@ -1598,20 +1627,86 @@ fun VideoPlayerOverlay(
                             val edgeMargin = size.width * 0.05f
                             val isNearEdge = down.position.x < edgeMargin || down.position.x > size.width - edgeMargin || down.position.y > size.height - 100.dp.toPx()
 
-                            val touchSlopResult = awaitTouchSlopOrCancellation(down.id) { change, _ ->
-                                if (!isNearEdge) change.consume()
+                            var gestureChange = down
+                            var initialDragX = 0f
+                            var initialDragY = 0f
+                            var startedTransformGesture = false
+
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val pressedChanges = event.changes.filter { it.pressed }
+
+                                if (pressedChanges.size > 1) {
+                                    startedTransformGesture = true
+                                    event.changes.forEach { it.consume() }
+                                    break
+                                }
+
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: event.changes.firstOrNull()
+                                if (change == null || !change.pressed) {
+                                    break
+                                }
+
+                                val dragX = change.position.x - downX
+                                val dragY = change.position.y - downY
+                                if (abs(dragX) > viewConfiguration.touchSlop || abs(dragY) > viewConfiguration.touchSlop) {
+                                    gestureChange = change
+                                    initialDragX = dragX
+                                    initialDragY = dragY
+                                    if (!isNearEdge) change.consume()
+                                    break
+                                }
                             }
 
-                            if (touchSlopResult != null) {
-                                if (!isNearEdge && !controlsVisible) {
-                                    val initialDragX = touchSlopResult.position.x - downX
-                                    val initialDragY = touchSlopResult.position.y - downY
-                                    val initialPosition = mediaController?.currentPosition ?: 0L
-                                    val videoDuration = mediaController?.duration?.takeIf { it > 0 } ?: 0L
-                                    val seekSensitivity = screenWidth / 30f
-                                    val isHorizontalGesture = abs(initialDragX) >= abs(initialDragY)
+                            if (startedTransformGesture) {
+                                controlsVisible = false
+                                tapCount = 0
 
-                                    if (isHorizontalGesture && dragSeekEnabled) {
+                                do {
+                                    val event = awaitPointerEvent()
+                                    val zoomChange = event.calculateZoom()
+                                    val panChange = event.calculatePan()
+                                    val nextZoom = (videoZoom * zoomChange).coerceIn(1f, MAX_VIDEO_ZOOM)
+
+                                    videoZoom = nextZoom
+                                    if (nextZoom <= 1.01f) {
+                                        resetVideoZoom()
+                                    } else {
+                                        videoOffsetX += panChange.x
+                                        videoOffsetY += panChange.y
+                                        coerceVideoPan(size.width, size.height, nextZoom)
+                                    }
+
+                                    event.changes.forEach { it.consume() }
+                                } while (event.changes.any { it.pressed })
+                            } else if (gestureChange != down) {
+                                if (!isNearEdge && !controlsVisible) {
+                                    if (videoZoom > 1f) {
+                                        var totalPanX = initialDragX
+                                        var totalPanY = initialDragY
+                                        var lastPanX = 0f
+                                        var lastPanY = 0f
+
+                                        do {
+                                            videoOffsetX += totalPanX - lastPanX
+                                            videoOffsetY += totalPanY - lastPanY
+                                            coerceVideoPan(size.width, size.height, videoZoom)
+                                            lastPanX = totalPanX
+                                            lastPanY = totalPanY
+
+                                            val event = awaitPointerEvent()
+                                            val change = event.changes.firstOrNull() ?: break
+                                            totalPanX = change.position.x - downX
+                                            totalPanY = change.position.y - downY
+                                            change.consume()
+                                        } while (change.pressed)
+                                    } else {
+                                        val initialPosition = mediaController?.currentPosition ?: 0L
+                                        val videoDuration = mediaController?.duration?.takeIf { it > 0 } ?: 0L
+                                        val seekSensitivity = screenWidth / 30f
+                                        val isHorizontalGesture = abs(initialDragX) >= abs(initialDragY)
+
+                                        if (isHorizontalGesture && dragSeekEnabled) {
                                         var totalDragX = initialDragX
                                         var lastSeekSeconds = 0
 
@@ -1639,7 +1734,7 @@ fun VideoPlayerOverlay(
                                                 controller.seekTo(newPosition)
                                             }
                                         }
-                                    } else if (!isHorizontalGesture && volumeBrightnessGesturesEnabled) {
+                                        } else if (!isHorizontalGesture && volumeBrightnessGesturesEnabled) {
                                         val isBrightnessGesture = downX < screenWidth / 2f
                                         val gestureRange = screenHeight * VERTICAL_GESTURE_FULL_RANGE_RATIO
                                         val window = activity?.window
@@ -1682,12 +1777,13 @@ fun VideoPlayerOverlay(
                                         } else {
                                             brightnessIndicator = null
                                         }
-                                    } else {
+                                        } else {
                                         do {
                                             val event = awaitPointerEvent()
                                             val change = event.changes.firstOrNull() ?: break
                                             change.consume()
                                         } while (change.pressed)
+                                        }
                                     }
                                 }
                             } else {
@@ -1756,7 +1852,14 @@ fun VideoPlayerOverlay(
                 // PlayerView em background
                 AndroidView(
                     factory = { playerView },
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = videoZoom
+                            scaleY = videoZoom
+                            translationX = videoOffsetX
+                            translationY = videoOffsetY
+                        }
                 )
 
                 if (isWaitingForRotationGate) {
@@ -1914,6 +2017,45 @@ fun VideoPlayerOverlay(
                         },
                         onSleepTimerConfirmed = {}
                     )
+                }
+
+                if (videoZoom > 1.01f && !isInPiPMode && hasLoadedVideo) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility.only(WindowInsetsSides.Top))
+                            .padding(top = if (controlsVisible) 82.dp else 20.dp)
+                            .background(Color.Black.copy(alpha = 0.58f), RoundedCornerShape(999.dp))
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "${(videoZoom * 100).roundToInt()}%",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                if (controlsVisible && videoZoom > 1.01f && !isInPiPMode && hasLoadedVideo) {
+                    TextButton(
+                        onClick = {
+                            resetVideoZoom()
+                            resetUITimer()
+                        },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 82.dp, end = 14.dp)
+                            .background(Color.Black.copy(alpha = 0.58f), RoundedCornerShape(999.dp))
+                    ) {
+                        Text(
+                            text = "100%",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         }

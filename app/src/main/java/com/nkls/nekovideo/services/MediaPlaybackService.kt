@@ -30,6 +30,7 @@ import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import kotlinx.coroutines.*
 import android.net.Uri
 import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.nkls.nekovideo.components.helpers.HybridDataSourceFactory
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
@@ -321,7 +322,7 @@ class MediaPlaybackService : MediaSessionService() {
                     return if (subtitleUri != null && applyExternalSubtitleToCurrentItem(subtitleUri, subtitleName)) {
                         Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                     } else {
-                        Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_BAD_VALUE))
+                        Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE))
                     }
                 }
 
@@ -329,7 +330,7 @@ class MediaPlaybackService : MediaSessionService() {
                     return if (clearExternalSubtitleFromCurrentItem()) {
                         Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                     } else {
-                        Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_INVALID_STATE))
+                        Futures.immediateFuture(SessionResult(SessionError.ERROR_INVALID_STATE))
                     }
                 }
             }
@@ -701,6 +702,7 @@ class MediaPlaybackService : MediaSessionService() {
     private fun broadcastSleepTimerState(isActive: Boolean) {
         sendBroadcast(
             Intent(BROADCAST_SLEEP_TIMER_STATE_CHANGED).apply {
+                setPackage(packageName)
                 putExtra(EXTRA_SLEEP_TIMER_ACTIVE, isActive)
                 putExtra(EXTRA_SLEEP_TIMER_END_AT_MS, sleepTimerEndAtMs)
             }

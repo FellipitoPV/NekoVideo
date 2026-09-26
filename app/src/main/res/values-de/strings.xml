@@ -30,6 +30,17 @@
     <string name="action_move">Verschieben</string>
     <string name="action_share">Teilen</string>
     <string name="action_tags">Tags</string>
+    <string name="action_pin_folder">Ordner anheften</string>
+    <string name="action_unpin_folder">Ordner lösen</string>
+    <string name="pinned_folders_title">Angeheftete Ordner</string>
+    <string name="pinned_folder_unavailable">Ordner nicht gefunden</string>
+    <string name="pin_folder_success">Ordner angeheftet</string>
+    <string name="unpin_folder_success">Ordner gelöst</string>
+    <string name="unpin_folder_confirm_title">Ordner lösen?</string>
+    <string name="unpin_folder_confirm_message">"%1$s" aus den angehefteten Ordnern entfernen?</string>
+    <string name="pin_folder_already_pinned">Dieser Ordner ist bereits angeheftet</string>
+    <string name="pin_folder_limit_reached">Limit für angeheftete Ordner erreicht</string>
+    <string name="pin_folder_invalid">Nur vorhandene Ordner können angeheftet werden</string>
     <string name="share_videos">Videos teilen</string>
     <string name="action_shuffle_play">Zufällig</string>
     <string name="action_create_folder">Neuer Ordner</string>
@@ -138,6 +149,8 @@
     <string name="shuffle_tags_empty">Noch keine Tags erstellt. Fügen Sie zuerst Tags zu Videos hinzu.</string>
     <string name="shuffle_tags_hint_message">Gedrückt halten, um den Tag-Filter zu öffnen</string>
     <string name="shuffle_tags_confirm">Shuffle erstellen</string>
+    <string name="new_playlist_confirm_title">Neue Playlist?</string>
+    <string name="new_playlist_confirm_message">Es gibt bereits eine aktive Playlist. Eine neue Playlist ersetzt die aktuelle. Möchten Sie fortfahren?</string>
     <string name="shuffle_tags_no_match">Keine Videos mit den ausgewählten Tags gefunden</string>
     <string name="shuffle_tags_mode_neutral">Neutral</string>
     <string name="shuffle_tags_mode_include">Im Shuffle verwenden</string>
@@ -196,18 +209,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Neu in v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>Neue Player-Gesten</item>
-        <item>Gestapeltes Doppeltippen</item>
-        <item>Klarere Einstellungen</item>
-        <item>Verbesserte Tags und Speicheransicht</item>
-        <item>Reaktionsschnellere Ordner</item>
+        <item>Player-Zoom</item>
+        <item>Vorschau im Tag-Dialog</item>
+        <item>Kompakte Audio- und Untertitelauswahl</item>
+        <item>Playlist-Bestätigung</item>
+        <item>Allgemeine Verbesserungen</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Lautstärke und Helligkeit können jetzt während der Wiedergabe durch Wischen an den Bildschirmseiten angepasst werden.</item>
-        <item>Schnelle Tipps zum Vor- oder Zurückspringen werden nun addiert, damit 10s, 20s, 30s und mehr möglich sind.</item>
-        <item>Die Einstellungen haben bedingte Optionen, klarere Beschreibungen und visuelles Feedback für Aktionen erhalten.</item>
-        <item>Die Tag-Verwaltung wurde überarbeitet und der Speicherbereich zeigt Größen vor dem Leeren an.</item>
-        <item>Die Ordnernavigation wurde optimiert und neu sichtbare private Ordner erscheinen mit einer sanften Animation.</item>
+        <item>Verwende die Pinch-Geste zum Vergrößern und ziehe das vergrößerte Bild, um es zu verschieben.</item>
+        <item>Wenn nur ein Video ausgewählt ist, kann der Tag-Dialog jetzt eine schnelle Vorschau anzeigen, ohne den vollständigen Player zu öffnen.</item>
+        <item>Die Auswahl für Audio und Untertitel passt sich im Querformat und auf kleineren Bildschirmen besser an.</item>
+        <item>Beim Öffnen eines Videos oder Starten von Shuffle mit aktiver Playlist fragt die App nach, bevor die aktuelle Liste ersetzt wird. Shuffle respektiert außerdem die Sichtbarkeit privater Ordner.</item>
+        <item>Konsistentere Dialoge, Build-Korrekturen und aktualisierte Übersetzungen.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Schnellere private Ordner</string>
     <string name="changelog_pinned_folders_desc">Ein Problem wurde behoben, das beim schnellen Wechseln zwischen Videos in privaten Ordnern zu Rucklern führen konnte.</string>

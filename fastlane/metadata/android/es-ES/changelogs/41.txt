@@ -1,0 +1,7 @@
+El reproductor ahora permite zoom con pinza y mover el video ampliado.
+
+El diálogo de tags ahora permite previsualizar un solo video sin abrir el reproductor completo.
+
+El selector de audio y subtítulos ahora es más compacto en horizontal y en pantallas pequeñas.
+
+Al abrir videos o iniciar el shuffle con una playlist activa, la app ahora confirma antes de reemplazar la playlist actual. El shuffle también respeta la visibilidad de las carpetas privadas.

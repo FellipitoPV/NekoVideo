@@ -85,6 +85,7 @@ import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.CreateFolderDialog
 import com.nkls.nekovideo.components.DeleteConfirmationDialog
+import com.nkls.nekovideo.components.NewPlaylistConfirmDialog
 import com.nkls.nekovideo.components.UnpinFolderConfirmationDialog
 import com.nkls.nekovideo.components.EnableBiometricDialog
 import com.nkls.nekovideo.components.PasswordDialog
@@ -258,8 +259,19 @@ fun MainScreen(
     var showBiometricOfferDialog by remember { mutableStateOf(false) }
     var biometricOfferPassword by remember { mutableStateOf("") }
 
+    data class VideoParams(
+        val targetFolderPath: String,
+        val itemPath: String,
+        val sortType: SortType,
+        val resumePositionMs: Long
+    )
+
     var showVideoTagsDialog by remember { mutableStateOf(false) }
     var showShuffleTagsDialog by remember { mutableStateOf(false) }
+    var showNewPlaylistConfirmDialog by remember { mutableStateOf(false) }
+    var pendingVideoParams by remember { mutableStateOf<VideoParams?>(null) }
+    var hasPendingShufflePlayback by remember { mutableStateOf(false) }
+    var pendingShuffleTagFilter by remember { mutableStateOf<ShuffleTagFilter?>(null) }
     var availableTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
     var commonSelectedTagIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var cachedNormalTags by remember { mutableStateOf<List<TagEntity>?>(null) }
@@ -344,18 +356,12 @@ fun MainScreen(
         refreshShuffleLongPressHintEligibility()
     }
 
-    fun openVideoFromFolder(
+    fun executeOpenVideo(
         targetFolderPath: String,
         itemPath: String,
-        sortType: SortType = SortType.NAME_ASC,
-        resumePositionMs: Long = 0L
+        sortType: SortType,
+        resumePositionMs: Long
     ) {
-        val effectiveResumePositionMs = if (resumePositionMs > 0L) {
-            resumePositionMs
-        } else {
-            VideoProgressStore.get(context, itemPath)?.positionMs ?: 0L
-        }
-
         val targetIsSecure = isSecureFolder(targetFolderPath)
         val targetIsRootLevel = targetFolderPath == FolderNavigationState.ROOT_PATH
         val items = loadFolderContent(
@@ -381,10 +387,10 @@ fun MainScreen(
                 val clickedVideoIndex = videos.indexOf("locked://$itemPath")
                 if (clickedVideoIndex >= 0) {
                     castManager.castPlaylist(videos, titles, clickedVideoIndex)
-                    if (effectiveResumePositionMs > 0L) {
+                    if (resumePositionMs > 0L) {
                         coroutineScope.launch {
                             delay(1500)
-                            castManager.seekTo(effectiveResumePositionMs)
+                            castManager.seekTo(resumePositionMs)
                         }
                     }
                 }
@@ -394,10 +400,10 @@ fun MainScreen(
                 val clickedVideoIndex = videos.indexOf("file://$itemPath")
                 if (clickedVideoIndex >= 0) {
                     castManager.castPlaylist(videos, titles, clickedVideoIndex)
-                    if (effectiveResumePositionMs > 0L) {
+                    if (resumePositionMs > 0L) {
                         coroutineScope.launch {
                             delay(1500)
-                            castManager.seekTo(effectiveResumePositionMs)
+                            castManager.seekTo(resumePositionMs)
                         }
                     }
                 } else {
@@ -416,7 +422,7 @@ fun MainScreen(
             val clickedVideoIndex = videos.indexOf("locked://$itemPath")
             if (clickedVideoIndex >= 0) {
                 PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
-                MediaPlaybackService.startWithPlaylist(context, videos, clickedVideoIndex, effectiveResumePositionMs)
+                MediaPlaybackService.startWithPlaylist(context, videos, clickedVideoIndex, resumePositionMs)
                 openPlayerOverlay()
             }
         } else {
@@ -424,15 +430,47 @@ fun MainScreen(
             val clickedVideoIndex = videos.indexOf("file://$itemPath")
             if (clickedVideoIndex >= 0) {
                 PlaylistManager.setPlaylist(videos, startIndex = clickedVideoIndex, shuffle = false)
-                MediaPlaybackService.startWithPlaylist(context, videos, clickedVideoIndex, effectiveResumePositionMs)
+                MediaPlaybackService.startWithPlaylist(context, videos, clickedVideoIndex, resumePositionMs)
                 openPlayerOverlay()
             } else {
                 val videoUri = "file://$itemPath"
                 PlaylistManager.setPlaylist(listOf(videoUri), startIndex = 0, shuffle = false)
-                MediaPlaybackService.startWithPlaylist(context, listOf(videoUri), 0, effectiveResumePositionMs)
+                MediaPlaybackService.startWithPlaylist(context, listOf(videoUri), 0, resumePositionMs)
                 openPlayerOverlay()
             }
         }
+    }
+
+    fun openVideoFromFolder(
+        targetFolderPath: String,
+        itemPath: String,
+        sortType: SortType = SortType.NAME_ASC,
+        resumePositionMs: Long = 0L
+    ) {
+        val effectiveResumePositionMs = if (resumePositionMs > 0L) {
+            resumePositionMs
+        } else {
+            VideoProgressStore.get(context, itemPath)?.positionMs ?: 0L
+        }
+
+        // Check if there's an active playlist and show confirmation dialog
+        if (PlaylistManager.getFullPlaylist().isNotEmpty()) {
+            pendingVideoParams = VideoParams(
+                targetFolderPath = targetFolderPath,
+                itemPath = itemPath,
+                sortType = sortType,
+                resumePositionMs = effectiveResumePositionMs
+            )
+            showNewPlaylistConfirmDialog = true
+            return
+        }
+
+        executeOpenVideo(
+            targetFolderPath = targetFolderPath,
+            itemPath = itemPath,
+            sortType = sortType,
+            resumePositionMs = effectiveResumePositionMs
+        )
     }
 
     suspend fun playShuffledVideos(tagFilter: ShuffleTagFilter? = null) {
@@ -518,7 +556,7 @@ fun MainScreen(
         }
     }
 
-    fun launchShufflePlayback(tagFilter: ShuffleTagFilter? = null) {
+    fun executeShufflePlayback(tagFilter: ShuffleTagFilter? = null) {
         coroutineScope.launch {
             isShuffling = true
             try {
@@ -527,6 +565,17 @@ fun MainScreen(
                 isShuffling = false
             }
         }
+    }
+
+    fun launchShufflePlayback(tagFilter: ShuffleTagFilter? = null) {
+        if (PlaylistManager.getFullPlaylist().isNotEmpty()) {
+            hasPendingShufflePlayback = true
+            pendingShuffleTagFilter = tagFilter
+            showNewPlaylistConfirmDialog = true
+            return
+        }
+
+        executeShufflePlayback(tagFilter)
     }
 
     fun togglePrivateFolders() {
@@ -854,6 +903,34 @@ fun MainScreen(
             onConfirm = { filter ->
                 showShuffleTagsDialog = false
                 launchShufflePlayback(filter)
+            }
+        )
+    }
+
+    if (showNewPlaylistConfirmDialog) {
+        NewPlaylistConfirmDialog(
+            onDismiss = {
+                showNewPlaylistConfirmDialog = false
+                pendingVideoParams = null
+                hasPendingShufflePlayback = false
+                pendingShuffleTagFilter = null
+            },
+            onConfirm = {
+                showNewPlaylistConfirmDialog = false
+                val videoParams = pendingVideoParams
+                if (videoParams != null) {
+                    executeOpenVideo(
+                        targetFolderPath = videoParams.targetFolderPath,
+                        itemPath = videoParams.itemPath,
+                        sortType = videoParams.sortType,
+                        resumePositionMs = videoParams.resumePositionMs
+                    )
+                } else if (hasPendingShufflePlayback) {
+                    executeShufflePlayback(pendingShuffleTagFilter)
+                }
+                pendingVideoParams = null
+                hasPendingShufflePlayback = false
+                pendingShuffleTagFilter = null
             }
         )
     }

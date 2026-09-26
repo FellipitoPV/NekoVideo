@@ -30,6 +30,17 @@
     <string name="action_move">Переместить</string>
     <string name="action_share">Поделиться</string>
     <string name="action_tags">Теги</string>
+    <string name="action_pin_folder">Закрепить папку</string>
+    <string name="action_unpin_folder">Открепить папку</string>
+    <string name="pinned_folders_title">Закреплённые папки</string>
+    <string name="pinned_folder_unavailable">Папка не найдена</string>
+    <string name="pin_folder_success">Папка закреплена</string>
+    <string name="unpin_folder_success">Папка откреплена</string>
+    <string name="unpin_folder_confirm_title">Открепить папку?</string>
+    <string name="unpin_folder_confirm_message">Удалить "%1$s" из закреплённых папок?</string>
+    <string name="pin_folder_already_pinned">Эта папка уже закреплена</string>
+    <string name="pin_folder_limit_reached">Достигнут лимит закреплённых папок</string>
+    <string name="pin_folder_invalid">Можно закреплять только существующие папки</string>
     <string name="share_videos">Поделиться видео</string>
     <string name="action_shuffle_play">Случайно</string>
     <string name="action_create_folder">Новая папка</string>
@@ -138,6 +149,8 @@
     <string name="shuffle_tags_empty">Теги ещё не созданы. Сначала добавьте теги к видео.</string>
     <string name="shuffle_tags_hint_message">Удерживайте, чтобы открыть фильтр тегов</string>
     <string name="shuffle_tags_confirm">Создать shuffle</string>
+    <string name="new_playlist_confirm_title">Новый плейлист?</string>
+    <string name="new_playlist_confirm_message">Уже есть активный плейлист. Запуск нового плейлиста заменит текущий. Продолжить?</string>
     <string name="shuffle_tags_no_match">Видео с выбранными тегами не найдены</string>
     <string name="shuffle_tags_mode_neutral">Нейтрально</string>
     <string name="shuffle_tags_mode_include">Использовать в shuffle</string>
@@ -196,18 +209,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Что нового в v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>Новые жесты плеера</item>
-        <item>Накопительное двойное касание</item>
-        <item>Более понятные настройки</item>
-        <item>Улучшены теги и хранилище</item>
-        <item>Более отзывчивые папки</item>
+        <item>Масштабирование в плеере</item>
+        <item>Предпросмотр в диалоге тегов</item>
+        <item>Компактные аудио и субтитры</item>
+        <item>Подтверждение плейлиста</item>
+        <item>Общие улучшения</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Теперь во время воспроизведения можно менять громкость и яркость свайпами по краям экрана.</item>
-        <item>Быстрые касания для перемотки вперед или назад теперь суммируются, позволяя пропускать 10с, 20с, 30с и больше.</item>
-        <item>Экран настроек получил условные параметры, более понятные описания и визуальную обратную связь.</item>
-        <item>Управление тегами переработано, а раздел хранилища теперь показывает размеры перед очисткой.</item>
-        <item>Навигация по папкам оптимизирована, а вновь показанные приватные папки появляются с плавной анимацией.</item>
+        <item>Используйте жест масштабирования и перетаскивайте увеличенное изображение, чтобы перемещать его.</item>
+        <item>Если выбран только один видеофайл, диалог тегов теперь может показать быстрый предпросмотр без открытия полного плеера.</item>
+        <item>Выбор аудио и субтитров лучше адаптируется к альбомной ориентации и небольшим экранам.</item>
+        <item>При открытии видео или запуске shuffle с активным плейлистом приложение спрашивает подтверждение перед заменой текущего списка. Shuffle также учитывает видимость приватных папок.</item>
+        <item>Более единообразные диалоги, исправления сборки и обновления переводов.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Быстрее приватные папки</string>
     <string name="changelog_pinned_folders_desc">Исправлена проблема, из-за которой могли появляться зависания при быстром переключении видео в приватных папках.</string>

@@ -148,6 +148,8 @@
     <string name="shuffle_tags_description">Tap a tag to cycle between use, ignore and neutral. If no tag is marked to use, shuffle considers all videos and excludes only the ignored tags.</string>
     <string name="shuffle_tags_empty">No tags created yet. Add tags to videos first.</string>
     <string name="shuffle_tags_confirm">Create shuffle</string>
+    <string name="new_playlist_confirm_title">New playlist?</string>
+    <string name="new_playlist_confirm_message">There is already an active playlist. Starting a new playlist will replace the current one. Do you want to continue?</string>
     <string name="shuffle_tags_no_match">No videos with the selected tags were found</string>
     <string name="shuffle_tags_mode_neutral">Neutral</string>
     <string name="shuffle_tags_mode_include">Use in shuffle</string>
@@ -207,18 +209,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">What\'s new in v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>New player gestures</item>
-        <item>Stacking double tap</item>
-        <item>Clearer settings</item>
-        <item>Refined tags and storage</item>
-        <item>More responsive folders</item>
+        <item>Player zoom</item>
+        <item>Preview in tags dialog</item>
+        <item>Compact audio and subtitles</item>
+        <item>Playlist confirmation</item>
+        <item>General improvements</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>You can now adjust volume and brightness by swiping on the sides of the screen during playback.</item>
-        <item>Quick taps to seek forward or back now stack, letting you skip 10s, 20s, 30s and more.</item>
-        <item>The settings screen now has conditional options, cleaner descriptions, and visual feedback for actions.</item>
-        <item>Tag management was redesigned, and storage now shows cache and history sizes before clearing.</item>
-        <item>Folder navigation was optimized, and newly visible private folders now appear with a smooth animation.</item>
+        <item>Use pinch gestures to zoom into the video and drag to move the enlarged frame.</item>
+        <item>When only one video is selected, the tags dialog can now show a quick preview without opening the full player.</item>
+        <item>The audio and subtitle selector now adapts better in landscape and on smaller screens with a tighter layout.</item>
+        <item>When opening a video or starting shuffle with an active playlist, the app asks before replacing the current list. Shuffle also respects private folder visibility.</item>
+        <item>More consistent dialogs, build fixes, and translation updates.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Faster private folders</string>
     <string name="changelog_pinned_folders_desc">Fixed an issue that could cause stutters when quickly switching between videos in private folders.</string>

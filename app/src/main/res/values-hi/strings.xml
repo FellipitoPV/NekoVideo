@@ -30,6 +30,17 @@
     <string name="action_move">स्थानांतरित करें</string>
     <string name="action_share">शेयर करें</string>
     <string name="action_tags">टैग्स</string>
+    <string name="action_pin_folder">फ़ोल्डर पिन करें</string>
+    <string name="action_unpin_folder">फ़ोल्डर अनपिन करें</string>
+    <string name="pinned_folders_title">पिन किए गए फ़ोल्डर</string>
+    <string name="pinned_folder_unavailable">फ़ोल्डर नहीं मिला</string>
+    <string name="pin_folder_success">फ़ोल्डर पिन किया गया</string>
+    <string name="unpin_folder_success">फ़ोल्डर अनपिन किया गया</string>
+    <string name="unpin_folder_confirm_title">फ़ोल्डर अनपिन करें?</string>
+    <string name="unpin_folder_confirm_message">"%1$s" को पिन किए गए फ़ोल्डरों से हटाएं?</string>
+    <string name="pin_folder_already_pinned">यह फ़ोल्डर पहले से पिन है</string>
+    <string name="pin_folder_limit_reached">पिन किए गए फ़ोल्डरों की सीमा पूरी हो गई</string>
+    <string name="pin_folder_invalid">केवल मौजूदा फ़ोल्डर पिन किए जा सकते हैं</string>
     <string name="share_videos">वीडियो शेयर करें</string>
     <string name="action_shuffle_play">शफल</string>
     <string name="action_create_folder">नया फोल्डर</string>
@@ -138,6 +149,8 @@
     <string name="shuffle_tags_empty">अभी तक कोई टैग नहीं बनाई गई। पहले वीडियो में टैग जोड़ें।</string>
     <string name="shuffle_tags_hint_message">टैग फ़िल्टर खोलने के लिए दबाकर रखें</string>
     <string name="shuffle_tags_confirm">शफल बनाएं</string>
+    <string name="new_playlist_confirm_title">नई प्लेलिस्ट?</string>
+    <string name="new_playlist_confirm_message">एक प्लेलिस्ट पहले से सक्रिय है। नई प्लेलिस्ट शुरू करने से मौजूदा प्लेलिस्ट बदल जाएगी। क्या आप जारी रखना चाहते हैं?</string>
     <string name="shuffle_tags_no_match">चुनी गई टैग्स वाले कोई वीडियो नहीं मिले</string>
     <string name="shuffle_tags_mode_neutral">न्यूट्रल</string>
     <string name="shuffle_tags_mode_include">शफल में उपयोग करें</string>
@@ -196,18 +209,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">v%1$s में नया</string>
     <string-array name="changelog_item_titles">
-        <item>नए प्लेयर जेस्चर</item>
-        <item>स्टैक होने वाला डबल टैप</item>
-        <item>ज़्यादा साफ़ सेटिंग्स</item>
-        <item>बेहतर टैग और स्टोरेज</item>
-        <item>ज़्यादा तेज़ फ़ोल्डर</item>
+        <item>प्लेयर zoom</item>
+        <item>टैग डायलॉग में प्रीव्यू</item>
+        <item>कॉम्पैक्ट ऑडियो और सबटाइटल</item>
+        <item>प्लेलिस्ट पुष्टि</item>
+        <item>सामान्य सुधार</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>अब playback के दौरान screen के किनारों पर swipe करके volume और brightness बदली जा सकती है।</item>
-        <item>आगे या पीछे जाने के लिए तेज़ taps अब जुड़ते हैं, जिससे 10s, 20s, 30s और अधिक skip करना आसान है।</item>
-        <item>Settings screen में conditional options, साफ़ descriptions और actions के लिए visual feedback जोड़ा गया।</item>
-        <item>Tag management को नया रूप मिला और storage अब साफ़ करने से पहले cache और history size दिखाता है।</item>
-        <item>Folder navigation बेहतर हुआ और नई दिखने वाली private folders अब smooth animation के साथ आती हैं।</item>
+        <item>वीडियो zoom करने के लिए pinch gesture इस्तेमाल करें और zoom की हुई image को move करने के लिए drag करें।</item>
+        <item>जब केवल एक वीडियो चुना हो, टैग डायलॉग अब पूरे प्लेयर को खोले बिना तेज़ प्रीव्यू दिखा सकता है।</item>
+        <item>ऑडियो और सबटाइटल चयन अब लैंडस्केप और छोटी स्क्रीन पर बेहतर, कॉम्पैक्ट लेआउट में दिखता है।</item>
+        <item>वीडियो खोलते समय या सक्रिय प्लेलिस्ट के साथ शफल शुरू करते समय, ऐप अब मौजूदा सूची बदलने से पहले पुष्टि मांगता है। शफल अब private folders की visibility का भी पालन करता है।</item>
+        <item>अधिक एक जैसे डायलॉग, build fixes और translation updates।</item>
     </string-array>
     <string name="changelog_pinned_folders_title">तेज़ private folders</string>
     <string name="changelog_pinned_folders_desc">Private folders में videos को जल्दी-जल्दी बदलने पर होने वाली रुकावट की समस्या ठीक की गई।</string>

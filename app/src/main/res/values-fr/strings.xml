@@ -30,6 +30,17 @@
     <string name="action_move">Déplacer</string>
     <string name="action_share">Partager</string>
     <string name="action_tags">Tags</string>
+    <string name="action_pin_folder">Épingler le dossier</string>
+    <string name="action_unpin_folder">Désépingler le dossier</string>
+    <string name="pinned_folders_title">Dossiers épinglés</string>
+    <string name="pinned_folder_unavailable">Dossier introuvable</string>
+    <string name="pin_folder_success">Dossier épinglé</string>
+    <string name="unpin_folder_success">Dossier désépinglé</string>
+    <string name="unpin_folder_confirm_title">Désépingler le dossier ?</string>
+    <string name="unpin_folder_confirm_message">Retirer "%1$s" des dossiers épinglés ?</string>
+    <string name="pin_folder_already_pinned">Ce dossier est déjà épinglé</string>
+    <string name="pin_folder_limit_reached">Limite de dossiers épinglés atteinte</string>
+    <string name="pin_folder_invalid">Seuls les dossiers existants peuvent être épinglés</string>
     <string name="share_videos">Partager les vidéos</string>
     <string name="action_shuffle_play">Aléatoire</string>
     <string name="action_create_folder">Nouveau Dossier</string>
@@ -138,6 +149,8 @@
     <string name="shuffle_tags_empty">Aucun tag créé pour le moment. Ajoutez d\'abord des tags aux vidéos.</string>
     <string name="shuffle_tags_hint_message">Maintenez appuyé pour ouvrir le filtre des tags</string>
     <string name="shuffle_tags_confirm">Créer le shuffle</string>
+    <string name="new_playlist_confirm_title">Nouvelle playlist ?</string>
+    <string name="new_playlist_confirm_message">Une playlist est déjà active. Démarrer une nouvelle playlist remplacera l\'actuelle. Voulez-vous continuer ?</string>
     <string name="shuffle_tags_no_match">Aucune vidéo avec les tags sélectionnés n\'a été trouvée</string>
     <string name="shuffle_tags_mode_neutral">Neutre</string>
     <string name="shuffle_tags_mode_include">Utiliser dans le shuffle</string>
@@ -196,18 +209,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Nouveautés de la v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>Nouveaux gestes du lecteur</item>
-        <item>Double appui cumulatif</item>
-        <item>Réglages plus clairs</item>
-        <item>Tags et stockage améliorés</item>
-        <item>Dossiers plus réactifs</item>
+        <item>Zoom du lecteur</item>
+        <item>Aperçu dans le dialogue des tags</item>
+        <item>Audio et sous-titres compacts</item>
+        <item>Confirmation de playlist</item>
+        <item>Améliorations générales</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Vous pouvez maintenant ajuster le volume et la luminosité en glissant sur les côtés de l\'écran pendant la lecture.</item>
-        <item>Les appuis rapides pour avancer ou reculer se cumulent désormais, pour sauter 10s, 20s, 30s et plus.</item>
-        <item>Les réglages ont reçu des options conditionnelles, des descriptions plus claires et un feedback visuel.</item>
-        <item>La gestion des tags a été repensée et le stockage affiche les tailles avant le nettoyage.</item>
-        <item>La navigation dans les dossiers a été optimisée et les dossiers privés nouvellement visibles apparaissent avec une animation douce.</item>
+        <item>Utilisez le geste de pincement pour zoomer et faites glisser l\'image agrandie pour la déplacer.</item>
+        <item>Quand une seule vidéo est sélectionnée, le dialogue des tags peut maintenant afficher un aperçu rapide sans ouvrir le lecteur complet.</item>
+        <item>Le sélecteur audio et sous-titres s\'adapte mieux en mode paysage et sur les petits écrans.</item>
+        <item>Lors de l\'ouverture d\'une vidéo ou du lancement du shuffle avec une playlist active, l\'app demande confirmation avant de remplacer la liste actuelle. Le shuffle respecte aussi la visibilité des dossiers privés.</item>
+        <item>Dialogues plus cohérents, corrections de build et mises à jour des traductions.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Dossiers privés plus rapides</string>
     <string name="changelog_pinned_folders_desc">Correction d\'un problème pouvant provoquer des blocages lors du passage rapide entre des vidéos de dossiers privés.</string>

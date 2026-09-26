@@ -148,6 +148,8 @@
     <string name="shuffle_tags_description">点击标签可在使用、忽略和中性之间切换。若未标记任何要使用的标签，则随机播放会考虑所有视频，仅排除被忽略的标签。</string>
     <string name="shuffle_tags_empty">尚未创建标签。请先为视频添加标签。</string>
     <string name="shuffle_tags_confirm">创建随机播放</string>
+    <string name="new_playlist_confirm_title">新播放列表？</string>
+    <string name="new_playlist_confirm_message">已有一个活动播放列表。开始新的播放列表将替换当前播放列表。是否继续？</string>
     <string name="shuffle_tags_no_match">未找到包含所选标签的视频</string>
     <string name="shuffle_tags_mode_neutral">中性</string>
     <string name="shuffle_tags_mode_include">用于随机播放</string>
@@ -207,18 +209,18 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">v%1$s 新功能</string>
     <string-array name="changelog_item_titles">
-        <item>新的播放器手势</item>
-        <item>双击累加跳转</item>
-        <item>更清晰的设置</item>
-        <item>标签和存储改进</item>
-        <item>文件夹响应更快</item>
+        <item>播放器缩放</item>
+        <item>标签对话框预览</item>
+        <item>紧凑的音频和字幕</item>
+        <item>播放列表确认</item>
+        <item>常规改进</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>播放时现在可以在屏幕两侧滑动来调节音量和亮度。</item>
-        <item>快速双击快进或后退现在会累加，可跳过 10 秒、20 秒、30 秒或更多。</item>
-        <item>设置页面加入条件选项、更清晰的说明和操作反馈。</item>
-        <item>标签管理已重新设计，存储页面会在清理前显示缓存和历史大小。</item>
-        <item>文件夹导航已优化，新显示的私密文件夹会以平滑动画出现。</item>
+        <item>使用双指手势放大视频，并拖动放大的画面。</item>
+        <item>只选择一个视频时，标签对话框现在可以显示快速预览，无需打开完整播放器。</item>
+        <item>音频和字幕选择器在横屏和较小屏幕上显示得更紧凑。</item>
+        <item>打开视频或在已有播放列表时启动随机播放，应用会先确认再替换当前列表。随机播放也会遵守私密文件夹的可见性设置。</item>
+        <item>对话框更一致，并包含构建修复和翻译更新。</item>
     </string-array>
     <string name="changelog_pinned_folders_title">私密文件夹更快</string>
     <string name="changelog_pinned_folders_desc">修复了快速切换私密文件夹中的视频时可能出现卡顿的问题。</string>

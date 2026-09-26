@@ -1,0 +1,7 @@
+Der Player unterstützt jetzt Pinch-to-Zoom und das Verschieben des vergrößerten Videos.
+
+Der Tag-Dialog kann jetzt ein einzelnes ausgewähltes Video als Vorschau anzeigen, ohne den vollständigen Player zu öffnen.
+
+Die Auswahl für Audio und Untertitel ist im Querformat und auf kleineren Bildschirmen kompakter.
+
+Beim Öffnen von Videos oder Starten von Shuffle mit aktiver Playlist fragt die App nun nach, bevor die aktuelle Playlist ersetzt wird. Shuffle respektiert außerdem die Sichtbarkeit privater Ordner.

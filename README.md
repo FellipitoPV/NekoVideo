@@ -41,7 +41,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 
 - Uses Media3 / ExoPlayer for local playback
 - Folder playback with playlist navigation
-- Shuffle playback for the current folder tree
+- Shuffle playback for the current folder tree, respecting private-folder visibility and confirming before replacing an active playlist
 - Double-tap seek with configurable skip duration
 - Gesture-based seeking in the player, including stacked double-tap skips
 - Vertical swipe gestures for volume and brightness control
@@ -49,6 +49,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Repeat modes: normal, repeat playlist, and repeat one
 - Sleep timer that pauses playback after a chosen duration
 - Keep screen on during playback
+- Pinch-to-zoom during playback, with panning while zoomed and a quick reset to 100%
 - Audio track and subtitle track selection
 - External subtitle file selection and subtitle size adjustment
 - Automatic orientation behavior based on the video
@@ -83,6 +84,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 
 - Create, rename, and delete tags
 - Assign tags to one or many videos
+- Preview a single selected video directly from the tags dialog
 - Keep separate tag scopes for normal content and private content
 - Shuffle videos using tag include/exclude filters
 - Preserves tag references when files or folders are renamed or moved
@@ -162,7 +164,7 @@ Project info:
 
 - `minSdk = 30`
 - `targetSdk = 36`
-- Current app version in the project: `1.5.0`
+- Current app version in the project: `1.6.0`
 
 ## License
 
