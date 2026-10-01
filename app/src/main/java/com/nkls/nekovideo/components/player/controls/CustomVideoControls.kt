@@ -1,6 +1,7 @@
 package com.nkls.nekovideo.components.player
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.os.Build
 import android.util.Log
 import androidx.compose.animation.core.RepeatMode as AnimationRepeatMode
@@ -75,6 +76,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -159,6 +161,12 @@ fun CustomVideoControls(
     val controller = mediaController ?: return
     val context = androidx.compose.ui.platform.LocalContext.current
     val configuration = LocalConfiguration.current
+    val preferences = remember {
+        context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+    }
+    var autoPiPEnabled by remember {
+        mutableStateOf(preferences.getBoolean("auto_pip", true))
+    }
     var showActionDrawer by remember { mutableStateOf(false) }
     var resumeAfterActionDrawer by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
@@ -187,6 +195,18 @@ fun CustomVideoControls(
     val maxDrawerWidth = configuration.screenWidthDp.dp * if (isLandscape) 0.25f else 0.5f
     val preferredDrawerWidth = if (isLandscape) 220.dp else 240.dp
     val drawerWidth = minOf(preferredDrawerWidth, maxDrawerWidth)
+
+    DisposableEffect(preferences) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+            if (key == "auto_pip") {
+                autoPiPEnabled = prefs.getBoolean("auto_pip", true)
+            }
+        }
+        preferences.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            preferences.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
 
     fun openActionDrawer() {
         resumeAfterActionDrawer = controller.isPlaying
@@ -318,7 +338,7 @@ fun CustomVideoControls(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !autoPiPEnabled) {
                             IconButton(
                                 onClick = {
                                     resetUITimer()

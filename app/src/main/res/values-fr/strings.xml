@@ -275,6 +275,7 @@
     <string name="storage_clear_thumbnails">Vider le cache des miniatures</string>
     <string name="storage_clear_thumbnails_desc">Supprime toutes les miniatures enregistrées. Elles seront régénérées lors de la navigation dans les dossiers</string>
     <string name="storage_clear_thumbnails_success">Cache des miniatures vidé avec succès</string>
+    <string name="storage_clearing">Nettoyage… %1$s restants</string>
     <string name="storage_clear_continue_watching">Effacer l\'historique de reprise</string>
     <string name="storage_clear_continue_watching_desc">Supprime la carte racine et tous les points de reprise enregistrés pour les vidéos</string>
     <string name="storage_clear_continue_watching_success">Historique de reprise effacé avec succès</string>

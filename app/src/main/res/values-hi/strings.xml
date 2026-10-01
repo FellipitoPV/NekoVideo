@@ -275,6 +275,7 @@
     <string name="storage_clear_thumbnails">थंबनेल कैश साफ़ करें</string>
     <string name="storage_clear_thumbnails_desc">डिस्क पर सहेजे गए सभी थंबनेल हटाता है। फ़ोल्डर ब्राउज़ करने पर पुनः बनाए जाएंगे</string>
     <string name="storage_clear_thumbnails_success">थंबनेल कैश सफलतापूर्वक साफ़ किया गया</string>
+    <string name="storage_clearing">साफ़ किया जा रहा है… %1$s शेष</string>
     <string name="storage_clear_continue_watching">देखना जारी रखें इतिहास साफ़ करें</string>
     <string name="storage_clear_continue_watching_desc">रूट कार्ड और वीडियो के सभी सहेजे गए रिज्यूम पॉइंट हटाता है</string>
     <string name="storage_clear_continue_watching_success">देखना जारी रखें इतिहास सफलतापूर्वक साफ़ किया गया</string>

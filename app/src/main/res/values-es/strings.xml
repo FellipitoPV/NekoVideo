@@ -275,6 +275,7 @@
     <string name="storage_clear_thumbnails">Limpiar caché de miniaturas</string>
     <string name="storage_clear_thumbnails_desc">Elimina todas las miniaturas guardadas en disco. Se regenerarán al navegar por las carpetas</string>
     <string name="storage_clear_thumbnails_success">Caché de miniaturas limpiado correctamente</string>
+    <string name="storage_clearing">Limpiando… quedan %1$s</string>
     <string name="storage_clear_continue_watching">Limpiar historial de continuar viendo</string>
     <string name="storage_clear_continue_watching_desc">Elimina la tarjeta de la raíz y todos los puntos de reanudación guardados de los videos</string>
     <string name="storage_clear_continue_watching_success">Historial de continuar viendo limpiado correctamente</string>

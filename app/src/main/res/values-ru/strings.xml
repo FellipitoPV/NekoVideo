@@ -275,6 +275,7 @@
     <string name="storage_clear_thumbnails">Очистить кэш миниатюр</string>
     <string name="storage_clear_thumbnails_desc">Удаляет все сохранённые миниатюры. Они будут созданы заново при просмотре папок</string>
     <string name="storage_clear_thumbnails_success">Кэш миниатюр успешно очищен</string>
+    <string name="storage_clearing">Очистка… осталось %1$s</string>
     <string name="storage_clear_continue_watching">Очистить историю продолжения просмотра</string>
     <string name="storage_clear_continue_watching_desc">Удаляет карточку в корне и все сохранённые точки продолжения для видео</string>
     <string name="storage_clear_continue_watching_success">История продолжения просмотра успешно очищена</string>

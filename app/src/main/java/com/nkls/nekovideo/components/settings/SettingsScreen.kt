@@ -68,6 +68,7 @@ import com.nkls.nekovideo.components.helpers.FilesManager
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -115,6 +116,7 @@ import com.nkls.nekovideo.language.LanguageManager
 import com.nkls.nekovideo.theme.ThemeManager
 import androidx.core.content.edit
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
+import com.nkls.nekovideo.components.ThumbnailCacheCleaner
 import com.nkls.nekovideo.components.helpers.TagEntity
 import com.nkls.nekovideo.components.helpers.TagScope
 import com.nkls.nekovideo.components.helpers.SortRowMessageCenter
@@ -754,8 +756,12 @@ private fun formatStorageUsage(bytes: Long): String? {
 fun StorageSettingsScreen() {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val thumbnailCleanupState by ThumbnailCacheCleaner.state.collectAsState()
     var thumbnailCacheBytes by remember { mutableStateOf(0L) }
     var watchHistoryBytes by remember { mutableStateOf(0L) }
+    var observedCleanupCount by remember {
+        mutableStateOf(thumbnailCleanupState.completedOperations)
+    }
 
     fun updateStorageUsage() {
         coroutineScope.launch {
@@ -773,11 +779,26 @@ fun StorageSettingsScreen() {
 
     LaunchedEffect(Unit) {
         val folderPaths = FolderVideoScanner.cache.value.keys
-        thumbnailCacheBytes = withContext(Dispatchers.IO) {
-            OptimizedThumbnailManager.getDiskCacheSize(context, folderPaths)
+        thumbnailCacheBytes = if (thumbnailCleanupState.isClearing) {
+            thumbnailCleanupState.remainingBytes
+        } else {
+            withContext(Dispatchers.IO) {
+                OptimizedThumbnailManager.getDiskCacheSize(context, folderPaths)
+            }
         }
         watchHistoryBytes = withContext(Dispatchers.IO) {
             ContinueWatchingStore.storageBytes(context) + VideoProgressStore.storageBytes(context)
+        }
+    }
+
+    LaunchedEffect(thumbnailCleanupState.completedOperations) {
+        if (thumbnailCleanupState.completedOperations > observedCleanupCount) {
+            observedCleanupCount = thumbnailCleanupState.completedOperations
+            thumbnailCacheBytes = 0L
+            updateStorageUsage()
+            SortRowMessageCenter.showSuccess(
+                context.getString(R.string.storage_clear_thumbnails_success)
+            )
         }
     }
 
@@ -799,19 +820,21 @@ fun StorageSettingsScreen() {
                 SettingsClickableItem(
                     icon = Icons.Default.Image,
                     title = stringResource(R.string.storage_clear_thumbnails),
-                    subtitle = formatStorageUsage(thumbnailCacheBytes),
-                    onClick = {
-                        coroutineScope.launch {
-                            val folderPaths = FolderVideoScanner.cache.value.keys
-                            withContext(Dispatchers.IO) {
-                                OptimizedThumbnailManager.clearCache()
-                                OptimizedThumbnailManager.clearAllDiskThumbnails(context, folderPaths)
-                            }
-                            thumbnailCacheBytes = 0L
-                            updateStorageUsage()
-                        }
-                        SortRowMessageCenter.showSuccess(context.getString(R.string.storage_clear_thumbnails_success))
+                    subtitle = if (thumbnailCleanupState.isClearing) {
+                        stringResource(
+                            R.string.storage_clearing,
+                            formatStorageUsage(thumbnailCleanupState.remainingBytes) ?: "0 B"
+                        )
+                    } else {
+                        formatStorageUsage(thumbnailCacheBytes)
                     },
+                    onClick = {
+                        ThumbnailCacheCleaner.start(
+                            context = context,
+                            folderPaths = FolderVideoScanner.cache.value.keys
+                        )
+                    },
+                    loading = thumbnailCleanupState.isClearing,
                     isCompact = isCompact
                 )
             }
@@ -1948,11 +1971,13 @@ private fun SettingsClickableItem(
     title: String,
     subtitle: String?,
     enabled: Boolean = true,
+    loading: Boolean = false,
     onClick: () -> Unit,
     isCompact: Boolean = false
 ) {
     val coroutineScope = rememberCoroutineScope()
     var showClickFeedback by remember { mutableStateOf(false) }
+    val interactionEnabled = enabled && !loading
     val feedbackIconScale by animateFloatAsState(
         targetValue = if (showClickFeedback) 1.18f else 1f,
         animationSpec = tween(160),
@@ -1970,7 +1995,7 @@ private fun SettingsClickableItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = enabled) {
+                .clickable(enabled = interactionEnabled) {
                     showClickFeedback = true
                     coroutineScope.launch {
                         delay(650)
@@ -2012,18 +2037,26 @@ private fun SettingsClickableItem(
                 }
             }
 
-            Icon(
-                imageVector = if (showClickFeedback) Icons.Default.Check else Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = if (showClickFeedback) {
-                    Color(0xFF2E7D32)
-                } else {
-                    if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                },
-                modifier = Modifier
-                    .size(20.dp)
-                    .scale(feedbackIconScale)
-            )
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Icon(
+                    imageVector = if (showClickFeedback) Icons.Default.Check else Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = if (showClickFeedback) {
+                        Color(0xFF2E7D32)
+                    } else {
+                        if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    },
+                    modifier = Modifier
+                        .size(20.dp)
+                        .scale(feedbackIconScale)
+                )
+            }
         }
     }
 }

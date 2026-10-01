@@ -275,6 +275,7 @@
     <string name="storage_clear_thumbnails">Clear thumbnail cache</string>
     <string name="storage_clear_thumbnails_desc">Removes all thumbnails saved on disk. They will be regenerated when browsing folders</string>
     <string name="storage_clear_thumbnails_success">Thumbnail cache cleared successfully</string>
+    <string name="storage_clearing">Clearing… %1$s remaining</string>
     <string name="storage_clear_continue_watching">Clear continue watching history</string>
     <string name="storage_clear_continue_watching_desc">Removes the root card and all saved resume points for videos</string>
     <string name="storage_clear_continue_watching_success">Continue watching history cleared successfully</string>

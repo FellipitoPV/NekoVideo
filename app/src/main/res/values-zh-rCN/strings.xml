@@ -275,6 +275,7 @@
     <string name="storage_clear_thumbnails">清除缩略图缓存</string>
     <string name="storage_clear_thumbnails_desc">删除所有已保存的缩略图，浏览文件夹时会重新生成</string>
     <string name="storage_clear_thumbnails_success">缩略图缓存已清除</string>
+    <string name="storage_clearing">正在清理… 剩余 %1$s</string>
     <string name="storage_clear_continue_watching">清除继续观看记录</string>
     <string name="storage_clear_continue_watching_desc">移除根目录卡片和所有已保存的播放进度</string>
     <string name="storage_clear_continue_watching_success">继续观看记录已清除</string>

@@ -280,6 +280,7 @@
     <string name="storage_clear_thumbnails">Limpar cache de thumbnails</string>
     <string name="storage_clear_thumbnails_desc">Remove todas as thumbnails salvas em disco. Serão regeradas ao navegar nas pastas</string>
     <string name="storage_clear_thumbnails_success">Cache de thumbnails limpo com sucesso</string>
+    <string name="storage_clearing">Limpando… %1$s restantes</string>
     <string name="storage_clear_continue_watching">Limpar histórico de continuar assistindo</string>
     <string name="storage_clear_continue_watching_desc">Remove o card do root e os pontos salvos de retomada dos vídeos</string>
     <string name="storage_clear_continue_watching_success">Histórico de continuar assistindo limpo com sucesso</string>

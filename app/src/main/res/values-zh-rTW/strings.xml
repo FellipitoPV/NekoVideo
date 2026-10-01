@@ -275,6 +275,7 @@
     <string name="storage_clear_thumbnails">清除縮圖快取</string>
     <string name="storage_clear_thumbnails_desc">刪除所有已儲存的縮圖，瀏覽資料夾時會重新產生</string>
     <string name="storage_clear_thumbnails_success">縮圖快取已清除</string>
+    <string name="storage_clearing">正在清理… 剩餘 %1$s</string>
     <string name="storage_clear_continue_watching">清除繼續觀看記錄</string>
     <string name="storage_clear_continue_watching_desc">移除根目錄卡片和所有已儲存的播放進度</string>
     <string name="storage_clear_continue_watching_success">繼續觀看記錄已清除</string>

@@ -275,6 +275,7 @@
     <string name="storage_clear_thumbnails">Thumbnail-Cache leeren</string>
     <string name="storage_clear_thumbnails_desc">Entfernt alle gespeicherten Thumbnails. Sie werden beim Durchsuchen der Ordner neu erstellt</string>
     <string name="storage_clear_thumbnails_success">Thumbnail-Cache erfolgreich geleert</string>
+    <string name="storage_clearing">Wird geleert… %1$s verbleiben</string>
     <string name="storage_clear_continue_watching">Verlauf von Weiterschauen löschen</string>
     <string name="storage_clear_continue_watching_desc">Entfernt die Root-Karte und alle gespeicherten Fortsetzungspunkte der Videos</string>
     <string name="storage_clear_continue_watching_success">Verlauf von Weiterschauen erfolgreich gelöscht</string>
