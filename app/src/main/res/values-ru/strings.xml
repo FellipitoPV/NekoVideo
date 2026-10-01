@@ -318,6 +318,8 @@
 
     <string name="playback_background_playback">Фоновое воспроизведение</string>
     <string name="playback_background_playback_desc">Продолжать воспроизведение при закрытии плеера</string>
+    <string name="playback_auto_pip">Автоматический режим «картинка в картинке»</string>
+    <string name="playback_auto_pip_desc">Открывать плавающий плеер при выходе из приложения во время видео</string>
     <string name="playback_double_tap_seek">Поиск двойным касанием</string>
     <string name="playback_double_tap_seek_desc">Секунд для перехода вперед/назад</string>
     <string name="playback_drag_seek">Перемотка перетаскиванием</string>

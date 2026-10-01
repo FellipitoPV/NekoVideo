@@ -318,6 +318,8 @@
 
     <string name="playback_background_playback">Hintergrundwiedergabe</string>
     <string name="playback_background_playback_desc">Video weiter abspielen, wenn der Player geschlossen wird</string>
+    <string name="playback_auto_pip">Automatisches Bild-im-Bild</string>
+    <string name="playback_auto_pip_desc">Beim Verlassen der App während eines Videos den schwebenden Player öffnen</string>
     <string name="playback_double_tap_seek">Doppeltipp-Suche</string>
     <string name="playback_double_tap_seek_desc">Sekunden zum Vor-/Zurückspringen</string>
     <string name="playback_drag_seek">Ziehen zum Spulen</string>

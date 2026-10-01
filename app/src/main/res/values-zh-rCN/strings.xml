@@ -318,6 +318,8 @@
 
     <string name="playback_background_playback">后台播放</string>
     <string name="playback_background_playback_desc">关闭播放器时继续播放视频</string>
+    <string name="playback_auto_pip">自动画中画</string>
+    <string name="playback_auto_pip_desc">视频播放期间离开应用时打开悬浮播放器</string>
     <string name="playback_double_tap_seek">双击快进/快退</string>
     <string name="playback_double_tap_seek_desc">快进或快退的秒数</string>
     <string name="playback_drag_seek">拖动快进/快退</string>

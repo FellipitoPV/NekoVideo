@@ -318,6 +318,8 @@
 
     <string name="playback_background_playback">背景播放</string>
     <string name="playback_background_playback_desc">關閉播放器時繼續播放影片</string>
+    <string name="playback_auto_pip">自動畫中畫</string>
+    <string name="playback_auto_pip_desc">影片播放期間離開應用程式時開啟浮動播放器</string>
     <string name="playback_double_tap_seek">雙擊快轉/倒轉</string>
     <string name="playback_double_tap_seek_desc">快轉或倒轉的秒數</string>
     <string name="playback_drag_seek">拖曳快轉/倒轉</string>

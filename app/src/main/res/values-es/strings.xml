@@ -318,6 +318,8 @@
 
     <string name="playback_background_playback">Reproducción en segundo plano</string>
     <string name="playback_background_playback_desc">Mantener el video reproduciéndose al cerrar el reproductor</string>
+    <string name="playback_auto_pip">Imagen en imagen automática</string>
+    <string name="playback_auto_pip_desc">Abrir el reproductor flotante al salir de la aplicación durante un video</string>
     <string name="playback_double_tap_seek">Buscar con Doble Toque</string>
     <string name="playback_double_tap_seek_desc">Segundos para saltar adelante/atrás</string>
     <string name="playback_drag_seek">Arrastrar para avanzar/retroceder</string>

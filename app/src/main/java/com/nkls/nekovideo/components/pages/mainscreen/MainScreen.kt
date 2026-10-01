@@ -712,6 +712,10 @@ fun MainScreen(
         }
     }
 
+    LaunchedEffect(showPlayerOverlay) {
+        (hostActivity as? MainActivity)?.setPlayerOverlayVisible(showPlayerOverlay)
+    }
+
     LaunchedEffect(openPlayerRequestCount, lastAction, lastTime) {
         if (openPlayerRequestCount > 0 && lastAction == "OPEN_PLAYER") {
             delay(100)

@@ -323,6 +323,8 @@
 
     <string name="playback_background_playback">Reprodução em segundo plano</string>
     <string name="playback_background_playback_desc">Manter o vídeo tocando ao fechar o player</string>
+    <string name="playback_auto_pip">Picture-in-Picture automático</string>
+    <string name="playback_auto_pip_desc">Abrir o player flutuante ao sair do aplicativo durante um vídeo</string>
     <string name="playback_double_tap_seek">Pulo Duplo Toque</string>
     <string name="playback_double_tap_seek_desc">Segundos para avançar/voltar</string>
     <string name="playback_drag_seek">Arrastar para avançar/voltar</string>

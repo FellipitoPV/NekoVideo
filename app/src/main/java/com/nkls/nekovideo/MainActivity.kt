@@ -99,6 +99,11 @@ class MainActivity : AppCompatActivity() {
     private var _isInPiPMode = mutableStateOf(false)
     val isInPiPMode: Boolean get() = _isInPiPMode.value
     val isInPiPModeState get() = _isInPiPMode  // ✅ Expor State para Compose observar
+    private var isPlayerOverlayVisible = false
+
+    fun setPlayerOverlayVisible(visible: Boolean) {
+        isPlayerOverlayVisible = visible
+    }
 
     // ✅ FUNÇÕES PIP
     fun enterPiPMode() {
@@ -282,7 +287,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onUserLeaveHint() {
-        pausePlaybackForBackgroundIfNeeded()
+        val autoPiPEnabled = getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            .getBoolean("auto_pip", true)
+        val hasActivePlayer = MediaControllerManager.getCurrentController() != null
+
+        if (
+            autoPiPEnabled &&
+            isPlayerOverlayVisible &&
+            hasActivePlayer &&
+            !_isInPiPMode.value &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+        ) {
+            enterPiPMode()
+        } else {
+            pausePlaybackForBackgroundIfNeeded()
+        }
         super.onUserLeaveHint()
     }
 

@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Storage
@@ -387,6 +388,7 @@ fun PlaybackSettingsScreen() {
     val prefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
 
     var backgroundPlayback by remember { mutableStateOf(prefs.getBoolean("background_playback", true)) }
+    var autoPiP by remember { mutableStateOf(prefs.getBoolean("auto_pip", true)) }
     var doubleTapSeek by remember { mutableIntStateOf(prefs.getInt("double_tap_seek", 10)) }
     var dragSeekEnabled by remember { mutableStateOf(prefs.getBoolean("drag_seek_enabled", true)) }
     var volumeBrightnessGesturesEnabled by remember { mutableStateOf(prefs.getBoolean("volume_brightness_gestures_enabled", true)) }
@@ -410,6 +412,16 @@ fun PlaybackSettingsScreen() {
             onCheckedChange = {
                 backgroundPlayback = it
                 prefs.edit { putBoolean("background_playback", it) }
+            }
+        ),
+        PlaybackSettingItem.Switch(
+            icon = Icons.Default.PictureInPicture,
+            titleRes = R.string.playback_auto_pip,
+            subtitleRes = R.string.playback_auto_pip_desc,
+            checked = autoPiP,
+            onCheckedChange = {
+                autoPiP = it
+                prefs.edit { putBoolean("auto_pip", it) }
             }
         ),
         PlaybackSettingItem.Slider(

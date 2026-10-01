@@ -318,6 +318,8 @@
 
     <string name="playback_background_playback">Lecture en arrière-plan</string>
     <string name="playback_background_playback_desc">Garder la vidéo en lecture lors de la fermeture du lecteur</string>
+    <string name="playback_auto_pip">Incrustation automatique</string>
+    <string name="playback_auto_pip_desc">Ouvrir le lecteur flottant en quittant l’application pendant une vidéo</string>
     <string name="playback_double_tap_seek">Recherche par Double Tap</string>
     <string name="playback_double_tap_seek_desc">Secondes à avancer/reculer</string>
     <string name="playback_drag_seek">Glisser pour avancer/reculer</string>

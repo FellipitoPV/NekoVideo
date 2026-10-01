@@ -318,6 +318,8 @@
 
     <string name="playback_background_playback">बैकग्राउंड प्लेबैक</string>
     <string name="playback_background_playback_desc">प्लेयर बंद करने पर वीडियो चलाते रहें</string>
+    <string name="playback_auto_pip">ऑटोमैटिक पिक्चर-इन-पिक्चर</string>
+    <string name="playback_auto_pip_desc">वीडियो के दौरान ऐप से बाहर जाने पर फ़्लोटिंग प्लेयर खोलें</string>
     <string name="playback_double_tap_seek">डबल टैप सीक</string>
     <string name="playback_double_tap_seek_desc">आगे/पीछे जाने के लिए सेकंड</string>
     <string name="playback_drag_seek">खींचकर आगे/पीछे जाएं</string>

@@ -318,6 +318,8 @@
 
     <string name="playback_background_playback">Background playback</string>
     <string name="playback_background_playback_desc">Keep video playing when closing the player</string>
+    <string name="playback_auto_pip">Automatic Picture-in-Picture</string>
+    <string name="playback_auto_pip_desc">Open the floating player when leaving the app during a video</string>
     <string name="playback_double_tap_seek">Double Tap Seek</string>
     <string name="playback_double_tap_seek_desc">Seconds to skip forward/backward</string>
     <string name="playback_drag_seek">Drag to seek</string>
