@@ -452,6 +452,21 @@ class MediaPlaybackService : MediaSessionService() {
         val isLocked = uri.startsWith("locked://")
         val filePath = if (isLocked) uri.removePrefix("locked://") else uri.removePrefix("file://")
         val file = File(filePath)
+        val playbackUri = if (!isLocked && uri.startsWith("file://")) {
+            val parsedUri = Uri.parse(uri)
+
+            // Internal playlists keep local paths as raw file:// strings. Characters such as
+            // '#' and '?' are valid in file names, but Uri.parse interprets them as a fragment
+            // or query and Media3 then rejects the URI. Rebuild only those ambiguous local URIs
+            // from the original path so the special characters are encoded correctly.
+            if (parsedUri.fragment != null || parsedUri.query != null) {
+                Uri.fromFile(file)
+            } else {
+                parsedUri
+            }
+        } else {
+            Uri.parse(uri)
+        }
         // For locked files, try to get original name from session
         val title = if (isLocked) {
             LockedPlaybackSession.getOriginalName(file.name)?.substringBeforeLast(".") ?: file.nameWithoutExtension
@@ -466,7 +481,7 @@ class MediaPlaybackService : MediaSessionService() {
 
         // Keep locked:// URI so HybridDataSource can detect and handle it
         return MediaItem.Builder()
-            .setUri(uri)
+            .setUri(playbackUri)
             .setMediaMetadata(metadataBuilder.build())
             .build()
     }

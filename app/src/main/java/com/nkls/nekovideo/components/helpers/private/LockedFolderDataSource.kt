@@ -135,7 +135,7 @@ class HybridDataSource(
                 val lockedDs = LockedFolderDataSource(xorKey)
                 // Convert locked:// to file:// for actual file access
                 val fileSpec = dataSpec.buildUpon()
-                    .setUri(Uri.parse("file://$filePath"))
+                    .setUri(Uri.fromFile(File(filePath)))
                     .build()
                 activeDelegate = lockedDs
                 uri = dataSpec.uri
