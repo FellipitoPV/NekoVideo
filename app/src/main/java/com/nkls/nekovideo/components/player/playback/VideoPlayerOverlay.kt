@@ -2019,38 +2019,23 @@ fun VideoPlayerOverlay(
                     )
                 }
 
-                if (videoZoom > 1.01f && !isInPiPMode && hasLoadedVideo) {
+                AnimatedVisibility(
+                    visible = controlsVisible && videoZoom > 1.01f && !isInPiPMode && hasLoadedVideo,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility.only(WindowInsetsSides.Top))
+                        .padding(top = 82.dp),
+                    enter = fadeIn(animationSpec = tween(300)),
+                    exit = fadeOut(animationSpec = tween(300))
+                ) {
                     Box(
                         modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility.only(WindowInsetsSides.Top))
-                            .padding(top = if (controlsVisible) 82.dp else 20.dp)
                             .background(Color.Black.copy(alpha = 0.58f), RoundedCornerShape(999.dp))
                             .padding(horizontal = 10.dp, vertical = 5.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "${(videoZoom * 100).roundToInt()}%",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-
-                if (controlsVisible && videoZoom > 1.01f && !isInPiPMode && hasLoadedVideo) {
-                    TextButton(
-                        onClick = {
-                            resetVideoZoom()
-                            resetUITimer()
-                        },
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 82.dp, end = 14.dp)
-                            .background(Color.Black.copy(alpha = 0.58f), RoundedCornerShape(999.dp))
-                    ) {
-                        Text(
-                            text = "100%",
                             color = Color.White,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
