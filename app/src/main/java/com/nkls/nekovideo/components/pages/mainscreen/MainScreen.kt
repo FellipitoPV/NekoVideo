@@ -3,6 +3,7 @@ package com.nkls.nekovideo.components.pages.mainscreen
 import android.content.Intent
 import android.content.Context
 import android.os.Build
+import android.os.storage.StorageManager
 import android.util.Log
 import android.app.Activity
 import androidx.activity.compose.BackHandler
@@ -47,14 +48,16 @@ import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderSpecial
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
@@ -84,6 +87,7 @@ import com.nkls.nekovideo.MainActivity
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.CreateFolderDialog
+import com.nkls.nekovideo.components.AppBottomSheet
 import com.nkls.nekovideo.components.DeleteConfirmationDialog
 import com.nkls.nekovideo.components.NewPlaylistConfirmDialog
 import com.nkls.nekovideo.components.UnpinFolderConfirmationDialog
@@ -1788,6 +1792,7 @@ fun MainScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MoveDestinationDialog(
     startPath: String,
@@ -1804,6 +1809,7 @@ private fun MoveDestinationDialog(
     val pathStack = remember(startPath) { mutableStateListOf(startPath) }
     val currentPath = pathStack.lastOrNull() ?: startPath
     val foldersByPath = remember { mutableStateMapOf<String, List<com.nkls.nekovideo.components.MediaItem>>() }
+    val displayNamesByPath = remember { mutableStateMapOf<String, String>() }
     var cacheRefreshToken by remember { mutableStateOf(refreshToken) }
     var folders by remember(currentPath) { mutableStateOf(foldersByPath[currentPath].orEmpty()) }
     var isLoadingFolders by remember(currentPath) { mutableStateOf(foldersByPath[currentPath] == null) }
@@ -1836,6 +1842,27 @@ private fun MoveDestinationDialog(
             context.getString(R.string.neko_private_folder_name)
         } else {
             folder.displayName
+        }
+    }
+
+    fun resolvedCurrentFolderName(path: String): String {
+        if (path == FolderNavigationState.ROOT_PATH) {
+            return context.getString(R.string.move_destination_root)
+        }
+        if (path == FilesManager.SecureStorage.getNekoPrivateFolderPath()) {
+            return context.getString(R.string.neko_private_folder_name)
+        }
+        return displayNamesByPath[path]
+            ?: LockedPlaybackSession.getManifestForFolder(path)?.originalFolderName
+            ?: FolderLockManager.getRegistryEntry(context, path)?.originalFolderName
+            ?: File(path).name.takeIf { it.isNotBlank() }
+            ?: context.getString(R.string.move_destination_root)
+    }
+
+    fun isStorageRootPath(path: String): Boolean {
+        val storageManager = context.getSystemService(StorageManager::class.java)
+        return storageManager.storageVolumes.any { volume ->
+            !volume.isPrimary && volume.isRemovable && volume.directory?.absolutePath == path
         }
     }
 
@@ -1877,6 +1904,9 @@ private fun MoveDestinationDialog(
                 .filter { it.isFolder }
                 .filterNot { isInvalidDestination(it.path) }
         }
+        loadedFolders.forEach { folder ->
+            displayNamesByPath[folder.path] = destinationDisplayName(folder)
+        }
         foldersByPath[currentPath] = loadedFolders
         folders = loadedFolders
         isLoadingFolders = false
@@ -1885,110 +1915,132 @@ private fun MoveDestinationDialog(
     val isCurrentInvalid = isInvalidDestination(currentPath)
     val isSameSourceFolder = itemsToMove.isNotEmpty() && itemsToMove.all { File(it).parent == currentPath }
     val canMoveHere = itemsToMove.isNotEmpty() && canUseLockedFolder(currentPath) && !isCurrentInvalid && !isSameSourceFolder
-    val currentFolderName = if (currentPath == FolderNavigationState.ROOT_PATH) {
-        stringResource(R.string.move_destination_root)
-    } else {
-        File(currentPath).name.takeIf { it.isNotBlank() } ?: stringResource(R.string.move_destination_root)
-    }
+    val currentFolderName = resolvedCurrentFolderName(currentPath)
+    val currentIsStorageRoot = isStorageRootPath(currentPath)
+    val currentIsLocked = FolderLockManager.isLocked(currentPath)
+    val currentIsPrivate = isPrivateDestination(currentPath)
     val parentDestinationPath = parentPath()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    AlertDialog(
+    AppBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.move_destination_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+        sheetState = sheetState,
+        contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 20.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.move_destination_title),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Medium
+            )
+            TextButton(onClick = { onCreateFolder(currentPath) }) {
+                Icon(Icons.Default.CreateNewFolder, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(stringResource(R.string.action_create_folder))
+            }
+        }
+
+        HorizontalDivider()
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(modifier = Modifier.size(18.dp), contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = when {
+                        currentIsStorageRoot -> Icons.Default.SdStorage
+                        currentIsPrivate && !currentIsLocked -> Icons.Default.FolderSpecial
+                        else -> Icons.Default.Folder
+                    },
+                    contentDescription = null,
+                    tint = when {
+                        currentIsLocked -> MaterialTheme.colorScheme.error
+                        currentIsStorageRoot -> MaterialTheme.colorScheme.tertiary
+                        currentIsPrivate -> MaterialTheme.colorScheme.secondary
+                        else -> MaterialTheme.colorScheme.primary
+                    },
+                    modifier = Modifier.size(18.dp)
+                )
+                if (currentIsLocked) {
                     Icon(
-                        imageVector = Icons.Default.Folder,
+                        imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        tint = MaterialTheme.colorScheme.onError,
+                        modifier = Modifier.size(8.dp)
                     )
-                    Text(
-                        text = currentFolderName,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    TextButton(onClick = { onCreateFolder(currentPath) }) {
-                        Icon(
-                            imageVector = Icons.Default.CreateNewFolder,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(R.string.action_create_folder))
-                    }
-                }
-
-                HorizontalDivider()
-
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 360.dp),
-                    contentPadding = PaddingValues(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (parentDestinationPath != null) {
-                        item(key = "parent_folder") {
-                            MoveDestinationFolderTile(
-                                name = "...",
-                                isLocked = false,
-                                isPrivate = false,
-                                onClick = {
-                                    pathStack.add(parentDestinationPath)
-                                }
-                            )
-                        }
-                    }
-
-                    when {
-                        isLoadingFolders -> {
-                            item(key = "loading") {
-                                MoveDestinationStatusTile(stringResource(R.string.loading))
-                            }
-                        }
-                        folders.isEmpty() && parentDestinationPath == null -> {
-                            item(key = "empty") {
-                                MoveDestinationStatusTile(stringResource(R.string.move_destination_no_folders))
-                            }
-                        }
-                        else -> {
-                            items(folders, key = { it.path }) { folder ->
-                                MoveDestinationFolderTile(
-                                    name = destinationDisplayName(folder),
-                                    isLocked = FolderLockManager.isLocked(folder.path),
-                                    isPrivate = isPrivateDestination(folder.path),
-                                    onClick = { pathStack.add(folder.path) }
-                                )
-                            }
-                        }
-                    }
                 }
             }
-        },
-        confirmButton = {
+            Text(
+                text = currentFolderName,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp),
+            contentPadding = PaddingValues(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (parentDestinationPath != null) {
+                item(key = "parent_folder") {
+                    MoveDestinationFolderTile(
+                        name = "...",
+                        isLocked = false,
+                        isPrivate = false,
+                        isStorageRoot = false,
+                        onClick = { pathStack.add(parentDestinationPath) }
+                    )
+                }
+            }
+
+            when {
+                isLoadingFolders -> item(key = "loading") {
+                    MoveDestinationStatusTile(stringResource(R.string.loading))
+                }
+                folders.isEmpty() && parentDestinationPath == null -> item(key = "empty") {
+                    MoveDestinationStatusTile(stringResource(R.string.move_destination_no_folders))
+                }
+                else -> items(folders, key = { it.path }) { folder ->
+                    MoveDestinationFolderTile(
+                        name = destinationDisplayName(folder),
+                        isLocked = FolderLockManager.isLocked(folder.path),
+                        isPrivate = isPrivateDestination(folder.path),
+                        isStorageRoot = folder.isStorageRoot,
+                        onClick = { pathStack.add(folder.path) }
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+            Spacer(modifier = Modifier.width(8.dp))
             Button(
                 enabled = canMoveHere,
                 onClick = { onMoveTo(currentPath) }
             ) {
                 Text(stringResource(R.string.move_destination_confirm))
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel))
-            }
         }
-    )
+    }
 }
 
 @Composable
@@ -1996,6 +2048,7 @@ private fun MoveDestinationFolderTile(
     name: String,
     isLocked: Boolean,
     isPrivate: Boolean,
+    isStorageRoot: Boolean,
     onClick: () -> Unit
 ) {
     val containerColor = when {
@@ -2006,6 +2059,7 @@ private fun MoveDestinationFolderTile(
     val iconTint = when {
         isLocked -> MaterialTheme.colorScheme.error
         isPrivate -> MaterialTheme.colorScheme.secondary
+        isStorageRoot -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.primary
     }
 
@@ -2032,7 +2086,11 @@ private fun MoveDestinationFolderTile(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = if (isPrivate && !isLocked) Icons.Default.FolderSpecial else Icons.Default.Folder,
+                imageVector = when {
+                    isStorageRoot -> Icons.Default.SdStorage
+                    isPrivate && !isLocked -> Icons.Default.FolderSpecial
+                    else -> Icons.Default.Folder
+                },
                 contentDescription = null,
                 tint = iconTint,
                 modifier = Modifier.size(34.dp)

@@ -12,6 +12,8 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.storage.StorageManager
+import android.os.storage.StorageVolume
 import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
@@ -211,7 +213,8 @@ data class MediaItem(
     val isInsidePrivateFolder: Boolean = false,
     val durationHint: String? = null,
     val isPinned: Boolean = false,
-    val showPinnedPathHint: Boolean = false
+    val showPinnedPathHint: Boolean = false,
+    val isStorageRoot: Boolean = false
 )
 
 // SIMPLIFICADO - Cache e constantes
@@ -578,7 +581,8 @@ private fun loadNormalContentFromCache(
         return sortedItems
     }
 
-    val existingPaths = items.map { it.path }.toSet()
+    val storageItems = loadRemovableStorageItems(context, folderCache)
+    val existingPaths = (items + storageItems).map { it.path }.toSet()
     val pinnedItems = PinnedFoldersStore.entries.value.mapNotNull { entry ->
         buildPinnedFolderItem(
             context = context,
@@ -589,7 +593,35 @@ private fun loadNormalContentFromCache(
         )
     }
 
-    return pinnedItems + sortedItems
+    return pinnedItems + storageItems + sortedItems
+}
+
+private fun loadRemovableStorageItems(
+    context: Context,
+    folderCache: Map<String, FolderInfo>
+): List<MediaItem> {
+    val storageManager = context.getSystemService(StorageManager::class.java)
+    return storageManager.storageVolumes.mapNotNull { volume ->
+        val directory = volume.directory
+        val isMounted = volume.state == Environment.MEDIA_MOUNTED ||
+            volume.state == Environment.MEDIA_MOUNTED_READ_ONLY
+        if (volume.isPrimary || !volume.isRemovable || !isMounted || directory == null || !directory.exists()) {
+            return@mapNotNull null
+        }
+
+        val folderInfo = folderCache[directory.absolutePath]
+        MediaItem(
+            path = directory.absolutePath,
+            uri = null,
+            isFolder = true,
+            name = volume.getDescription(context),
+            displayName = volume.getDescription(context),
+            lastModified = directory.lastModified(),
+            videoCount = folderInfo?.videoCount ?: 0,
+            subfolderCount = runCatching { directory.listFiles()?.count { it.isDirectory } ?: 0 }.getOrDefault(0),
+            isStorageRoot = true
+        )
+    }.distinctBy { it.path }
 }
 
 private fun buildPinnedFolderItem(
@@ -1119,6 +1151,7 @@ fun FolderScreen(
     }
 
     val context = LocalContext.current
+    var storageVolumesVersion by remember { mutableIntStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
     val continueWatchingEntry by ContinueWatchingStore.entry.collectAsStateWithLifecycle()
     val hasActivePlayback by ContinueWatchingStore.hasActivePlayback.collectAsStateWithLifecycle()
@@ -1128,6 +1161,17 @@ fun FolderScreen(
     val castManager = remember { DLNACastManager.getInstance(context) }
     var hasActiveCastPlayback by remember {
         mutableStateOf(castManager.isConnected && castManager.currentTitle.isNotBlank())
+    }
+
+    DisposableEffect(context) {
+        val storageManager = context.getSystemService(StorageManager::class.java)
+        val callback = object : StorageManager.StorageVolumeCallback() {
+            override fun onStateChanged(volume: StorageVolume) {
+                storageVolumesVersion++
+            }
+        }
+        storageManager.registerStorageVolumeCallback(context.mainExecutor, callback)
+        onDispose { storageManager.unregisterStorageVolumeCallback(callback) }
     }
 
     fun reloadContinueWatching() {
@@ -1255,7 +1299,7 @@ fun FolderScreen(
     }
 
     // Carrega items para a pasta atual e mantém cache das anteriores
-    LaunchedEffect(folderPath, sortType, renameTrigger, isSecureMode, showPrivateFolders, scannerCache, searchQuery, pinnedFolders) {
+    LaunchedEffect(folderPath, sortType, renameTrigger, isSecureMode, showPrivateFolders, scannerCache, searchQuery, pinnedFolders, storageVolumesVersion) {
         // Marca esta pasta como carregando
         loadingPaths = loadingPaths + folderPath
 
@@ -1698,16 +1742,22 @@ private fun MediaRow(
                 progressEntry = progressByPath[item.path],
                 modifier = Modifier.weight(1f),
                 onTap = {
-                    if (selectedItems.isNotEmpty()) {
+                    if (item.isStorageRoot) {
+                        if (selectedItems.isEmpty()) {
+                            onFolderClick(item.path, sortType, true)
+                        }
+                    } else if (selectedItems.isNotEmpty()) {
                         if (item.path in selectedItems) selectedItems.remove(item.path) else selectedItems.add(item.path)
                         onSelectionChange(selectedItems.toList())
-                        } else {
-                            onFolderClick(item.path, sortType, item.isFolder)
-                        }
+                    } else {
+                        onFolderClick(item.path, sortType, item.isFolder)
+                    }
                 },
                 onLongPress = {
-                    if (item.path in selectedItems) selectedItems.remove(item.path) else selectedItems.add(item.path)
-                    onSelectionChange(selectedItems.toList())
+                    if (!item.isStorageRoot) {
+                        if (item.path in selectedItems) selectedItems.remove(item.path) else selectedItems.add(item.path)
+                        onSelectionChange(selectedItems.toList())
+                    }
                 },
                 onRevealAnimationFinished = {
                     onPrivateFolderRevealFinished(item.path)
@@ -2114,11 +2164,13 @@ private fun FolderContent(item: MediaItem) {
             } else {
                 Icon(
                     imageVector = when {
+                        item.isStorageRoot -> Icons.Default.SdStorage
                         isSecure -> Icons.Default.FolderSpecial
                         else -> Icons.Default.Folder
                     },
                     contentDescription = null,
                     tint = when {
+                        item.isStorageRoot -> MaterialTheme.colorScheme.tertiary
                         item.isPinned -> MaterialTheme.colorScheme.tertiary
                         isSecure -> MaterialTheme.colorScheme.secondary
                         else -> MaterialTheme.colorScheme.primary
