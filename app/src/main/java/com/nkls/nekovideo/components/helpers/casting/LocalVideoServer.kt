@@ -6,6 +6,9 @@ import fi.iki.elonen.NanoHTTPD
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
+import java.net.DatagramSocket
+import java.net.InetAddress
+import java.net.URL
 
 class LocalVideoServer(private val context: Context, port: Int = 8080) : NanoHTTPD(port) {
 
@@ -120,7 +123,19 @@ class LocalVideoServer(private val context: Context, port: Int = 8080) : NanoHTT
         return "http://$ip:$listeningPort/video"
     }
 
-    fun getLocalIpAddress(): String? {
+    fun getLocalIpAddress(remoteUrl: String? = null): String? {
+        if (remoteUrl != null) {
+            try {
+                DatagramSocket().use { socket ->
+                    socket.connect(InetAddress.getByName(URL(remoteUrl).host), 1900)
+                    if (!socket.localAddress.isAnyLocalAddress) {
+                        return socket.localAddress.hostAddress
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("LocalVideoServer", "Could not resolve route to receiver", e)
+            }
+        }
         try {
             val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
             while (interfaces.hasMoreElements()) {

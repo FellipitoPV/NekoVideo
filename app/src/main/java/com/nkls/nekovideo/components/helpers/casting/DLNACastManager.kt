@@ -7,8 +7,6 @@ import android.util.Log
 import kotlinx.coroutines.*
 import java.io.File
 import java.net.*
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 /**
  * DLNA/UPnP cast manager — open-source replacement for Google Cast SDK.
@@ -33,7 +31,8 @@ class DLNACastManager(private val context: Context) {
     data class DLNADevice(
         val name: String,
         val controlUrl: String,
-        val baseUrl: String
+        val baseUrl: String,
+        val localAddress: String? = null
     )
 
     private var videoServer: LocalVideoServer? = null
@@ -79,8 +78,6 @@ class DLNACastManager(private val context: Context) {
 
     fun discoverDevices() {
         scope.launch {
-            val found = mutableListOf<DLNADevice>()
-
             val wifiManager = context.applicationContext
                 .getSystemService(Context.WIFI_SERVICE) as WifiManager
             val multicastLock = wifiManager.createMulticastLock("nekovideo_ssdp").apply {
@@ -90,107 +87,97 @@ class DLNACastManager(private val context: Context) {
             Log.d(tag, "MulticastLock acquired: ${multicastLock.isHeld}")
 
             try {
-                // Resolve WiFi interface via WifiManager IP (reliable on API 30+)
-                @Suppress("DEPRECATION")
-                val wifiIpInt = wifiManager.connectionInfo.ipAddress
-                val wifiAddr = if (wifiIpInt != 0) {
-                    InetAddress.getByAddress(
-                        ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(wifiIpInt).array()
-                    )
-                } else null
-                Log.d(tag, "WiFi IP from WifiManager: $wifiAddr")
+                val targets = activeIpv4Interfaces()
+                Log.d(tag, "Scanning SSDP on: ${targets.joinToString { "${it.first.name}/${it.second.hostAddress}" }}")
+                val found = coroutineScope {
+                    targets.map { (networkInterface, address) ->
+                        async { discoverOnInterface(networkInterface, address) }
+                    }.awaitAll().flatten()
+                }.distinctBy { it.baseUrl }
+                Log.d(tag, "Discovery done. Devices found: ${found.size}")
 
-                val wifiIface = wifiAddr?.let { addr ->
-                    NetworkInterface.getNetworkInterfaces()
-                        ?.asSequence()
-                        ?.firstOrNull { iface ->
-                            iface.inetAddresses.asSequence().any { it == addr }
-                        }
-                } ?: NetworkInterface.getNetworkInterfaces()
-                    ?.asSequence()
-                    ?.firstOrNull { iface ->
-                        iface.isUp && !iface.isLoopback &&
-                            iface.inetAddresses.asSequence().any { it is Inet4Address && !it.isLoopbackAddress }
-                    }
-                Log.d(tag, "Using network interface: ${wifiIface?.name} / ${wifiIface?.inetAddresses?.asSequence()?.toList()}")
-
-                val group = InetAddress.getByName("239.255.255.250")
-                val bindAddr = wifiAddr ?: InetAddress.getByName("0.0.0.0")
-
-                val socket = MulticastSocket(null).apply {
-                    // Bind to WiFi IP so send and receive both use WiFi interface
-                    bind(InetSocketAddress(bindAddr, 0))
-                    soTimeout = 500
-                    if (wifiIface != null) {
-                        networkInterface = wifiIface          // forces multicast SEND on WiFi
-                        joinGroup(InetSocketAddress(group, 1900), wifiIface)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        joinGroup(group)
-                    }
+                withContext(Dispatchers.Main) {
+                    onDevicesFound?.invoke(found)
                 }
-                Log.d(tag, "Socket bound to ${socket.localAddress}:${socket.localPort}")
-
-                val search = buildString {
-                    append("M-SEARCH * HTTP/1.1\r\n")
-                    append("HOST: 239.255.255.250:1900\r\n")
-                    append("MAN: \"ssdp:discover\"\r\n")
-                    append("MX: 3\r\n")
-                    append("ST: urn:schemas-upnp-org:device:MediaRenderer:1\r\n\r\n")
-                }
-                val buf = search.toByteArray()
-
-                // Send M-SEARCH twice — some devices miss the first packet
-                repeat(2) {
-                    socket.send(DatagramPacket(buf, buf.size, group, 1900))
-                    Log.d(tag, "M-SEARCH sent (attempt ${it + 1})")
-                    delay(200)
-                }
-
-                val deadline = System.currentTimeMillis() + 4000L
-                val respBuf = ByteArray(4096)
-                var packetCount = 0
-                while (System.currentTimeMillis() < deadline) {
-                    try {
-                        val pkt = DatagramPacket(respBuf, respBuf.size)
-                        socket.receive(pkt)
-                        packetCount++
-                        val response = String(pkt.data, 0, pkt.length)
-                        Log.d(tag, "SSDP packet #$packetCount from ${pkt.address}:\n$response")
-
-                        val location = extractHeader(response, "LOCATION")
-                        if (location == null) {
-                            Log.d(tag, "  → no LOCATION header, skipping")
-                            continue
-                        }
-                        Log.d(tag, "  → fetching device description: $location")
-                        val device = fetchDeviceDescription(location)
-                        if (device != null && found.none { it.baseUrl == device.baseUrl }) {
-                            Log.d(tag, "  → device added: ${device.name} @ ${device.controlUrl}")
-                            found.add(device)
-                        } else if (device == null) {
-                            Log.w(tag, "  → fetchDeviceDescription returned null for $location")
-                        }
-                    } catch (_: SocketTimeoutException) {
-                        // keep looping until deadline
-                    }
-                }
-                Log.d(tag, "Discovery done. Packets received: $packetCount, devices found: ${found.size}")
-                socket.close()
             } catch (e: Exception) {
                 Log.e(tag, "SSDP discovery error", e)
+                withContext(Dispatchers.Main) {
+                    onDevicesFound?.invoke(emptyList())
+                }
             } finally {
                 multicastLock.release()
                 Log.d(tag, "MulticastLock released")
             }
-
-            withContext(Dispatchers.Main) {
-                onDevicesFound?.invoke(found)
-            }
         }
     }
 
-    private fun fetchDeviceDescription(location: String): DLNADevice? {
+    private fun activeIpv4Interfaces(): List<Pair<NetworkInterface, Inet4Address>> =
+        NetworkInterface.getNetworkInterfaces()?.asSequence()
+            ?.filter { runCatching { it.isUp && !it.isLoopback }.getOrDefault(false) }
+            ?.flatMap { networkInterface ->
+                networkInterface.inetAddresses.asSequence()
+                    .filterIsInstance<Inet4Address>()
+                    .filterNot { it.isLoopbackAddress || it.isLinkLocalAddress }
+                    .map { networkInterface to it }
+            }
+            ?.toList()
+            .orEmpty()
+
+    private suspend fun discoverOnInterface(
+        networkInterface: NetworkInterface,
+        localAddress: Inet4Address
+    ): List<DLNADevice> {
+        val found = mutableListOf<DLNADevice>()
+        val localIp = localAddress.hostAddress ?: return found
+        val group = InetAddress.getByName("239.255.255.250")
+        val search = buildString {
+            append("M-SEARCH * HTTP/1.1\r\n")
+            append("HOST: 239.255.255.250:1900\r\n")
+            append("MAN: \"ssdp:discover\"\r\n")
+            append("MX: 3\r\n")
+            append("ST: urn:schemas-upnp-org:device:MediaRenderer:1\r\n\r\n")
+        }.toByteArray()
+
+        try {
+            MulticastSocket(null).use { socket ->
+                socket.reuseAddress = true
+                socket.bind(InetSocketAddress(localAddress, 0))
+                socket.soTimeout = 500
+                socket.networkInterface = networkInterface
+                socket.joinGroup(InetSocketAddress(group, 1900), networkInterface)
+                Log.d(tag, "SSDP socket on ${networkInterface.name}/${localAddress.hostAddress}")
+
+                repeat(2) {
+                    socket.send(DatagramPacket(search, search.size, group, 1900))
+                    delay(200)
+                }
+
+                val deadline = System.currentTimeMillis() + 4000L
+                while (System.currentTimeMillis() < deadline) {
+                    try {
+                        val buffer = ByteArray(4096)
+                        val packet = DatagramPacket(buffer, buffer.size)
+                        socket.receive(packet)
+                        val location = extractHeader(String(packet.data, 0, packet.length), "LOCATION")
+                            ?: continue
+                        val device = fetchDeviceDescription(location, localIp)
+                        if (device != null && found.none { it.baseUrl == device.baseUrl }) {
+                            Log.d(tag, "Device found via ${networkInterface.name}: ${device.name}")
+                            found.add(device)
+                        }
+                    } catch (_: SocketTimeoutException) {
+                        // Continue receiving until the shared discovery window ends.
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Individual interfaces can reject multicast; keep scanning the others.
+            Log.w(tag, "SSDP unavailable on ${networkInterface.name}/${localAddress.hostAddress}: ${e.message}")
+        }
+        return found
+    }
+
+    private fun fetchDeviceDescription(location: String, localAddress: String): DLNADevice? {
         return try {
             val url = URL(location)
             val conn = (url.openConnection() as HttpURLConnection).apply {
@@ -201,13 +188,13 @@ class DLNACastManager(private val context: Context) {
             conn.disconnect()
 
             val friendlyName = extractXmlTag(xml, "friendlyName") ?: "DLNA Device"
-            val baseUrl = "${url.protocol}://${url.host}:${url.port}"
+            val baseUrl = "${url.protocol}://${url.host}:${url.port.takeIf { it >= 0 } ?: url.defaultPort}"
 
             for (block in xml.split("<service>")) {
                 if (block.contains("AVTransport", ignoreCase = true)) {
                     val path = extractXmlTag(block, "controlURL") ?: continue
-                    val controlUrl = if (path.startsWith("http")) path else "$baseUrl$path"
-                    return DLNADevice(friendlyName, controlUrl, baseUrl)
+                    val controlUrl = if (path.startsWith("http")) path else URL(url, path).toString()
+                    return DLNADevice(friendlyName, controlUrl, baseUrl, localAddress)
                 }
             }
             null
@@ -311,7 +298,9 @@ class DLNACastManager(private val context: Context) {
         } else {
             File(videoPath.removePrefix("file://")).name
         }
-        val ip = videoServer?.getLocalIpAddress() ?: "127.0.0.1"
+        val ip = connectedDevice?.localAddress
+            ?: videoServer?.getLocalIpAddress(connectedDevice?.baseUrl)
+            ?: "127.0.0.1"
         val encoded = URLEncoder.encode(name, "UTF-8").replace("+", "%20")
         return "http://$ip:8080/video/$encoded"
     }
