@@ -214,18 +214,20 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Novidades da v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>Zoom no player</item>
-        <item>Preview no diálogo de tags</item>
-        <item>Áudio e legendas compactos</item>
-        <item>Playlists com confirmação</item>
-        <item>Melhorias gerais</item>
+        <item>Cartões SD e USB</item>
+        <item>Picture-in-Picture automático</item>
+        <item>Cast por Wi-Fi Direct</item>
+        <item>Correções no player</item>
+        <item>Melhorias visuais</item>
+        <item>Limpeza de cache mais clara</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Use o gesto de pinça para aproximar o vídeo e arraste para mover a imagem ampliada.</item>
-        <item>Ao selecionar apenas um vídeo, o diálogo de tags agora permite ver uma prévia rápida sem abrir o player completo.</item>
-        <item>O seletor de áudio e legendas se adapta melhor em landscape e telas menores, com layout mais enxuto.</item>
-        <item>Ao abrir um vídeo ou iniciar o shuffle com playlist ativa, o app confirma antes de substituir a lista atual. O shuffle também respeita a visibilidade das pastas privadas.</item>
-        <item>Diálogos mais consistentes, correções de build e ajustes nas traduções.</item>
+        <item>Cartões SD e unidades USB montados aparecem automaticamente na tela inicial para navegação.</item>
+        <item>O player pode entrar automaticamente em Picture-in-Picture ao sair do app, com opção para desativar esse comportamento.</item>
+        <item>Dispositivos DLNA agora também podem ser encontrados e usados através de conexões Wi-Fi Direct.</item>
+        <item>Corrigida a reprodução de vídeos quando o nome do arquivo ou caminho contém caracteres especiais.</item>
+        <item>O indicador de zoom acompanha os controles, o cabeçalho do player aproveita melhor o topo da tela e o seletor de destino agora usa um bottom sheet.</item>
+        <item>A limpeza de miniaturas agora mostra atividade e o espaço restante enquanto o processo está em andamento.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Pastas privadas mais rápidas</string>
     <string name="changelog_pinned_folders_desc">Corrigido um problema que podia causar travamentos ao trocar rapidamente entre vídeos de pastas privadas.</string>

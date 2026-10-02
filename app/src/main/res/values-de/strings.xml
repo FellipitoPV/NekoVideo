@@ -209,18 +209,20 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Neu in v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>Player-Zoom</item>
-        <item>Vorschau im Tag-Dialog</item>
-        <item>Kompakte Audio- und Untertitelauswahl</item>
-        <item>Playlist-Bestätigung</item>
-        <item>Allgemeine Verbesserungen</item>
+        <item>SD-Karten und USB-Speicher</item>
+        <item>Automatisches Picture-in-Picture</item>
+        <item>Cast über Wi-Fi Direct</item>
+        <item>Player-Korrekturen</item>
+        <item>Visuelle Verbesserungen</item>
+        <item>Übersichtlichere Cache-Bereinigung</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Verwende die Pinch-Geste zum Vergrößern und ziehe das vergrößerte Bild, um es zu verschieben.</item>
-        <item>Wenn nur ein Video ausgewählt ist, kann der Tag-Dialog jetzt eine schnelle Vorschau anzeigen, ohne den vollständigen Player zu öffnen.</item>
-        <item>Die Auswahl für Audio und Untertitel passt sich im Querformat und auf kleineren Bildschirmen besser an.</item>
-        <item>Beim Öffnen eines Videos oder Starten von Shuffle mit aktiver Playlist fragt die App nach, bevor die aktuelle Liste ersetzt wird. Shuffle respektiert außerdem die Sichtbarkeit privater Ordner.</item>
-        <item>Konsistentere Dialoge, Build-Korrekturen und aktualisierte Übersetzungen.</item>
+        <item>Eingebundene SD-Karten und USB-Laufwerke erscheinen automatisch zum Durchsuchen auf dem Startbildschirm.</item>
+        <item>Der Player kann beim Verlassen der App automatisch Picture-in-Picture öffnen. Dieses Verhalten lässt sich deaktivieren.</item>
+        <item>DLNA-Geräte können jetzt auch über Wi-Fi-Direct-Verbindungen gefunden und verwendet werden.</item>
+        <item>Die Videowiedergabe wurde korrigiert, wenn Dateiname oder Pfad Sonderzeichen enthalten.</item>
+        <item>Die Zoomanzeige folgt nun den Steuerelementen, der Player-Kopfbereich nutzt den oberen Bildschirm besser und die Zielauswahl verwendet jetzt ein Bottom Sheet.</item>
+        <item>Die Miniaturbild-Bereinigung zeigt jetzt Aktivität und den verbleibenden Speicher während des Vorgangs an.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Schnellere private Ordner</string>
     <string name="changelog_pinned_folders_desc">Ein Problem wurde behoben, das beim schnellen Wechseln zwischen Videos in privaten Ordnern zu Rucklern führen konnte.</string>

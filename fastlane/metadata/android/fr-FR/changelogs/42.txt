@@ -1,0 +1,5 @@
+Les cartes SD et unités USB apparaissent maintenant automatiquement sur l'écran d'accueil, avec une navigation et un déplacement améliorés.
+
+Le Picture-in-Picture automatique revient avec une option pour le désactiver, ainsi que des améliorations du zoom et du nettoyage du cache.
+
+Cast/DLNA détecte maintenant les appareils via Wi-Fi Direct, et la lecture des chemins contenant des caractères spéciaux a été corrigée.

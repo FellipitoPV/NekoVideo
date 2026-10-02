@@ -1,0 +1,5 @@
+SD कार्ड और USB ड्राइव अब होम स्क्रीन पर अपने आप दिखाई देते हैं, साथ ही navigation और file moving को बेहतर बनाया गया है।
+
+Automatic Picture-in-Picture वापस आ गया है और इसे बंद करने का विकल्प भी है। Zoom controls और cache cleanup में भी सुधार हुआ है।
+
+Cast/DLNA अब Wi-Fi Direct पर डिवाइस खोज सकता है और special characters वाले paths का playback ठीक किया गया है।

@@ -209,18 +209,20 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">What\'s new in v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>Player zoom</item>
-        <item>Preview in tags dialog</item>
-        <item>Compact audio and subtitles</item>
-        <item>Playlist confirmation</item>
-        <item>General improvements</item>
+        <item>SD cards and USB storage</item>
+        <item>Automatic Picture-in-Picture</item>
+        <item>Cast over Wi-Fi Direct</item>
+        <item>Player fixes</item>
+        <item>Visual improvements</item>
+        <item>Clearer cache cleanup</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Use pinch gestures to zoom into the video and drag to move the enlarged frame.</item>
-        <item>When only one video is selected, the tags dialog can now show a quick preview without opening the full player.</item>
-        <item>The audio and subtitle selector now adapts better in landscape and on smaller screens with a tighter layout.</item>
-        <item>When opening a video or starting shuffle with an active playlist, the app asks before replacing the current list. Shuffle also respects private folder visibility.</item>
-        <item>More consistent dialogs, build fixes, and translation updates.</item>
+        <item>Mounted SD cards and USB drives now appear automatically on the home screen for browsing.</item>
+        <item>The player can enter Picture-in-Picture automatically when leaving the app, with an option to disable it.</item>
+        <item>DLNA devices can now be discovered and used through Wi-Fi Direct connections.</item>
+        <item>Fixed video playback when the file name or path contains special characters.</item>
+        <item>The zoom indicator now follows the controls, the player header makes better use of the top of the screen, and the destination picker now uses a bottom sheet.</item>
+        <item>Thumbnail cleanup now shows activity and remaining space while the process is running.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Faster private folders</string>
     <string name="changelog_pinned_folders_desc">Fixed an issue that could cause stutters when quickly switching between videos in private folders.</string>

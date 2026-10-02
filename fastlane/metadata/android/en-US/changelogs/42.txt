@@ -1,0 +1,5 @@
+SD cards and USB drives now appear automatically on the home screen, with improved browsing and file moving.
+
+Automatic Picture-in-Picture is back with an option to disable it, alongside improvements to zoom controls and cache cleanup.
+
+Cast/DLNA can now discover devices over Wi-Fi Direct, and playback of paths containing special characters has been fixed.

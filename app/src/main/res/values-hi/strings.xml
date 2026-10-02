@@ -209,18 +209,20 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">v%1$s में नया</string>
     <string-array name="changelog_item_titles">
-        <item>प्लेयर zoom</item>
-        <item>टैग डायलॉग में प्रीव्यू</item>
-        <item>कॉम्पैक्ट ऑडियो और सबटाइटल</item>
-        <item>प्लेलिस्ट पुष्टि</item>
-        <item>सामान्य सुधार</item>
+        <item>SD कार्ड और USB स्टोरेज</item>
+        <item>ऑटोमैटिक Picture-in-Picture</item>
+        <item>Wi-Fi Direct पर Cast</item>
+        <item>प्लेयर सुधार</item>
+        <item>विज़ुअल सुधार</item>
+        <item>बेहतर कैश सफाई</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>वीडियो zoom करने के लिए pinch gesture इस्तेमाल करें और zoom की हुई image को move करने के लिए drag करें।</item>
-        <item>जब केवल एक वीडियो चुना हो, टैग डायलॉग अब पूरे प्लेयर को खोले बिना तेज़ प्रीव्यू दिखा सकता है।</item>
-        <item>ऑडियो और सबटाइटल चयन अब लैंडस्केप और छोटी स्क्रीन पर बेहतर, कॉम्पैक्ट लेआउट में दिखता है।</item>
-        <item>वीडियो खोलते समय या सक्रिय प्लेलिस्ट के साथ शफल शुरू करते समय, ऐप अब मौजूदा सूची बदलने से पहले पुष्टि मांगता है। शफल अब private folders की visibility का भी पालन करता है।</item>
-        <item>अधिक एक जैसे डायलॉग, build fixes और translation updates।</item>
+        <item>माउंट किए गए SD कार्ड और USB ड्राइव अब browsing के लिए होम स्क्रीन पर अपने आप दिखाई देते हैं।</item>
+        <item>ऐप से बाहर जाते समय प्लेयर अपने आप Picture-in-Picture खोल सकता है, और इसे बंद करने का विकल्प भी उपलब्ध है।</item>
+        <item>DLNA डिवाइस अब Wi-Fi Direct कनेक्शन के माध्यम से भी खोजे और उपयोग किए जा सकते हैं।</item>
+        <item>फ़ाइल नाम या path में special characters होने पर video playback की समस्या ठीक की गई।</item>
+        <item>Zoom indicator अब controls के साथ छिपता है, player header ऊपर की जगह का बेहतर उपयोग करता है और destination picker अब bottom sheet का उपयोग करता है।</item>
+        <item>Thumbnail cache की सफाई अब प्रक्रिया के दौरान activity और बची हुई जगह दिखाती है।</item>
     </string-array>
     <string name="changelog_pinned_folders_title">तेज़ private folders</string>
     <string name="changelog_pinned_folders_desc">Private folders में videos को जल्दी-जल्दी बदलने पर होने वाली रुकावट की समस्या ठीक की गई।</string>

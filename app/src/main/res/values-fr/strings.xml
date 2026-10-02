@@ -209,18 +209,20 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Nouveautés de la v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>Zoom du lecteur</item>
-        <item>Aperçu dans le dialogue des tags</item>
-        <item>Audio et sous-titres compacts</item>
-        <item>Confirmation de playlist</item>
-        <item>Améliorations générales</item>
+        <item>Cartes SD et stockage USB</item>
+        <item>Picture-in-Picture automatique</item>
+        <item>Cast via Wi-Fi Direct</item>
+        <item>Corrections du lecteur</item>
+        <item>Améliorations visuelles</item>
+        <item>Nettoyage du cache plus clair</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Utilisez le geste de pincement pour zoomer et faites glisser l\'image agrandie pour la déplacer.</item>
-        <item>Quand une seule vidéo est sélectionnée, le dialogue des tags peut maintenant afficher un aperçu rapide sans ouvrir le lecteur complet.</item>
-        <item>Le sélecteur audio et sous-titres s\'adapte mieux en mode paysage et sur les petits écrans.</item>
-        <item>Lors de l\'ouverture d\'une vidéo ou du lancement du shuffle avec une playlist active, l\'app demande confirmation avant de remplacer la liste actuelle. Le shuffle respecte aussi la visibilité des dossiers privés.</item>
-        <item>Dialogues plus cohérents, corrections de build et mises à jour des traductions.</item>
+        <item>Les cartes SD et unités USB montées apparaissent automatiquement sur l\'écran d\'accueil pour la navigation.</item>
+        <item>Le lecteur peut passer automatiquement en Picture-in-Picture en quittant l\'app, avec une option pour le désactiver.</item>
+        <item>Les appareils DLNA peuvent maintenant être détectés et utilisés via des connexions Wi-Fi Direct.</item>
+        <item>Correction de la lecture lorsque le nom du fichier ou son chemin contient des caractères spéciaux.</item>
+        <item>L\'indicateur de zoom suit maintenant les commandes, l\'en-tête utilise mieux le haut de l\'écran et le sélecteur de destination utilise désormais un bottom sheet.</item>
+        <item>Le nettoyage des miniatures affiche maintenant son activité et l\'espace restant pendant le processus.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Dossiers privés plus rapides</string>
     <string name="changelog_pinned_folders_desc">Correction d\'un problème pouvant provoquer des blocages lors du passage rapide entre des vidéos de dossiers privés.</string>

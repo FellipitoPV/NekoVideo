@@ -209,18 +209,20 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">v%1$s 新功能</string>
     <string-array name="changelog_item_titles">
-        <item>播放器缩放</item>
-        <item>标签对话框预览</item>
-        <item>紧凑的音频和字幕</item>
-        <item>播放列表确认</item>
-        <item>常规改进</item>
+        <item>SD 卡和 USB 存储</item>
+        <item>自动画中画</item>
+        <item>通过 Wi-Fi Direct 投屏</item>
+        <item>播放器修复</item>
+        <item>视觉改进</item>
+        <item>更清晰的缓存清理</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>使用双指手势放大视频，并拖动放大的画面。</item>
-        <item>只选择一个视频时，标签对话框现在可以显示快速预览，无需打开完整播放器。</item>
-        <item>音频和字幕选择器在横屏和较小屏幕上显示得更紧凑。</item>
-        <item>打开视频或在已有播放列表时启动随机播放，应用会先确认再替换当前列表。随机播放也会遵守私密文件夹的可见性设置。</item>
-        <item>对话框更一致，并包含构建修复和翻译更新。</item>
+        <item>已挂载的 SD 卡和 USB 设备现在会自动显示在主屏幕上以供浏览。</item>
+        <item>离开应用时播放器可自动进入画中画模式，并可在设置中关闭此功能。</item>
+        <item>现在可以通过 Wi-Fi Direct 连接发现和使用 DLNA 设备。</item>
+        <item>修复了文件名或路径包含特殊字符时的视频播放问题。</item>
+        <item>缩放指示器现在会随控件隐藏，播放器顶部空间得到更好利用，目标选择器也改为底部面板。</item>
+        <item>清理缩略图缓存时现在会显示运行状态和剩余空间。</item>
     </string-array>
     <string name="changelog_pinned_folders_title">私密文件夹更快</string>
     <string name="changelog_pinned_folders_desc">修复了快速切换私密文件夹中的视频时可能出现卡顿的问题。</string>

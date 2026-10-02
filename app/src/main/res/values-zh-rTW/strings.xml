@@ -209,18 +209,20 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">v%1$s 新功能</string>
     <string-array name="changelog_item_titles">
-        <item>播放器縮放</item>
-        <item>標籤對話框預覽</item>
-        <item>精簡的音訊和字幕</item>
-        <item>播放清單確認</item>
-        <item>一般改進</item>
+        <item>SD 卡和 USB 儲存空間</item>
+        <item>自動畫中畫</item>
+        <item>透過 Wi-Fi Direct 投放</item>
+        <item>播放器修正</item>
+        <item>視覺改善</item>
+        <item>更清楚的快取清理</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>使用雙指手勢放大影片，並拖動放大的畫面。</item>
-        <item>只選取一個影片時，標籤對話框現在可以顯示快速預覽，不需要開啟完整播放器。</item>
-        <item>音訊和字幕選擇器在橫向和較小螢幕上顯示得更精簡。</item>
-        <item>開啟影片或在已有播放清單時啟動隨機播放，App 會先確認再取代目前清單。隨機播放也會遵守私密資料夾的可見性設定。</item>
-        <item>對話框更一致，並包含建置修正和翻譯更新。</item>
+        <item>已掛載的 SD 卡和 USB 裝置現在會自動顯示在主畫面以供瀏覽。</item>
+        <item>離開 App 時播放器可自動進入畫中畫模式，並可在設定中關閉此功能。</item>
+        <item>現在可以透過 Wi-Fi Direct 連線尋找及使用 DLNA 裝置。</item>
+        <item>修正檔案名稱或路徑包含特殊字元時的影片播放問題。</item>
+        <item>縮放指示器現在會隨控制項隱藏，播放器頂部空間得到更好利用，目的地選擇器也改為底部面板。</item>
+        <item>清理縮圖快取時現在會顯示執行狀態與剩餘空間。</item>
     </string-array>
     <string name="changelog_pinned_folders_title">私密資料夾更快</string>
     <string name="changelog_pinned_folders_desc">修正了快速切換私密資料夾中的影片時可能出現卡頓的問題。</string>

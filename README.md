@@ -27,6 +27,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 ### Library and File Management
 
 - Browses your storage as real folders instead of forcing a media-library-only view
+- Detects mounted SD cards and USB storage automatically for direct folder browsing
 - Scans and caches folders that contain videos for faster navigation
 - Supports common formats such as `mp4`, `mkv`, `webm`, `avi`, `mov`, `wmv`, `m4v`, `3gp`, and `flv`
 - Generates thumbnails and caches them in memory and on disk
@@ -70,12 +71,13 @@ The app focuses on local playback, folder-based organization, private folders, t
 
 ### Picture-in-Picture
 
-- Supports Android PiP mode (entered manually during playback)
+- Supports automatic Android PiP when leaving playback, with an option to disable it in settings
+- Keeps manual PiP available when automatic PiP is disabled
 - Includes previous, play/pause, and next PiP actions
 
 ### DLNA Casting
 
-- Discovers DLNA / UPnP renderers on the local network using SSDP
+- Discovers DLNA / UPnP renderers on regular Wi-Fi and Wi-Fi Direct networks using SSDP
 - Streams local files through an embedded HTTP server
 - Supports playlist casting, next/previous navigation, and playback state polling
 - Works without Google Cast SDK or closed-source casting dependencies
@@ -164,7 +166,7 @@ Project info:
 
 - `minSdk = 30`
 - `targetSdk = 36`
-- Current app version in the project: `1.6.0`
+- Current app version in the project: `1.7.0`
 
 ## License
 

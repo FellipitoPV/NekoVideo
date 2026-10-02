@@ -1,0 +1,5 @@
+SD-Karten und USB-Laufwerke erscheinen jetzt automatisch auf dem Startbildschirm. Navigation und Verschieben von Dateien wurden verbessert.
+
+Automatisches Picture-in-Picture ist mit einer Option zum Deaktivieren zurück. Zoom-Steuerung und Cache-Bereinigung wurden verbessert.
+
+Cast/DLNA findet Geräte jetzt über Wi-Fi Direct. Außerdem wurde die Wiedergabe von Pfaden mit Sonderzeichen korrigiert.
