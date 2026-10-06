@@ -145,7 +145,7 @@
     <string name="video_tags_name_exists">Esta tag ya existe</string>
     <string name="video_tags_none_selected">Selecciona al menos una tag</string>
     <string name="shuffle_tags_title">Shuffle por tags</string>
-    <string name="shuffle_tags_description">Toca una tag para alternar entre usar, ignorar y neutral. Si no se marca ninguna tag para usar, el shuffle considerará todos los videos y excluirá solo las tags ignoradas.</string>
+    <string name="shuffle_tags_description">Toca una etiqueta para alternar entre obligatoria, opcional, excluida y neutral. Cada vídeo debe tener todas las etiquetas obligatorias y, si hay opcionales, al menos una. Las etiquetas excluidas siempre eliminan el vídeo.</string>
     <string name="shuffle_tags_empty">Aún no hay tags creadas. Primero agrega tags a los videos.</string>
     <string name="shuffle_tags_hint_message">Mantén pulsado para abrir el filtro de tags</string>
     <string name="shuffle_tags_confirm">Crear shuffle</string>
@@ -153,7 +153,8 @@
     <string name="new_playlist_confirm_message">Ya existe una playlist activa. Iniciar una nueva playlist reemplazará la actual. ¿Deseas continuar?</string>
     <string name="shuffle_tags_no_match">No se encontraron videos con las tags seleccionadas</string>
     <string name="shuffle_tags_mode_neutral">Neutral</string>
-    <string name="shuffle_tags_mode_include">Usar en shuffle</string>
+    <string name="shuffle_tags_mode_required">Obligatoria</string>
+    <string name="shuffle_tags_mode_include">Opcional (cualquiera)</string>
     <string name="shuffle_tags_mode_exclude">Ignorar en shuffle</string>
 
     <!-- Permissions -->
@@ -292,15 +293,26 @@
     <string name="tags_backup_export">Exportar copia</string>
     <string name="tags_backup_export_desc">Guardar una copia manual del respaldo en cualquier carpeta</string>
     <string name="tags_backup_import">Importar copia</string>
-    <string name="tags_backup_import_desc">Fusiona la copia automatica encontrada en el dispositivo con las tags actuales</string>
+    <string name="tags_backup_import_desc">Reemplaza todas las tags actuales por la copia automatica encontrada en el dispositivo</string>
     <string name="tags_backup_auto_status">Copia automatica guardada el %1$s</string>
     <string name="tags_backup_auto_status_empty">Aun no hay copia automatica guardada</string>
     <string name="tags_backup_export_success">Copia exportada con exito</string>
-    <string name="tags_backup_import_success">Copia importada: %1$d tags nuevas y %2$d vinculaciones restauradas</string>
+    <string name="tags_backup_import_success">Copia importada: %1$d tags reemplazadas y %2$d vinculaciones restauradas</string>
+    <string name="tags_cleanup_section">Limpieza de etiquetas</string>
+    <string name="tags_cleanup_missing_action">Eliminar vínculos de vídeos ausentes</string>
+    <string name="tags_cleanup_missing_desc">Comprueba todas las rutas de vídeos etiquetados y elimina los vínculos de archivos que ya no existen</string>
+    <string name="tags_cleanup_missing_confirm_title">¿Limpiar vínculos de vídeos ausentes?</string>
+    <string name="tags_cleanup_missing_confirm_message">Se comprobarán todas las rutas registradas. Solo se eliminan los vínculos y registros de vídeos cuyos archivos ya no existen; se conservan las etiquetas y los archivos existentes.</string>
+    <string name="tags_cleanup_missing_scanning">Comprobando vídeos registrados…</string>
+    <string name="tags_cleanup_missing_progress">Comprobando %1$d de %2$d rutas</string>
+    <string name="tags_cleanup_missing_success">Comprobación finalizada: %1$d rutas revisadas, %2$d vídeos ausentes y %3$d vínculos eliminados</string>
+    <string name="tags_cleanup_missing_none">Comprobación finalizada: %1$d rutas revisadas, no hay vídeos ausentes</string>
+    <string name="tags_cleanup_missing_failed">No se pudieron comprobar los vídeos vinculados a las etiquetas</string>
     <string name="tags_backup_action_failed">No se pudo completar la operacion de copia</string>
     <string name="tags_create_hint">Crear nueva tag</string>
     <string name="tags_list_title">Lista de tags</string>
     <string name="tags_count">%1$d tags</string>
+    <string name="tags_video_count">%1$d vídeos asociados</string>
     <string name="tags_empty_scope">No hay tags creadas en esta categoría</string>
     <string name="tags_delete">Eliminar tag</string>
     <string name="tags_delete_confirm_title">¿Eliminar tag?</string>

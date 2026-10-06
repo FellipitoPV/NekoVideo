@@ -145,7 +145,7 @@
     <string name="video_tags_name_exists">Dieser Tag existiert bereits</string>
     <string name="video_tags_none_selected">Wählen Sie mindestens einen Tag aus</string>
     <string name="shuffle_tags_title">Shuffle nach Tags</string>
-    <string name="shuffle_tags_description">Tippen Sie auf einen Tag, um zwischen verwenden, ignorieren und neutral zu wechseln. Wenn kein Tag zum Verwenden markiert ist, berücksichtigt Shuffle alle Videos und schließt nur die ignorierten Tags aus.</string>
+    <string name="shuffle_tags_description">Tippe auf ein Tag, um zwischen erforderlich, optional, ausgeschlossen und neutral zu wechseln. Jedes Video muss alle erforderlichen Tags und, falls optionale Tags gewählt sind, mindestens eines davon haben. Ausgeschlossene Tags entfernen Videos immer.</string>
     <string name="shuffle_tags_empty">Noch keine Tags erstellt. Fügen Sie zuerst Tags zu Videos hinzu.</string>
     <string name="shuffle_tags_hint_message">Gedrückt halten, um den Tag-Filter zu öffnen</string>
     <string name="shuffle_tags_confirm">Shuffle erstellen</string>
@@ -153,7 +153,8 @@
     <string name="new_playlist_confirm_message">Es gibt bereits eine aktive Playlist. Eine neue Playlist ersetzt die aktuelle. Möchten Sie fortfahren?</string>
     <string name="shuffle_tags_no_match">Keine Videos mit den ausgewählten Tags gefunden</string>
     <string name="shuffle_tags_mode_neutral">Neutral</string>
-    <string name="shuffle_tags_mode_include">Im Shuffle verwenden</string>
+    <string name="shuffle_tags_mode_required">Erforderlich</string>
+    <string name="shuffle_tags_mode_include">Optional (beliebig eines)</string>
     <string name="shuffle_tags_mode_exclude">Im Shuffle ignorieren</string>
 
     <!-- Permissions -->
@@ -292,15 +293,26 @@
     <string name="tags_backup_export">Backup exportieren</string>
     <string name="tags_backup_export_desc">Eine manuelle Kopie des Backups in einem beliebigen Ordner speichern</string>
     <string name="tags_backup_import">Backup importieren</string>
-    <string name="tags_backup_import_desc">Das auf dem Gerat gefundene automatische Backup mit den aktuellen Tags zusammenfuhren</string>
+    <string name="tags_backup_import_desc">Alle aktuellen Tags durch das auf dem Gerat gefundene automatische Backup ersetzen</string>
     <string name="tags_backup_auto_status">Automatisches Backup gespeichert am %1$s</string>
     <string name="tags_backup_auto_status_empty">Noch kein automatisches Backup gespeichert</string>
     <string name="tags_backup_export_success">Backup erfolgreich exportiert</string>
-    <string name="tags_backup_import_success">Backup importiert: %1$d neue Tags und %2$d wiederhergestellte Verknüpfungen</string>
+    <string name="tags_backup_import_success">Backup importiert: %1$d Tags ersetzt und %2$d Verknüpfungen wiederhergestellt</string>
+    <string name="tags_cleanup_section">Tag-Bereinigung</string>
+    <string name="tags_cleanup_missing_action">Verknüpfungen fehlender Videos entfernen</string>
+    <string name="tags_cleanup_missing_desc">Prüft alle mit Tags verknüpften Videopfade und entfernt Verknüpfungen zu nicht mehr vorhandenen Dateien</string>
+    <string name="tags_cleanup_missing_confirm_title">Verknüpfungen fehlender Videos bereinigen?</string>
+    <string name="tags_cleanup_missing_confirm_message">Alle gespeicherten Videopfade werden geprüft. Nur Verknüpfungen und Einträge zu nicht mehr vorhandenen Dateien werden entfernt; Tags und vorhandene Dateien bleiben erhalten.</string>
+    <string name="tags_cleanup_missing_scanning">Gespeicherte Videos werden geprüft…</string>
+    <string name="tags_cleanup_missing_progress">Prüfe %1$d von %2$d Pfaden</string>
+    <string name="tags_cleanup_missing_success">Prüfung abgeschlossen: %1$d Pfade geprüft, %2$d fehlende Videos und %3$d Verknüpfungen entfernt</string>
+    <string name="tags_cleanup_missing_none">Prüfung abgeschlossen: %1$d Pfade geprüft, keine Videos fehlen</string>
+    <string name="tags_cleanup_missing_failed">Videos mit Tags konnten nicht geprüft werden</string>
     <string name="tags_backup_action_failed">Der Backup-Vorgang konnte nicht abgeschlossen werden</string>
     <string name="tags_create_hint">Neuen Tag erstellen</string>
     <string name="tags_list_title">Tag-Liste</string>
     <string name="tags_count">%1$d Tags</string>
+    <string name="tags_video_count">%1$d zugeordnete Videos</string>
     <string name="tags_empty_scope">In dieser Kategorie wurden keine Tags erstellt</string>
     <string name="tags_delete">Tag löschen</string>
     <string name="tags_delete_confirm_title">Tag löschen?</string>

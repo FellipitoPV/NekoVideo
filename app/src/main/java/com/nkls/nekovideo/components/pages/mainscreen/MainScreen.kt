@@ -491,17 +491,21 @@ fun MainScreen(
         val filteredVideos = if (tagFilter == null) {
             videos
         } else {
+            val requiredPaths = withContext(Dispatchers.IO) {
+                VideoTagStore.getVideoPathsForAllTagIds(context, tagFilter.requiredTagIds, tagScope)
+            }
             val includePaths = withContext(Dispatchers.IO) {
-                VideoTagStore.getVideoPathsForAllTagIds(context, tagFilter.includeTagIds, tagScope)
+                VideoTagStore.getVideoPathsForAnyTagIds(context, tagFilter.includeTagIds, tagScope)
             }
             val excludePaths = withContext(Dispatchers.IO) {
                 VideoTagStore.getVideoPathsForAnyTagIds(context, tagFilter.excludeTagIds, tagScope)
             }
             videos.filter { path ->
                 val normalizedPath = path.removePrefix("locked://").removePrefix("file://")
+                val matchesRequired = tagFilter.requiredTagIds.isEmpty() || normalizedPath in requiredPaths
                 val matchesInclude = tagFilter.includeTagIds.isEmpty() || normalizedPath in includePaths
                 val matchesExclude = normalizedPath in excludePaths
-                matchesInclude && !matchesExclude
+                matchesRequired && matchesInclude && !matchesExclude
             }
         }
 

@@ -869,14 +869,22 @@ fun TagsSettingsScreen() {
     var privateUnlocked by remember { mutableStateOf(false) }
     var normalTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
     var privateTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
+    var normalTagVideoCounts by remember { mutableStateOf<Map<Long, Int>>(emptyMap()) }
+    var privateTagVideoCounts by remember { mutableStateOf<Map<Long, Int>>(emptyMap()) }
     var hasAutomaticBackup by remember { mutableStateOf(false) }
     var shouldOfferImport by remember { mutableStateOf(false) }
     var lastAutomaticBackupAt by remember { mutableStateOf(0L) }
     var refreshToken by remember { mutableIntStateOf(0) }
+    var showMissingVideoCleanupConfirm by remember { mutableStateOf(false) }
+    var isCleaningMissingVideos by remember { mutableStateOf(false) }
+    var cleanupProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     suspend fun refreshTags() {
         val loadedNormalTags = withContext(Dispatchers.IO) {
             VideoTagStore.getAllTags(context, TagScope.NORMAL)
+        }
+        val loadedNormalTagVideoCounts = withContext(Dispatchers.IO) {
+            VideoTagStore.getVideoCountsByTag(context, TagScope.NORMAL)
         }
         val loadedPrivateTags = if (privateUnlocked) {
             withContext(Dispatchers.IO) {
@@ -884,6 +892,13 @@ fun TagsSettingsScreen() {
             }
         } else {
             emptyList()
+        }
+        val loadedPrivateTagVideoCounts = if (privateUnlocked) {
+            withContext(Dispatchers.IO) {
+                VideoTagStore.getVideoCountsByTag(context, TagScope.PRIVATE)
+            }
+        } else {
+            emptyMap()
         }
         val automaticBackupExists = withContext(Dispatchers.IO) {
             VideoTagStore.hasAutomaticBackup(context)
@@ -897,6 +912,8 @@ fun TagsSettingsScreen() {
 
         normalTags = loadedNormalTags
         privateTags = loadedPrivateTags
+        normalTagVideoCounts = loadedNormalTagVideoCounts
+        privateTagVideoCounts = loadedPrivateTagVideoCounts
         hasAutomaticBackup = automaticBackupExists
         shouldOfferImport = shouldShowImport
         lastAutomaticBackupAt = automaticBackupTimestamp
@@ -906,14 +923,15 @@ fun TagsSettingsScreen() {
         SortRowMessageCenter.showSuccess(
             context.getString(
                 R.string.tags_backup_import_success,
-                result.createdTags,
+                result.importedTags,
                 result.restoredRefs
             ),
             durationMs = 4500L
         )
     }
 
-    LaunchedEffect(refreshToken, privateUnlocked) {
+    val tagChangeEvent by VideoTagStore.tagChangeEvent.collectAsState()
+    LaunchedEffect(refreshToken, privateUnlocked, tagChangeEvent) {
         refreshTags()
     }
 
@@ -923,6 +941,60 @@ fun TagsSettingsScreen() {
             onPasswordVerified = {
                 showPrivatePasswordDialog = false
                 privateUnlocked = true
+            }
+        )
+    }
+
+    if (showMissingVideoCleanupConfirm) {
+        AlertDialog(
+            onDismissRequest = { showMissingVideoCleanupConfirm = false },
+            title = { Text(stringResource(R.string.tags_cleanup_missing_confirm_title)) },
+            text = { Text(stringResource(R.string.tags_cleanup_missing_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showMissingVideoCleanupConfirm = false
+                        isCleaningMissingVideos = true
+                        coroutineScope.launch {
+                            try {
+                                val result = VideoTagStore.cleanMissingVideoTagRefs(context) { checked, total ->
+                                    withContext(Dispatchers.Main) {
+                                        cleanupProgress = checked to total
+                                    }
+                                }
+                                refreshToken++
+                                val message = if (result.removedVideoPaths == 0) {
+                                    context.getString(
+                                        R.string.tags_cleanup_missing_none,
+                                        result.checkedVideoPaths
+                                    )
+                                } else {
+                                    context.getString(
+                                        R.string.tags_cleanup_missing_success,
+                                        result.checkedVideoPaths,
+                                        result.removedVideoPaths,
+                                        result.removedTagLinks
+                                    )
+                                }
+                                SortRowMessageCenter.showSuccess(message, durationMs = 5000L)
+                            } catch (_: Exception) {
+                                SortRowMessageCenter.showError(
+                                    context.getString(R.string.tags_cleanup_missing_failed)
+                                )
+                            } finally {
+                                cleanupProgress = null
+                                isCleaningMissingVideos = false
+                            }
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.tags_cleanup_missing_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMissingVideoCleanupConfirm = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             }
         )
     }
@@ -942,6 +1014,7 @@ fun TagsSettingsScreen() {
                 TagScopeManagerCard(
                     scope = TagScope.NORMAL,
                     tags = normalTags,
+                    videoCounts = normalTagVideoCounts,
                     isCompact = isCompact,
                     onCreateTag = { name ->
                         val result = VideoTagStore.createTag(context, name, TagScope.NORMAL)
@@ -986,6 +1059,7 @@ fun TagsSettingsScreen() {
                     TagScopeManagerCard(
                         scope = TagScope.PRIVATE,
                         tags = privateTags,
+                        videoCounts = privateTagVideoCounts,
                         isCompact = isCompact,
                         onCreateTag = { name ->
                             val result = VideoTagStore.createTag(context, name, TagScope.PRIVATE)
@@ -1003,6 +1077,31 @@ fun TagsSettingsScreen() {
                         }
                     )
                 }
+            }
+
+            item { SettingsSectionHeader(stringResource(R.string.tags_cleanup_section), isCompact) }
+            item {
+                val progress = cleanupProgress
+                SettingsClickableItem(
+                    icon = Icons.Default.Delete,
+                    title = stringResource(R.string.tags_cleanup_missing_action),
+                    subtitle = if (isCleaningMissingVideos) {
+                        if (progress == null) {
+                            stringResource(R.string.tags_cleanup_missing_scanning)
+                        } else {
+                            stringResource(
+                                R.string.tags_cleanup_missing_progress,
+                                progress.first,
+                                progress.second
+                            )
+                        }
+                    } else {
+                        stringResource(R.string.tags_cleanup_missing_desc)
+                    },
+                    onClick = { showMissingVideoCleanupConfirm = true },
+                    loading = isCleaningMissingVideos,
+                    isCompact = isCompact
+                )
             }
 
             if (shouldOfferImport) {
@@ -1278,6 +1377,7 @@ fun AboutSettingsScreen() {
 private fun TagScopeManagerCard(
     scope: TagScope,
     tags: List<TagEntity>,
+    videoCounts: Map<Long, Int>,
     isCompact: Boolean,
     onCreateTag: suspend (String) -> Result<TagEntity>,
     onRenameTag: suspend (Long, String) -> Result<Unit>,
@@ -1433,6 +1533,7 @@ private fun TagScopeManagerCard(
                             items(tags, key = { it.id }) { tag ->
                                 TagManagementRow(
                                     tag = tag,
+                                    videoCount = videoCounts[tag.id] ?: 0,
                                     isMenuExpanded = expandedMenuTagId == tag.id,
                                     onMenuClick = { expandedMenuTagId = tag.id },
                                     onDismissMenu = { expandedMenuTagId = null },
@@ -1457,6 +1558,7 @@ private fun TagScopeManagerCard(
 @Composable
 private fun TagManagementRow(
     tag: TagEntity,
+    videoCount: Int,
     isMenuExpanded: Boolean,
     onMenuClick: () -> Unit,
     onDismissMenu: () -> Unit,
@@ -1480,12 +1582,18 @@ private fun TagManagementRow(
             modifier = Modifier.size(18.dp)
         )
         Spacer(modifier = Modifier.width(10.dp))
-        Text(
-            text = tag.name,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = tag.name,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = stringResource(R.string.tags_video_count, videoCount),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         Box {
             IconButton(onClick = onMenuClick) {
                 Icon(

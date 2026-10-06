@@ -145,7 +145,7 @@
     <string name="video_tags_name_exists">Такой тег уже существует</string>
     <string name="video_tags_none_selected">Выберите хотя бы один тег</string>
     <string name="shuffle_tags_title">Shuffle по тегам</string>
-    <string name="shuffle_tags_description">Нажмите на тег, чтобы переключаться между использовать, игнорировать и нейтрально. Если ни один тег не отмечен для использования, shuffle возьмёт все видео и исключит только игнорируемые теги.</string>
+    <string name="shuffle_tags_description">Нажимайте на тег, чтобы переключать режимы: обязательный, дополнительный, исключённый и нейтральный. В видео должны быть все обязательные теги и хотя бы один дополнительный, если они выбраны. Видео с исключёнными тегами всегда удаляются.</string>
     <string name="shuffle_tags_empty">Теги ещё не созданы. Сначала добавьте теги к видео.</string>
     <string name="shuffle_tags_hint_message">Удерживайте, чтобы открыть фильтр тегов</string>
     <string name="shuffle_tags_confirm">Создать shuffle</string>
@@ -153,7 +153,8 @@
     <string name="new_playlist_confirm_message">Уже есть активный плейлист. Запуск нового плейлиста заменит текущий. Продолжить?</string>
     <string name="shuffle_tags_no_match">Видео с выбранными тегами не найдены</string>
     <string name="shuffle_tags_mode_neutral">Нейтрально</string>
-    <string name="shuffle_tags_mode_include">Использовать в shuffle</string>
+    <string name="shuffle_tags_mode_required">Обязательный</string>
+    <string name="shuffle_tags_mode_include">Дополнительный (любой)</string>
     <string name="shuffle_tags_mode_exclude">Игнорировать в shuffle</string>
 
     <!-- Permissions -->
@@ -292,15 +293,26 @@
     <string name="tags_backup_export">Экспортировать резервную копию</string>
     <string name="tags_backup_export_desc">Сохранить ручную копию резервной копии в любую папку</string>
     <string name="tags_backup_import">Импортировать резервную копию</string>
-    <string name="tags_backup_import_desc">Объединить найденную на устройстве автоматическую копию с текущими тегами</string>
+    <string name="tags_backup_import_desc">Заменить все текущие теги автоматической копией с устройства</string>
     <string name="tags_backup_auto_status">Автоматическая копия сохранена %1$s</string>
     <string name="tags_backup_auto_status_empty">Автоматическая копия еще не сохранена</string>
     <string name="tags_backup_export_success">Резервная копия успешно экспортирована</string>
-    <string name="tags_backup_import_success">Копия импортирована: %1$d новых тегов и %2$d восстановленных связей</string>
+    <string name="tags_backup_import_success">Копия импортирована: заменено тегов — %1$d, восстановлено связей — %2$d</string>
+    <string name="tags_cleanup_section">Очистка тегов</string>
+    <string name="tags_cleanup_missing_action">Удалить связи с отсутствующими видео</string>
+    <string name="tags_cleanup_missing_desc">Проверяет пути всех видео с тегами и удаляет связи с файлами, которых больше нет</string>
+    <string name="tags_cleanup_missing_confirm_title">Очистить связи с отсутствующими видео?</string>
+    <string name="tags_cleanup_missing_confirm_message">Будут проверены все сохранённые пути. Удаляются только связи и записи видео, файлы которых отсутствуют; сами теги и существующие файлы сохраняются.</string>
+    <string name="tags_cleanup_missing_scanning">Проверка сохранённых видео…</string>
+    <string name="tags_cleanup_missing_progress">Проверено %1$d из %2$d путей</string>
+    <string name="tags_cleanup_missing_success">Проверка завершена: путей проверено — %1$d, удалено отсутствующих видео — %2$d, связей тегов — %3$d</string>
+    <string name="tags_cleanup_missing_none">Проверка завершена: проверено путей — %1$d, отсутствующих видео нет</string>
+    <string name="tags_cleanup_missing_failed">Не удалось проверить видео, связанные с тегами</string>
     <string name="tags_backup_action_failed">Не удалось завершить операцию резервного копирования</string>
     <string name="tags_create_hint">Создать новый тег</string>
     <string name="tags_list_title">Список тегов</string>
     <string name="tags_count">%1$d тегов</string>
+    <string name="tags_video_count">Связано видео: %1$d</string>
     <string name="tags_empty_scope">В этой категории нет созданных тегов</string>
     <string name="tags_delete">Удалить тег</string>
     <string name="tags_delete_confirm_title">Удалить тег?</string>

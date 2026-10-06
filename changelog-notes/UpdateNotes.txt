@@ -1,0 +1,9 @@
+* Evite escrever coisas super detalhadas, deixe só por cima de forma clara para o usuário final, sem necessidade de super profundidade. Este arquivo é apenas um auxílio para montar os changelogs no futuro. *
+
+Anotações para próxima atualização
+
+### Tags e Shuffle
+- O shuffle por tags agora permite exigir tags específicas e misturar vídeos com qualquer uma das tags opcionais selecionadas
+- A lista de tags mostra quantos vídeos estão associados a cada tag
+- A importação de backup substitui as tags atuais pelas tags e associações salvas no backup
+- Nova opção para verificar e remover associações de vídeos que não existem mais

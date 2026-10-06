@@ -35,12 +35,14 @@ import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.helpers.TagEntity
 
 data class ShuffleTagFilter(
+    val requiredTagIds: Set<Long>,
     val includeTagIds: Set<Long>,
     val excludeTagIds: Set<Long>
 )
 
 private enum class TagFilterMode {
     NEUTRAL,
+    REQUIRED,
     INCLUDE,
     EXCLUDE
 }
@@ -52,6 +54,7 @@ fun ShuffleTagsDialog(
     onConfirm: (ShuffleTagFilter) -> Unit
 ) {
     val includeLabel = stringResource(R.string.shuffle_tags_mode_include)
+    val requiredLabel = stringResource(R.string.shuffle_tags_mode_required)
     val excludeLabel = stringResource(R.string.shuffle_tags_mode_exclude)
     val title = stringResource(R.string.shuffle_tags_title)
     val description = stringResource(R.string.shuffle_tags_description)
@@ -69,13 +72,15 @@ fun ShuffleTagsDialog(
 
     fun cycleMode(tagId: Long) {
         tagModes[tagId] = when (tagModes[tagId] ?: TagFilterMode.NEUTRAL) {
-            TagFilterMode.NEUTRAL -> TagFilterMode.INCLUDE
+            TagFilterMode.NEUTRAL -> TagFilterMode.REQUIRED
+            TagFilterMode.REQUIRED -> TagFilterMode.INCLUDE
             TagFilterMode.INCLUDE -> TagFilterMode.EXCLUDE
             TagFilterMode.EXCLUDE -> TagFilterMode.NEUTRAL
         }
     }
 
     val hasActiveFilters = tagModes.values.any { it != TagFilterMode.NEUTRAL }
+    val requiredCount = tagModes.count { it.value == TagFilterMode.REQUIRED }
     val includeCount = tagModes.count { it.value == TagFilterMode.INCLUDE }
     val excludeCount = tagModes.count { it.value == TagFilterMode.EXCLUDE }
 
@@ -122,7 +127,7 @@ fun ShuffleTagsDialog(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     ) {
                         Text(
-                            text = "+$includeCount / -$excludeCount",
+                            text = "!$requiredCount / +$includeCount / -$excludeCount",
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -166,6 +171,10 @@ fun ShuffleTagsDialog(
                                     MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
                                     MaterialTheme.colorScheme.onSurface
                                 )
+                                TagFilterMode.REQUIRED -> Pair(
+                                    MaterialTheme.colorScheme.tertiaryContainer,
+                                    MaterialTheme.colorScheme.onTertiaryContainer
+                                )
                                 TagFilterMode.INCLUDE -> Pair(
                                     MaterialTheme.colorScheme.primaryContainer,
                                     MaterialTheme.colorScheme.onPrimaryContainer
@@ -182,6 +191,7 @@ fun ShuffleTagsDialog(
                                     Text(
                                         text = when (mode) {
                                             TagFilterMode.NEUTRAL -> tag.name
+                                            TagFilterMode.REQUIRED -> "! ${tag.name}"
                                             TagFilterMode.INCLUDE -> "+ ${tag.name}"
                                             TagFilterMode.EXCLUDE -> "- ${tag.name}"
                                         },
@@ -203,6 +213,17 @@ fun ShuffleTagsDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.tertiaryContainer
+                    ) {
+                        Text(
+                            text = requiredLabel,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
                     Surface(
                         shape = MaterialTheme.shapes.small,
                         color = MaterialTheme.colorScheme.primaryContainer
@@ -238,9 +259,11 @@ fun ShuffleTagsDialog(
                 Button(
                     onClick = {
                         val includeTagIds = tagModes.filterValues { it == TagFilterMode.INCLUDE }.keys
+                        val requiredTagIds = tagModes.filterValues { it == TagFilterMode.REQUIRED }.keys
                         val excludeTagIds = tagModes.filterValues { it == TagFilterMode.EXCLUDE }.keys
                         onConfirm(
                             ShuffleTagFilter(
+                                requiredTagIds = requiredTagIds,
                                 includeTagIds = includeTagIds,
                                 excludeTagIds = excludeTagIds
                             )

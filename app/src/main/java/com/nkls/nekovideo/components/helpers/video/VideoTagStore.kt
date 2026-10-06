@@ -34,9 +34,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import java.io.StringReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
+import java.io.File
+import java.io.FileNotFoundException
 import java.util.Locale
 
 enum class TagScope {
@@ -70,10 +73,24 @@ data class VideoTagCrossRef(
     val tagId: Long
 )
 
+data class TagVideoCount(
+    val tagId: Long,
+    val videoCount: Int
+)
+
+data class MissingVideoTagCleanupResult(
+    val checkedVideoPaths: Int,
+    val removedVideoPaths: Int,
+    val removedTagLinks: Int
+)
+
 @Dao
 interface VideoTagDao {
     @Query("SELECT * FROM video_tags WHERE scope = :scope ORDER BY name COLLATE NOCASE ASC")
     suspend fun getAllTags(scope: TagScope): List<TagEntity>
+
+    @Query("SELECT r.tagId AS tagId, COUNT(DISTINCT r.videoPath) AS videoCount FROM video_tag_refs r INNER JOIN video_tags t ON t.id = r.tagId WHERE t.scope = :scope GROUP BY r.tagId")
+    suspend fun getVideoCountsByTag(scope: TagScope): List<TagVideoCount>
 
     @Query("SELECT EXISTS(SELECT 1 FROM video_tags WHERE LOWER(name) = LOWER(:name) AND scope = :scope)")
     suspend fun tagExists(name: String, scope: TagScope): Boolean
@@ -86,6 +103,9 @@ interface VideoTagDao {
 
     @Query("DELETE FROM video_tags WHERE id = :tagId")
     suspend fun deleteTag(tagId: Long)
+
+    @Query("DELETE FROM video_tags")
+    suspend fun deleteAllTags()
 
     @Query("UPDATE video_tags SET name = :name WHERE id = :tagId")
     suspend fun updateTagName(tagId: Long, name: String)
@@ -122,6 +142,12 @@ interface VideoTagDao {
 
     @Query("SELECT * FROM video_tag_refs")
     suspend fun getAllVideoTagRefs(): List<VideoTagCrossRef>
+
+    @Query("SELECT DISTINCT videoPath FROM video_tag_refs")
+    suspend fun getDistinctTaggedVideoPaths(): List<String>
+
+    @Query("DELETE FROM video_tag_refs WHERE videoPath IN (:videoPaths)")
+    suspend fun deleteVideoTagRefsForPaths(videoPaths: List<String>): Int
 }
 
 @Database(entities = [TagEntity::class, VideoTagCrossRef::class], version = 2, exportSchema = false)
@@ -197,7 +223,7 @@ object VideoTagStore {
     }
 
     data class TagBackupImportResult(
-        val createdTags: Int,
+        val importedTags: Int,
         val restoredRefs: Int
     )
 
@@ -240,6 +266,70 @@ object VideoTagStore {
 
     suspend fun getAllTags(context: Context, scope: TagScope): List<TagEntity> {
         return getDatabase(context).videoTagDao().getAllTags(scope)
+    }
+
+    suspend fun getVideoCountsByTag(context: Context, scope: TagScope): Map<Long, Int> {
+        return getDatabase(context).videoTagDao().getVideoCountsByTag(scope)
+            .associate { it.tagId to it.videoCount }
+    }
+
+    suspend fun cleanMissingVideoTagRefs(
+        context: Context,
+        onProgress: suspend (checked: Int, total: Int) -> Unit
+    ): MissingVideoTagCleanupResult = withContext(Dispatchers.IO) {
+        val dao = getDatabase(context).videoTagDao()
+        val paths = dao.getDistinctTaggedVideoPaths()
+        val missingPaths = mutableListOf<String>()
+
+        paths.forEachIndexed { index, path ->
+            if (videoPathExists(context, path) == false) {
+                missingPaths += path
+            }
+            if ((index + 1) % 25 == 0 || index + 1 == paths.size) {
+                onProgress(index + 1, paths.size)
+            }
+        }
+
+        var removedTagLinks = 0
+        missingPaths.chunked(500).forEach { batch ->
+            removedTagLinks += dao.deleteVideoTagRefsForPaths(batch)
+        }
+
+        if (removedTagLinks > 0) {
+            writeAutomaticBackupSafely(context)
+            _tagChangeEvent.value++
+        }
+
+        MissingVideoTagCleanupResult(
+            checkedVideoPaths = paths.size,
+            removedVideoPaths = missingPaths.size,
+            removedTagLinks = removedTagLinks
+        )
+    }
+
+    private fun videoPathExists(context: Context, storedPath: String): Boolean? {
+        val path = when {
+            storedPath.startsWith("locked://") -> storedPath.removePrefix("locked://")
+            storedPath.startsWith("file://") -> storedPath
+            else -> storedPath
+        }
+        val uri = Uri.parse(path)
+
+        if (uri.scheme == "content") {
+            return try {
+                context.contentResolver.openFileDescriptor(uri, "r")?.use { true } ?: false
+            } catch (_: FileNotFoundException) {
+                false
+            } catch (_: SecurityException) {
+                null
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        if (uri.scheme != null && uri.scheme != "file") return null
+        val filePath = if (uri.scheme == "file") uri.path ?: return null else path
+        return File(filePath).exists()
     }
 
     suspend fun createTag(context: Context, rawName: String, scope: TagScope): Result<TagEntity> {
@@ -602,11 +692,8 @@ object VideoTagStore {
         payload: TagBackupPayload
     ): TagBackupImportResult {
         val database = getDatabase(context)
-        return database.withTransaction {
+        val result = database.withTransaction {
             val dao = database.videoTagDao()
-            val tagIdByKey = dao.getAllTagsAllScopes()
-                .associate { backupTagKey(it.name, it.scope) to it.id }
-                .toMutableMap()
 
             val normalizedTags = buildList {
                 payload.tags.forEach { tag ->
@@ -617,20 +704,22 @@ object VideoTagStore {
                 }
             }.distinctBy { backupTagKey(it.name, it.scope) }
 
-            var createdTags = 0
+            // Import is a restore: remove existing tags and their refs in both scopes first.
+            dao.deleteAllTags()
+
+            val tagIdByKey = mutableMapOf<String, Long>()
+            var importedTags = 0
             normalizedTags.forEach { tag ->
                 val key = backupTagKey(tag.name, tag.scope)
-                if (key !in tagIdByKey) {
-                    val id = dao.insertTag(
-                        TagEntity(
-                            name = tag.name,
-                            scope = tag.scope,
-                            createdAt = tag.createdAt
-                        )
+                val id = dao.insertTag(
+                    TagEntity(
+                        name = tag.name,
+                        scope = tag.scope,
+                        createdAt = tag.createdAt
                     )
-                    tagIdByKey[key] = id
-                    createdTags++
-                }
+                )
+                tagIdByKey[key] = id
+                importedTags++
             }
 
             val refsToInsert = payload.refs.mapNotNull { ref ->
@@ -646,10 +735,12 @@ object VideoTagStore {
             }
 
             TagBackupImportResult(
-                createdTags = createdTags,
+                importedTags = importedTags,
                 restoredRefs = refsToInsert.size
             )
         }
+        _tagChangeEvent.value++
+        return result
     }
 
     private fun normalizeBackupTag(name: String, scope: TagScope, createdAt: Long): TagBackupTag? {
