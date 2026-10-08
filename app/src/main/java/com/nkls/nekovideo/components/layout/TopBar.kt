@@ -120,6 +120,7 @@ fun TopBar(
     var isDiscovering by remember { mutableStateOf(false) }
     val mediaController by MediaControllerManager.mediaController.collectAsState()
     var castSessionToMigrate by remember { mutableStateOf<CastPlaybackHandoff.Session?>(null) }
+    var resumeLocalAfterCastPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -141,10 +142,12 @@ fun TopBar(
                     castSessionToMigrate = null
                     onCastConnected()
                 }
+                resumeLocalAfterCastPicker = false
             },
             onDismiss = {
                 showDevicePicker = false
-                if (castSessionToMigrate != null) mediaController?.play()
+                if (resumeLocalAfterCastPicker) mediaController?.play()
+                resumeLocalAfterCastPicker = false
                 castSessionToMigrate = null
             }
         )
@@ -463,11 +466,13 @@ fun TopBar(
                     if (isCasting) {
                         showDisconnectDialog = true
                     } else {
+                        val wasPlaying = mediaController?.isPlaying == true
                         castSessionToMigrate = CastPlaybackHandoff.capture(
                             mediaController,
-                            shouldMigrate = mediaController?.isPlaying == true
+                            shouldMigrate = mediaController?.currentMediaItem != null
                         )
-                        if (castSessionToMigrate != null) mediaController?.pause()
+                        resumeLocalAfterCastPicker = wasPlaying && castSessionToMigrate != null
+                        if (resumeLocalAfterCastPicker) mediaController?.pause()
                         discoveredDevices = emptyList()
                         isDiscovering = true
                         showDevicePicker = true

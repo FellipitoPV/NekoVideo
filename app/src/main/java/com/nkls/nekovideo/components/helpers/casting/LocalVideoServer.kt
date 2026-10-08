@@ -10,7 +10,7 @@ import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.URL
 
-class LocalVideoServer(private val context: Context, port: Int = 8080) : NanoHTTPD(port) {
+class LocalVideoServer(private val context: Context, port: Int = 0) : NanoHTTPD(port) {
 
     private val videoMap = mutableMapOf<String, String>() // nome -> path
     private val lockedVideoKeys = mutableMapOf<String, ByteArray>() // nome -> xorKey

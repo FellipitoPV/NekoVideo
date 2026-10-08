@@ -14,7 +14,7 @@ import java.net.*
  * DLNA/UPnP cast manager — open-source replacement for Google Cast SDK.
  *
  * Discovery: SSDP multicast (UDP 239.255.255.250:1900)
- * File serving: LocalVideoServer (NanoHTTPD, port 8080)
+ * File serving: LocalVideoServer (NanoHTTPD, system-assigned available port)
  * Playback control: UPnP AvTransport via SOAP/HTTP
  */
 class DLNACastManager(private val context: Context) {
@@ -296,7 +296,7 @@ class DLNACastManager(private val context: Context) {
 
     private fun prepareServer() {
         if (videoServer == null) {
-            videoServer = LocalVideoServer(context, 8080).also { it.start() }
+            videoServer = LocalVideoServer(context).also { it.start() }
         }
         videoServer!!.clearVideos()
 
@@ -328,7 +328,8 @@ class DLNACastManager(private val context: Context) {
             ?: videoServer?.getLocalIpAddress(connectedDevice?.baseUrl)
             ?: "127.0.0.1"
         val encoded = URLEncoder.encode(name, "UTF-8").replace("+", "%20")
-        return "http://$ip:8080/video/$encoded"
+        val port = videoServer?.listeningPort ?: return ""
+        return "http://$ip:$port/video/$encoded"
     }
 
     private fun mimeTypeFor(videoPath: String): String {

@@ -2164,7 +2164,7 @@ fun VideoPlayerOverlay(
                             shouldResumeAfterOverlayDialog = wasPlayingBeforeCastPicker
                             castSessionToMigrate = CastPlaybackHandoff.capture(
                                 mediaController,
-                                shouldMigrate = wasPlayingBeforeCastPicker
+                                shouldMigrate = mediaController?.currentMediaItem != null
                             )?.let { session ->
                                 session.copy(positionMs = mediaController?.currentPosition
                                     ?.coerceAtLeast(0L) ?: currentPosition.coerceAtLeast(0L))
