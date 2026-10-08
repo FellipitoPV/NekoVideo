@@ -187,6 +187,7 @@ fun MainScreen(
     val pinnedFolders by PinnedFoldersStore.entries.collectAsState()
 
     var showPlayerOverlay by remember { mutableStateOf(false) }
+    val castManager = remember { DLNACastManager.getInstance(context) }
     var isExternalPlayerSession by rememberSaveable { mutableStateOf(false) }
     var deletedVideoPath by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
@@ -1337,6 +1338,9 @@ fun MainScreen(
                         onNavigateBack = {
                             selectedItems.clear()
                             folderNavState.navigateBack()
+                        },
+                        onCastConnected = {
+                            showPlayerOverlay = true
                         }
                     )
                     InlineStatusMessage(
@@ -1581,7 +1585,13 @@ fun MainScreen(
         bottomBar = {
             if (currentRoute != "video_player" && currentRoute?.startsWith("settings") != true && !showPlayerOverlay) {
                 MiniPlayerImproved(
-                    onOpenPlayer = { openPlayerOverlay() },
+                    onOpenPlayer = {
+                        if (castManager.isConnected && castManager.currentTitle.isNotBlank()) {
+                            showPlayerOverlay = true
+                        } else {
+                            openPlayerOverlay()
+                        }
+                    },
                     modifier = Modifier.navigationBarsPadding()
                 )
             }
@@ -1761,8 +1771,11 @@ fun MainScreen(
 
         VideoPlayerOverlay(
             isVisible = showPlayerOverlay,
-            canControlRotation = showPlayerOverlay,
+            canControlRotation = showPlayerOverlay && !castManager.isConnected,
             onDismiss = { closePlayerOverlay() },
+            onCastConnected = {
+                showPlayerOverlay = true
+            },
             onManageTags = {
                 showPlayerOverlay = false
                 isInPiPMode = false

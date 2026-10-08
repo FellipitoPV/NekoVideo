@@ -53,15 +53,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.R
+import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.components.CastDisconnectDialog
 import com.nkls.nekovideo.components.helpers.DLNACastManager
+import com.nkls.nekovideo.components.helpers.CastPlaybackHandoff
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.player.DLNADevicePickerDialog
+import com.nkls.nekovideo.components.player.MediaControllerManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -77,7 +79,8 @@ fun TopBar(
     onSelectAll: () -> Unit,
     isAtRootLevel: Boolean = false,
     onNavigateToPath: (String) -> Unit = {},
-    onNavigateBack: () -> Unit = {}
+    onNavigateBack: () -> Unit = {},
+    onCastConnected: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -115,6 +118,8 @@ fun TopBar(
     var showDisconnectDialog by remember { mutableStateOf(false) }
     var discoveredDevices by remember { mutableStateOf<List<DLNACastManager.DLNADevice>>(emptyList()) }
     var isDiscovering by remember { mutableStateOf(false) }
+    val mediaController by MediaControllerManager.mediaController.collectAsState()
+    var castSessionToMigrate by remember { mutableStateOf<CastPlaybackHandoff.Session?>(null) }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -131,19 +136,17 @@ fun TopBar(
                 showDevicePicker = false
                 castManager.connectToDevice(device)
                 isCasting = true
-                // Se há uma playlist local ativa, migra para o cast
-                val localPlaylist = PlaylistManager.getFullPlaylist()
-                if (localPlaylist.isNotEmpty()) {
-                    MediaPlaybackService.stopService(context)
-                    val titles = localPlaylist.map { path ->
-                        java.io.File(
-                            path.removePrefix("locked://").removePrefix("file://")
-                        ).nameWithoutExtension
-                    }
-                    castManager.castPlaylist(localPlaylist, titles, PlaylistManager.getCurrentIndex())
+                castSessionToMigrate?.let { session ->
+                    CastPlaybackHandoff.sendToCast(mediaController, castManager, session)
+                    castSessionToMigrate = null
+                    onCastConnected()
                 }
             },
-            onDismiss = { showDevicePicker = false }
+            onDismiss = {
+                showDevicePicker = false
+                if (castSessionToMigrate != null) mediaController?.play()
+                castSessionToMigrate = null
+            }
         )
     }
 
@@ -153,8 +156,32 @@ fun TopBar(
             onDismiss = { showDisconnectDialog = false },
             onConfirm = {
                 showDisconnectDialog = false
+                val castPosition = castManager.currentPositionMs
+                val castTitle = castManager.currentTitle
+                val castPlaylist = castManager.currentPlaylistSnapshot().ifEmpty {
+                    listOfNotNull(castManager.currentVideoPath.takeIf { it.isNotBlank() })
+                }
+                val castIndex = castManager.currentPlaylistIndex.coerceIn(0, (castPlaylist.size - 1).coerceAtLeast(0))
+                val localController = com.nkls.nekovideo.components.player.MediaControllerManager.getCurrentController()
                 castManager.stopCasting()
                 isCasting = false
+
+                coroutineScope.launch {
+                    delay(350)
+                    if (castTitle.isNotBlank() && castPlaylist.isNotEmpty()) {
+                        PlaylistManager.setPlaylist(castPlaylist, startIndex = castIndex)
+                        MediaPlaybackService.startWithPlaylist(
+                            context = context,
+                            playlist = castPlaylist,
+                            initialIndex = castIndex,
+                            initialPositionMs = castPosition.coerceAtLeast(0L),
+                            playWhenReady = false
+                        )
+                    } else if (localController?.currentMediaItem != null) {
+                        localController.seekTo(castPosition.coerceAtLeast(0L))
+                        localController.pause()
+                    }
+                }
             }
         )
     }
@@ -436,6 +463,11 @@ fun TopBar(
                     if (isCasting) {
                         showDisconnectDialog = true
                     } else {
+                        castSessionToMigrate = CastPlaybackHandoff.capture(
+                            mediaController,
+                            shouldMigrate = mediaController?.isPlaying == true
+                        )
+                        if (castSessionToMigrate != null) mediaController?.pause()
                         discoveredDevices = emptyList()
                         isDiscovering = true
                         showDevicePicker = true

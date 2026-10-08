@@ -110,7 +110,7 @@ fun MiniPlayerImproved(
         }
     }
 
-    // Cast state polling — avoids conflicting with CastControlsOverlay's onStateChanged slot
+    // Cast state polling avoids taking over the manager's single UI state callback.
     LaunchedEffect(isCasting) {
         while (isCasting) {
             castIsPlaying = castManager.isPlaying
@@ -246,20 +246,32 @@ fun MiniPlayerImproved(
     }
 
     fun closePlayer() {
-        if (isCasting) {
+        val wasCasting = isCasting
+        if (wasCasting) {
             castManager.stopPlayback()
-        } else {
-            PlaylistManager.clear()
-            MediaPlaybackService.stopService(context)
-            currentTitle = ""
-            currentUri = ""
-            thumbnail = null
-            currentPosition = 0L
-            duration = 0L
-            isPlaying = false
-            hasNext = false
-            hasPrevious = false
         }
+
+        // The Cast handoff keeps the local player paused with its media item loaded.
+        // Closing the mini player must clear both sides so disconnecting later cannot
+        // make that stale local session appear again.
+        PlaylistManager.clear()
+        // Cast already persisted its latest receiver position; do not overwrite it
+        // with the older paused position held by the local player service.
+        MediaPlaybackService.stopService(context, persistContinueWatching = !wasCasting)
+        currentTitle = ""
+        currentUri = ""
+        thumbnail = null
+        currentPosition = 0L
+        duration = 0L
+        isPlaying = false
+        hasNext = false
+        hasPrevious = false
+        castTitle = ""
+        castVideoPath = ""
+        castThumbnail = null
+        castPosition = 0L
+        castDuration = 0L
+        castIsPlaying = false
     }
 
     val shouldShow = (isCasting && castTitle.isNotEmpty()) ||

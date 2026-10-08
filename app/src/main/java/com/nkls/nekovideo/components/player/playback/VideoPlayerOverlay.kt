@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
+import android.graphics.Bitmap
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
@@ -22,6 +23,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
@@ -40,6 +42,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -56,7 +59,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -91,9 +96,12 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.nkls.nekovideo.MainActivity
 import com.nkls.nekovideo.MediaPlaybackService
 import com.nkls.nekovideo.components.AppBottomSheet
+import com.nkls.nekovideo.components.CastDisconnectDialog
+import com.nkls.nekovideo.components.OptimizedThumbnailManager
 import com.nkls.nekovideo.components.VideoTagsDialog
 import com.nkls.nekovideo.components.helpers.CastManager
 import com.nkls.nekovideo.components.helpers.DLNACastManager
+import com.nkls.nekovideo.components.helpers.CastPlaybackHandoff
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
@@ -156,6 +164,7 @@ fun VideoPlayerOverlay(
     isVisible: Boolean,
     canControlRotation: Boolean,
     onDismiss: () -> Unit,
+    onCastConnected: () -> Unit = {},
     onManageTags: () -> Unit = {},
     onVideoDeleted: (String) -> Unit = {},
     selectedExternalSubtitleUri: Uri? = null,
@@ -176,8 +185,12 @@ fun VideoPlayerOverlay(
     var showVideoTagsDialog by remember { mutableStateOf(false) }
     var shouldResumeAfterTagsDialog by remember { mutableStateOf(false) }
     var shouldResumeAfterOverlayDialog by remember { mutableStateOf(false) }
+    var castSessionToMigrate by remember { mutableStateOf<CastPlaybackHandoff.Session?>(null) }
+    var showCastDisconnectDialog by remember { mutableStateOf(false) }
+    var showCastTracksInfoDialog by remember { mutableStateOf(false) }
     var isSpeedDialogOpen by remember { mutableStateOf(false) }
     var currentVideoPath by remember { mutableStateOf("") }
+    var castThumbnail by remember { mutableStateOf<Bitmap?>(null) }
     var currentVideoTagCount by remember { mutableIntStateOf(0) }
     var availableTags by remember { mutableStateOf<List<TagEntity>>(emptyList()) }
     var commonSelectedTagIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
@@ -189,6 +202,10 @@ fun VideoPlayerOverlay(
     }
     val castManager = remember { DLNACastManager.getInstance(context) }
     var isCasting by remember { mutableStateOf(castManager.isConnected) }
+    // The parent may not recompose when this composable's Cast listener updates
+    // isCasting. Derive rotation availability locally so disconnect immediately
+    // re-enables the local player's orientation handling.
+    val rotationControlEnabled = canControlRotation || (isVisible && !isCasting)
     var connectedDeviceName by remember { mutableStateOf(if (castManager.isConnected) castManager.connectedDeviceName else "") }
     var showCastDevicePicker by remember { mutableStateOf(false) }
     var discoveredDevices by remember { mutableStateOf<List<DLNACastManager.DLNADevice>>(emptyList()) }
@@ -226,6 +243,7 @@ fun VideoPlayerOverlay(
     //Controle de rotação
     var rotationMode by remember { mutableStateOf(RotationMode.AUTO) }
     var lastValidOrientation by remember { mutableStateOf<Int?>(null) }
+    var lastKnownVideoSize by remember { mutableStateOf<VideoSize?>(null) }
     var isWaitingForRotationGate by remember { mutableStateOf(false) }
     var resumeAfterRotationGate by remember { mutableStateOf(false) }
     var gatedMediaUri by remember { mutableStateOf<String?>(null) }
@@ -252,6 +270,7 @@ fun VideoPlayerOverlay(
     var tapCount by remember { mutableStateOf(0) }
     var accumulatedDoubleTapSeek by remember { mutableStateOf(0L) }
     var lastDoubleTapSeekForward by remember { mutableStateOf<Boolean?>(null) }
+    var lastCastDoubleTapTargetMs by remember { mutableStateOf(0L) }
     val doubleTapTimeWindow = 400L // 400ms para detectar double tap e taps acumulados
 
     fun resetVideoZoom() {
@@ -279,8 +298,8 @@ fun VideoPlayerOverlay(
     }
 
     // ✅ Restaurar orientação padrão quando não pode controlar rotação
-    LaunchedEffect(canControlRotation) {
-        if (!canControlRotation) {
+    LaunchedEffect(rotationControlEnabled) {
+        if (!rotationControlEnabled) {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
@@ -342,7 +361,7 @@ fun VideoPlayerOverlay(
         if (isCasting) return
 
         // Se não pode controlar rotação, restaurar orientação padrão e sair
-        if (!canControlRotation) {
+        if (!rotationControlEnabled) {
             localActivity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             return
         }
@@ -377,6 +396,10 @@ fun VideoPlayerOverlay(
 
     fun applyRotationForCurrentMode(videoSize: VideoSize? = null) {
         applyRotation(if (rotationMode == RotationMode.AUTO) videoSize else null)
+    }
+
+    fun usableVideoSize(videoSize: VideoSize?): VideoSize? = videoSize?.takeIf {
+        it.width > 0 && it.height > 0
     }
 
     fun currentMediaUri(controller: MediaController): String? {
@@ -436,7 +459,7 @@ fun VideoPlayerOverlay(
     fun shouldGatePlaybackForRotation(controller: MediaController): Boolean {
         return overlayActuallyVisible &&
             rotationMode == RotationMode.AUTO &&
-            canControlRotation &&
+            rotationControlEnabled &&
             !isCasting &&
             currentMediaUri(controller) != null
     }
@@ -456,7 +479,7 @@ fun VideoPlayerOverlay(
             return
         }
 
-        applyRotation(videoSize)
+            applyRotation(videoSize)
         val shouldResume = resumeAfterRotationGate
         isWaitingForRotationGate = false
         resumeAfterRotationGate = false
@@ -783,6 +806,7 @@ fun VideoPlayerOverlay(
     fun setupController(controller: MediaController) {
         mediaController = controller
         playerView.player = controller
+        usableVideoSize(controller.videoSize)?.let { lastKnownVideoSize = it }
         currentPlaybackState = controller.playbackState
         hasLoadedVideo = controller.currentMediaItem != null
         pendingAutoPlayOnReady = controller.playWhenReady && controller.playbackState != Player.STATE_READY
@@ -1038,19 +1062,21 @@ fun VideoPlayerOverlay(
         }
     }
 
-    // Ajustar orientação ao desconectar do cast
-    LaunchedEffect(isCasting, mediaController) {
-        if (!isCasting && mediaController != null) {
-            // Pequeno delay para garantir que saiu do CastControlsOverlay
+    // Ajustar orientação ao sair do modo Cast
+    LaunchedEffect(isCasting, mediaController, isVisible) {
+        if (!isCasting && isVisible && mediaController != null) {
+            // Aguarda a mudança de modo antes de reaplicar a rotação do player local.
             delay(100)
 
-            applyRotationForCurrentMode(mediaController!!.videoSize)
+            applyRotationForCurrentMode(
+                usableVideoSize(mediaController!!.videoSize) ?: lastKnownVideoSize,
+            )
         }
     }
 
     // Efeito para atualizar posição do vídeo
-    LaunchedEffect(mediaController, isSeekingActive) {
-        if (mediaController != null && !isSeekingActive) {
+    LaunchedEffect(mediaController, isSeekingActive, isCasting) {
+        if (mediaController != null && !isSeekingActive && !isCasting) {
             while (overlayActuallyVisible) {
                 val playbackState = mediaController!!.playbackState
                 val newPosition = mediaController!!.currentPosition
@@ -1081,6 +1107,32 @@ fun VideoPlayerOverlay(
         }
     }
 
+    LaunchedEffect(isCasting) {
+        if (isCasting) {
+            controlsVisible = true
+            showBlockingBufferingUi = false
+            hasRenderedFirstFrame = true
+            while (isCasting) {
+                if (!isSeekingActive) currentPosition = castManager.currentPositionMs
+                duration = castManager.durationMs
+                isPlaying = castManager.isPlaying
+                currentVideoTitle = castManager.currentTitle
+                currentVideoPath = castManager.currentVideoPath
+                hasLoadedVideo = castManager.currentTitle.isNotBlank()
+                delay(500)
+            }
+        }
+    }
+
+    LaunchedEffect(isCasting, currentVideoPath) {
+        castThumbnail = null
+        if (isCasting && currentVideoPath.isNotBlank()) {
+            castThumbnail = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                OptimizedThumbnailManager.getOrGenerateThumbnailSync(context, currentVideoPath)
+            }
+        }
+    }
+
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -1106,7 +1158,11 @@ fun VideoPlayerOverlay(
         mediaController?.setPlaybackSpeed(playbackSpeed.value)
     }
 
-    LaunchedEffect(controlsVisible, isPlaying, isSeekingActive) {
+    LaunchedEffect(controlsVisible, isPlaying, isSeekingActive, isCasting) {
+        if (isCasting) {
+            controlsVisible = true
+            return@LaunchedEffect
+        }
         if (controlsVisible && isPlaying) {
             uiTimer = 4
             while (uiTimer > 0 && controlsVisible && isPlaying) {
@@ -1244,6 +1300,21 @@ fun VideoPlayerOverlay(
         )
     }
 
+    if (showCastTracksInfoDialog) {
+        val castTracksInfoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        AppBottomSheet(
+            onDismissRequest = { showCastTracksInfoDialog = false },
+            sheetState = castTracksInfoSheetState,
+            title = stringResource(R.string.cast_tracks_info_title)
+        ) {
+            Text(
+                text = stringResource(R.string.cast_tracks_info_message),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+
     if (showMissingVideoDialog) {
         val missingVideoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -1297,23 +1368,27 @@ fun VideoPlayerOverlay(
                     }
 
                     if (needsRefresh) {
-                        // Só faz refresh se realmente precisar
-                        MediaPlaybackService.refreshPlayer(context)
+                        if (castManager.isConnected) {
+                            setupController(newController)
+                        } else {
+                            // Só faz refresh se realmente precisar
+                            MediaPlaybackService.refreshPlayer(context)
 
-                        // Usa corrotina para o delay e reconexão
-                        coroutineScope.launch {
-                            delay(800)
+                            // Usa corrotina para o delay e reconexão
+                            coroutineScope.launch {
+                                delay(800)
 
-                            // Reconecta após o refresh
-                            val refreshedControllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
-                            refreshedControllerFuture.addListener({
-                                try {
-                                    val refreshedController = refreshedControllerFuture.get()
-                                    setupController(refreshedController)
-                                } catch (e: Exception) {
-                                    Log.e("VideoPlayer", "Erro ao conectar controller após refresh", e)
-                                }
-                            }, MoreExecutors.directExecutor())
+                                // Reconecta após o refresh
+                                val refreshedControllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+                                refreshedControllerFuture.addListener({
+                                    try {
+                                        val refreshedController = refreshedControllerFuture.get()
+                                        setupController(refreshedController)
+                                    } catch (e: Exception) {
+                                        Log.e("VideoPlayer", "Erro ao conectar controller após refresh", e)
+                                    }
+                                }, MoreExecutors.directExecutor())
+                            }
                         }
                     } else {
                         // Player está funcionando, só conecta normalmente
@@ -1339,7 +1414,7 @@ fun VideoPlayerOverlay(
     }
 
     // Listener para mudanças com melhorias de UX
-    DisposableEffect(mediaController, overlayActuallyVisible, repeatMode) {
+    DisposableEffect(mediaController, overlayActuallyVisible, repeatMode, isCasting) {
         var listener: Player.Listener? = null
         val controller = mediaController
 
@@ -1347,6 +1422,7 @@ fun VideoPlayerOverlay(
             listener = object : Player.Listener {
                 override fun onVideoSizeChanged(videoSize: VideoSize) {
                     if (!overlayActuallyVisible) return
+                    usableVideoSize(videoSize)?.let { lastKnownVideoSize = it }
                     if (isWaitingForRotationGate) {
                         finishRotationGateIfReady(controller, videoSize)
                     } else if (rotationMode == RotationMode.AUTO) {
@@ -1439,7 +1515,7 @@ fun VideoPlayerOverlay(
                 }
 
                 override fun onIsPlayingChanged(isPlayingNow: Boolean) {
-                    isPlaying = isPlayingNow
+                    if (!isCasting) isPlaying = isPlayingNow
                 }
 
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
@@ -1561,25 +1637,53 @@ fun VideoPlayerOverlay(
                 shouldResumeAfterOverlayDialog = false
                 connectedDeviceName = device.name
                 castManager.connectToDevice(device)
-
-                val playlist = PlaylistManager.getFullPlaylist()
-                val titles = playlist.map { path ->
-                    if (path.startsWith("locked://")) {
-                        val obfuscatedName = File(path.removePrefix("locked://")).name
-                        LockedPlaybackSession.getOriginalName(obfuscatedName)
-                            ?.substringBeforeLast(".") ?: obfuscatedName
-                    } else {
-                        File(path.removePrefix("file://")).nameWithoutExtension
-                    }
+                castSessionToMigrate?.let { session ->
+                    CastPlaybackHandoff.sendToCast(mediaController, castManager, session)
+                    castSessionToMigrate = null
+                    onCastConnected()
                 }
-                val currentIndex = PlaylistManager.getCurrentIndex()
-                MediaPlaybackService.stopService(context)
-                castManager.castPlaylist(playlist, titles, currentIndex)
-                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             },
             onDismiss = {
                 showCastDevicePicker = false
+                castSessionToMigrate = null
                 resumePlaybackAfterOverlayDialog()
+            }
+        )
+    }
+
+    if (showCastDisconnectDialog) {
+        CastDisconnectDialog(
+            deviceName = castManager.connectedDeviceName,
+            onDismiss = { showCastDisconnectDialog = false },
+            onConfirm = {
+                showCastDisconnectDialog = false
+                val castPosition = castManager.currentPositionMs
+                val castTitle = castManager.currentTitle
+                val castPlaylist = castManager.currentPlaylistSnapshot().ifEmpty {
+                    listOfNotNull(castManager.currentVideoPath.takeIf { it.isNotBlank() })
+                }
+                val castIndex = castManager.currentPlaylistIndex.coerceIn(0, (castPlaylist.size - 1).coerceAtLeast(0))
+                castManager.stopCasting()
+                isCasting = false
+                coroutineScope.launch {
+                    delay(350)
+                    val controller = mediaController
+                    if (castTitle.isNotBlank() && castPlaylist.isNotEmpty()) {
+                        PlaylistManager.setPlaylist(castPlaylist, startIndex = castIndex)
+                        MediaPlaybackService.startWithPlaylist(
+                            context = context,
+                            playlist = castPlaylist,
+                            initialIndex = castIndex,
+                            initialPositionMs = castPosition.coerceAtLeast(0L),
+                            playWhenReady = false
+                        )
+                    } else if (controller?.currentMediaItem != null) {
+                        controller.seekTo(castPosition.coerceAtLeast(0L))
+                        controller.pause()
+                    } else {
+                        onDismiss()
+                    }
+                }
             }
         )
     }
@@ -1590,34 +1694,95 @@ fun VideoPlayerOverlay(
         enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
         exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
     ) {
-        if (isCasting) {
-            // UI de controle do Cast
-            CastControlsOverlay(
-                castManager = castManager,
-                deviceName = connectedDeviceName,
-                videoTitle = currentVideoTitle,
-                onDisconnect = {
-                    castManager.stopCasting()
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        MediaPlaybackService.stopService(context)
-                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            MediaPlaybackService.refreshPlayer(context)
-                        }, 300)
-                        isCasting = false
-                        onDismiss()
-                    }, 100)
-                },
-                onBack = onDismiss,
-                onCurrentIndexChanged = { /* index tracked by DLNACastManager */ }
-            )
-        } else {
+        if (!isCasting || hasLoadedVideo || castManager.currentTitle.isNotBlank()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black)
-                    .pointerInput(hasLoadedVideo, currentPlaybackState, dragSeekEnabled, volumeBrightnessGesturesEnabled) {
+                    .pointerInput(hasLoadedVideo, currentPlaybackState, dragSeekEnabled, volumeBrightnessGesturesEnabled, isCasting) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = true)
+                            if (isCasting) {
+                                var lastPosition = down.position
+                                do {
+                                    val event = awaitPointerEvent()
+                                    event.changes.firstOrNull { it.id == down.id }?.let {
+                                        lastPosition = it.position
+                                    }
+                                    event.changes.forEach { it.consume() }
+                                } while (event.changes.any { it.pressed })
+
+                                val isTap = abs(lastPosition.x - down.position.x) <= 32.dp.toPx() &&
+                                    abs(lastPosition.y - down.position.y) <= 32.dp.toPx()
+                                if (isTap) {
+                                    val currentTime = System.currentTimeMillis()
+                                    val isContinuingTapSequence = tapCount > 0 &&
+                                        currentTime - lastTapTime <= doubleTapTimeWindow
+                                    tapCount = if (isContinuingTapSequence) tapCount + 1 else 1
+                                    lastTapTime = currentTime
+
+                                    if (tapCount == 1) {
+                                        accumulatedDoubleTapSeek = 0L
+                                        lastDoubleTapSeekForward = null
+                                        lastCastDoubleTapTargetMs = castManager.currentPositionMs
+                                        controlsVisible = !controlsVisible
+                                        if (controlsVisible) resetUITimer()
+                                    } else if (!isPlaying) {
+                                        // Pular com dois toques em um Cast pausado é inconsistente entre receptores.
+                                        // Mantém os controles visíveis e não envia seek nesse estado.
+                                        controlsVisible = true
+                                        resetUITimer()
+                                        accumulatedDoubleTapSeek = 0L
+                                        lastDoubleTapSeekForward = null
+                                    } else {
+                                        controlsVisible = false
+                                        val seekStepMs = SettingsManager.getDoubleTapSeek(context) * 1000L
+                                        val isForwardSeek = down.position.x >= size.width / 2f
+                                        accumulatedDoubleTapSeek = if (lastDoubleTapSeekForward == isForwardSeek) {
+                                            accumulatedDoubleTapSeek + seekStepMs
+                                        } else {
+                                            seekStepMs
+                                        }
+                                        lastDoubleTapSeekForward = isForwardSeek
+
+                                        val currentPositionMs = if (isContinuingTapSequence && tapCount > 1) {
+                                            lastCastDoubleTapTargetMs
+                                        } else {
+                                            castManager.currentPositionMs
+                                        }
+                                        val unclampedPositionMs = if (isForwardSeek) {
+                                            currentPositionMs + seekStepMs
+                                        } else {
+                                            currentPositionMs - seekStepMs
+                                        }
+                                        val targetPositionMs = unclampedPositionMs.coerceAtLeast(0L).let { target ->
+                                            if (castManager.durationMs > 0L) target.coerceAtMost(castManager.durationMs) else target
+                                        }
+                                        castManager.seekTo(
+                                            targetPositionMs,
+                                            wasPlayingBeforeSeek = isPlaying
+                                        )
+                                        lastCastDoubleTapTargetMs = targetPositionMs
+                                        seekIndicator = if (isForwardSeek) {
+                                            "+${accumulatedDoubleTapSeek / 1000}s"
+                                        } else {
+                                            "-${accumulatedDoubleTapSeek / 1000}s"
+                                        }
+                                        seekSide = if (isForwardSeek) Alignment.CenterEnd else Alignment.CenterStart
+                                    }
+
+                                    val tapSequenceTime = currentTime
+                                    coroutineScope.launch {
+                                        delay(doubleTapTimeWindow)
+                                        if (lastTapTime == tapSequenceTime) {
+                                            tapCount = 0
+                                            accumulatedDoubleTapSeek = 0L
+                                            lastDoubleTapSeekForward = null
+                                        }
+                                    }
+                                }
+                                return@awaitEachGesture
+                            }
                             val downTime = System.currentTimeMillis()
                             val downX = down.position.x
                             val downY = down.position.y
@@ -1850,17 +2015,33 @@ fun VideoPlayerOverlay(
                     }
             ) {
                 // PlayerView em background
-                AndroidView(
-                    factory = { playerView },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            scaleX = videoZoom
-                            scaleY = videoZoom
-                            translationX = videoOffsetX
-                            translationY = videoOffsetY
-                        }
-                )
+                if (!isCasting) {
+                    AndroidView(
+                        factory = { playerView },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = videoZoom
+                                scaleY = videoZoom
+                                translationX = videoOffsetX
+                                translationY = videoOffsetY
+                            }
+                    )
+                } else {
+                    castThumbnail?.takeUnless { it.isRecycled }?.let { thumbnail ->
+                        Image(
+                            bitmap = thumbnail.asImageBitmap(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.2f))
+                        )
+                    }
+                }
 
                 if (isWaitingForRotationGate) {
                     Box(
@@ -1893,27 +2074,29 @@ fun VideoPlayerOverlay(
 
                 // Interface customizada com ícones de volume e brilho
                 AnimatedVisibility(
-                    visible = (controlsVisible || isSeekingActive) && !isInPiPMode && hasLoadedVideo && (!showBlockingBufferingUi || isSeekingActive),
+                    visible = (controlsVisible || isSeekingActive || isCasting) && !isInPiPMode && hasLoadedVideo && (!showBlockingBufferingUi || isSeekingActive || isCasting),
                     enter = fadeIn(animationSpec = tween(300)),
                     exit = fadeOut(animationSpec = tween(300))
                 ) {
                     CustomVideoControls(
                         mediaController = mediaController,
+                        castManager = castManager,
                         currentPosition = currentPosition,
                         duration = duration,
                         isPlaying = isPlaying,
+                        hideTransportControls = isCasting && seekIndicator != null,
                         videoTitle = currentVideoTitle,
                         onSeekStart = {
                             isSeekingActive = true
                             controlsVisible = true
                             resetUITimer()
-                            mediaController?.pause()
+                            if (!isCasting) mediaController?.pause()
                         },
                         onSeekEnd = {
                             isSeekingActive = false
                             controlsVisible = true
                             resetUITimer()
-                            mediaController?.play()
+                            if (!isCasting) mediaController?.play()
                         },
                         onDeleteClick = {
                             pausePlaybackForOverlayDialog()
@@ -1973,9 +2156,19 @@ fun VideoPlayerOverlay(
                             resumePlaybackAfterOverlayDialog()
                         },
                         isCasting = isCasting,
+                        onDisconnectClick = { showCastDisconnectDialog = true },
                         currentVideoTagCount = currentVideoTagCount,
                         onCastClick = { shouldResumeAfterDrawer ->
-                            shouldResumeAfterOverlayDialog = shouldResumeAfterDrawer || mediaController?.isPlaying == true
+                            val wasPlayingBeforeCastPicker =
+                                shouldResumeAfterDrawer || mediaController?.isPlaying == true
+                            shouldResumeAfterOverlayDialog = wasPlayingBeforeCastPicker
+                            castSessionToMigrate = CastPlaybackHandoff.capture(
+                                mediaController,
+                                shouldMigrate = wasPlayingBeforeCastPicker
+                            )?.let { session ->
+                                session.copy(positionMs = mediaController?.currentPosition
+                                    ?.coerceAtLeast(0L) ?: currentPosition.coerceAtLeast(0L))
+                            }
                             if (shouldResumeAfterOverlayDialog) {
                                 mediaController?.pause()
                             }
@@ -1998,8 +2191,12 @@ fun VideoPlayerOverlay(
                         hasSubtitles = availableSubtitles.isNotEmpty(),
                         subtitlesEnabled = selectedSubtitleTrack != null || isExternalSubtitleSelected,
                         onSubtitlesClick = {
-                            pausePlaybackForOverlayDialog()
-                            showTrackSelectionDialog = true
+                            if (isCasting) {
+                                showCastTracksInfoDialog = true
+                            } else {
+                                pausePlaybackForOverlayDialog()
+                                showTrackSelectionDialog = true
+                            }
                         },
                         onPiPClick = {
                             controlsVisible = false

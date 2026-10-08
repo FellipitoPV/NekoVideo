@@ -67,13 +67,15 @@ class MediaPlaybackService : MediaSessionService() {
             context: Context,
             playlist: List<String>,
             initialIndex: Int = 0,
-            initialPositionMs: Long = 0L
+            initialPositionMs: Long = 0L,
+            playWhenReady: Boolean = true
         ) {
             val intent = Intent(context, MediaPlaybackService::class.java).apply {
                 action = "UPDATE_PLAYLIST"
                 putStringArrayListExtra("PLAYLIST", ArrayList(playlist))
                 putExtra("INITIAL_INDEX", initialIndex)
                 putExtra("INITIAL_POSITION_MS", initialPositionMs)
+                putExtra("PLAY_WHEN_READY", playWhenReady)
             }
             context.startService(intent)
         }
@@ -135,9 +137,10 @@ class MediaPlaybackService : MediaSessionService() {
             context.startService(intent)
         }
 
-        fun stopService(context: Context) {
+        fun stopService(context: Context, persistContinueWatching: Boolean = true) {
             val intent = Intent(context, MediaPlaybackService::class.java).apply {
                 action = "STOP_SERVICE"
+                putExtra("PERSIST_CONTINUE_WATCHING", persistContinueWatching)
             }
             context.startService(intent)
         }
@@ -593,7 +596,8 @@ class MediaPlaybackService : MediaSessionService() {
                 val playlist = intent.getStringArrayListExtra("PLAYLIST") ?: emptyList()
                 val initialIndex = intent.getIntExtra("INITIAL_INDEX", 0)
                 val initialPositionMs = intent.getLongExtra("INITIAL_POSITION_MS", 0L)
-                updatePlaylist(playlist, initialIndex, initialPositionMs)
+                val playWhenReady = intent.getBooleanExtra("PLAY_WHEN_READY", true)
+                updatePlaylist(playlist, initialIndex, initialPositionMs, playWhenReady)
             }
             "UPDATE_WINDOW" -> {
                 val window = intent.getStringArrayListExtra("WINDOW") ?: emptyList()
@@ -625,7 +629,9 @@ class MediaPlaybackService : MediaSessionService() {
                 cancelSleepTimer()
                 pendingSeekIndex = null
                 activeSeekIndex = null
-                persistContinueWatchingState()
+                if (intent.getBooleanExtra("PERSIST_CONTINUE_WATCHING", true)) {
+                    persistContinueWatchingState()
+                }
                 ContinueWatchingStore.setPlaybackActive(false)
                 PlaylistManager.clear()
                 player?.run {
@@ -724,7 +730,12 @@ class MediaPlaybackService : MediaSessionService() {
         )
     }
 
-    private fun updatePlaylist(playlist: List<String>, initialIndex: Int, initialPositionMs: Long = 0L) {
+    private fun updatePlaylist(
+        playlist: List<String>,
+        initialIndex: Int,
+        initialPositionMs: Long = 0L,
+        playWhenReady: Boolean = true
+    ) {
         isUpdatingMetadata = true // ✅ Evita processamento de onMediaItemTransition
         pendingSeekIndex = null
         activeSeekIndex = null
@@ -744,7 +755,7 @@ class MediaPlaybackService : MediaSessionService() {
             )
             trackedMediaItemUri = currentMediaItem?.localConfiguration?.uri?.toString()
             prepare()
-            playWhenReady = true
+            this.playWhenReady = playWhenReady
         }
 
         PlaylistManager.syncLoadedWindow(initialIndex)

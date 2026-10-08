@@ -48,6 +48,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.CastConnected
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.NightsStay
@@ -105,6 +106,7 @@ import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.PlaylistNavigator
+import com.nkls.nekovideo.components.helpers.DLNACastManager
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -127,9 +129,11 @@ private val CtrlDrawerDeleteTint = Color(0xFFFF8A80)
 @Composable
 fun CustomVideoControls(
     mediaController: MediaController?,
+    castManager: DLNACastManager,
     currentPosition: Long,
     duration: Long,
     isPlaying: Boolean,
+    hideTransportControls: Boolean = false,
     videoTitle: String,
     onSeekStart: () -> Unit,
     onSeekEnd: () -> Unit,
@@ -144,6 +148,7 @@ fun CustomVideoControls(
     onSpeedDialogOpen: () -> Unit,
     onSpeedDialogClose: () -> Unit,
     isCasting: Boolean,
+    onDisconnectClick: () -> Unit,
     currentVideoTagCount: Int,
     onCastClick: (Boolean) -> Unit,
     rotationMode: RotationMode,
@@ -158,7 +163,8 @@ fun CustomVideoControls(
     onSleepTimerCleared: () -> Unit,
     onSleepTimerConfirmed: () -> Unit
 ) {
-    val controller = mediaController ?: return
+    val controller = mediaController
+    if (controller == null && !isCasting) return
     val context = androidx.compose.ui.platform.LocalContext.current
     val configuration = LocalConfiguration.current
     val preferences = remember {
@@ -189,8 +195,17 @@ fun CustomVideoControls(
     }
     val actionDrawerScrollState = rememberScrollState()
 
-    val currentGlobalIndex = controller.currentMediaItemIndex
-    val totalPlaylistSize = PlaylistManager.getTotalSize()
+    val currentGlobalIndex = if (isCasting) castManager.currentPlaylistIndex
+        else controller?.currentMediaItemIndex ?: 0
+    val totalPlaylistSize = if (isCasting) castManager.playlistSize else PlaylistManager.getTotalSize()
+
+    fun pauseActivePlayback() {
+        if (isCasting) castManager.pause() else controller?.pause()
+    }
+
+    fun resumeActivePlayback() {
+        if (isCasting) castManager.play() else controller?.play()
+    }
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
     val maxDrawerWidth = configuration.screenWidthDp.dp * if (isLandscape) 0.25f else 0.5f
     val preferredDrawerWidth = if (isLandscape) 220.dp else 240.dp
@@ -209,9 +224,9 @@ fun CustomVideoControls(
     }
 
     fun openActionDrawer() {
-        resumeAfterActionDrawer = controller.isPlaying
+        resumeAfterActionDrawer = if (isCasting) isPlaying else controller?.isPlaying == true
         if (resumeAfterActionDrawer) {
-            controller.pause()
+            pauseActivePlayback()
         }
         showActionDrawer = true
         resetUITimer()
@@ -220,15 +235,15 @@ fun CustomVideoControls(
     fun closeActionDrawer(shouldResumePlayback: Boolean) {
         showActionDrawer = false
         if (shouldResumePlayback && resumeAfterActionDrawer) {
-            controller.play()
+            resumeActivePlayback()
         }
         resumeAfterActionDrawer = false
     }
 
     fun openSleepTimerStatusDialog() {
-        resumeAfterSleepTimerStatusDialog = controller.isPlaying
+        resumeAfterSleepTimerStatusDialog = if (isCasting) isPlaying else controller?.isPlaying == true
         if (resumeAfterSleepTimerStatusDialog) {
-            controller.pause()
+            pauseActivePlayback()
         }
         showSleepTimerStatusDialog = true
         resetUITimer()
@@ -237,7 +252,7 @@ fun CustomVideoControls(
     fun closeSleepTimerStatusDialog(shouldResumePlayback: Boolean) {
         showSleepTimerStatusDialog = false
         if (shouldResumePlayback && resumeAfterSleepTimerStatusDialog) {
-            controller.play()
+            resumeActivePlayback()
         }
         resumeAfterSleepTimerStatusDialog = false
     }
@@ -245,7 +260,7 @@ fun CustomVideoControls(
     fun closeSleepTimerDialog() {
         showSleepTimerDialog = false
         if (resumeAfterActionDrawer) {
-            controller.play()
+            resumeActivePlayback()
             resumeAfterActionDrawer = false
         }
     }
@@ -338,7 +353,24 @@ fun CustomVideoControls(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !autoPiPEnabled) {
+                        if (!isCasting) {
+                            IconButton(
+                                onClick = {
+                                    onCastClick(isPlaying || controller?.isPlaying == true)
+                                    resetUITimer()
+                                },
+                                modifier = Modifier.background(CtrlBtnBg, CircleShape).size(44.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Cast,
+                                    contentDescription = stringResource(R.string.player_cast),
+                                    tint = CtrlIconOn,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        if (!isCasting && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !autoPiPEnabled) {
                             IconButton(
                                 onClick = {
                                     resetUITimer()
@@ -357,7 +389,7 @@ fun CustomVideoControls(
                             }
                         }
 
-                        if (sleepTimerActive) {
+                        if (sleepTimerActive && !isCasting) {
                             IconButton(
                                 onClick = { openSleepTimerStatusDialog() },
                                 modifier = Modifier
@@ -374,25 +406,37 @@ fun CustomVideoControls(
                         }
                         }
 
-                        IconButton(
-                            onClick = { openActionDrawer() },
-                            modifier = Modifier
-                                .background(CtrlBtnBg, CircleShape)
-                                .size(44.dp)
-                        ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = stringResource(R.string.player_more_actions),
-                            tint = CtrlIconOn,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        if (isCasting) {
+                            IconButton(
+                                onClick = onDisconnectClick,
+                                modifier = Modifier.background(CtrlBtnBg, CircleShape).size(44.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CastConnected,
+                                    contentDescription = stringResource(R.string.cast_disconnect_confirm),
+                                    tint = Color(0xFF4CAF50),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        } else {
+                            IconButton(
+                                onClick = { openActionDrawer() },
+                                modifier = Modifier.background(CtrlBtnBg, CircleShape).size(44.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = stringResource(R.string.player_more_actions),
+                                    tint = CtrlIconOn,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
 
             // Controles centrais
-            Row(
+            if (!hideTransportControls) Row(
                 modifier = Modifier.align(Alignment.Center),
                 horizontalArrangement = Arrangement.spacedBy(28.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -400,7 +444,7 @@ fun CustomVideoControls(
                 IconButton(
                     onClick = {
                         resetUITimer()
-                        PlaylistNavigator.previous(context)
+                        if (isCasting) castManager.previous() else PlaylistNavigator.previous(context)
                     },
                     modifier = Modifier
                         .background(CtrlBtnBg, CircleShape)
@@ -417,9 +461,9 @@ fun CustomVideoControls(
                 IconButton(
                     onClick = {
                         if (isPlaying) {
-                            controller.pause()
+                            pauseActivePlayback()
                         } else {
-                            controller.play()
+                            resumeActivePlayback()
                         }
                     },
                     modifier = Modifier
@@ -438,7 +482,7 @@ fun CustomVideoControls(
                 IconButton(
                     onClick = {
                         resetUITimer()
-                        PlaylistNavigator.next(context)
+                        if (isCasting) castManager.next() else PlaylistNavigator.next(context)
                     },
                     modifier = Modifier
                         .background(CtrlBtnBg, CircleShape)
@@ -482,10 +526,11 @@ fun CustomVideoControls(
                                 isDragging = true
                                 onSeekStart()
                             }
-                            controller.seekTo(newValue.toLong())
+                            if (!isCasting) controller?.seekTo(newValue.toLong())
                         },
                         onValueChangeFinished = {
                             isDragging = false
+                            if (isCasting) castManager.seekTo(tempPosition)
                             onSeekEnd()
                         },
                         valueRange = 0f..duration.toFloat(),
@@ -563,115 +608,132 @@ fun CustomVideoControls(
                                     .background(subtitleBg, CircleShape)
                                     .size(38.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Subtitles,
-                                    contentDescription = stringResource(R.string.player_subtitles),
-                                    tint = if (subtitlesEnabled) CtrlIconOn else CtrlIconOff,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            // Rotação
-                            val (rotIcon, rotDesc, rotActive) = when (rotationMode) {
-                                RotationMode.AUTO -> Triple(Icons.Default.ScreenRotation, stringResource(R.string.player_rotation_auto), false)
-                                RotationMode.PORTRAIT -> Triple(Icons.Default.StayCurrentPortrait, stringResource(R.string.player_rotation_portrait), true)
-                                RotationMode.LANDSCAPE -> Triple(Icons.Default.StayCurrentLandscape, stringResource(R.string.player_rotation_landscape), true)
-                            }
-                            IconButton(
-                                onClick = {
-                                    val nextMode = when (rotationMode) {
-                                        RotationMode.AUTO -> RotationMode.PORTRAIT
-                                        RotationMode.PORTRAIT -> RotationMode.LANDSCAPE
-                                        RotationMode.LANDSCAPE -> RotationMode.AUTO
+                                Box(modifier = Modifier.size(22.dp)) {
+                                    Icon(
+                                        imageVector = Icons.Default.Subtitles,
+                                        contentDescription = stringResource(R.string.player_subtitles),
+                                        tint = if (subtitlesEnabled) CtrlIconOn else CtrlIconOff,
+                                        modifier = Modifier.align(Alignment.Center).size(20.dp)
+                                    )
+                                    if (isCasting) {
+                                        Icon(
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = null,
+                                            tint = Color(0xFF4CAF50),
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .size(12.dp)
+                                                .background(Color.Black, CircleShape)
+                                        )
                                     }
-                                    onRotationModeChange(nextMode)
-                                    resetUITimer()
-                                },
-                                modifier = Modifier
-                                    .background(if (rotActive) CtrlBtnBgActive else CtrlBtnBg, CircleShape)
-                                    .size(38.dp)
-                            ) {
-                                Icon(
-                                    imageVector = rotIcon,
-                                    contentDescription = rotDesc,
-                                    tint = if (rotActive) CtrlIconOn else CtrlIconOff,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                                }
                             }
 
-                            // Velocidade
-                            var showSpeedDialog by remember { mutableStateOf(false) }
-                            val speedSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-                            val speedActive = playbackSpeed.value != 1.0f
-                            IconButton(
-                                onClick = {
-                                    onSpeedDialogOpen()
-                                    showSpeedDialog = true
-                                },
-                                modifier = Modifier
-                                    .background(if (speedActive) CtrlBtnBgActive else CtrlBtnBg, CircleShape)
-                                    .size(38.dp)
-                            ) {
-                                Text(
-                                    text = formatSpeedLabel(playbackSpeed),
-                                    color = if (speedActive) CtrlIconOn else CtrlIconOff,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1
-                                )
-                            }
-
-                            if (showSpeedDialog) {
-                                AppBottomSheet(
-                                    onDismissRequest = {
-                                        showSpeedDialog = false
-                                        onSpeedDialogClose()
+                            if (!isCasting) {
+                                // Rotação
+                                val (rotIcon, rotDesc, rotActive) = when (rotationMode) {
+                                    RotationMode.AUTO -> Triple(Icons.Default.ScreenRotation, stringResource(R.string.player_rotation_auto), false)
+                                    RotationMode.PORTRAIT -> Triple(Icons.Default.StayCurrentPortrait, stringResource(R.string.player_rotation_portrait), true)
+                                    RotationMode.LANDSCAPE -> Triple(Icons.Default.StayCurrentLandscape, stringResource(R.string.player_rotation_landscape), true)
+                                }
+                                IconButton(
+                                    onClick = {
+                                        val nextMode = when (rotationMode) {
+                                            RotationMode.AUTO -> RotationMode.PORTRAIT
+                                            RotationMode.PORTRAIT -> RotationMode.LANDSCAPE
+                                            RotationMode.LANDSCAPE -> RotationMode.AUTO
+                                        }
+                                        onRotationModeChange(nextMode)
+                                        resetUITimer()
                                     },
-                                    sheetState = speedSheetState,
-                                    title = stringResource(R.string.playback_speed_title),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    contentPadding = PaddingValues(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 28.dp)
+                                    modifier = Modifier
+                                        .background(if (rotActive) CtrlBtnBgActive else CtrlBtnBg, CircleShape)
+                                        .size(38.dp)
                                 ) {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    Icon(
+                                        imageVector = rotIcon,
+                                        contentDescription = rotDesc,
+                                        tint = if (rotActive) CtrlIconOn else CtrlIconOff,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            if (!isCasting) {
+                                // Velocidade
+                                var showSpeedDialog by remember { mutableStateOf(false) }
+                                val speedSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                                val speedActive = playbackSpeed.value != 1.0f
+                                IconButton(
+                                    onClick = {
+                                        onSpeedDialogOpen()
+                                        showSpeedDialog = true
+                                    },
+                                    modifier = Modifier
+                                        .background(if (speedActive) CtrlBtnBgActive else CtrlBtnBg, CircleShape)
+                                        .size(38.dp)
+                                ) {
+                                    Text(
+                                        text = formatSpeedLabel(playbackSpeed),
+                                        color = if (speedActive) CtrlIconOn else CtrlIconOff,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                }
+
+                                if (showSpeedDialog) {
+                                    AppBottomSheet(
+                                        onDismissRequest = {
+                                            showSpeedDialog = false
+                                            onSpeedDialogClose()
+                                        },
+                                        sheetState = speedSheetState,
+                                        title = stringResource(R.string.playback_speed_title),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        contentPadding = PaddingValues(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 28.dp)
                                     ) {
-                                        Text(
-                                            text = formatSpeedLabel(playbackSpeed),
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontSize = 40.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Slider(
-                                            value = playbackSpeed.value,
-                                            onValueChange = {
-                                                val closest = PlaybackSpeed.entries.minByOrNull { speed ->
-                                                    kotlin.math.abs(speed.value - it)
-                                                }
-                                                closest?.let { onPlaybackSpeedChange(it) }
-                                            },
-                                            valueRange = 0.25f..2.0f,
-                                            steps = 6,
-                                            colors = SliderDefaults.colors(
-                                                thumbColor = MaterialTheme.colorScheme.primary,
-                                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                                                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                                            ),
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Row(
+                                        Column(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
+                                            horizontalAlignment = Alignment.CenterHorizontally
                                         ) {
-                                            PlaybackSpeed.entries.forEach { speed ->
-                                                Text(
-                                                    text = formatSpeedLabel(speed),
-                                                    color = if (speed == playbackSpeed) MaterialTheme.colorScheme.onSurface
-                                                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    fontSize = 9.sp
-                                                )
+                                            Text(
+                                                text = formatSpeedLabel(playbackSpeed),
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                fontSize = 40.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Slider(
+                                                value = playbackSpeed.value,
+                                                onValueChange = {
+                                                    val closest = PlaybackSpeed.entries.minByOrNull { speed ->
+                                                        kotlin.math.abs(speed.value - it)
+                                                    }
+                                                    closest?.let { onPlaybackSpeedChange(it) }
+                                                },
+                                                valueRange = 0.25f..2.0f,
+                                                steps = 6,
+                                                colors = SliderDefaults.colors(
+                                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                                                ),
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                PlaybackSpeed.entries.forEach { speed ->
+                                                    Text(
+                                                        text = formatSpeedLabel(speed),
+                                                        color = if (speed == playbackSpeed) MaterialTheme.colorScheme.onSurface
+                                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        fontSize = 9.sp
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -783,19 +845,6 @@ fun CustomVideoControls(
                             .weight(1f)
                             .verticalScroll(actionDrawerScrollState)
                     ) {
-                        DrawerActionItem(
-                            icon = if (isCasting) Icons.Default.CastConnected else Icons.Default.Cast,
-                            label = stringResource(if (isCasting) R.string.player_casting else R.string.player_cast),
-                            tint = if (isCasting) Color(0xFF4CAF50) else CtrlIconOn,
-                            isActive = isCasting,
-                            onClick = {
-                                val shouldResumeAfterCastDialog = resumeAfterActionDrawer
-                                closeActionDrawer(shouldResumePlayback = false)
-                                onCastClick(shouldResumeAfterCastDialog)
-                                resetUITimer()
-                            }
-                        )
-
                         DrawerActionItem(
                             icon = Icons.Default.LocalOffer,
                             label = stringResource(R.string.action_tags),
@@ -1184,7 +1233,7 @@ suspend fun deleteCurrentVideo(
                     context.getString(R.string.video_delete_failed),
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
-                controller.play()
+                controller?.play()
             }
         }
 

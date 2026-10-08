@@ -5,6 +5,8 @@ import android.content.Intent
 import android.net.wifi.WifiManager
 import android.util.Log
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.net.*
 
@@ -18,6 +20,8 @@ import java.net.*
 class DLNACastManager(private val context: Context) {
 
     companion object {
+        private const val PROGRESS_PERSIST_INTERVAL_MS = 10_000L
+
         @Volatile private var instance: DLNACastManager? = null
 
         fun getInstance(context: Context): DLNACastManager =
@@ -38,6 +42,7 @@ class DLNACastManager(private val context: Context) {
     private var videoServer: LocalVideoServer? = null
     private var connectedDevice: DLNADevice? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val seekMutex = Mutex()
 
     // Playlist state
     private var playlist = listOf<String>()
@@ -48,6 +53,9 @@ class DLNACastManager(private val context: Context) {
     var isConnected = false
         private set
     val connectedDeviceName: String get() = connectedDevice?.name ?: ""
+    val currentPlaylistIndex: Int get() = currentIndex
+    val playlistSize: Int get() = playlist.size
+    fun currentPlaylistSnapshot(): List<String> = playlist.toList()
     var isPlaying = false
         private set
     var currentPositionMs = 0L
@@ -67,6 +75,7 @@ class DLNACastManager(private val context: Context) {
 
     private var stoppedByUser = false
     private var isLoadingTrack = false
+    private var lastProgressPersistAtMs = 0L
 
     private var connectionListener: ((Boolean) -> Unit)? = null
 
@@ -218,6 +227,7 @@ class DLNACastManager(private val context: Context) {
     private fun startPolling() {
         scope.launch {
             var wasPlaying = false
+            var lastPersistedPositionMs = -1L
             while (isConnected) {
                 try {
                     val pos = getPositionInfo()
@@ -226,6 +236,17 @@ class DLNACastManager(private val context: Context) {
                         durationMs = pos.second
                         val transportState = getTransportState()
                         isPlaying = transportState == "PLAYING"
+
+                        val now = System.currentTimeMillis()
+                        val shouldPersistProgress = !isLoadingTrack && currentTitle.isNotBlank() && durationMs > 0L && (
+                            (isPlaying && now - lastProgressPersistAtMs >= PROGRESS_PERSIST_INTERVAL_MS) ||
+                                (!isPlaying && currentPositionMs != lastPersistedPositionMs)
+                            )
+                        if (shouldPersistProgress) {
+                            persistCurrentCastProgress()
+                            lastPersistedPositionMs = currentPositionMs
+                            lastProgressPersistAtMs = now
+                        }
 
                         // Auto-advance when video ends naturally (PLAYING → STOPPED/NO_MEDIA_PRESENT)
                         // Guard isLoadingTrack: Smart TVs briefly enter STOPPED during SetAVTransportURI
@@ -258,14 +279,19 @@ class DLNACastManager(private val context: Context) {
         loadAndPlay(videoPath, videoTitle)
     }
 
-    fun castPlaylist(videosPaths: List<String>, videosTitles: List<String>, startIndex: Int = 0) {
+    fun castPlaylist(
+        videosPaths: List<String>,
+        videosTitles: List<String>,
+        startIndex: Int = 0,
+        startPositionMs: Long = 0L
+    ) {
         playlist = videosPaths
         playlistTitles = videosTitles
         currentIndex = startIndex
         prepareServer()
         val path = videosPaths.getOrElse(startIndex) { return }
         val title = videosTitles.getOrElse(startIndex) { File(path.removePrefix("file://")).nameWithoutExtension }
-        loadAndPlay(path, title)
+        loadAndPlay(path, title, startPositionMs)
     }
 
     private fun prepareServer() {
@@ -320,10 +346,11 @@ class DLNACastManager(private val context: Context) {
         return didl.escapeXml()
     }
 
-    private fun loadAndPlay(videoPath: String, videoTitle: String) {
+    private fun loadAndPlay(videoPath: String, videoTitle: String, startPositionMs: Long = 0L) {
         val device = connectedDevice ?: return
         currentTitle = videoTitle
         currentVideoPath = videoPath
+        lastProgressPersistAtMs = System.currentTimeMillis()
         stoppedByUser = false
         isLoadingTrack = true
         scope.launch {
@@ -336,6 +363,11 @@ class DLNACastManager(private val context: Context) {
                 delay(500)
                 sendSoap(device.controlUrl, "Play", "<Speed>1</Speed>")
                 isPlaying = true
+                if (startPositionMs > 0L) {
+                    // Some renderers reject Seek until playback has begun after SetAVTransportURI.
+                    delay(700)
+                    seekTo(startPositionMs)
+                }
                 // Keep the flag set until the TV has had time to transition to PLAYING.
                 // Smart TVs briefly report STOPPED during SetAVTransportURI; without this
                 // guard the polling loop would fire next() and skip the intended video.
@@ -363,14 +395,30 @@ class DLNACastManager(private val context: Context) {
         scope.launch {
             sendSoap(device.controlUrl, "Pause", "")
             isPlaying = false
+            persistCurrentCastProgress()
         }
     }
 
-    fun seekTo(posMs: Long) {
+    fun seekTo(posMs: Long, wasPlayingBeforeSeek: Boolean = isPlaying) {
         val device = connectedDevice ?: return
         scope.launch {
-            sendSoap(device.controlUrl, "Seek",
-                "<Unit>REL_TIME</Unit><Target>${msToTimeString(posMs)}</Target>")
+            seekMutex.withLock {
+                val response = sendSoap(device.controlUrl, "Seek",
+                    "<Unit>REL_TIME</Unit><Target>${msToTimeString(posMs)}</Target>")
+                if (response == null) {
+                    Log.w(tag, "Seek failed at ${msToTimeString(posMs)}")
+                    return@withLock
+                }
+
+                currentPositionMs = posMs
+                if (!wasPlayingBeforeSeek) {
+                    // Some renderers resume after a seek even when they were paused.
+                    delay(150)
+                    sendSoap(device.controlUrl, "Pause", "")
+                    isPlaying = false
+                }
+                persistCurrentCastProgress()
+            }
         }
     }
 
@@ -391,6 +439,7 @@ class DLNACastManager(private val context: Context) {
     }
 
     fun stopPlayback() {
+        persistCurrentCastProgress()
         stoppedByUser = true
         playlist = listOf()
         playlistTitles = listOf()
@@ -405,9 +454,33 @@ class DLNACastManager(private val context: Context) {
     }
 
     fun stopCasting() {
+        persistCurrentCastProgress()
         stoppedByUser = true
         connectedDevice?.let { scope.launch { sendSoap(it.controlUrl, "Stop", "") } }
         disconnect()
+    }
+
+    private fun persistCurrentCastProgress() {
+        val videoPath = currentVideoPath
+        val title = currentTitle
+        val positionMs = currentPositionMs
+        val duration = durationMs
+        if (videoPath.isBlank() || title.isBlank() || duration <= 0L) return
+
+        ContinueWatchingStore.save(
+            context = context,
+            videoPath = videoPath,
+            title = title,
+            positionMs = positionMs,
+            durationMs = duration
+        )
+        VideoProgressStore.save(
+            context = context,
+            videoPath = videoPath,
+            title = title,
+            positionMs = positionMs,
+            durationMs = duration
+        )
     }
 
     fun disconnect() {
