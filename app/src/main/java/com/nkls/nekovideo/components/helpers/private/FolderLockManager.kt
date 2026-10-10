@@ -1364,7 +1364,7 @@ object FolderLockManager {
     }
 }
 
-private class XorMediaDataSource(
+internal class XorMediaDataSource(
     private val file: File,
     private val xorKey: ByteArray,
     private val headerSize: Int = 8192

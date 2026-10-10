@@ -1789,6 +1789,9 @@ private fun ContinueWatchingCard(
                 ?: OptimizedThumbnailManager.getOrGenerateThumbnailSync(context, entry.videoPath)
         }
     }
+    val progressFraction = entry.durationMs.takeIf { it > 0L }?.let { durationMs ->
+        (entry.positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+    }
 
     Card(
         modifier = Modifier
@@ -1827,6 +1830,23 @@ private fun ContinueWatchingCard(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(36.dp)
                     )
+                }
+
+                progressFraction?.let { fraction ->
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .background(Color.Black.copy(alpha = 0.45f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(fraction)
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                    }
                 }
             }
 

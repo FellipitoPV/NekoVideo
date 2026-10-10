@@ -400,10 +400,22 @@ class DLNACastManager(private val context: Context) {
         }
     }
 
-    fun seekTo(posMs: Long, wasPlayingBeforeSeek: Boolean = isPlaying) {
+    fun seekTo(
+        posMs: Long,
+        wasPlayingBeforeSeek: Boolean = isPlaying,
+        resumePlaybackIfPaused: Boolean = false
+    ) {
         val device = connectedDevice ?: return
         scope.launch {
             seekMutex.withLock {
+                val shouldResumePlayback = !wasPlayingBeforeSeek && resumePlaybackIfPaused
+                if (shouldResumePlayback) {
+                    sendSoap(device.controlUrl, "Play", "<Speed>1</Speed>")
+                    isPlaying = true
+                    // Kodi and some DLNA receivers need playback to resume before accepting Seek.
+                    delay(500)
+                }
+
                 val response = sendSoap(device.controlUrl, "Seek",
                     "<Unit>REL_TIME</Unit><Target>${msToTimeString(posMs)}</Target>")
                 if (response == null) {
@@ -412,7 +424,7 @@ class DLNACastManager(private val context: Context) {
                 }
 
                 currentPositionMs = posMs
-                if (!wasPlayingBeforeSeek) {
+                if (!wasPlayingBeforeSeek && !shouldResumePlayback) {
                     // Some renderers resume after a seek even when they were paused.
                     delay(150)
                     sendSoap(device.controlUrl, "Pause", "")

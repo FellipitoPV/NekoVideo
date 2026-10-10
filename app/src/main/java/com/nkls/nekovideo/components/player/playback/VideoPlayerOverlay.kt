@@ -492,12 +492,14 @@ fun VideoPlayerOverlay(
                 shouldResume &&
                 mediaController === controller &&
                 currentMediaUri(controller) == mediaUri &&
+                !isSeekingActive &&
                 !showDeleteDialog &&
                 !showVideoTagsDialog &&
                 !showCastDevicePicker &&
                 !showTrackSelectionDialog &&
                 !isSpeedDialogOpen
             ) {
+                Log.d("TIMELINE", "rotation gate requested play after delay; seekActive=$isSeekingActive")
                 controller.play()
             }
         }
@@ -863,6 +865,10 @@ fun VideoPlayerOverlay(
         } else {
             TagScope.NORMAL
         }
+    }
+
+    val allowTimelinePreview = remember(currentVideoPath, isCasting) {
+        isCasting && currentVideoPath.isNotBlank()
     }
 
     fun resumePlaybackAfterTagsDialog() {
@@ -1488,7 +1494,12 @@ fun VideoPlayerOverlay(
                         finishRotationGateIfReady(controller)
                         if (pendingAutoPlayOnReady && !isWaitingForRotationGate && !isPlaybackBlockedByDialog()) {
                             pendingAutoPlayOnReady = false
-                            controller.play()
+                            if (!isSeekingActive) {
+                                Log.d("TIMELINE", "pending auto-play requested play on READY")
+                                controller.play()
+                            } else {
+                                Log.d("TIMELINE", "pending auto-play suppressed because timeline seek is active")
+                            }
                         }
                         if (isPlaybackBlockedByDialog() && controller.isPlaying) {
                             controller.pause()
@@ -2086,17 +2097,39 @@ fun VideoPlayerOverlay(
                         isPlaying = isPlaying,
                         hideTransportControls = isCasting && seekIndicator != null,
                         videoTitle = currentVideoTitle,
+                        videoPath = currentVideoPath,
+                        allowTimelinePreview = allowTimelinePreview,
                         onSeekStart = {
+                            Log.d(
+                                "TIMELINE",
+                                "overlay seek start; casting=$isCasting controllerPlaying=${mediaController?.isPlaying} " +
+                                    "uiPlaying=$isPlaying position=$currentPosition"
+                            )
                             isSeekingActive = true
+                            pendingAutoPlayOnReady = false
+                            resumeAfterRotationGate = false
                             controlsVisible = true
                             resetUITimer()
                             if (!isCasting) mediaController?.pause()
                         },
-                        onSeekEnd = {
+                        onSeekEnd = { wasPlayingBeforeSeek ->
+                            Log.d(
+                                "TIMELINE",
+                                "overlay seek end; casting=$isCasting resumeRequested=$wasPlayingBeforeSeek " +
+                                    "controllerPlaying=${mediaController?.isPlaying} position=$currentPosition"
+                            )
                             isSeekingActive = false
                             controlsVisible = true
                             resetUITimer()
-                            if (!isCasting) mediaController?.play()
+                            if (!isCasting && wasPlayingBeforeSeek) {
+                                mediaController?.play()
+                                Log.d(
+                                    "TIMELINE",
+                                    "overlay requested local play; controllerPlaying=${mediaController?.isPlaying}"
+                                )
+                            } else {
+                                Log.d("TIMELINE", "overlay did not request local play")
+                            }
                         },
                         onDeleteClick = {
                             pausePlaybackForOverlayDialog()

@@ -2,6 +2,8 @@ package com.nkls.nekovideo.components.player
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.Bitmap
+import android.media.MediaMetadataRetriever
 import android.os.Build
 import android.util.Log
 import androidx.compose.animation.core.RepeatMode as AnimationRepeatMode
@@ -17,11 +19,13 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
@@ -34,6 +38,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.navigationBars
@@ -65,6 +70,7 @@ import androidx.compose.material.icons.filled.StayCurrentLandscape
 import androidx.compose.material.icons.filled.StayCurrentPortrait
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -80,8 +86,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.platform.LocalConfiguration
@@ -90,7 +99,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -107,6 +118,14 @@ import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.PlaylistNavigator
 import com.nkls.nekovideo.components.helpers.DLNACastManager
+import com.nkls.nekovideo.components.helpers.XorMediaDataSource
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -125,7 +144,7 @@ private val CtrlDrawerIconActiveBg = Color(0xFF4CAF50).copy(alpha = 0.18f)
 private val CtrlDrawerDivider = Color.White.copy(alpha = 0.07f)
 private val CtrlDrawerDeleteTint = Color(0xFFFF8A80)
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
 fun CustomVideoControls(
     mediaController: MediaController?,
@@ -135,8 +154,10 @@ fun CustomVideoControls(
     isPlaying: Boolean,
     hideTransportControls: Boolean = false,
     videoTitle: String,
+    videoPath: String = "",
+    allowTimelinePreview: Boolean = false,
     onSeekStart: () -> Unit,
-    onSeekEnd: () -> Unit,
+    onSeekEnd: (wasPlayingBeforeSeek: Boolean) -> Unit,
     onDeleteClick: () -> Unit,
     onTagsClick: (Boolean) -> Unit,
     onBackClick: () -> Unit,
@@ -179,6 +200,37 @@ fun CustomVideoControls(
     var showSleepTimerStatusDialog by remember { mutableStateOf(false) }
     var resumeAfterSleepTimerStatusDialog by remember { mutableStateOf(false) }
     var sleepTimerRemainingMs by remember { mutableStateOf(0L) }
+    var tempPosition by remember(videoPath) { mutableLongStateOf(currentPosition) }
+    var isDragging by remember(videoPath) { mutableStateOf(false) }
+    var scrubPreviewBitmap by remember(videoPath) { mutableStateOf<Bitmap?>(null) }
+    var isLoadingScrubPreview by remember(videoPath) { mutableStateOf(false) }
+    var wasPlayingBeforeTimelineSeek by remember { mutableStateOf(false) }
+    val finishTimelineSeek = rememberUpdatedState<() -> Unit> {
+        Log.d(
+            "TIMELINE",
+            "finish requested; dragging=$isDragging casting=$isCasting " +
+                "wasPlayingBefore=$wasPlayingBeforeTimelineSeek controllerPlaying=${controller?.isPlaying} " +
+                "position=$tempPosition"
+        )
+        if (isDragging) {
+            isDragging = false
+            isLoadingScrubPreview = false
+            if (isCasting) {
+                castManager.seekTo(
+                    posMs = tempPosition,
+                    resumePlaybackIfPaused = true
+                )
+            }
+            Log.d(
+                "TIMELINE",
+                "seek finalized; casting=$isCasting resumeLocal=$wasPlayingBeforeTimelineSeek " +
+                    "controllerPlaying=${controller?.isPlaying} position=$tempPosition"
+            )
+            onSeekEnd(wasPlayingBeforeTimelineSeek)
+        } else {
+            Log.d("TIMELINE", "finish ignored; no active drag")
+        }
+    }
     val sleepTimerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val sleepTimerStatusSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val sleepTimerOptionsMs = remember {
@@ -194,6 +246,61 @@ fun CustomVideoControls(
         mutableStateOf(sleepTimerOptionsMs.indexOf(defaultSleepTimerDurationMs).coerceAtLeast(0).toFloat())
     }
     val actionDrawerScrollState = rememberScrollState()
+
+    LaunchedEffect(currentPosition, isDragging) {
+        if (!isDragging) tempPosition = currentPosition
+    }
+
+    LaunchedEffect(videoPath, allowTimelinePreview, duration) {
+        scrubPreviewBitmap = null
+        isLoadingScrubPreview = false
+        if (!allowTimelinePreview || videoPath.isBlank() || duration <= 0L) return@LaunchedEffect
+
+        val retriever = MediaMetadataRetriever()
+        var lockedDataSource: XorMediaDataSource? = null
+        try {
+            withContext(Dispatchers.IO) {
+                val xorKey = LockedPlaybackSession.getXorKeyForFile(videoPath)
+                if (xorKey != null) {
+                    XorMediaDataSource(File(videoPath), xorKey).also { dataSource ->
+                        lockedDataSource = dataSource
+                        retriever.setDataSource(dataSource)
+                    }
+                } else {
+                    retriever.setDataSource(videoPath)
+                }
+            }
+            snapshotFlow { if (isDragging) tempPosition else null }
+                .map { position -> position?.coerceIn(0L, duration)?.div(1_000L)?.times(1_000L) }
+                .distinctUntilChanged()
+                .sample(180L)
+                .collectLatest { framePositionMs ->
+                    if (framePositionMs == null) {
+                        isLoadingScrubPreview = false
+                        return@collectLatest
+                    }
+                    isLoadingScrubPreview = scrubPreviewBitmap == null
+                    val bitmap = withContext(Dispatchers.IO) {
+                        retriever.getScaledFrameAtTime(
+                            framePositionMs * 1_000L,
+                            MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                            240,
+                            135
+                        )
+                    }
+                    if (bitmap != null) scrubPreviewBitmap = bitmap
+                    isLoadingScrubPreview = false
+                }
+        } catch (exception: Exception) {
+            isLoadingScrubPreview = false
+            Log.d("TimelinePreview", "Could not load preview frame for $videoPath", exception)
+        } finally {
+            withContext(NonCancellable + Dispatchers.IO) {
+                runCatching { retriever.release() }
+                runCatching { lockedDataSource?.close() }
+            }
+        }
+    }
 
     val currentGlobalIndex = if (isCasting) castManager.currentPlaylistIndex
         else controller?.currentMediaItemIndex ?: 0
@@ -515,47 +622,131 @@ fun CustomVideoControls(
             ) {
                 // Seek bar
                 if (duration > 0) {
-                    var tempPosition by remember { mutableStateOf(currentPosition) }
-                    var isDragging by remember { mutableStateOf(false) }
+                    BoxWithConstraints(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        val previewWidth = 144.dp
+                        // Ignore movements smaller than five dp so resting-finger jitter does not
+                        // constantly change the preview or the final seek point.
+                        val timelineDeadZoneMs = kotlin.math.ceil(
+                            duration.toDouble() * 5f / maxWidth.value.coerceAtLeast(1f)
+                        ).toLong().coerceAtLeast(1L)
+                        Slider(
+                            value = if (isDragging) tempPosition.toFloat() else currentPosition.toFloat(),
+                            onValueChange = { newValue ->
+                                val requestedPosition = newValue.toLong()
+                                val positionDelta = kotlin.math.abs(requestedPosition - tempPosition)
+                                val shouldAcceptPosition =
+                                    !isDragging || positionDelta >= timelineDeadZoneMs
 
-                    Slider(
-                        value = if (isDragging) tempPosition.toFloat() else currentPosition.toFloat(),
-                        onValueChange = { newValue ->
-                            tempPosition = newValue.toLong()
-                            if (!isDragging) {
-                                isDragging = true
-                                onSeekStart()
-                            }
-                            if (!isCasting) controller?.seekTo(newValue.toLong())
-                        },
-                        onValueChangeFinished = {
-                            isDragging = false
-                            if (isCasting) castManager.seekTo(tempPosition)
-                            onSeekEnd()
-                        },
-                        valueRange = 0f..duration.toFloat(),
-                        thumb = {
-                            Box(
+                                if (!isDragging) {
+                                    wasPlayingBeforeTimelineSeek =
+                                        controller?.isPlaying == true || controller?.playWhenReady == true || isPlaying
+                                    Log.d(
+                                        "TIMELINE",
+                                        "drag started; casting=$isCasting controllerPlaying=${controller?.isPlaying} " +
+                                            "controllerPlayWhenReady=${controller?.playWhenReady} " +
+                                            "uiPlaying=$isPlaying capturedPlaying=$wasPlayingBeforeTimelineSeek " +
+                                            "position=$tempPosition requested=$requestedPosition deadZoneMs=$timelineDeadZoneMs"
+                                    )
+                                    isDragging = true
+                                    isLoadingScrubPreview = allowTimelinePreview && scrubPreviewBitmap == null
+                                    onSeekStart()
+                                }
+                                if (shouldAcceptPosition) {
+                                    tempPosition = requestedPosition
+                                    if (!isCasting) controller?.seekTo(tempPosition)
+                                }
+                            },
+                            onValueChangeFinished = {
+                                Log.d(
+                                    "TIMELINE",
+                                    "Slider.onValueChangeFinished; dragging=$isDragging " +
+                                        "controllerPlaying=${controller?.isPlaying} position=$tempPosition"
+                                )
+                                finishTimelineSeek.value()
+                            },
+                            valueRange = 0f..duration.toFloat(),
+                            thumb = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(if (isDragging) 16.dp else 12.dp)
+                                        .background(Color.White, CircleShape)
+                                )
+                            },
+                            track = { sliderState ->
+                                SliderDefaults.Track(
+                                    sliderState = sliderState,
+                                    modifier = Modifier.height(3.dp),
+                                    colors = SliderDefaults.colors(
+                                        activeTrackColor = Color.White,
+                                        inactiveTrackColor = Color.White.copy(alpha = 0.22f)
+                                    ),
+                                    thumbTrackGapSize = 0.dp,
+                                    trackInsideCornerSize = 0.dp,
+                                    drawStopIndicator = null
+                                )
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                        )
+
+                        val previewBitmap = scrubPreviewBitmap
+                        if (allowTimelinePreview && isDragging) {
+                            val fraction = (tempPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                            val previewX = (maxWidth * fraction - previewWidth / 2)
+                                .coerceIn(0.dp, (maxWidth - previewWidth).coerceAtLeast(0.dp))
+                            Surface(
                                 modifier = Modifier
-                                    .size(if (isDragging) 16.dp else 12.dp)
-                                    .background(Color.White, CircleShape)
-                            )
-                        },
-                        track = { sliderState ->
-                            SliderDefaults.Track(
-                                sliderState = sliderState,
-                                modifier = Modifier.height(3.dp),
-                                colors = SliderDefaults.colors(
-                                    activeTrackColor = Color.White,
-                                    inactiveTrackColor = Color.White.copy(alpha = 0.22f)
-                                ),
-                                thumbTrackGapSize = 0.dp,
-                                trackInsideCornerSize = 0.dp,
-                                drawStopIndicator = null
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                                    .offset(x = previewX, y = (-88).dp)
+                                    .width(previewWidth)
+                                    .height(84.dp)
+                                    .zIndex(2f),
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color.Black,
+                                tonalElevation = 4.dp
+                            ) {
+                                Box {
+                                    if (previewBitmap != null && !previewBitmap.isRecycled) {
+                                        Image(
+                                            bitmap = previewBitmap.asImageBitmap(),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                    if (isLoadingScrubPreview) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(Color.Black.copy(alpha = if (previewBitmap == null) 0.18f else 0.45f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(22.dp),
+                                                color = Color.White,
+                                                strokeWidth = 2.dp
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = formatTime(tempPosition),
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .fillMaxWidth()
+                                            .background(Color.Black.copy(alpha = 0.72f))
+                                            .padding(vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
