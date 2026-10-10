@@ -1,0 +1,5 @@
+Der Player bietet jetzt vollständige Cast/DLNA-Steuerung. Beim Verbinden werden Video und Playlist an der aktuellen Position fortgesetzt; nach dem Trennen bleibt die lokale Wiedergabe pausiert.
+
+Beim Spulen auf Cast werden Vorschaubilder angezeigt, auch bei privaten Videos. Kleine Fingerbewegungen verändern die Position weniger; Weiter ansehen zeigt den gespeicherten Fortschritt.
+
+Tag-Shuffle unterstützt erforderliche und optionale Filter, zeigt Videozahlen und hilft beim Entfernen fehlender Zuordnungen. Backups stellen gespeicherte Tags und Zuordnungen wieder her.

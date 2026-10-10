@@ -1,0 +1,5 @@
+O player agora oferece controles completos para Cast/DLNA. Ao conectar, a reprodução continua da posição atual; ao desconectar, ela fica pausada no app.
+
+A timeline ganhou prévia por thumbnail no Cast, inclusive para vídeos privados, e uma busca mais estável. Continue Assistindo também mostra o progresso salvo.
+
+O shuffle por tags combina filtros obrigatórios e opcionais, mostra vídeos por tag e ajuda a limpar associações ausentes. A importação de backups restaura tags e associações salvas.

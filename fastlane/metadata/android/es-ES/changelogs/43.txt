@@ -1,0 +1,5 @@
+El reproductor ahora ofrece controles completos para Cast/DLNA. Al conectar, el vídeo y la lista continúan desde la posición actual; al desconectar, la reproducción local queda pausada.
+
+La búsqueda en Cast ahora muestra miniaturas, también en vídeos privados, y reduce los cambios por movimientos pequeños. Seguir viendo muestra el progreso guardado.
+
+La mezcla por etiquetas admite filtros obligatorios y opcionales, muestra el número de vídeos y ayuda a limpiar asociaciones ausentes. Las copias restauran las etiquetas y asociaciones guardadas.

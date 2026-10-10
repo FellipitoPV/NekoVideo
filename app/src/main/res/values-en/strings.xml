@@ -210,20 +210,16 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">What\'s new in v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>SD cards and USB storage</item>
-        <item>Automatic Picture-in-Picture</item>
-        <item>Cast over Wi-Fi Direct</item>
-        <item>Player fixes</item>
-        <item>Visual improvements</item>
-        <item>Clearer cache cleanup</item>
+        <item>Full Cast controls</item>
+        <item>More precise timeline seeking</item>
+        <item>Continue Watching progress</item>
+        <item>Tag filters and cleanup</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Mounted SD cards and USB drives now appear automatically on the home screen for browsing.</item>
-        <item>The player can enter Picture-in-Picture automatically when leaving the app, with an option to disable it.</item>
-        <item>DLNA devices can now be discovered and used through Wi-Fi Direct connections.</item>
-        <item>Fixed video playback when the file name or path contains special characters.</item>
-        <item>The zoom indicator now follows the controls, the player header makes better use of the top of the screen, and the destination picker now uses a bottom sheet.</item>
-        <item>Thumbnail cleanup now shows activity and remaining space while the process is running.</item>
+        <item>Control videos sent to Cast from the player overlay. Connecting keeps the current video, playlist, and position; disconnecting leaves local playback paused.</item>
+        <item>Preview thumbnails while seeking on Cast, including private videos. A safe zone reduces position changes caused by small finger movements.</item>
+        <item>See saved progress directly on the Continue Watching card. Playback progress is also saved while casting.</item>
+        <item>Combine required and optional tags when shuffling, see video counts per tag, and remove associations for missing videos. Importing a backup restores its saved tags and associations.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Faster private folders</string>
     <string name="changelog_pinned_folders_desc">Fixed an issue that could cause stutters when quickly switching between videos in private folders.</string>

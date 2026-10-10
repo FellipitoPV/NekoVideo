@@ -210,20 +210,16 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">v%1$s में नया</string>
     <string-array name="changelog_item_titles">
-        <item>SD कार्ड और USB स्टोरेज</item>
-        <item>ऑटोमैटिक Picture-in-Picture</item>
-        <item>Wi-Fi Direct पर Cast</item>
-        <item>प्लेयर सुधार</item>
-        <item>विज़ुअल सुधार</item>
-        <item>बेहतर कैश सफाई</item>
+        <item>Cast के लिए पूरे नियंत्रण</item>
+        <item>टाइमलाइन पर सटीक खोज</item>
+        <item>Continue Watching प्रगति</item>
+        <item>टैग फ़िल्टर और सफ़ाई</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>माउंट किए गए SD कार्ड और USB ड्राइव अब browsing के लिए होम स्क्रीन पर अपने आप दिखाई देते हैं।</item>
-        <item>ऐप से बाहर जाते समय प्लेयर अपने आप Picture-in-Picture खोल सकता है, और इसे बंद करने का विकल्प भी उपलब्ध है।</item>
-        <item>DLNA डिवाइस अब Wi-Fi Direct कनेक्शन के माध्यम से भी खोजे और उपयोग किए जा सकते हैं।</item>
-        <item>फ़ाइल नाम या path में special characters होने पर video playback की समस्या ठीक की गई।</item>
-        <item>Zoom indicator अब controls के साथ छिपता है, player header ऊपर की जगह का बेहतर उपयोग करता है और destination picker अब bottom sheet का उपयोग करता है।</item>
-        <item>Thumbnail cache की सफाई अब प्रक्रिया के दौरान activity और बची हुई जगह दिखाती है।</item>
+        <item>प्लेयर overlay से Cast पर भेजे गए वीडियो नियंत्रित करें। कनेक्ट करने पर वीडियो, प्लेलिस्ट और मौजूदा स्थान बना रहता है; डिस्कनेक्ट करने पर स्थानीय वीडियो रुका रहता है।</item>
+        <item>Cast की टाइमलाइन पर खोजते समय thumbnails देखें, निजी वीडियो में भी। सुरक्षित क्षेत्र उंगली की छोटी हलचल से स्थान बदलने से रोकता है।</item>
+        <item>Continue Watching कार्ड पर सेव की गई प्रगति देखें। Cast पर देखते समय भी प्लेबैक की प्रगति सेव होती है।</item>
+        <item>Shuffle में ज़रूरी और वैकल्पिक टैग मिलाएँ, हर टैग के वीडियो की संख्या देखें और गायब वीडियो के संबंध हटाएँ। बैकअप आयात करने पर सेव किए गए टैग और संबंध वापस आते हैं।</item>
     </string-array>
     <string name="changelog_pinned_folders_title">तेज़ private folders</string>
     <string name="changelog_pinned_folders_desc">Private folders में videos को जल्दी-जल्दी बदलने पर होने वाली रुकावट की समस्या ठीक की गई।</string>

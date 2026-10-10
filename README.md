@@ -57,7 +57,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Background playback through `MediaSessionService`, configurable in settings
 - Media notification and lock-screen controls
 - Persistent mini player while browsing the app
-- Continue Watching: resumes where you left off on both the home card and inside folders, preserving the selected audio/subtitle tracks and external subtitles
+- Continue Watching: resumes where you left off on both the home card and inside folders, showing saved progress and preserving selected audio/subtitle tracks and external subtitles
 
 ### Continue Watching
 
@@ -80,6 +80,8 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Discovers DLNA / UPnP renderers on regular Wi-Fi and Wi-Fi Direct networks using SSDP
 - Streams local files through an embedded HTTP server
 - Supports playlist casting, next/previous navigation, and playback state polling
+- Controls Cast playback from the player overlay, with timeline seeking and thumbnail previews
+- Transfers the active video, playlist, and position when connecting; playback remains paused locally after disconnect
 - Works without Google Cast SDK or closed-source casting dependencies
 
 ### Tags
@@ -90,7 +92,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Keep separate tag scopes for normal content and private content
 - Shuffle videos using tag include/exclude filters
 - Preserves tag references when files or folders are renamed or moved
-- Automatic tag backups saved on-device, with import/merge and manual export
+- Automatic tag backups saved on-device, with import, manual export, and cleanup of stale video associations
 
 ### Private Folders and Protected Content
 
@@ -166,7 +168,7 @@ Project info:
 
 - `minSdk = 30`
 - `targetSdk = 36`
-- Current app version in the project: `1.7.0`
+- Current app version in the project: `1.8.0`
 
 ## License
 

@@ -210,20 +210,16 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">v%1$s 新功能</string>
     <string-array name="changelog_item_titles">
-        <item>SD 卡和 USB 儲存空間</item>
-        <item>自動畫中畫</item>
-        <item>透過 Wi-Fi Direct 投放</item>
-        <item>播放器修正</item>
-        <item>視覺改善</item>
-        <item>更清楚的快取清理</item>
+        <item>完整的 Cast 控制</item>
+        <item>更精準的時間軸拖曳</item>
+        <item>繼續觀看進度</item>
+        <item>標籤篩選與清理</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>已掛載的 SD 卡和 USB 裝置現在會自動顯示在主畫面以供瀏覽。</item>
-        <item>離開 App 時播放器可自動進入畫中畫模式，並可在設定中關閉此功能。</item>
-        <item>現在可以透過 Wi-Fi Direct 連線尋找及使用 DLNA 裝置。</item>
-        <item>修正檔案名稱或路徑包含特殊字元時的影片播放問題。</item>
-        <item>縮放指示器現在會隨控制項隱藏，播放器頂部空間得到更好利用，目的地選擇器也改為底部面板。</item>
-        <item>清理縮圖快取時現在會顯示執行狀態與剩餘空間。</item>
+        <item>可透過播放器浮層控制投放至 Cast 的影片。連線時保留目前影片、播放清單和進度；中斷連線後，本機播放會保持暫停。</item>
+        <item>在 Cast 時間軸拖曳時可預覽縮圖，私密影片也支援。安全區域可減少手指輕微抖動造成的位置變化。</item>
+        <item>繼續觀看卡片現在會直接顯示已儲存的進度。透過 Cast 播放時也會儲存觀看進度。</item>
+        <item>隨機播放可組合必選和選用標籤、查看各標籤的影片數量，並清理已不存在影片的關聯。匯入備份可還原已儲存的標籤及關聯。</item>
     </string-array>
     <string name="changelog_pinned_folders_title">私密資料夾更快</string>
     <string name="changelog_pinned_folders_desc">修正了快速切換私密資料夾中的影片時可能出現卡頓的問題。</string>

@@ -1,0 +1,5 @@
+The player now provides full Cast/DLNA controls. Connecting continues the current video and playlist from the same position; playback stays paused locally after disconnecting.
+
+Cast timeline seeking now shows thumbnail previews, including for private videos, and filters small finger movements. Continue Watching also displays saved progress.
+
+Tag shuffle supports required and optional filters, shows video counts, and helps remove associations for missing files. Backups restore saved tags and associations.

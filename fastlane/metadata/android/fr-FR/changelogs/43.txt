@@ -1,0 +1,5 @@
+Le lecteur propose maintenant des commandes complètes pour Cast/DLNA. La connexion reprend la vidéo et la playlist à la position actuelle ; après déconnexion, la lecture locale reste en pause.
+
+La recherche Cast affiche des miniatures, y compris pour les vidéos privées, et filtre les petits mouvements du doigt. Reprendre la lecture affiche aussi la progression sauvegardée.
+
+Le shuffle par tags accepte des filtres obligatoires et facultatifs, affiche les nombres de vidéos et facilite le nettoyage des associations manquantes. Les sauvegardes restaurent les tags et associations enregistrés.

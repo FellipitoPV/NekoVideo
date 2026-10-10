@@ -206,12 +206,6 @@ fun CustomVideoControls(
     var isLoadingScrubPreview by remember(videoPath) { mutableStateOf(false) }
     var wasPlayingBeforeTimelineSeek by remember { mutableStateOf(false) }
     val finishTimelineSeek = rememberUpdatedState<() -> Unit> {
-        Log.d(
-            "TIMELINE",
-            "finish requested; dragging=$isDragging casting=$isCasting " +
-                "wasPlayingBefore=$wasPlayingBeforeTimelineSeek controllerPlaying=${controller?.isPlaying} " +
-                "position=$tempPosition"
-        )
         if (isDragging) {
             isDragging = false
             isLoadingScrubPreview = false
@@ -221,14 +215,7 @@ fun CustomVideoControls(
                     resumePlaybackIfPaused = true
                 )
             }
-            Log.d(
-                "TIMELINE",
-                "seek finalized; casting=$isCasting resumeLocal=$wasPlayingBeforeTimelineSeek " +
-                    "controllerPlaying=${controller?.isPlaying} position=$tempPosition"
-            )
             onSeekEnd(wasPlayingBeforeTimelineSeek)
-        } else {
-            Log.d("TIMELINE", "finish ignored; no active drag")
         }
     }
     val sleepTimerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -644,13 +631,6 @@ fun CustomVideoControls(
                                 if (!isDragging) {
                                     wasPlayingBeforeTimelineSeek =
                                         controller?.isPlaying == true || controller?.playWhenReady == true || isPlaying
-                                    Log.d(
-                                        "TIMELINE",
-                                        "drag started; casting=$isCasting controllerPlaying=${controller?.isPlaying} " +
-                                            "controllerPlayWhenReady=${controller?.playWhenReady} " +
-                                            "uiPlaying=$isPlaying capturedPlaying=$wasPlayingBeforeTimelineSeek " +
-                                            "position=$tempPosition requested=$requestedPosition deadZoneMs=$timelineDeadZoneMs"
-                                    )
                                     isDragging = true
                                     isLoadingScrubPreview = allowTimelinePreview && scrubPreviewBitmap == null
                                     onSeekStart()
@@ -661,11 +641,6 @@ fun CustomVideoControls(
                                 }
                             },
                             onValueChangeFinished = {
-                                Log.d(
-                                    "TIMELINE",
-                                    "Slider.onValueChangeFinished; dragging=$isDragging " +
-                                        "controllerPlaying=${controller?.isPlaying} position=$tempPosition"
-                                )
                                 finishTimelineSeek.value()
                             },
                             valueRange = 0f..duration.toFloat(),

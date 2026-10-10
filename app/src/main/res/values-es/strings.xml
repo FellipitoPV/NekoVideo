@@ -210,20 +210,16 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Novedades de v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>Tarjetas SD y almacenamiento USB</item>
-        <item>Picture-in-Picture automático</item>
-        <item>Cast por Wi-Fi Direct</item>
-        <item>Correcciones del reproductor</item>
-        <item>Mejoras visuales</item>
-        <item>Limpieza de caché más clara</item>
+        <item>Controles completos para Cast</item>
+        <item>Búsqueda más precisa</item>
+        <item>Progreso de Seguir viendo</item>
+        <item>Filtros y limpieza de etiquetas</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Las tarjetas SD y unidades USB montadas aparecen automáticamente en la pantalla principal para navegar.</item>
-        <item>El reproductor puede entrar automáticamente en Picture-in-Picture al salir de la app, con una opción para desactivarlo.</item>
-        <item>Los dispositivos DLNA ahora pueden descubrirse y utilizarse mediante conexiones Wi-Fi Direct.</item>
-        <item>Corregida la reproducción cuando el nombre del archivo o la ruta contiene caracteres especiales.</item>
-        <item>El indicador de zoom acompaña a los controles, el encabezado aprovecha mejor la parte superior y el selector de destino ahora usa un bottom sheet.</item>
-        <item>La limpieza de miniaturas ahora muestra actividad y el espacio restante durante el proceso.</item>
+        <item>Controla desde el overlay del reproductor los vídeos enviados a Cast. Al conectar se conservan el vídeo, la lista y la posición; al desconectar, la reproducción local queda pausada.</item>
+        <item>Previsualiza miniaturas al buscar en Cast, también en vídeos privados. Una zona segura reduce los cambios causados por pequeños movimientos del dedo.</item>
+        <item>Consulta el progreso guardado directamente en la tarjeta Seguir viendo. El progreso también se guarda durante la reproducción por Cast.</item>
+        <item>Combina etiquetas obligatorias y opcionales al mezclar vídeos, consulta cuántos vídeos tiene cada etiqueta y elimina asociaciones de vídeos ausentes. Al importar una copia se restauran las etiquetas y asociaciones guardadas.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Carpetas privadas más rápidas</string>
     <string name="changelog_pinned_folders_desc">Se corrigió un problema que podía causar bloqueos al cambiar rápidamente entre videos de carpetas privadas.</string>

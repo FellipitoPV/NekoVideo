@@ -210,20 +210,16 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Neu in v%1$s</string>
     <string-array name="changelog_item_titles">
-        <item>SD-Karten und USB-Speicher</item>
-        <item>Automatisches Picture-in-Picture</item>
-        <item>Cast über Wi-Fi Direct</item>
-        <item>Player-Korrekturen</item>
-        <item>Visuelle Verbesserungen</item>
-        <item>Übersichtlichere Cache-Bereinigung</item>
+        <item>Volle Cast-Steuerung</item>
+        <item>Präziseres Spulen</item>
+        <item>Fortschritt bei Weiter ansehen</item>
+        <item>Tag-Filter und Bereinigung</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Eingebundene SD-Karten und USB-Laufwerke erscheinen automatisch zum Durchsuchen auf dem Startbildschirm.</item>
-        <item>Der Player kann beim Verlassen der App automatisch Picture-in-Picture öffnen. Dieses Verhalten lässt sich deaktivieren.</item>
-        <item>DLNA-Geräte können jetzt auch über Wi-Fi-Direct-Verbindungen gefunden und verwendet werden.</item>
-        <item>Die Videowiedergabe wurde korrigiert, wenn Dateiname oder Pfad Sonderzeichen enthalten.</item>
-        <item>Die Zoomanzeige folgt nun den Steuerelementen, der Player-Kopfbereich nutzt den oberen Bildschirm besser und die Zielauswahl verwendet jetzt ein Bottom Sheet.</item>
-        <item>Die Miniaturbild-Bereinigung zeigt jetzt Aktivität und den verbleibenden Speicher während des Vorgangs an.</item>
+        <item>Steuere Cast-Videos über das Player-Overlay. Beim Verbinden bleiben Video, Playlist und Position erhalten; nach dem Trennen bleibt die lokale Wiedergabe pausiert.</item>
+        <item>Sieh Vorschaubilder beim Spulen auf Cast, auch bei privaten Videos. Eine Sicherheitszone reduziert Positionsänderungen durch kleine Fingerbewegungen.</item>
+        <item>Der gespeicherte Fortschritt wird direkt auf der Karte Weiter ansehen angezeigt. Der Verlauf wird auch während der Wiedergabe per Cast gespeichert.</item>
+        <item>Kombiniere erforderliche und optionale Tags beim Shuffle, sieh die Videoanzahl pro Tag und entferne Zuordnungen zu fehlenden Videos. Ein Backup stellt gespeicherte Tags und Zuordnungen wieder her.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Schnellere private Ordner</string>
     <string name="changelog_pinned_folders_desc">Ein Problem wurde behoben, das beim schnellen Wechseln zwischen Videos in privaten Ordnern zu Rucklern führen konnte.</string>

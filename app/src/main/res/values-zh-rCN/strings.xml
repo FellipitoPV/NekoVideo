@@ -210,20 +210,16 @@
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">v%1$s 新功能</string>
     <string-array name="changelog_item_titles">
-        <item>SD 卡和 USB 存储</item>
-        <item>自动画中画</item>
-        <item>通过 Wi-Fi Direct 投屏</item>
-        <item>播放器修复</item>
-        <item>视觉改进</item>
-        <item>更清晰的缓存清理</item>
+        <item>完整的 Cast 控制</item>
+        <item>更精准的时间轴拖动</item>
+        <item>继续观看进度</item>
+        <item>标签筛选与清理</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>已挂载的 SD 卡和 USB 设备现在会自动显示在主屏幕上以供浏览。</item>
-        <item>离开应用时播放器可自动进入画中画模式，并可在设置中关闭此功能。</item>
-        <item>现在可以通过 Wi-Fi Direct 连接发现和使用 DLNA 设备。</item>
-        <item>修复了文件名或路径包含特殊字符时的视频播放问题。</item>
-        <item>缩放指示器现在会随控件隐藏，播放器顶部空间得到更好利用，目标选择器也改为底部面板。</item>
-        <item>清理缩略图缓存时现在会显示运行状态和剩余空间。</item>
+        <item>可通过播放器浮层控制投放到 Cast 的视频。连接时保留当前视频、播放列表和进度；断开后本地播放保持暂停。</item>
+        <item>在 Cast 时间轴拖动时可预览缩略图，私密视频也支持。安全区域可减少手指轻微抖动造成的位置变化。</item>
+        <item>继续观看卡片现在直接显示已保存的进度。通过 Cast 播放时也会保存观看进度。</item>
+        <item>随机播放可组合必选和可选标签，查看每个标签关联的视频数量，并清理已不存在视频的关联。导入备份可恢复已保存的标签及关联。</item>
     </string-array>
     <string name="changelog_pinned_folders_title">私密文件夹更快</string>
     <string name="changelog_pinned_folders_desc">修复了快速切换私密文件夹中的视频时可能出现卡顿的问题。</string>

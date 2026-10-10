@@ -499,7 +499,6 @@ fun VideoPlayerOverlay(
                 !showTrackSelectionDialog &&
                 !isSpeedDialogOpen
             ) {
-                Log.d("TIMELINE", "rotation gate requested play after delay; seekActive=$isSeekingActive")
                 controller.play()
             }
         }
@@ -1494,12 +1493,7 @@ fun VideoPlayerOverlay(
                         finishRotationGateIfReady(controller)
                         if (pendingAutoPlayOnReady && !isWaitingForRotationGate && !isPlaybackBlockedByDialog()) {
                             pendingAutoPlayOnReady = false
-                            if (!isSeekingActive) {
-                                Log.d("TIMELINE", "pending auto-play requested play on READY")
-                                controller.play()
-                            } else {
-                                Log.d("TIMELINE", "pending auto-play suppressed because timeline seek is active")
-                            }
+                            if (!isSeekingActive) controller.play()
                         }
                         if (isPlaybackBlockedByDialog() && controller.isPlaying) {
                             controller.pause()
@@ -2100,11 +2094,6 @@ fun VideoPlayerOverlay(
                         videoPath = currentVideoPath,
                         allowTimelinePreview = allowTimelinePreview,
                         onSeekStart = {
-                            Log.d(
-                                "TIMELINE",
-                                "overlay seek start; casting=$isCasting controllerPlaying=${mediaController?.isPlaying} " +
-                                    "uiPlaying=$isPlaying position=$currentPosition"
-                            )
                             isSeekingActive = true
                             pendingAutoPlayOnReady = false
                             resumeAfterRotationGate = false
@@ -2113,22 +2102,11 @@ fun VideoPlayerOverlay(
                             if (!isCasting) mediaController?.pause()
                         },
                         onSeekEnd = { wasPlayingBeforeSeek ->
-                            Log.d(
-                                "TIMELINE",
-                                "overlay seek end; casting=$isCasting resumeRequested=$wasPlayingBeforeSeek " +
-                                    "controllerPlaying=${mediaController?.isPlaying} position=$currentPosition"
-                            )
                             isSeekingActive = false
                             controlsVisible = true
                             resetUITimer()
                             if (!isCasting && wasPlayingBeforeSeek) {
                                 mediaController?.play()
-                                Log.d(
-                                    "TIMELINE",
-                                    "overlay requested local play; controllerPlaying=${mediaController?.isPlaying}"
-                                )
-                            } else {
-                                Log.d("TIMELINE", "overlay did not request local play")
                             }
                         },
                         onDeleteClick = {
