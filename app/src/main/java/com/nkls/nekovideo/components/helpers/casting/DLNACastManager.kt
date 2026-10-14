@@ -3,7 +3,8 @@ package com.nkls.nekovideo.components.helpers
 import android.content.Context
 import android.content.Intent
 import android.net.wifi.WifiManager
-import android.util.Log
+import android.os.SystemClock
+import com.nkls.nekovideo.MediaPlaybackService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -21,6 +22,10 @@ class DLNACastManager(private val context: Context) {
 
     companion object {
         private const val PROGRESS_PERSIST_INTERVAL_MS = 10_000L
+        private const val RECEIVER_POLL_INTERVAL_MS = 1_000L
+        private const val RECEIVER_POLL_TIMEOUT_MS = 1_000
+        private const val RECEIVER_LOST_TIMEOUT_MS = 5_000L
+        private const val MIN_FAILED_POLLS_BEFORE_DISCONNECT = 3
 
         @Volatile private var instance: DLNACastManager? = null
 
@@ -30,8 +35,6 @@ class DLNACastManager(private val context: Context) {
             }
     }
 
-    private val tag = "DLNACastManager"
-
     data class DLNADevice(
         val name: String,
         val controlUrl: String,
@@ -40,9 +43,11 @@ class DLNACastManager(private val context: Context) {
     )
 
     private var videoServer: LocalVideoServer? = null
-    private var connectedDevice: DLNADevice? = null
+    @Volatile private var connectedDevice: DLNADevice? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val seekMutex = Mutex()
+    private var pollingJob: Job? = null
+    @Volatile private var connectionGeneration = 0L
 
     // Playlist state
     private var playlist = listOf<String>()
@@ -50,7 +55,7 @@ class DLNACastManager(private val context: Context) {
     private var currentIndex = 0
 
     // Playback state (updated via polling)
-    var isConnected = false
+    @Volatile var isConnected = false
         private set
     val connectedDeviceName: String get() = connectedDevice?.name ?: ""
     val currentPlaylistIndex: Int get() = currentIndex
@@ -68,7 +73,7 @@ class DLNACastManager(private val context: Context) {
         private set
 
     var onConnectionStateChanged: ((Boolean) -> Unit)? = null
-    var onDevicesFound: ((List<DLNADevice>) -> Unit)? = null
+    var onDevicesFound: ((List<DLNADevice>, isComplete: Boolean) -> Unit)? = null
     var onStateChanged: (() -> Unit)? = null
     // Separate observer for DLNACastService (avoids overwriting onStateChanged from UI)
     var onServiceStateChanged: (() -> Unit)? = null
@@ -87,35 +92,40 @@ class DLNACastManager(private val context: Context) {
 
     fun discoverDevices() {
         scope.launch {
+            val discoveredByBaseUrl = java.util.concurrent.ConcurrentHashMap<String, DLNADevice>()
             val wifiManager = context.applicationContext
                 .getSystemService(Context.WIFI_SERVICE) as WifiManager
             val multicastLock = wifiManager.createMulticastLock("nekovideo_ssdp").apply {
                 setReferenceCounted(false)
                 acquire()
             }
-            Log.d(tag, "MulticastLock acquired: ${multicastLock.isHeld}")
-
             try {
                 val targets = activeIpv4Interfaces()
-                Log.d(tag, "Scanning SSDP on: ${targets.joinToString { "${it.first.name}/${it.second.hostAddress}" }}")
-                val found = coroutineScope {
+                coroutineScope {
                     targets.map { (networkInterface, address) ->
-                        async { discoverOnInterface(networkInterface, address) }
-                    }.awaitAll().flatten()
-                }.distinctBy { it.baseUrl }
-                Log.d(tag, "Discovery done. Devices found: ${found.size}")
+                        async {
+                            discoverOnInterface(networkInterface, address) { device ->
+                                if (discoveredByBaseUrl.putIfAbsent(device.baseUrl, device) == null) {
+                                    val currentDevices = discoveredByBaseUrl.values.toList()
+                                    withContext(Dispatchers.Main.immediate) {
+                                        onDevicesFound?.invoke(currentDevices, false)
+                                    }
+                                }
+                            }
+                        }
+                    }.awaitAll()
+                }
+                val found = discoveredByBaseUrl.values.toList()
 
                 withContext(Dispatchers.Main) {
-                    onDevicesFound?.invoke(found)
+                    onDevicesFound?.invoke(found, true)
                 }
-            } catch (e: Exception) {
-                Log.e(tag, "SSDP discovery error", e)
+            } catch (_: Exception) {
                 withContext(Dispatchers.Main) {
-                    onDevicesFound?.invoke(emptyList())
+                    onDevicesFound?.invoke(discoveredByBaseUrl.values.toList(), true)
                 }
             } finally {
                 multicastLock.release()
-                Log.d(tag, "MulticastLock released")
             }
         }
     }
@@ -134,7 +144,8 @@ class DLNACastManager(private val context: Context) {
 
     private suspend fun discoverOnInterface(
         networkInterface: NetworkInterface,
-        localAddress: Inet4Address
+        localAddress: Inet4Address,
+        onDeviceFound: suspend (DLNADevice) -> Unit
     ): List<DLNADevice> {
         val found = mutableListOf<DLNADevice>()
         val localIp = localAddress.hostAddress ?: return found
@@ -154,8 +165,6 @@ class DLNACastManager(private val context: Context) {
                 socket.soTimeout = 500
                 socket.networkInterface = networkInterface
                 socket.joinGroup(InetSocketAddress(group, 1900), networkInterface)
-                Log.d(tag, "SSDP socket on ${networkInterface.name}/${localAddress.hostAddress}")
-
                 repeat(2) {
                     socket.send(DatagramPacket(search, search.size, group, 1900))
                     delay(200)
@@ -171,17 +180,16 @@ class DLNACastManager(private val context: Context) {
                             ?: continue
                         val device = fetchDeviceDescription(location, localIp)
                         if (device != null && found.none { it.baseUrl == device.baseUrl }) {
-                            Log.d(tag, "Device found via ${networkInterface.name}: ${device.name}")
                             found.add(device)
+                            onDeviceFound(device)
                         }
                     } catch (_: SocketTimeoutException) {
                         // Continue receiving until the shared discovery window ends.
                     }
                 }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Individual interfaces can reject multicast; keep scanning the others.
-            Log.w(tag, "SSDP unavailable on ${networkInterface.name}/${localAddress.hostAddress}: ${e.message}")
         }
         return found
     }
@@ -207,8 +215,7 @@ class DLNACastManager(private val context: Context) {
                 }
             }
             null
-        } catch (e: Exception) {
-            Log.w(tag, "fetchDeviceDescription failed: $location — ${e.message}")
+        } catch (_: Exception) {
             null
         }
     }
@@ -216,25 +223,84 @@ class DLNACastManager(private val context: Context) {
     // ── Connection ───────────────────────────────────────────────────────────
 
     fun connectToDevice(device: DLNADevice) {
+        pollingJob?.cancel()
+        connectionGeneration += 1L
         connectedDevice = device
         isConnected = true
+        stoppedByUser = false
         connectionListener?.invoke(true)
         onConnectionStateChanged?.invoke(true)
         context.startService(Intent(context, com.nkls.nekovideo.DLNACastService::class.java))
-        startPolling()
+        startPolling(device, connectionGeneration)
     }
 
-    private fun startPolling() {
-        scope.launch {
+    private fun startPolling(device: DLNADevice, generation: Long) {
+        pollingJob = scope.launch {
             var wasPlaying = false
             var lastPersistedPositionMs = -1L
-            while (isConnected) {
-                try {
-                    val pos = getPositionInfo()
-                    if (pos != null) {
-                        currentPositionMs = pos.first
-                        durationMs = pos.second
-                        val transportState = getTransportState()
+            var lastReceiverResponseAtMs = SystemClock.elapsedRealtime()
+            var consecutiveFailedPolls = 0
+
+            while (isCurrentConnection(device, generation)) {
+                val pollStartedAtMs = SystemClock.elapsedRealtime()
+                val positionResponse = sendSoapDetailed(
+                    device.controlUrl,
+                    "GetPositionInfo",
+                    "",
+                    timeoutMs = RECEIVER_POLL_TIMEOUT_MS
+                )
+                if (!isCurrentConnection(device, generation)) return@launch
+
+                val nowElapsedMs = SystemClock.elapsedRealtime()
+                if (!positionResponse.receivedHttpResponse) {
+                    consecutiveFailedPolls += 1
+
+                    val noResponseForMs = nowElapsedMs - lastReceiverResponseAtMs
+                    if (
+                        consecutiveFailedPolls >= MIN_FAILED_POLLS_BEFORE_DISCONNECT &&
+                        noResponseForMs >= RECEIVER_LOST_TIMEOUT_MS
+                    ) {
+                        withContext(Dispatchers.Main.immediate) {
+                            if (isCurrentConnection(device, generation)) {
+                                disconnectAfterReceiverLoss()
+                            }
+                        }
+                        return@launch
+                    }
+                } else {
+                    lastReceiverResponseAtMs = nowElapsedMs
+                    consecutiveFailedPolls = 0
+
+                    val positionInfo = positionResponse.body?.let { response ->
+                        val relativeTime = extractXmlTag(response, "RelTime")
+                        val trackDuration = extractXmlTag(response, "TrackDuration")
+                        if (relativeTime != null && trackDuration != null) {
+                            parseTimeString(relativeTime) to parseTimeString(trackDuration)
+                        } else {
+                            null
+                        }
+                    }
+
+                    if (positionInfo != null) {
+                        currentPositionMs = positionInfo.first
+                        durationMs = positionInfo.second
+                    }
+
+                    val transportResponse = sendSoapDetailed(
+                        device.controlUrl,
+                        "GetTransportInfo",
+                        "",
+                        timeoutMs = RECEIVER_POLL_TIMEOUT_MS
+                    )
+                    if (!isCurrentConnection(device, generation)) return@launch
+                    val transportState = transportResponse.body?.let {
+                        extractXmlTag(it, "CurrentTransportState")
+                    }
+                    if (transportResponse.receivedHttpResponse) {
+                        lastReceiverResponseAtMs = SystemClock.elapsedRealtime()
+                    }
+
+                    if (transportState != null) {
                         isPlaying = transportState == "PLAYING"
 
                         val now = System.currentTimeMillis()
@@ -248,26 +314,34 @@ class DLNACastManager(private val context: Context) {
                             lastProgressPersistAtMs = now
                         }
 
-                        // Auto-advance when video ends naturally (PLAYING → STOPPED/NO_MEDIA_PRESENT)
-                        // Guard isLoadingTrack: Smart TVs briefly enter STOPPED during SetAVTransportURI
-                        // which would otherwise trigger a spurious next() and skip the intended video.
+                        // Only a real transport-state response can represent normal playback completion.
                         if (wasPlaying && !isPlaying && !stoppedByUser && !isLoadingTrack && playlist.size > 1
                             && transportState != "PAUSED_PLAYBACK") {
-                            withContext(Dispatchers.Main) { next() }
+                            withContext(Dispatchers.Main.immediate) {
+                                if (isCurrentConnection(device, generation)) next()
+                            }
                         }
 
                         wasPlaying = isPlaying
-                        withContext(Dispatchers.Main) {
+                    }
+
+                    withContext(Dispatchers.Main.immediate) {
+                        if (isCurrentConnection(device, generation)) {
                             onStateChanged?.invoke()
                             onServiceStateChanged?.invoke()
                         }
                     }
-                } catch (_: Exception) {
                 }
-                delay(500)
+
+                val pollElapsedMs = SystemClock.elapsedRealtime() - pollStartedAtMs
+                val delayUntilNextPollMs = (RECEIVER_POLL_INTERVAL_MS - pollElapsedMs).coerceAtLeast(0L)
+                delay(delayUntilNextPollMs)
             }
         }
     }
+
+    private fun isCurrentConnection(device: DLNADevice, generation: Long): Boolean =
+        isConnected && connectionGeneration == generation && connectedDevice?.controlUrl == device.controlUrl
 
     // ── Casting ──────────────────────────────────────────────────────────────
 
@@ -374,8 +448,7 @@ class DLNACastManager(private val context: Context) {
                 // guard the polling loop would fire next() and skip the intended video.
                 delay(1500)
                 isLoadingTrack = false
-            } catch (e: Exception) {
-                Log.e(tag, "loadAndPlay error", e)
+            } catch (_: Exception) {
                 isLoadingTrack = false
             }
         }
@@ -419,7 +492,6 @@ class DLNACastManager(private val context: Context) {
                 val response = sendSoap(device.controlUrl, "Seek",
                     "<Unit>REL_TIME</Unit><Target>${msToTimeString(posMs)}</Target>")
                 if (response == null) {
-                    Log.w(tag, "Seek failed at ${msToTimeString(posMs)}")
                     return@withLock
                 }
 
@@ -473,6 +545,35 @@ class DLNACastManager(private val context: Context) {
         disconnect()
     }
 
+    /**
+     * The local player was paused when playback moved to Cast. If the receiver
+     * disappears unexpectedly, restore that same playlist locally at the last
+     * position reported by the receiver and keep it paused.
+     */
+    private fun disconnectAfterReceiverLoss() {
+        val castPosition = currentPositionMs.coerceAtLeast(0L)
+        val castTitle = currentTitle
+        val castPlaylist = playlist.ifEmpty {
+            listOfNotNull(currentVideoPath.takeIf(String::isNotBlank))
+        }
+        val castIndex = currentIndex.coerceIn(0, (castPlaylist.size - 1).coerceAtLeast(0))
+        val shouldRestoreLocalPlayback = castTitle.isNotBlank() && castPlaylist.isNotEmpty()
+
+        persistCurrentCastProgress()
+        disconnect()
+
+        if (shouldRestoreLocalPlayback) {
+            PlaylistManager.setPlaylist(castPlaylist, startIndex = castIndex)
+            MediaPlaybackService.startWithPlaylist(
+                context = context,
+                playlist = castPlaylist,
+                initialIndex = castIndex,
+                initialPositionMs = castPosition,
+                playWhenReady = false
+            )
+        }
+    }
+
     private fun persistCurrentCastProgress() {
         val videoPath = currentVideoPath
         val title = currentTitle
@@ -497,9 +598,19 @@ class DLNACastManager(private val context: Context) {
     }
 
     fun disconnect() {
+        connectionGeneration += 1L
         isConnected = false
+        pollingJob?.cancel()
+        pollingJob = null
         isPlaying = false
         connectedDevice = null
+        playlist = emptyList()
+        playlistTitles = emptyList()
+        currentIndex = 0
+        currentPositionMs = 0L
+        durationMs = 0L
+        currentTitle = ""
+        currentVideoPath = ""
         connectionListener?.invoke(false)
         onConnectionStateChanged?.invoke(false)
         context.stopService(Intent(context, com.nkls.nekovideo.DLNACastService::class.java))
@@ -507,6 +618,10 @@ class DLNACastManager(private val context: Context) {
     }
 
     fun destroy() {
+        connectionGeneration += 1L
+        isConnected = false
+        pollingJob?.cancel()
+        pollingJob = null
         scope.cancel()
         stopServer()
     }
@@ -516,29 +631,24 @@ class DLNACastManager(private val context: Context) {
         videoServer = null
     }
 
-    // ── UPnP state queries ───────────────────────────────────────────────────
-
-    private fun getPositionInfo(): Pair<Long, Long>? {
-        val device = connectedDevice ?: return null
-        return try {
-            val response = sendSoap(device.controlUrl, "GetPositionInfo", "") ?: return null
-            val pos = parseTimeString(extractXmlTag(response, "RelTime") ?: "0:00:00")
-            val dur = parseTimeString(extractXmlTag(response, "TrackDuration") ?: "0:00:00")
-            Pair(pos, dur)
-        } catch (_: Exception) { null }
-    }
-
-    private fun getTransportState(): String {
-        val device = connectedDevice ?: return "STOPPED"
-        return try {
-            val response = sendSoap(device.controlUrl, "GetTransportInfo", "") ?: return "STOPPED"
-            extractXmlTag(response, "CurrentTransportState") ?: "STOPPED"
-        } catch (_: Exception) { "STOPPED" }
-    }
-
     // ── SOAP ─────────────────────────────────────────────────────────────────
 
-    private fun sendSoap(controlUrl: String, action: String, args: String): String? {
+    private data class SoapResponse(
+        val body: String?,
+        val receivedHttpResponse: Boolean
+    )
+
+    private fun sendSoap(controlUrl: String, action: String, args: String): String? =
+        sendSoapDetailed(controlUrl, action, args).body
+
+    private fun sendSoapDetailed(
+        controlUrl: String,
+        action: String,
+        args: String,
+        timeoutMs: Int = 3000
+    ): SoapResponse {
+        var connection: HttpURLConnection? = null
+        var receivedHttpResponse = false
         return try {
             val soap = """<?xml version="1.0"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"
@@ -554,23 +664,28 @@ class DLNACastManager(private val context: Context) {
             val conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 doOutput = true
-                connectTimeout = 3000
-                readTimeout = 3000
+                connectTimeout = timeoutMs
+                readTimeout = timeoutMs
                 setRequestProperty("Content-Type", "text/xml; charset=\"utf-8\"")
                 setRequestProperty("SOAPAction",
                     "\"urn:schemas-upnp-org:service:AVTransport:1#$action\"")
             }
-            conn.outputStream.write(soap.toByteArray(Charsets.UTF_8))
+            connection = conn
+            conn.outputStream.use { it.write(soap.toByteArray(Charsets.UTF_8)) }
+
+            val responseCode = conn.responseCode
+            receivedHttpResponse = responseCode >= 100
+            val responseStream = if (responseCode in 200..299) conn.inputStream else conn.errorStream
             val response = try {
-                conn.inputStream.bufferedReader().readText()
+                responseStream?.bufferedReader()?.use { it.readText() }
             } catch (_: Exception) {
-                conn.errorStream?.bufferedReader()?.readText()
+                null
             }
-            conn.disconnect()
-            response
-        } catch (e: Exception) {
-            Log.w(tag, "SOAP $action failed: ${e.message}")
-            null
+            SoapResponse(response, receivedHttpResponse)
+        } catch (_: Exception) {
+            SoapResponse(null, receivedHttpResponse)
+        } finally {
+            connection?.disconnect()
         }
     }
 

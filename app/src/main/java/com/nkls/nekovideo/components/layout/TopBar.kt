@@ -476,9 +476,9 @@ fun TopBar(
                         discoveredDevices = emptyList()
                         isDiscovering = true
                         showDevicePicker = true
-                        castManager.onDevicesFound = { devices ->
+                        castManager.onDevicesFound = { devices, isComplete ->
                             discoveredDevices = devices
-                            isDiscovering = false
+                            isDiscovering = !isComplete
                         }
                         castManager.discoverDevices()
                     }

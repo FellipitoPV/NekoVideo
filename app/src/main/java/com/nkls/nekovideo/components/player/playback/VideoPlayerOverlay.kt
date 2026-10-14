@@ -2186,9 +2186,9 @@ fun VideoPlayerOverlay(
                             discoveredDevices = emptyList()
                             isDiscovering = true
                             showCastDevicePicker = true
-                            castManager.onDevicesFound = { devices ->
+                            castManager.onDevicesFound = { devices, isComplete ->
                                 discoveredDevices = devices
-                                isDiscovering = false
+                                isDiscovering = !isComplete
                             }
                             castManager.discoverDevices()
                             resetUITimer()
