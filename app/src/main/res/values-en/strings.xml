@@ -521,7 +521,12 @@
     <string name="player_play">Play</string>
     <string name="player_next">Next</string>
     <string name="player_subtitles">Subtitles</string>
-    <string name="player_rotation_auto">Auto rotation</string>
+    <string name="player_rotation_video">Orientation by video</string>
+    <string name="player_rotation_sensor">Follow device rotation</string>
+    <string name="player_rotation_feedback_video">Screen follows video orientation</string>
+    <string name="player_rotation_feedback_sensor">Screen follows device rotation</string>
+    <string name="player_rotation_feedback_portrait">Screen locked in portrait</string>
+    <string name="player_rotation_feedback_landscape">Screen locked in landscape</string>
     <string name="player_rotation_portrait">Portrait lock</string>
     <string name="player_rotation_landscape">Landscape lock</string>
     <string name="player_repeat_normal">Normal playback</string>

@@ -528,7 +528,12 @@
     <string name="player_play">Воспроизвести</string>
     <string name="player_next">Следующий</string>
     <string name="player_subtitles">Субтитры</string>
-    <string name="player_rotation_auto">Автоповорот</string>
+    <string name="player_rotation_video">Ориентация по видео</string>
+    <string name="player_rotation_sensor">Поворот по датчику устройства</string>
+    <string name="player_rotation_feedback_video">Экран следует ориентации видео</string>
+    <string name="player_rotation_feedback_sensor">Экран поворачивается вместе с устройством</string>
+    <string name="player_rotation_feedback_portrait">Экран закреплён в книжной ориентации</string>
+    <string name="player_rotation_feedback_landscape">Экран закреплён в альбомной ориентации</string>
     <string name="player_rotation_portrait">Зафиксировать портретный режим</string>
     <string name="player_rotation_landscape">Зафиксировать альбомный режим</string>
     <string name="player_repeat_normal">Обычное воспроизведение</string>

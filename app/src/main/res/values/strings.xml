@@ -521,7 +521,12 @@
     <string name="player_play">Reproduzir</string>
     <string name="player_next">Próximo</string>
     <string name="player_subtitles">Legendas</string>
-    <string name="player_rotation_auto">Rotação automática</string>
+    <string name="player_rotation_video">Orientação pelo vídeo</string>
+    <string name="player_rotation_sensor">Seguir rotação do aparelho</string>
+    <string name="player_rotation_feedback_video">A tela acompanha a orientação do vídeo</string>
+    <string name="player_rotation_feedback_sensor">A tela acompanha o movimento do aparelho</string>
+    <string name="player_rotation_feedback_portrait">Tela fixa em retrato</string>
+    <string name="player_rotation_feedback_landscape">Tela fixa em paisagem</string>
     <string name="player_rotation_portrait">Bloquear em retrato</string>
     <string name="player_rotation_landscape">Bloquear em paisagem</string>
     <string name="player_repeat_normal">Reprodução normal</string>

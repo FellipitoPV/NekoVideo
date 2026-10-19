@@ -506,7 +506,12 @@
     <string name="player_play">播放</string>
     <string name="player_next">下一個</string>
     <string name="player_subtitles">字幕</string>
-    <string name="player_rotation_auto">自動旋轉</string>
+    <string name="player_rotation_video">依影片調整方向</string>
+    <string name="player_rotation_sensor">跟隨裝置旋轉</string>
+    <string name="player_rotation_feedback_video">畫面跟隨影片方向</string>
+    <string name="player_rotation_feedback_sensor">畫面跟隨裝置旋轉</string>
+    <string name="player_rotation_feedback_portrait">畫面鎖定為直向</string>
+    <string name="player_rotation_feedback_landscape">畫面鎖定為橫向</string>
     <string name="player_rotation_portrait">鎖定直向</string>
     <string name="player_rotation_landscape">鎖定橫向</string>
     <string name="player_repeat_normal">正常播放</string>

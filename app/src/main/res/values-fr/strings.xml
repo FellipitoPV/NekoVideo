@@ -520,7 +520,12 @@
     <string name="player_play">Lecture</string>
     <string name="player_next">Suivant</string>
     <string name="player_subtitles">Sous-titres</string>
-    <string name="player_rotation_auto">Rotation automatique</string>
+    <string name="player_rotation_video">Orientation selon la vidéo</string>
+    <string name="player_rotation_sensor">Suivre la rotation de l’appareil</string>
+    <string name="player_rotation_feedback_video">L’écran suit l’orientation de la vidéo</string>
+    <string name="player_rotation_feedback_sensor">L’écran suit la rotation de l’appareil</string>
+    <string name="player_rotation_feedback_portrait">Écran verrouillé en portrait</string>
+    <string name="player_rotation_feedback_landscape">Écran verrouillé en paysage</string>
     <string name="player_rotation_portrait">Verrou portrait</string>
     <string name="player_rotation_landscape">Verrou paysage</string>
     <string name="player_repeat_normal">Lecture normale</string>

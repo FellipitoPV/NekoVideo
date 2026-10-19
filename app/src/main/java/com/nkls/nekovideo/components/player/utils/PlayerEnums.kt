@@ -13,7 +13,8 @@ enum class RepeatMode {
  * Modos de rotação da tela
  */
 enum class RotationMode {
-    AUTO,      // Adaptar ao vídeo
+    VIDEO,     // Adaptar à proporção do vídeo
+    SENSOR,    // Acompanhar a orientação física do aparelho
     PORTRAIT,  // Sempre vertical
     LANDSCAPE  // Sempre horizontal
 }

@@ -520,7 +520,12 @@
     <string name="player_play">Wiedergabe</string>
     <string name="player_next">Nächste</string>
     <string name="player_subtitles">Untertitel</string>
-    <string name="player_rotation_auto">Automatische Drehung</string>
+    <string name="player_rotation_video">Ausrichtung nach Video</string>
+    <string name="player_rotation_sensor">Gerätedrehung folgen</string>
+    <string name="player_rotation_feedback_video">Bildschirm folgt der Videoausrichtung</string>
+    <string name="player_rotation_feedback_sensor">Bildschirm folgt der Gerätedrehung</string>
+    <string name="player_rotation_feedback_portrait">Bildschirm im Hochformat gesperrt</string>
+    <string name="player_rotation_feedback_landscape">Bildschirm im Querformat gesperrt</string>
     <string name="player_rotation_portrait">Hochformat sperren</string>
     <string name="player_rotation_landscape">Querformat sperren</string>
     <string name="player_repeat_normal">Normale Wiedergabe</string>

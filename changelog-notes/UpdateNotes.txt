@@ -1,0 +1,15 @@
+* Evite escrever coisas super detalhadas, deixe só por cima de forma clara para o usuário final, sem necessidade de super profundidade. Este arquivo é apenas um auxílio para montar os changelogs no futuro. *
+
+Anotações para próxima atualização
+
+### Reprodução via CAST
+- O app detecta quando o receptor DLNA fica indisponível e encerra a conexão após 5 segundos sem resposta, verificando o dispositivo a cada segundo
+- Ao perder o receptor, o vídeo e a playlist voltam para a reprodução local pausada, na última posição conhecida do CAST
+- O estado temporário do CAST é limpo ao desconectar para evitar que um vídeo antigo reapareça no MiniPlayer ao conectar novamente
+- A lista de dispositivos CAST é atualizada assim que cada receptor é encontrado, enquanto a busca continua por outros dispositivos
+- Removidos os logs de diagnóstico do DLNACastManager, incluindo os da busca de dispositivos e do monitoramento do receptor
+
+### Rotação do vídeo
+- Novo modo que acompanha a rotação física do aparelho, além da orientação automática conforme o vídeo e dos modos fixos em retrato ou paisagem
+- O modo de rotação escolhido é lembrado ao fechar e abrir o app novamente
+- Ao mudar de modo, um aviso rápido abaixo dos controles de reprodução explica a orientação selecionada

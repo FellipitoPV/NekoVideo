@@ -65,6 +65,7 @@ import com.nkls.nekovideo.components.ChangePasswordDialog
 import com.nkls.nekovideo.components.PasswordDialog
 import com.nkls.nekovideo.components.helpers.BiometricHelper
 import com.nkls.nekovideo.components.helpers.FilesManager
+import com.nkls.nekovideo.components.player.RotationMode
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -2204,6 +2205,17 @@ private fun SettingsInfoItem(
 }
 
 object SettingsManager {
+
+    fun getRotationMode(context: Context): RotationMode {
+        val savedMode = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            .getString("player_rotation_mode", null)
+        return RotationMode.entries.firstOrNull { it.name == savedMode } ?: RotationMode.VIDEO
+    }
+
+    fun setRotationMode(context: Context, mode: RotationMode) {
+        context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            .edit { putString("player_rotation_mode", mode.name) }
+    }
 
     fun getSubtitleSizeLevel(context: Context): Int {
         return context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)

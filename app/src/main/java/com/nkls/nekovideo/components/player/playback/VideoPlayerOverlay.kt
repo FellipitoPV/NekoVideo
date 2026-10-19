@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.media.AudioManager
 import android.net.Uri
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
@@ -55,6 +57,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +67,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -241,13 +245,39 @@ fun VideoPlayerOverlay(
     var sleepTimerEndAtMs by remember { mutableStateOf(0L) }
 
     //Controle de rotação
-    var rotationMode by remember { mutableStateOf(RotationMode.AUTO) }
+    var rotationMode by remember { mutableStateOf(SettingsManager.getRotationMode(context)) }
+    var rotationFeedbackMode by rememberSaveable { mutableStateOf<RotationMode?>(null) }
+    var lastRotationFeedbackMode by rememberSaveable { mutableStateOf(rotationMode) }
+    var rotationFeedbackTarget by rememberSaveable { mutableIntStateOf(Configuration.ORIENTATION_UNDEFINED) }
+    var rotationFeedbackVisible by remember { mutableStateOf(false) }
+    val screenOrientation = LocalConfiguration.current.orientation
     var lastValidOrientation by remember { mutableStateOf<Int?>(null) }
     var lastKnownVideoSize by remember { mutableStateOf<VideoSize?>(null) }
     var isWaitingForRotationGate by remember { mutableStateOf(false) }
     var resumeAfterRotationGate by remember { mutableStateOf(false) }
     var gatedMediaUri by remember { mutableStateOf<String?>(null) }
     var pendingAutoPlayOnReady by remember { mutableStateOf(false) }
+
+    LaunchedEffect(rotationFeedbackMode, screenOrientation, isVisible) {
+        rotationFeedbackVisible = false
+        if (!isVisible) {
+            rotationFeedbackMode = null
+            return@LaunchedEffect
+        }
+        if (rotationFeedbackMode == null) return@LaunchedEffect
+
+        // Só inicia o tempo do aviso depois da troca de orientação, se houver.
+        if (rotationFeedbackTarget != Configuration.ORIENTATION_UNDEFINED &&
+            screenOrientation != rotationFeedbackTarget
+        ) {
+            delay(1500)
+        }
+        delay(150)
+        rotationFeedbackVisible = true
+        delay(2200)
+        rotationFeedbackVisible = false
+        rotationFeedbackMode = null
+    }
 
 
     // Timer regressivo para UI (em segundos)
@@ -367,9 +397,10 @@ fun VideoPlayerOverlay(
         }
 
         val targetOrientation = when (rotationMode) {
+            RotationMode.SENSOR -> ActivityInfo.SCREEN_ORIENTATION_SENSOR
             RotationMode.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             RotationMode.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            RotationMode.AUTO -> {
+            RotationMode.VIDEO -> {
                 if (videoSize != null && videoSize.width > 0 && videoSize.height > 0) {
                     // VideoSize válido - calcular orientação
                     if (videoSize.width > videoSize.height) {
@@ -395,7 +426,7 @@ fun VideoPlayerOverlay(
     }
 
     fun applyRotationForCurrentMode(videoSize: VideoSize? = null) {
-        applyRotation(if (rotationMode == RotationMode.AUTO) videoSize else null)
+        applyRotation(if (rotationMode == RotationMode.VIDEO) videoSize else null)
     }
 
     fun usableVideoSize(videoSize: VideoSize?): VideoSize? = videoSize?.takeIf {
@@ -458,7 +489,7 @@ fun VideoPlayerOverlay(
 
     fun shouldGatePlaybackForRotation(controller: MediaController): Boolean {
         return overlayActuallyVisible &&
-            rotationMode == RotationMode.AUTO &&
+            rotationMode == RotationMode.VIDEO &&
             rotationControlEnabled &&
             !isCasting &&
             currentMediaUri(controller) != null
@@ -1430,7 +1461,7 @@ fun VideoPlayerOverlay(
                     usableVideoSize(videoSize)?.let { lastKnownVideoSize = it }
                     if (isWaitingForRotationGate) {
                         finishRotationGateIfReady(controller, videoSize)
-                    } else if (rotationMode == RotationMode.AUTO) {
+                    } else if (rotationMode == RotationMode.VIDEO) {
                         applyRotation(videoSize)
                     }
                 }
@@ -2195,8 +2226,39 @@ fun VideoPlayerOverlay(
                         },
                         rotationMode = rotationMode,
                         onRotationModeChange = { newMode ->
+                            val wasWaitingForRotation = isWaitingForRotationGate
+                            val videoSize = mediaController?.videoSize
+                            rotationFeedbackTarget = when (newMode) {
+                                RotationMode.PORTRAIT -> Configuration.ORIENTATION_PORTRAIT
+                                RotationMode.LANDSCAPE -> Configuration.ORIENTATION_LANDSCAPE
+                                RotationMode.VIDEO -> when {
+                                    videoSize == null || videoSize.width <= 0 || videoSize.height <= 0 -> Configuration.ORIENTATION_UNDEFINED
+                                    videoSize.width > videoSize.height -> Configuration.ORIENTATION_LANDSCAPE
+                                    else -> Configuration.ORIENTATION_PORTRAIT
+                                }
+                                RotationMode.SENSOR -> Configuration.ORIENTATION_UNDEFINED
+                            }
                             rotationMode = newMode
-                            applyRotationForCurrentMode(mediaController?.videoSize)
+                            SettingsManager.setRotationMode(context, newMode)
+                            lastRotationFeedbackMode = newMode
+                            rotationFeedbackMode = newMode
+                            val controller = mediaController
+                            if (controller != null) {
+                                beginRotationGateIfNeeded(controller)
+                                if (
+                                    wasWaitingForRotation &&
+                                    newMode != RotationMode.VIDEO &&
+                                    pendingAutoPlayOnReady &&
+                                    controller.playbackState == Player.STATE_READY &&
+                                    !isSeekingActive &&
+                                    !isPlaybackBlockedByDialog()
+                                ) {
+                                    pendingAutoPlayOnReady = false
+                                    controller.play()
+                                }
+                            } else {
+                                applyRotationForCurrentMode()
+                            }
                         },
                         // Legendas
                         hasSubtitles = availableSubtitles.isNotEmpty(),
@@ -2225,6 +2287,37 @@ fun VideoPlayerOverlay(
                         },
                         onSleepTimerConfirmed = {}
                     )
+                }
+
+                AnimatedVisibility(
+                    visible = rotationFeedbackVisible && !isInPiPMode,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .offset(y = 64.dp)
+                        .padding(horizontal = 16.dp),
+                    enter = fadeIn(animationSpec = tween(160)),
+                    exit = fadeOut(animationSpec = tween(160))
+                ) {
+                    val message = when (lastRotationFeedbackMode) {
+                        RotationMode.VIDEO -> R.string.player_rotation_feedback_video
+                        RotationMode.SENSOR -> R.string.player_rotation_feedback_sensor
+                        RotationMode.PORTRAIT -> R.string.player_rotation_feedback_portrait
+                        RotationMode.LANDSCAPE -> R.string.player_rotation_feedback_landscape
+                    }
+                    Box(
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.82f), RoundedCornerShape(16.dp))
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(message),
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
 
                 AnimatedVisibility(

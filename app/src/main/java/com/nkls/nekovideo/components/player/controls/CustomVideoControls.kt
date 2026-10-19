@@ -50,6 +50,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.CastConnected
 import androidx.compose.material.icons.filled.Delete
@@ -798,16 +799,18 @@ fun CustomVideoControls(
                             if (!isCasting) {
                                 // Rotação
                                 val (rotIcon, rotDesc, rotActive) = when (rotationMode) {
-                                    RotationMode.AUTO -> Triple(Icons.Default.ScreenRotation, stringResource(R.string.player_rotation_auto), false)
+                                    RotationMode.VIDEO -> Triple(Icons.Default.AspectRatio, stringResource(R.string.player_rotation_video), false)
+                                    RotationMode.SENSOR -> Triple(Icons.Default.ScreenRotation, stringResource(R.string.player_rotation_sensor), true)
                                     RotationMode.PORTRAIT -> Triple(Icons.Default.StayCurrentPortrait, stringResource(R.string.player_rotation_portrait), true)
                                     RotationMode.LANDSCAPE -> Triple(Icons.Default.StayCurrentLandscape, stringResource(R.string.player_rotation_landscape), true)
                                 }
                                 IconButton(
                                     onClick = {
                                         val nextMode = when (rotationMode) {
-                                            RotationMode.AUTO -> RotationMode.PORTRAIT
+                                            RotationMode.VIDEO -> RotationMode.SENSOR
+                                            RotationMode.SENSOR -> RotationMode.PORTRAIT
                                             RotationMode.PORTRAIT -> RotationMode.LANDSCAPE
-                                            RotationMode.LANDSCAPE -> RotationMode.AUTO
+                                            RotationMode.LANDSCAPE -> RotationMode.VIDEO
                                         }
                                         onRotationModeChange(nextMode)
                                         resetUITimer()
