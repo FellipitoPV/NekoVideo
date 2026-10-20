@@ -1,0 +1,5 @@
+El reproductor ofrece cuatro modos de orientación: seguir el vídeo, seguir el giro del dispositivo, vertical fijo y horizontal fijo. La elección se guarda y un aviso explica cada cambio.
+
+Cast/DLNA detecta receptores no disponibles y vuelve a la reproducción local pausada en la última posición conocida. Los dispositivos aparecen durante la búsqueda.
+
+El orden elegido para los vídeos de las carpetas se conserva al volver de ajustes o abrir de nuevo la app.

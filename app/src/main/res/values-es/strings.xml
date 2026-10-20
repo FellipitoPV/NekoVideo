@@ -209,17 +209,15 @@
     <string name="settings_changelog_desc">Ve qué cambió y cómo usar las novedades</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Novedades de v%1$s</string>
+    <string name="changelog_rotation_title">Nuevos modos de rotación</string>
+    <string name="changelog_rotation_desc">Toca el botón de rotación del reproductor para cambiar entre estos modos. Tu elección se guarda:</string>
     <string-array name="changelog_item_titles">
-        <item>Controles completos para Cast</item>
-        <item>Búsqueda más precisa</item>
-        <item>Progreso de Seguir viendo</item>
-        <item>Filtros y limpieza de etiquetas</item>
+        <item>Cast más fiable</item>
+        <item>Orden guardado</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Controla desde el overlay del reproductor los vídeos enviados a Cast. Al conectar se conservan el vídeo, la lista y la posición; al desconectar, la reproducción local queda pausada.</item>
-        <item>Previsualiza miniaturas al buscar en Cast, también en vídeos privados. Una zona segura reduce los cambios causados por pequeños movimientos del dedo.</item>
-        <item>Consulta el progreso guardado directamente en la tarjeta Seguir viendo. El progreso también se guarda durante la reproducción por Cast.</item>
-        <item>Combina etiquetas obligatorias y opcionales al mezclar vídeos, consulta cuántos vídeos tiene cada etiqueta y elimina asociaciones de vídeos ausentes. Al importar una copia se restauran las etiquetas y asociaciones guardadas.</item>
+        <item>Si un receptor Cast deja de responder, el vídeo y la lista vuelven a la reproducción local pausada en la última posición conocida. Los dispositivos aparecen durante la búsqueda.</item>
+        <item>El orden elegido para los vídeos de las carpetas se conserva al volver de ajustes o abrir de nuevo la app.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Carpetas privadas más rápidas</string>
     <string name="changelog_pinned_folders_desc">Se corrigió un problema que podía causar bloqueos al cambiar rápidamente entre videos de carpetas privadas.</string>

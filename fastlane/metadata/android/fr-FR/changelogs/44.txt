@@ -1,0 +1,5 @@
+Le lecteur propose quatre modes d'orientation : selon la vidéo, selon la rotation de l'appareil, portrait fixe et paysage fixe. Le choix est enregistré et un message explique chaque changement.
+
+Cast/DLNA détecte les récepteurs indisponibles et reprend la lecture locale en pause à la dernière position connue. Les appareils trouvés apparaissent pendant la recherche.
+
+Le tri choisi pour les vidéos des dossiers reste en place après un retour des paramètres ou une réouverture de l'app.

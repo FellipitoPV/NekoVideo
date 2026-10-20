@@ -1,0 +1,319 @@
+How to Update - NekoVideo release checklist
+
+Objetivo
+
+Este arquivo documenta o fluxo completo para preparar uma nova versao do NekoVideo usando as anotacoes em:
+
+changelog-notes/UpdateNotes.txt
+
+Use este guia quando for preparar uma nova versao do app, incluindo aumento de versao, changelogs da Play Store/Fastlane, changelog interno do app, commit, push e tag.
+
+
+1. Ler as anotacoes da atualizacao
+
+Arquivo base:
+
+changelog-notes/UpdateNotes.txt
+
+Esse arquivo deve conter as mudancas importantes da proxima versao em formato livre. Antes de editar qualquer coisa, leia as anotacoes e transforme o conteudo em textos curtos para usuario final.
+
+Priorize:
+
+- Novas funcionalidades relevantes.
+- Melhorias visiveis ao usuario.
+- Correcoes de comportamento.
+- Mudancas que afetam configuracoes, player, Cast/DLNA, privacidade, organizacao ou interface.
+
+Evite:
+
+- Detalhes internos de implementacao.
+- Texto muito tecnico.
+- Listas longas demais para a F-droid.
+
+
+2. Atualizar a versao do app
+
+Arquivo:
+
+app/build.gradle.kts
+
+Campos:
+
+versionCode = N
+versionName = "X.Y.Z"
+
+Regras:
+
+- Sempre incremente o versionCode em +1 para cada release enviado.
+- Atualize o versionName conforme o tamanho da atualizacao.
+- Patch pequeno: X.Y.Z -> X.Y.(Z+1)
+- Mudancas relevantes: X.Y.Z -> X.(Y+1).0
+- Mudanca grande ou breaking change: X.Y.Z -> (X+1).0.0
+
+Exemplo usado na 1.4.0:
+
+versionCode = 38
+versionName = "1.4.0"
+
+
+3. Criar changelogs Fastlane da F-droid.
+
+Pasta base:
+
+fastlane/metadata/android
+
+Cada idioma tem uma pasta com changelogs por versionCode:
+
+fastlane/metadata/android/<locale>/changelogs/<versionCode>.txt
+
+Locales usados atualmente:
+
+- de-DE
+- en-US
+- es-ES
+- fr-FR
+- hi-IN
+- pt-BR
+- ru-RU
+- zh-CN
+- zh-TW
+
+Para uma versao com versionCode 38, criar:
+
+- fastlane/metadata/android/de-DE/changelogs/38.txt
+- fastlane/metadata/android/en-US/changelogs/38.txt
+- fastlane/metadata/android/es-ES/changelogs/38.txt
+- fastlane/metadata/android/fr-FR/changelogs/38.txt
+- fastlane/metadata/android/hi-IN/changelogs/38.txt
+- fastlane/metadata/android/pt-BR/changelogs/38.txt
+- fastlane/metadata/android/ru-RU/changelogs/38.txt
+- fastlane/metadata/android/zh-CN/changelogs/38.txt
+- fastlane/metadata/android/zh-TW/changelogs/38.txt
+
+Padrao de texto Fastlane:
+
+- Curto.
+- Normalmente 3 blocos separados por linha em branco.
+- Foco em usuario final.
+- Sem Markdown pesado.
+- Nao precisa listar tudo; resuma as mudancas principais.
+
+Exemplo de estrutura:
+
+Melhorado o seletor de legendas e audio no player, com layout ajustado e comportamento mais previsivel.
+
+Continue Watching agora tem controles de duracao mais praticos e limite expandido.
+
+Melhorias no Cast/DLNA, avisos de faixas/legendas, areas seguras e acoes da interface.
+
+
+4. Atualizar changelog interno do app
+
+O changelog acessado dentro do app usa strings Android localizadas. Cards comuns sao montados a partir de arrays; cards com icones podem ser definidos na tela.
+
+Arquivos:
+
+- app/src/main/res/values/strings.xml
+- app/src/main/res/values-en/strings.xml
+- app/src/main/res/values-es/strings.xml
+- app/src/main/res/values-de/strings.xml
+- app/src/main/res/values-fr/strings.xml
+- app/src/main/res/values-hi/strings.xml
+- app/src/main/res/values-ru/strings.xml
+- app/src/main/res/values-zh-rCN/strings.xml
+- app/src/main/res/values-zh-rTW/strings.xml
+
+Tela que usa esses arrays:
+
+app/src/main/java/com/nkls/nekovideo/components/settings/SettingsScreen.kt
+
+Componente:
+
+ChangelogSettingsScreen()
+
+Strings/arrays usados na tela:
+
+- changelog_latest_title
+- changelog_item_titles
+- changelog_item_descriptions
+- changelog_rotation_title e changelog_rotation_desc (card de rotacao com icones)
+- player_rotation_feedback_* (textos ao lado dos icones de rotacao)
+
+Observacoes importantes:
+
+- changelog_item_titles contem os titulos dos cards.
+- changelog_item_descriptions contem as descricoes dos cards.
+- A quantidade de cards exibida vem automaticamente da combinacao desses arrays.
+- Mantenha os dois arrays com a mesma quantidade de itens em todos os idiomas.
+- Para adicionar ou remover cards comuns, edite os arrays nos arquivos strings.xml.
+- Para cards com icones e linhas especiais, atualize ChangelogSettingsScreen()/ChangelogCard() e as strings localizadas correspondentes.
+- O card de rotacao usa os mesmos icones e textos de feedback dos controles do player; revise-o se os modos de rotacao mudarem.
+- A tela usa zip entre titulos e descricoes; se um array tiver menos itens que o outro, os itens extras do maior array nao aparecem.
+- Algumas strings antigas de changelog podem continuar existindo por compatibilidade, mas nao devem ser usadas para novas versoes.
+
+Padrao do changelog interno:
+
+- Mais detalhado que o changelog Fastlane.
+- Cada item dos arrays deve ter titulo curto e descricao objetiva.
+- Atualizar todos os idiomas suportados.
+- Manter o texto amigavel para usuario final.
+- Evitar mencionar contribuidores antigos se a versao atual nao tiver creditos especificos.
+
+Cuidados com XML strings:
+
+- Escape apostrofos quando necessario: \'
+- Use &amp; no lugar de &.
+- Evite caracteres XML problematicos sem escape.
+- Depois de editar, rode build para validar resources.
+
+
+5. Atualizar README
+
+Arquivo:
+
+README.md
+
+Revisar se a nova versao adicionou, removeu ou alterou algo que aparece no README.
+
+Verificar especialmente:
+
+- Highlights e lista de recursos principais.
+- Secoes de Playback, Settings, Tags, Private Folders, DLNA e requisitos.
+- Versao atual em "Current app version in the project".
+- Informacoes repetidas, antigas ou redundantes.
+
+Nao precisa reescrever tudo a cada release. Atualize apenas pontos que ficaram desatualizados ou que omitiram uma novidade relevante.
+
+
+6. Validar a build
+
+Comando recomendado:
+
+.\gradlew.bat :app:assembleDebug
+
+Resultado esperado:
+
+BUILD SUCCESSFUL
+
+Se falhar:
+
+- Verifique erros de XML em strings.
+- Verifique apostrofos nao escapados.
+- Verifique & sem escape.
+- Verifique se todas as strings existem em todos os idiomas quando necessario.
+
+
+7. Revisar antes do commit
+
+Comandos:
+
+git status --short
+git diff
+git log --oneline -10
+
+Confirmar que entram apenas arquivos esperados, normalmente:
+
+- app/build.gradle.kts
+- fastlane/metadata/android/<locale>/changelogs/<versionCode>.txt
+- app/src/main/res/values*/strings.xml
+- app/src/main/java/com/nkls/nekovideo/components/settings/SettingsScreen.kt, se houver card especial
+- changelog-notes/UpdateNotes.txt, quando as anotacoes tambem forem atualizadas
+- README.md, se a release mudou informacoes publicas do app
+
+
+8. Commit e push
+
+Sugestao de commits:
+
+Se versionamento e changelogs Fastlane forem feitos juntos:
+
+git add -- app/build.gradle.kts fastlane/metadata/android
+git commit -m "feat: prepare X.Y.Z release"
+
+Se changelog interno for feito separado:
+
+git add -- app/src/main/res/values/strings.xml app/src/main/res/values-en/strings.xml app/src/main/res/values-es/strings.xml app/src/main/res/values-de/strings.xml app/src/main/res/values-fr/strings.xml app/src/main/res/values-hi/strings.xml app/src/main/res/values-ru/strings.xml app/src/main/res/values-zh-rCN/strings.xml app/src/main/res/values-zh-rTW/strings.xml
+git commit -m "docs: update in-app changelog for X.Y.Z"
+
+Se README for atualizado separado:
+
+git add -- README.md
+git commit -m "docs: update README for X.Y.Z"
+
+Depois:
+
+git push
+
+
+9. Criar e enviar a tag
+
+Padrao de tags do projeto:
+
+vX.Y.Z
+
+Exemplo:
+
+git tag v1.4.0
+git push origin v1.4.0
+
+Antes de criar a tag, confirmar que:
+
+- A build passou.
+- O commit final ja foi enviado.
+- Nao falta atualizar changelog interno.
+- Nao falta atualizar changelog Fastlane.
+- Nao falta atualizar README, quando aplicavel.
+- git status --short esta limpo.
+
+Para conferir:
+
+git tag --points-at HEAD
+
+
+10. Cancelar/remover tag se necessario
+
+Se a tag foi criada cedo demais e ainda falta algum ajuste:
+
+git tag -d vX.Y.Z
+git push origin :refs/tags/vX.Y.Z
+
+Depois faca os ajustes, commit, push e recrie a tag no commit final.
+
+
+11. Texto para GitHub Release ou publicacao manual
+
+Quando precisar de titulo e descricao mais completos, use este padrao:
+
+Titulo:
+
+NekoVideo X.Y.Z - Short Feature Summary
+
+Corpo:
+
+### Features
+- Item de recurso novo
+
+### Improvements
+- Item de melhoria
+
+### Fixes
+- Item de correcao
+
+### Localization
+- Item de idioma/metadados, se aplicavel
+
+### Credits
+- Creditos, se aplicavel
+
+Nem todas as secoes sao obrigatorias. Use apenas as que fazem sentido para a versao.
+
+
+12. Checklist rapido para pedir ao assistente
+
+Na proxima versao, basta dizer algo como:
+
+Leia changelog-notes/HowToUpdate.txt e changelog-notes/UpdateNotes.txt. Prepare a nova versao X.Y.Z seguindo o guia: atualize versionCode/versionName, crie os changelogs Fastlane em todos os idiomas, atualize o changelog interno do app em todos os idiomas, revise/atualize o README, rode assembleDebug, faca commit/push e crie a tag vX.Y.Z somente depois de tudo validado.
+
+Se ainda nao quiser tag, diga explicitamente:
+
+Faca tudo, commit e push, mas nao crie a tag ainda.

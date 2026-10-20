@@ -214,17 +214,15 @@
     <string name="settings_changelog_desc">Veja o que mudou e como usar as novidades</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Novidades da v%1$s</string>
+    <string name="changelog_rotation_title">Novos modos de rotação</string>
+    <string name="changelog_rotation_desc">Toque no botão de rotação do player para alternar entre estes modos. Sua escolha fica salva:</string>
     <string-array name="changelog_item_titles">
-        <item>Controles completos para Cast</item>
-        <item>Busca mais precisa na timeline</item>
-        <item>Progresso em Continue Assistindo</item>
-        <item>Filtros e organização de tags</item>
+        <item>Cast mais confiável</item>
+        <item>Ordenação lembrada</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Controle vídeos enviados ao Cast pelo overlay do player. Ao conectar, vídeo e playlist continuam da posição atual; ao desconectar, o vídeo local fica pausado.</item>
-        <item>Veja thumbnails ao buscar na timeline do Cast, inclusive em vídeos privados. A zona segura reduz mudanças causadas por pequenas oscilações do dedo.</item>
-        <item>Veja o progresso salvo diretamente no card de Continue Assistindo. O histórico também é atualizado durante a reprodução via Cast.</item>
-        <item>Combine tags obrigatórias e opcionais no shuffle, veja quantos vídeos cada tag possui e remova associações de vídeos ausentes. A importação de backups restaura as tags e associações salvas.</item>
+        <item>Se um receptor Cast deixar de responder, o vídeo e a playlist voltam à reprodução local pausada na última posição conhecida. Os dispositivos encontrados aparecem durante a busca.</item>
+        <item>A ordem escolhida para os vídeos nas pastas é mantida ao voltar das configurações e ao reabrir o app.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Pastas privadas mais rápidas</string>
     <string name="changelog_pinned_folders_desc">Corrigido um problema que podia causar travamentos ao trocar rapidamente entre vídeos de pastas privadas.</string>

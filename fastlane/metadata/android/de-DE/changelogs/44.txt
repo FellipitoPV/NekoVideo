@@ -1,0 +1,5 @@
+Der Player bietet vier Ausrichtungsmodi: nach Video, nach Gerätedrehung, festes Hochformat und festes Querformat. Die Auswahl wird gespeichert und ein Hinweis erklärt jeden Wechsel.
+
+Cast/DLNA erkennt nicht mehr erreichbare Empfänger und kehrt an der letzten bekannten Position zur pausierten lokalen Wiedergabe zurück. Gefundene Geräte erscheinen schon während der Suche.
+
+Die gewählte Sortierung der Videos in Ordnern bleibt nach den Einstellungen und beim erneuten Öffnen der App erhalten.

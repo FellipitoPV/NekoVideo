@@ -209,17 +209,15 @@
     <string name="settings_changelog_desc">Voir les changements et comment utiliser les nouveautés</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Nouveautés de la v%1$s</string>
+    <string name="changelog_rotation_title">Nouveaux modes de rotation</string>
+    <string name="changelog_rotation_desc">Touchez le bouton de rotation du lecteur pour choisir un de ces modes. Votre choix est enregistré :</string>
     <string-array name="changelog_item_titles">
-        <item>Commandes Cast complètes</item>
-        <item>Recherche plus précise</item>
-        <item>Progression de Reprendre la lecture</item>
-        <item>Filtres et gestion des tags</item>
+        <item>Cast plus fiable</item>
+        <item>Tri mémorisé</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Contrôlez les vidéos envoyées vers Cast depuis le lecteur. La connexion conserve la vidéo, la playlist et la position ; après déconnexion, la lecture locale reste en pause.</item>
-        <item>Prévisualisez des miniatures pendant la recherche sur Cast, y compris pour les vidéos privées. Une zone de sécurité limite les changements dus aux petits mouvements du doigt.</item>
-        <item>Consultez la progression enregistrée directement sur la carte Reprendre la lecture. La progression est aussi sauvegardée pendant la lecture via Cast.</item>
-        <item>Combinez des tags obligatoires et facultatifs pour le shuffle, voyez le nombre de vidéos par tag et supprimez les associations manquantes. Importer une sauvegarde restaure les tags et associations enregistrés.</item>
+        <item>Si un récepteur Cast ne répond plus, la vidéo et la playlist reviennent en lecture locale en pause à la dernière position connue. Les appareils trouvés apparaissent pendant la recherche.</item>
+        <item>Le tri choisi pour les vidéos des dossiers reste en place après un retour des paramètres ou une réouverture de l\'app.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Dossiers privés plus rapides</string>
     <string name="changelog_pinned_folders_desc">Correction d\'un problème pouvant provoquer des blocages lors du passage rapide entre des vidéos de dossiers privés.</string>

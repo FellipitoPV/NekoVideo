@@ -32,7 +32,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Supports common formats such as `mp4`, `mkv`, `webm`, `avi`, `mov`, `wmv`, `m4v`, `3gp`, and `flv`
 - Generates thumbnails and caches them in memory and on disk
 - Lets you search items inside the current folder
-- Supports sorting by name, date, and file size
+- Supports sorting by name, date, and file size, and remembers the selected order
 - Can show video duration and file size in the grid/list
 - Allows pinning up to 10 folders for quick access from the home screen
 - Allows creating folders, renaming items, moving items, deleting items, and sharing videos
@@ -53,7 +53,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Pinch-to-zoom during playback, with panning while zoomed and a quick reset to 100%
 - Audio track and subtitle track selection
 - External subtitle file selection and subtitle size adjustment
-- Automatic orientation behavior based on the video
+- Player orientation can follow the video or device rotation, or stay fixed in portrait or landscape; the selected mode is remembered
 - Background playback through `MediaSessionService`, configurable in settings
 - Media notification and lock-screen controls
 - Persistent mini player while browsing the app
@@ -82,6 +82,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Supports playlist casting, next/previous navigation, and playback state polling
 - Controls Cast playback from the player overlay, with timeline seeking and thumbnail previews
 - Transfers the active video, playlist, and position when connecting; playback remains paused locally after disconnect
+- Detects unavailable receivers and returns to paused local playback at the last known position
 - Works without Google Cast SDK or closed-source casting dependencies
 
 ### Tags
@@ -168,7 +169,7 @@ Project info:
 
 - `minSdk = 30`
 - `targetSdk = 36`
-- Current app version in the project: `1.8.0`
+- Current app version in the project: `1.9.0`
 
 ## License
 

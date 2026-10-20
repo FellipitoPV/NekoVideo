@@ -119,6 +119,8 @@ import java.util.concurrent.TimeUnit
 
 enum class SortType { NAME_ASC, NAME_DESC, DATE_NEWEST, DATE_OLDEST, SIZE_LARGEST, SIZE_SMALLEST }
 
+private const val SORT_TYPE_PREFERENCE_KEY = "folder_sort_type"
+
 @Composable
 fun PermissionRequestScreen() {
     val context = LocalContext.current
@@ -1183,20 +1185,27 @@ fun FolderScreen(
     // Cache de items por pasta para evitar flicker durante transições
     var itemsByPath by remember { mutableStateOf<Map<String, List<MediaItem>>>(emptyMap()) }
     var loadingPaths by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var sortType by remember { mutableStateOf(SortType.NAME_ASC) }
+    val displayPrefs = remember(context) { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
+    var sortType by remember(displayPrefs) {
+        val savedSort = displayPrefs.getString(SORT_TYPE_PREFERENCE_KEY, null)
+        mutableStateOf(SortType.entries.firstOrNull { it.name == savedSort } ?: SortType.NAME_ASC)
+    }
 
     // Items da pasta atual (para compatibilidade com indicador de scan)
     val items = itemsByPath[folderPath] ?: emptyList()
 
     val scannerCache by FolderVideoScanner.cache.collectAsState()
     val isScanning by FolderVideoScanner.isScanning.collectAsState()
-    val displayPrefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
     var showDurations by remember { mutableStateOf(displayPrefs.getBoolean("show_durations", true)) }
     var showFileSizes by remember { mutableStateOf(displayPrefs.getBoolean("show_file_sizes", false)) }
 
     DisposableEffect(displayPrefs) {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             when (key) {
+                SORT_TYPE_PREFERENCE_KEY -> {
+                    val savedSort = displayPrefs.getString(key, null)
+                    sortType = SortType.entries.firstOrNull { it.name == savedSort } ?: SortType.NAME_ASC
+                }
                 "show_durations" -> showDurations = displayPrefs.getBoolean(key, true)
                 "show_file_sizes" -> showFileSizes = displayPrefs.getBoolean(key, false)
             }
@@ -1380,7 +1389,10 @@ fun FolderScreen(
             Column(modifier = Modifier.fillMaxSize()) {
                 SortRow(
                     currentSort = sortType,
-                    onSortChange = { sortType = it },
+                    onSortChange = { selectedSort ->
+                        sortType = selectedSort
+                        displayPrefs.edit().putString(SORT_TYPE_PREFERENCE_KEY, selectedSort.name).apply()
+                    },
                     isRefreshing = isScanning,
                     onRefresh = { performRefresh() },
                     searchQuery = searchQuery,

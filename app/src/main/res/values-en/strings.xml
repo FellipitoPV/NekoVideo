@@ -209,17 +209,15 @@
     <string name="settings_changelog_desc">See what changed and how to use the new features</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">What\'s new in v%1$s</string>
+    <string name="changelog_rotation_title">New rotation modes</string>
+    <string name="changelog_rotation_desc">Tap the rotation button in the player to switch between these modes. Your choice is saved:</string>
     <string-array name="changelog_item_titles">
-        <item>Full Cast controls</item>
-        <item>More precise timeline seeking</item>
-        <item>Continue Watching progress</item>
-        <item>Tag filters and cleanup</item>
+        <item>More reliable Cast</item>
+        <item>Sorting remembered</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Control videos sent to Cast from the player overlay. Connecting keeps the current video, playlist, and position; disconnecting leaves local playback paused.</item>
-        <item>Preview thumbnails while seeking on Cast, including private videos. A safe zone reduces position changes caused by small finger movements.</item>
-        <item>See saved progress directly on the Continue Watching card. Playback progress is also saved while casting.</item>
-        <item>Combine required and optional tags when shuffling, see video counts per tag, and remove associations for missing videos. Importing a backup restores its saved tags and associations.</item>
+        <item>If a Cast receiver stops responding, the video and playlist return to paused local playback at the last known position. Found devices appear while discovery continues.</item>
+        <item>Your selected video order in folders is kept when you return from settings or reopen the app.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Faster private folders</string>
     <string name="changelog_pinned_folders_desc">Fixed an issue that could cause stutters when quickly switching between videos in private folders.</string>

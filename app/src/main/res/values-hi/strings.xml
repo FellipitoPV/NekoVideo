@@ -209,17 +209,15 @@
     <string name="settings_changelog_desc">देखें क्या बदला और नई सुविधाओं का उपयोग कैसे करें</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">v%1$s में नया</string>
+    <string name="changelog_rotation_title">नए रोटेशन मोड</string>
+    <string name="changelog_rotation_desc">इन मोड के बीच बदलने के लिए प्लेयर में रोटेशन बटन दबाएँ। आपका चुना हुआ मोड सहेजा जाता है:</string>
     <string-array name="changelog_item_titles">
-        <item>Cast के लिए पूरे नियंत्रण</item>
-        <item>टाइमलाइन पर सटीक खोज</item>
-        <item>Continue Watching प्रगति</item>
-        <item>टैग फ़िल्टर और सफ़ाई</item>
+        <item>अधिक भरोसेमंद Cast</item>
+        <item>चुना हुआ क्रम याद रहता है</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>प्लेयर overlay से Cast पर भेजे गए वीडियो नियंत्रित करें। कनेक्ट करने पर वीडियो, प्लेलिस्ट और मौजूदा स्थान बना रहता है; डिस्कनेक्ट करने पर स्थानीय वीडियो रुका रहता है।</item>
-        <item>Cast की टाइमलाइन पर खोजते समय thumbnails देखें, निजी वीडियो में भी। सुरक्षित क्षेत्र उंगली की छोटी हलचल से स्थान बदलने से रोकता है।</item>
-        <item>Continue Watching कार्ड पर सेव की गई प्रगति देखें। Cast पर देखते समय भी प्लेबैक की प्रगति सेव होती है।</item>
-        <item>Shuffle में ज़रूरी और वैकल्पिक टैग मिलाएँ, हर टैग के वीडियो की संख्या देखें और गायब वीडियो के संबंध हटाएँ। बैकअप आयात करने पर सेव किए गए टैग और संबंध वापस आते हैं।</item>
+        <item>Cast रिसीवर जवाब न दे तो वीडियो और प्लेलिस्ट पिछली ज्ञात स्थिति पर स्थानीय प्लेबैक में रुके हुए लौट आते हैं। मिले हुए डिवाइस खोज जारी रहने पर भी दिखाई देते हैं।</item>
+        <item>फ़ोल्डर में वीडियो के लिए चुना गया क्रम सेटिंग्स से लौटने या ऐप दोबारा खोलने पर भी बना रहता है।</item>
     </string-array>
     <string name="changelog_pinned_folders_title">तेज़ private folders</string>
     <string name="changelog_pinned_folders_desc">Private folders में videos को जल्दी-जल्दी बदलने पर होने वाली रुकावट की समस्या ठीक की गई।</string>

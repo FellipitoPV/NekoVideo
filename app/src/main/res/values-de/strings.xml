@@ -209,17 +209,15 @@
     <string name="settings_changelog_desc">Sieh, was sich geändert hat und wie du die Neuerungen nutzt</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_latest_title">Neu in v%1$s</string>
+    <string name="changelog_rotation_title">Neue Ausrichtungsmodi</string>
+    <string name="changelog_rotation_desc">Tippe im Player auf die Schaltfläche für die Ausrichtung, um zwischen diesen Modi zu wechseln. Deine Auswahl wird gespeichert:</string>
     <string-array name="changelog_item_titles">
-        <item>Volle Cast-Steuerung</item>
-        <item>Präziseres Spulen</item>
-        <item>Fortschritt bei Weiter ansehen</item>
-        <item>Tag-Filter und Bereinigung</item>
+        <item>Zuverlässigeres Cast</item>
+        <item>Sortierung bleibt erhalten</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Steuere Cast-Videos über das Player-Overlay. Beim Verbinden bleiben Video, Playlist und Position erhalten; nach dem Trennen bleibt die lokale Wiedergabe pausiert.</item>
-        <item>Sieh Vorschaubilder beim Spulen auf Cast, auch bei privaten Videos. Eine Sicherheitszone reduziert Positionsänderungen durch kleine Fingerbewegungen.</item>
-        <item>Der gespeicherte Fortschritt wird direkt auf der Karte Weiter ansehen angezeigt. Der Verlauf wird auch während der Wiedergabe per Cast gespeichert.</item>
-        <item>Kombiniere erforderliche und optionale Tags beim Shuffle, sieh die Videoanzahl pro Tag und entferne Zuordnungen zu fehlenden Videos. Ein Backup stellt gespeicherte Tags und Zuordnungen wieder her.</item>
+        <item>Wenn ein Cast-Empfänger nicht mehr antwortet, kehren Video und Playlist an der letzten bekannten Position zur pausierten lokalen Wiedergabe zurück. Gefundene Geräte erscheinen schon während der Suche.</item>
+        <item>Die gewählte Sortierung der Videos in Ordnern bleibt nach den Einstellungen und beim erneuten Öffnen der App erhalten.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Schnellere private Ordner</string>
     <string name="changelog_pinned_folders_desc">Ein Problem wurde behoben, das beim schnellen Wechseln zwischen Videos in privaten Ordnern zu Rucklern führen konnte.</string>

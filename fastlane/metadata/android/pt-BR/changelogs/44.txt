@@ -1,0 +1,5 @@
+O player ganhou quatro modos de orientação: seguir o vídeo, seguir a rotação do aparelho, retrato fixo e paisagem fixa. A escolha fica salva e um aviso explica cada mudança.
+
+O Cast/DLNA agora detecta receptores indisponíveis e retorna à reprodução local pausada na última posição conhecida. Dispositivos encontrados aparecem durante a busca.
+
+A ordenação escolhida para os vídeos nas pastas continua selecionada ao voltar das configurações e ao reabrir o app.

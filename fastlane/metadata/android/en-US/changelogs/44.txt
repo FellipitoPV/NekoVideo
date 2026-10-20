@@ -1,0 +1,5 @@
+The player now has four orientation modes: follow the video, follow device rotation, fixed portrait, and fixed landscape. Your choice is saved, and a message explains each switch.
+
+Cast/DLNA now detects unavailable receivers and returns to paused local playback at the last known position. Found devices appear while discovery continues.
+
+Your selected video order in folders stays in place after returning from settings or reopening the app.

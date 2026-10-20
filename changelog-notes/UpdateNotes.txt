@@ -13,3 +13,7 @@ Anotações para próxima atualização
 - Novo modo que acompanha a rotação física do aparelho, além da orientação automática conforme o vídeo e dos modos fixos em retrato ou paisagem
 - O modo de rotação escolhido é lembrado ao fechar e abrir o app novamente
 - Ao mudar de modo, um aviso rápido abaixo dos controles de reprodução explica a orientação selecionada
+
+### Organização e novidades
+- A ordenação de vídeos escolhida nas pastas é lembrada ao voltar das configurações e ao reabrir o app
+- O changelog no app mostra os ícones e explica os quatro modos de rotação
