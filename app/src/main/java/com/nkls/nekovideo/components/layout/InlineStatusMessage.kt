@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nkls.nekovideo.components.helpers.SortRowMessage
@@ -78,7 +79,15 @@ fun InlineStatusMessage(
             }
 
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                awaitPointerEvent().changes.forEach { it.consume() }
+                            }
+                        }
+                    },
                 shape = RoundedCornerShape(16.dp),
                 color = containerColor,
                 tonalElevation = 1.dp

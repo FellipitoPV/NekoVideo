@@ -4,3 +4,9 @@ Anotações para próxima atualização
 
 ### Mover arquivos
 - Corrigida a abertura do seletor de pastas ao mover arquivos, que às vezes aparecia parcialmente e fechava ao tentar ajustá-lo.
+
+### Preview de vídeos
+- Ajustada a exibição do preview para evitar que o vídeo apareça pequeno no canto da área de reprodução.
+
+### Avisos na tela de pastas
+- Os avisos de ações agora aparecem sem deslocar a lista de vídeos, evitando toques acidentais enquanto surgem ou desaparecem.

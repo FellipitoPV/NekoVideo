@@ -1,6 +1,7 @@
 package com.nkls.nekovideo.components
 
 import android.net.Uri
+import android.view.LayoutInflater
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -32,19 +33,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.MediaItem as ExoMediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.helpers.HybridDataSourceFactory
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import kotlinx.coroutines.delay
@@ -114,7 +113,6 @@ fun FloatingVideoPreview(
                 volume = 0f
                 repeatMode = ExoPlayer.REPEAT_MODE_OFF
                 playWhenReady = false
-                videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
             }
     }
 
@@ -251,9 +249,8 @@ fun FloatingVideoPreview(
             ) {
                 AndroidView(
                     factory = { viewContext ->
-                        PlayerView(viewContext).apply {
-                            useController = false
-                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        (LayoutInflater.from(viewContext)
+                            .inflate(R.layout.view_video_preview, null) as PlayerView).apply {
                             this.player = player
                         }
                     },

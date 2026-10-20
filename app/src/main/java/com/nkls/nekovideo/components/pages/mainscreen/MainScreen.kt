@@ -1304,7 +1304,6 @@ fun MainScreen(
     Scaffold(
         topBar = {
             if (currentRoute != "video_player" && !showPlayerOverlay) {
-                val inlineMessage by SortRowMessageCenter.message.collectAsState()
                 Column {
                     TopBar(
                         currentRoute = currentRoute,
@@ -1342,12 +1341,6 @@ fun MainScreen(
                         onCastConnected = {
                             showPlayerOverlay = true
                         }
-                    )
-                    InlineStatusMessage(
-                        message = inlineMessage,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
             }
@@ -1724,6 +1717,18 @@ fun MainScreen(
                 composable("settings/security") {
                     SecuritySettingsScreen()
                 }
+            }
+
+            // Overlay the message so its animation does not move the folder list.
+            if (currentRoute != "video_player" && !showPlayerOverlay) {
+                val inlineMessage by SortRowMessageCenter.message.collectAsState()
+                InlineStatusMessage(
+                    message = inlineMessage,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                )
             }
         }
 
