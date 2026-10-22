@@ -146,6 +146,9 @@ interface VideoTagDao {
     @Query("SELECT DISTINCT videoPath FROM video_tag_refs")
     suspend fun getDistinctTaggedVideoPaths(): List<String>
 
+    @Query("SELECT DISTINCT videoPath FROM video_tag_refs WHERE videoPath IN (:videoPaths)")
+    suspend fun getTaggedVideoPaths(videoPaths: List<String>): List<String>
+
     @Query("DELETE FROM video_tag_refs WHERE videoPath IN (:videoPaths)")
     suspend fun deleteVideoTagRefsForPaths(videoPaths: List<String>): Int
 }
@@ -385,6 +388,7 @@ object VideoTagStore {
 
         getDatabase(context).videoTagDao().insertVideoTagRefs(refs)
         writeAutomaticBackupSafely(context)
+        _tagChangeEvent.value++
     }
 
     suspend fun syncCommonTagsForVideos(
@@ -419,6 +423,7 @@ object VideoTagStore {
         }
 
         writeAutomaticBackupSafely(context)
+        _tagChangeEvent.value++
     }
 
     suspend fun getVideoPathsForAnyTagIds(context: Context, tagIds: Set<Long>, scope: TagScope): Set<String> {
@@ -434,6 +439,14 @@ object VideoTagStore {
         return getDatabase(context)
             .videoTagDao()
             .getVideoPathsForAllTagIds(tagIds.toList(), tagIds.size, scope)
+            .toSet()
+    }
+
+    suspend fun getTaggedVideoPaths(context: Context, videoPaths: List<String>): Set<String> {
+        if (videoPaths.isEmpty()) return emptySet()
+        val dao = getDatabase(context).videoTagDao()
+        return videoPaths.distinct().chunked(500)
+            .flatMap { dao.getTaggedVideoPaths(it) }
             .toSet()
     }
 

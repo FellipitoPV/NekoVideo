@@ -719,7 +719,9 @@ fun SortRow(
     searchQuery: String = "",
     isSearchExpanded: Boolean = false,
     onSearchQueryChange: (String) -> Unit = {},
-    onSearchExpandChange: (Boolean) -> Unit = {}
+    onSearchExpandChange: (Boolean) -> Unit = {},
+    showUntaggedOnly: Boolean = false,
+    onUntaggedOnlyChange: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
@@ -968,7 +970,7 @@ fun SortRow(
                         }
                     }
                 } else {
-                    // Modo normal: chip de sort + botão de busca
+                    // Modo normal: ordenação e filtro no menu, busca ao lado
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -978,8 +980,11 @@ fun SortRow(
                             Surface(
                                 onClick = { showDropdown = true },
                                 shape = RoundedCornerShape(50),
-                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
+                                color = if (showUntaggedOnly) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
                             ) {
+                                val chipContentColor = if (showUntaggedOnly) MaterialTheme.colorScheme.onPrimaryContainer
+                                    else MaterialTheme.colorScheme.onSecondaryContainer
                                 Row(
                                     modifier = Modifier.padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -989,7 +994,7 @@ fun SortRow(
                                         Icons.Default.Sort,
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                        tint = chipContentColor
                                     )
                                     Text(
                                         text = when (currentSort) {
@@ -1001,13 +1006,21 @@ fun SortRow(
                                             SortType.SIZE_SMALLEST -> stringResource(R.string.sort_size_smallest)
                                         },
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        color = chipContentColor
                                     )
+                                    if (showUntaggedOnly) {
+                                        Icon(
+                                            Icons.Default.FilterAlt,
+                                            contentDescription = stringResource(R.string.filter_no_tags),
+                                            modifier = Modifier.size(16.dp),
+                                            tint = chipContentColor
+                                        )
+                                    }
                                     Icon(
                                         Icons.Default.ArrowDropDown,
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                        tint = chipContentColor
                                     )
                                 }
                             }
@@ -1038,6 +1051,19 @@ fun SortRow(
                                         } else null
                                     )
                                 }
+                                HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.filter_no_tags)) },
+                                    onClick = {
+                                        onUntaggedOnlyChange(!showUntaggedOnly)
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.FilterAlt, contentDescription = null)
+                                    },
+                                    trailingIcon = if (showUntaggedOnly) {
+                                        { Icon(Icons.Default.Check, contentDescription = null) }
+                                    } else null
+                                )
                             }
                         }
                         IconButton(onClick = { onSearchExpandChange(true) }) {
@@ -1216,6 +1242,7 @@ fun FolderScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var isSearchExpanded by remember { mutableStateOf(false) }
+    var showUntaggedOnly by rememberSaveable { mutableStateOf(false) }
     var previewingPath by remember(folderPath) { mutableStateOf<String?>(null) }
     var previousShowPrivateFolders by remember { mutableStateOf(showPrivateFolders) }
     var pendingPrivateFolderReveal by remember(folderPath) { mutableStateOf(false) }
@@ -1308,20 +1335,28 @@ fun FolderScreen(
     }
 
     // Carrega items para a pasta atual e mantém cache das anteriores
-    LaunchedEffect(folderPath, sortType, renameTrigger, isSecureMode, showPrivateFolders, scannerCache, searchQuery, pinnedFolders, storageVolumesVersion) {
+    LaunchedEffect(folderPath, sortType, renameTrigger, isSecureMode, showPrivateFolders, scannerCache, searchQuery, pinnedFolders, storageVolumesVersion, showUntaggedOnly, if (showUntaggedOnly) tagChangeEvent else 0L) {
         // Marca esta pasta como carregando
         loadingPaths = loadingPaths + folderPath
 
         val loadedItems = withContext(Dispatchers.IO) {
             val allItems = loadFolderContent(context, folderPath, sortType, isSecureMode, isRootLevel, showPrivateFolders)
 
-            // Filtro de busca
-            if (searchQuery.isNotEmpty()) {
+            val searchedItems = if (searchQuery.isNotEmpty()) {
                 allItems.filter { item ->
                     item.name.contains(searchQuery, ignoreCase = true)
                 }
             } else {
                 allItems
+            }
+            if (showUntaggedOnly) {
+                val taggedPaths = VideoTagStore.getTaggedVideoPaths(
+                    context,
+                    searchedItems.filterNot { it.isFolder }.map { it.path }
+                )
+                searchedItems.filter { it.isFolder || it.path !in taggedPaths }
+            } else {
+                searchedItems
             }
         }
 
@@ -1398,7 +1433,9 @@ fun FolderScreen(
                     searchQuery = searchQuery,
                     isSearchExpanded = isSearchExpanded,
                     onSearchQueryChange = { searchQuery = it },
-                    onSearchExpandChange = { isSearchExpanded = it }
+                    onSearchExpandChange = { isSearchExpanded = it },
+                    showUntaggedOnly = showUntaggedOnly,
+                    onUntaggedOnlyChange = { showUntaggedOnly = it }
                 )
 
                 // AnimatedContent para transição suave entre pastas
@@ -1562,18 +1599,23 @@ fun FolderScreen(
                                             }
                                             Spacer(modifier = Modifier.height(24.dp))
                                             Text(
-                                                text = stringResource(R.string.empty_folder_title),
+                                                text = stringResource(
+                                                    if (showUntaggedOnly) R.string.filter_no_tags_empty
+                                                    else R.string.empty_folder_title
+                                                ),
                                                 style = MaterialTheme.typography.headlineSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 textAlign = TextAlign.Center
                                             )
-                                            Spacer(modifier = Modifier.height(12.dp))
-                                            Text(
-                                                text = stringResource(R.string.empty_folder_message),
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                                textAlign = TextAlign.Center
-                                            )
+                                            if (!showUntaggedOnly) {
+                                                Spacer(modifier = Modifier.height(12.dp))
+                                                Text(
+                                                    text = stringResource(R.string.empty_folder_message),
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                                    textAlign = TextAlign.Center
+                                                )
+                                            }
                                         }
                                     }
                                 }

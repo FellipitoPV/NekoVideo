@@ -431,6 +431,8 @@
     <string name="sort_date_oldest">पुरानी</string>
     <string name="sort_size_largest">बड़ी</string>
     <string name="sort_size_smallest">छोटी</string>
+    <string name="filter_no_tags">बिना टैग</string>
+    <string name="filter_no_tags_empty">इस फ़ोल्डर में बिना टैग वाले वीडियो नहीं हैं</string>
 
     <!-- Player Delete Dialog -->
     <string name="delete_video">वीडियो डिलीट करें</string>

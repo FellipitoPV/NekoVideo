@@ -9,4 +9,7 @@ Anotações para próxima atualização
 - Ajustada a exibição do preview para evitar que o vídeo apareça pequeno no canto da área de reprodução.
 
 ### Avisos na tela de pastas
-- Os avisos de ações agora aparecem sem deslocar a lista de vídeos, evitando toques acidentais enquanto surgem ou desaparecem.
+- Os avisos de ações aparecem sem deslocar a lista de vídeos e sem bloquear os toques nos itens abaixo.
+
+### Tags
+- Novo filtro "Sem tags" no menu de ordenação, que pode ser ligado ou desligado sem fechar o menu. Ao salvar uma tag, o vídeo sai da lista filtrada.

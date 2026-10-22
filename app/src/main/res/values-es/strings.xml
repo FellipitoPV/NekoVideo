@@ -431,6 +431,8 @@
     <string name="sort_date_oldest">Más Antiguo</string>
     <string name="sort_size_largest">Más Grande</string>
     <string name="sort_size_smallest">Más Pequeño</string>
+    <string name="filter_no_tags">Sin tags</string>
+    <string name="filter_no_tags_empty">No hay vídeos sin tags en esta carpeta</string>
 
     <!-- Player Delete Dialog -->
     <string name="delete_video">Eliminar Video</string>

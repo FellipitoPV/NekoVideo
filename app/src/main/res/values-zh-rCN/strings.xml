@@ -429,6 +429,8 @@
     <string name="sort_date_oldest">最旧</string>
     <string name="sort_size_largest">最大</string>
     <string name="sort_size_smallest">最小</string>
+    <string name="filter_no_tags">无标签</string>
+    <string name="filter_no_tags_empty">此文件夹中没有无标签视频</string>
 
     <!-- Player Delete Dialog -->
     <string name="delete_video">删除视频</string>

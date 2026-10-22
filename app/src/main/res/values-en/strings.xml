@@ -434,6 +434,8 @@
     <string name="sort_date_oldest">Oldest</string>
     <string name="sort_size_largest">Largest</string>
     <string name="sort_size_smallest">Smallest</string>
+    <string name="filter_no_tags">No tags</string>
+    <string name="filter_no_tags_empty">No untagged videos in this folder</string>
 
     <!-- Player Delete Dialog -->
     <string name="delete_video">Delete Video</string>
