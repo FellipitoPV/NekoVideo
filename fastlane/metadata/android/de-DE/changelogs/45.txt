@@ -1,0 +1,5 @@
+Schnellere Navigation in großen und privaten Ordnern. Namen werden alphabetisch sortiert, Vorschaubilder beim Erscheinen geladen.
+
+Neuer Filter Ohne Tags im Sortiermenü. Nach dem Speichern von Tags verschwinden bearbeitete Videos aus dem Filter, ohne den Ordner neu zu laden.
+
+Ordnerauswahl beim Verschieben und Videovorschau korrigiert. Hinweise verschieben die Liste nicht mehr und blockieren keine Berührungen.

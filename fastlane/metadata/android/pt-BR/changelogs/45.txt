@@ -1,0 +1,5 @@
+Navegação mais rápida em pastas grandes e privadas. Ordenação por nome agora alfabética e miniaturas carregadas conforme aparecem na tela.
+
+Novo filtro Sem tags no menu de ordenação. Ao salvar tags, os vídeos editados saem do filtro sem recarregar a pasta.
+
+Correções no seletor de pastas ao mover arquivos e no preview de vídeos. Avisos não deslocam a lista nem bloqueiam toques.

@@ -212,12 +212,20 @@
     <string name="changelog_rotation_title">Nouveaux modes de rotation</string>
     <string name="changelog_rotation_desc">Touchez le bouton de rotation du lecteur pour choisir un de ces modes. Votre choix est enregistré :</string>
     <string-array name="changelog_item_titles">
-        <item>Cast plus fiable</item>
-        <item>Tri mémorisé</item>
+        <item>Dossiers plus rapides</item>
+        <item>Filtre Sans tags</item>
+        <item>Tri alphabétique</item>
+        <item>Messages discrets</item>
+        <item>Déplacement de fichiers</item>
+        <item>Aperçu des vidéos</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Si un récepteur Cast ne répond plus, la vidéo et la playlist reviennent en lecture locale en pause à la dernière position connue. Les appareils trouvés apparaissent pendant la recherche.</item>
-        <item>Le tri choisi pour les vidéos des dossiers reste en place après un retour des paramètres ou une réouverture de l\'app.</item>
+        <item>Ouverture et navigation plus rapides dans les dossiers contenant de nombreuses vidéos, y compris au retour au dossier privé principal. Les miniatures se chargent quand les vidéos apparaissent à l’écran.</item>
+        <item>Activez ou désactivez Sans tags dans le menu de tri sans le fermer. Après l’enregistrement d’un tag, la vidéo disparaît de la liste filtrée sans recharger tout le dossier.</item>
+        <item>Le tri par nom utilise désormais l’ordre alphabétique pour réduire les calculs. Les nombres sont traités comme du texte : vidéo 10 apparaît avant vidéo 2.</item>
+        <item>Les messages d’action ne déplacent plus la liste et permettent de toucher les vidéos et les tags pendant leur affichage.</item>
+        <item>Correction du sélecteur de dossiers lors du déplacement de fichiers : il pouvait s’ouvrir partiellement et se fermer en essayant de l’ajuster.</item>
+        <item>Ajustement des aperçus, y compris dans la boîte de dialogue des tags, pour éviter que la vidéo apparaisse en petit dans un coin de la zone de lecture.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Dossiers privés plus rapides</string>
     <string name="changelog_pinned_folders_desc">Correction d\'un problème pouvant provoquer des blocages lors du passage rapide entre des vidéos de dossiers privés.</string>

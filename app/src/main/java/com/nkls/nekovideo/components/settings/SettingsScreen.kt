@@ -359,33 +359,14 @@ fun ChangelogSettingsScreen() {
             )
         }
 
-        item {
-            ChangelogCard(
-                title = stringResource(R.string.changelog_rotation_title),
-                body = stringResource(R.string.changelog_rotation_desc),
-                iconLines = listOf(
-                    ChangelogIconLine(Icons.Default.AspectRatio, stringResource(R.string.player_rotation_feedback_video)),
-                    ChangelogIconLine(Icons.Default.ScreenRotation, stringResource(R.string.player_rotation_feedback_sensor)),
-                    ChangelogIconLine(Icons.Default.StayCurrentPortrait, stringResource(R.string.player_rotation_feedback_portrait)),
-                    ChangelogIconLine(Icons.Default.StayCurrentLandscape, stringResource(R.string.player_rotation_feedback_landscape))
-                )
-            )
-        }
-
         items(changelogItems) { (title, description) ->
             ChangelogCard(title = title, body = description)
         }
     }
 }
 
-private data class ChangelogIconLine(val icon: ImageVector, val text: String)
-
 @Composable
-private fun ChangelogCard(
-    title: String,
-    body: String,
-    iconLines: List<ChangelogIconLine> = emptyList()
-) {
+private fun ChangelogCard(title: String, body: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -404,29 +385,6 @@ private fun ChangelogCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            if (iconLines.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(14.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    iconLines.forEach { line ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                imageVector = line.icon,
-                                contentDescription = null,
-                                modifier = Modifier.size(22.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = line.text,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 }

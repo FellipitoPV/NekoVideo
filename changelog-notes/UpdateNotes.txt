@@ -2,20 +2,4 @@
 
 Anotações para próxima atualização
 
-### Mover arquivos
-- Corrigida a abertura do seletor de pastas ao mover arquivos, que às vezes aparecia parcialmente e fechava ao tentar ajustá-lo.
-
-### Preview de vídeos
-- Ajustada a exibição do preview para evitar que o vídeo apareça pequeno no canto da área de reprodução.
-
-### Avisos na tela de pastas
-- Os avisos de ações aparecem sem deslocar a lista de vídeos e sem bloquear os toques nos itens abaixo.
-
-### Tags
-- Novo filtro "Sem tags" no menu de ordenação, que pode ser ligado ou desligado sem fechar o menu. Ao salvar tags, a lista atualiza apenas os vídeos editados, sem recarregar a pasta inteira.
-
-### Desempenho em pastas grandes
-- Ordenação por nome simplificada para ordem alfabética, com menos processamento ao abrir pastas com muitos vídeos.
-- Miniaturas carregadas conforme os vídeos aparecem na tela, evitando gerar todas ao entrar na pasta.
-- Reduzidas as leituras repetidas de arquivos e a concorrência com a verificação da pasta durante a abertura.
-- Otimizada a volta à pasta privada principal, reaproveitando contagens e tamanhos das subpastas que não mudaram.
+As mudanças anteriores foram incluídas na versão 1.9.1 (código 45).

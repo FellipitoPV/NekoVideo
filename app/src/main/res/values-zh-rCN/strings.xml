@@ -212,12 +212,20 @@
     <string name="changelog_rotation_title">新增屏幕旋转模式</string>
     <string name="changelog_rotation_desc">点击播放器中的旋转按钮即可切换以下模式。你的选择会被保存：</string>
     <string-array name="changelog_item_titles">
-        <item>Cast 连接更可靠</item>
-        <item>记住排序方式</item>
+        <item>文件夹浏览更流畅</item>
+        <item>无标签筛选</item>
+        <item>按字母顺序排序</item>
+        <item>提示不再干扰操作</item>
+        <item>移动文件</item>
+        <item>视频预览</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Cast 接收设备停止响应时，视频和播放列表会从上次记录的位置返回本地暂停播放。搜索仍在进行时，已找到的设备就会显示。</item>
-        <item>文件夹中选定的视频排序方式在返回设置页面或重新打开应用后仍会保留。</item>
+        <item>加快打开和浏览大量视频文件夹的速度，包括返回主私密文件夹。缩略图会在视频出现在屏幕上时加载。</item>
+        <item>在排序菜单中开启或关闭无标签筛选时，菜单不会关闭。保存标签后，视频会从筛选列表中消失，无需重新加载整个文件夹。</item>
+        <item>按名称排序现在采用字母顺序，以减少处理开销。数字按文本处理：视频 10 会排在视频 2 前面。</item>
+        <item>操作提示不再推动列表显示位置。提示显示时，仍可点击视频和标签。</item>
+        <item>修复移动文件时的文件夹选择器偶尔无法完全展开，并在尝试调整时关闭的问题。</item>
+        <item>调整了视频预览，包括标签对话框中的预览，避免视频缩小显示在播放区域的角落。</item>
     </string-array>
     <string name="changelog_pinned_folders_title">私密文件夹更快</string>
     <string name="changelog_pinned_folders_desc">修复了快速切换私密文件夹中的视频时可能出现卡顿的问题。</string>

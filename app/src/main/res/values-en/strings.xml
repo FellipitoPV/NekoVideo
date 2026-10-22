@@ -212,12 +212,20 @@
     <string name="changelog_rotation_title">New rotation modes</string>
     <string name="changelog_rotation_desc">Tap the rotation button in the player to switch between these modes. Your choice is saved:</string>
     <string-array name="changelog_item_titles">
-        <item>More reliable Cast</item>
-        <item>Sorting remembered</item>
+        <item>Faster folders</item>
+        <item>No tags filter</item>
+        <item>Alphabetical sorting</item>
+        <item>Unobtrusive messages</item>
+        <item>Moving files</item>
+        <item>Video previews</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>If a Cast receiver stops responding, the video and playlist return to paused local playback at the last known position. Found devices appear while discovery continues.</item>
-        <item>Your selected video order in folders is kept when you return from settings or reopen the app.</item>
+        <item>Open and browse folders with many videos faster, including returning to the main private folder. Thumbnails load as videos appear on screen.</item>
+        <item>Toggle No tags in the sort menu without closing it. After saving a tag, the video leaves the filtered list without reloading the entire folder.</item>
+        <item>Sorting by name now uses alphabetical order to reduce processing. Numbers are treated as text: video 10 appears before video 2.</item>
+        <item>Action messages no longer shift the list and let you tap videos and tags while they are visible.</item>
+        <item>Fixed the folder picker when moving files: it could open only partially and close when you tried to adjust it.</item>
+        <item>Adjusted previews, including in the tags dialog, to prevent videos from appearing small in the corner of the playback area.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Faster private folders</string>
     <string name="changelog_pinned_folders_desc">Fixed an issue that could cause stutters when quickly switching between videos in private folders.</string>

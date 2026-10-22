@@ -212,12 +212,20 @@
     <string name="changelog_rotation_title">Nuevos modos de rotación</string>
     <string name="changelog_rotation_desc">Toca el botón de rotación del reproductor para cambiar entre estos modos. Tu elección se guarda:</string>
     <string-array name="changelog_item_titles">
-        <item>Cast más fiable</item>
-        <item>Orden guardado</item>
+        <item>Carpetas más rápidas</item>
+        <item>Filtro Sin tags</item>
+        <item>Orden alfabético</item>
+        <item>Avisos sin interrupciones</item>
+        <item>Mover archivos</item>
+        <item>Vista previa de vídeos</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Si un receptor Cast deja de responder, el vídeo y la lista vuelven a la reproducción local pausada en la última posición conocida. Los dispositivos aparecen durante la búsqueda.</item>
-        <item>El orden elegido para los vídeos de las carpetas se conserva al volver de ajustes o abrir de nuevo la app.</item>
+        <item>Apertura y navegación más rápidas en carpetas con muchos vídeos, incluido el regreso a la carpeta privada principal. Las miniaturas se cargan a medida que los vídeos aparecen en pantalla.</item>
+        <item>Activa o desactiva Sin tags en el menú de ordenación sin cerrarlo. Al guardar un tag, el vídeo desaparece de la lista filtrada sin recargar toda la carpeta.</item>
+        <item>La ordenación por nombre ahora usa el orden alfabético para reducir el procesamiento. Los números se tratan como texto: vídeo 10 aparece antes que vídeo 2.</item>
+        <item>Los avisos de acciones ya no desplazan la lista y permiten tocar los vídeos y los tags mientras están visibles.</item>
+        <item>Corregido el selector de carpetas al mover archivos: a veces se abría parcialmente y se cerraba al intentar ajustarlo.</item>
+        <item>Ajustada la vista previa, también en el diálogo de tags, para evitar que el vídeo aparezca pequeño en una esquina del área de reproducción.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Carpetas privadas más rápidas</string>
     <string name="changelog_pinned_folders_desc">Se corrigió un problema que podía causar bloqueos al cambiar rápidamente entre videos de carpetas privadas.</string>

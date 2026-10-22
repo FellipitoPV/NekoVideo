@@ -217,12 +217,20 @@
     <string name="changelog_rotation_title">Novos modos de rotação</string>
     <string name="changelog_rotation_desc">Toque no botão de rotação do player para alternar entre estes modos. Sua escolha fica salva:</string>
     <string-array name="changelog_item_titles">
-        <item>Cast mais confiável</item>
-        <item>Ordenação lembrada</item>
+        <item>Pastas mais rápidas</item>
+        <item>Filtro Sem tags</item>
+        <item>Ordenação alfabética</item>
+        <item>Avisos sem interromper</item>
+        <item>Mover arquivos</item>
+        <item>Preview de vídeos</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Se um receptor Cast deixar de responder, o vídeo e a playlist voltam à reprodução local pausada na última posição conhecida. Os dispositivos encontrados aparecem durante a busca.</item>
-        <item>A ordem escolhida para os vídeos nas pastas é mantida ao voltar das configurações e ao reabrir o app.</item>
+        <item>Abertura e navegação mais rápidas em pastas com muitos vídeos, incluindo o retorno à pasta privada principal. As miniaturas são carregadas conforme os vídeos aparecem na tela.</item>
+        <item>Ative ou desative Sem tags no menu de ordenação sem fechar o menu. Ao salvar uma tag, o vídeo sai do filtro sem recarregar a pasta inteira.</item>
+        <item>A ordenação por nome agora usa ordem alfabética para reduzir o processamento. Números são tratados como texto: vídeo 10 aparece antes de vídeo 2.</item>
+        <item>Os avisos de ações não deslocam mais a lista e permitem tocar nos vídeos e nas tags enquanto estão visíveis.</item>
+        <item>Corrigida a abertura do seletor de pastas ao mover arquivos, que às vezes aparecia parcialmente e fechava ao tentar ajustá-lo.</item>
+        <item>Ajustado o preview, inclusive no diálogo de tags, para evitar que o vídeo apareça pequeno no canto da área de reprodução.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Pastas privadas mais rápidas</string>
     <string name="changelog_pinned_folders_desc">Corrigido um problema que podia causar travamentos ao trocar rapidamente entre vídeos de pastas privadas.</string>

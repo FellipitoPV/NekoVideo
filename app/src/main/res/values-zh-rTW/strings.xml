@@ -212,12 +212,20 @@
     <string name="changelog_rotation_title">新增畫面旋轉模式</string>
     <string name="changelog_rotation_desc">點選播放器中的旋轉按鈕即可切換以下模式。你的選擇會被儲存：</string>
     <string-array name="changelog_item_titles">
-        <item>Cast 連線更可靠</item>
-        <item>記住排序方式</item>
+        <item>資料夾瀏覽更流暢</item>
+        <item>無標籤篩選</item>
+        <item>依字母順序排序</item>
+        <item>提示不再干擾操作</item>
+        <item>移動檔案</item>
+        <item>影片預覽</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Cast 接收裝置停止回應時，影片和播放清單會從上次記錄的位置返回本機暫停播放。搜尋仍在進行時，已找到的裝置就會顯示。</item>
-        <item>資料夾中選定的影片排序方式在返回設定畫面或重新開啟應用程式後仍會保留。</item>
+        <item>加快開啟和瀏覽大量影片資料夾的速度，包括返回主要私人資料夾。縮圖會在影片出現在畫面上時載入。</item>
+        <item>在排序選單中開啟或關閉無標籤篩選時，選單不會關閉。儲存標籤後，影片會從篩選清單中消失，無需重新載入整個資料夾。</item>
+        <item>依名稱排序現在採用字母順序，以減少處理負擔。數字視為文字處理：影片 10 會排在影片 2 前面。</item>
+        <item>操作提示不再推動畫面上的清單位置。提示顯示時，仍可點選影片和標籤。</item>
+        <item>修正移動檔案時的資料夾選擇器偶爾無法完全展開，並在嘗試調整時關閉的問題。</item>
+        <item>調整了影片預覽，包括標籤對話方塊中的預覽，避免影片縮小顯示在播放區域的角落。</item>
     </string-array>
     <string name="changelog_pinned_folders_title">私密資料夾更快</string>
     <string name="changelog_pinned_folders_desc">修正了快速切換私密資料夾中的影片時可能出現卡頓的問題。</string>

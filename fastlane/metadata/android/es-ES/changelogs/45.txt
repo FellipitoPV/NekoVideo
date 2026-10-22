@@ -1,0 +1,5 @@
+Navegación más rápida en carpetas grandes y privadas. Orden por nombre ahora alfabético y miniaturas que se cargan al aparecer en pantalla.
+
+Nuevo filtro Sin tags en el menú de ordenación. Al guardar tags, los vídeos editados salen del filtro sin recargar la carpeta.
+
+Corregidos el selector de carpetas al mover archivos y la vista previa de vídeos. Los avisos no desplazan la lista ni bloquean los toques.

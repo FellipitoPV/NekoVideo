@@ -1,0 +1,5 @@
+Faster navigation in large and private folders. Name sorting is now alphabetical, and thumbnails load as they appear on screen.
+
+New No tags filter in the sort menu. Saving tags removes edited videos from the filtered list without reloading the folder.
+
+Fixed the folder picker when moving files and video previews. Action messages no longer shift the list or block taps.

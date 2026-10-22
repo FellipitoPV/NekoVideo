@@ -32,7 +32,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Supports common formats such as `mp4`, `mkv`, `webm`, `avi`, `mov`, `wmv`, `m4v`, `3gp`, and `flv`
 - Generates thumbnails and caches them in memory and on disk
 - Lets you search items inside the current folder
-- Supports sorting by name, date, and file size, and remembers the selected order
+- Supports alphabetical sorting by name (numbers are treated as text), date, and file size, and remembers the selected order
 - Can show video duration and file size in the grid/list
 - Allows pinning up to 10 folders for quick access from the home screen
 - Allows creating folders, renaming items, moving items, deleting items, and sharing videos
@@ -89,6 +89,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 
 - Create, rename, and delete tags
 - Assign tags to one or many videos
+- Filter untagged videos with the No tags toggle in the sort menu; saving tags updates the filtered list without reloading the folder
 - Preview a single selected video directly from the tags dialog
 - Keep separate tag scopes for normal content and private content
 - Shuffle videos using tag include/exclude filters
@@ -169,7 +170,7 @@ Project info:
 
 - `minSdk = 30`
 - `targetSdk = 36`
-- Current app version in the project: `1.9.0`
+- Current app version in the project: `1.9.1`
 
 ## License
 

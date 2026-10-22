@@ -212,12 +212,20 @@
     <string name="changelog_rotation_title">Neue Ausrichtungsmodi</string>
     <string name="changelog_rotation_desc">Tippe im Player auf die Schaltfläche für die Ausrichtung, um zwischen diesen Modi zu wechseln. Deine Auswahl wird gespeichert:</string>
     <string-array name="changelog_item_titles">
-        <item>Zuverlässigeres Cast</item>
-        <item>Sortierung bleibt erhalten</item>
+        <item>Schnellere Ordner</item>
+        <item>Filter Ohne Tags</item>
+        <item>Alphabetische Sortierung</item>
+        <item>Hinweise ohne Unterbrechung</item>
+        <item>Dateien verschieben</item>
+        <item>Videovorschau</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Wenn ein Cast-Empfänger nicht mehr antwortet, kehren Video und Playlist an der letzten bekannten Position zur pausierten lokalen Wiedergabe zurück. Gefundene Geräte erscheinen schon während der Suche.</item>
-        <item>Die gewählte Sortierung der Videos in Ordnern bleibt nach den Einstellungen und beim erneuten Öffnen der App erhalten.</item>
+        <item>Ordner mit vielen Videos lassen sich schneller öffnen und durchsuchen, auch beim Zurückkehren zum privaten Hauptordner. Vorschaubilder werden geladen, sobald die Videos auf dem Bildschirm erscheinen.</item>
+        <item>Schalte Ohne Tags im Sortiermenü ein oder aus, ohne es zu schließen. Nach dem Speichern eines Tags verschwindet das Video aus der gefilterten Liste, ohne den ganzen Ordner neu zu laden.</item>
+        <item>Die Sortierung nach Namen erfolgt jetzt alphabetisch, um den Rechenaufwand zu verringern. Zahlen werden wie Text behandelt: Video 10 steht vor Video 2.</item>
+        <item>Aktionshinweise verschieben die Liste nicht mehr. Videos und Tags lassen sich auch antippen, während ein Hinweis sichtbar ist.</item>
+        <item>Die Ordnerauswahl beim Verschieben von Dateien wurde korrigiert: Sie öffnete sich manchmal nur teilweise und schloss sich beim Anpassen.</item>
+        <item>Die Vorschau wurde auch im Tag-Dialog angepasst, damit Videos nicht klein in einer Ecke des Wiedergabebereichs erscheinen.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Schnellere private Ordner</string>
     <string name="changelog_pinned_folders_desc">Ein Problem wurde behoben, das beim schnellen Wechseln zwischen Videos in privaten Ordnern zu Rucklern führen konnte.</string>

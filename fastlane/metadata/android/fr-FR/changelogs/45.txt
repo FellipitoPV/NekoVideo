@@ -1,0 +1,5 @@
+Navigation plus rapide dans les dossiers volumineux et privés. Tri par nom alphabétique et miniatures chargées à leur apparition.
+
+Nouveau filtre Sans tags dans le menu de tri. Après enregistrement des tags, les vidéos modifiées quittent le filtre sans recharger le dossier.
+
+Corrections du sélecteur de dossiers lors des déplacements et des aperçus vidéo. Les messages ne déplacent plus la liste et ne bloquent plus les gestes.
