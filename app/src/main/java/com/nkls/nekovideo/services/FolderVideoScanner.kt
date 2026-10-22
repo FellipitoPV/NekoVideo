@@ -10,6 +10,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
+import com.nkls.nekovideo.components.helpers.readFolderChildren
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.supportedVideoExtensions
 import java.io.File
@@ -421,12 +423,17 @@ object FolderVideoScanner {
             }
         }
 
-        directory.listFiles()?.forEach { subDir ->
-            if (subDir.isDirectory) {
-                if (!subDir.name.startsWith(".") || isSecure || isLocked ||
-                    File(subDir, ".nomedia").exists() || FolderLockManager.isLocked(subDir.absolutePath)) {
-                    scanSecureFoldersRecursive(context, subDir, folderMap)
-                }
+        val knownVideoPaths = if (isLocked) {
+            LockedPlaybackSession.getManifestForFolder(directory.absolutePath)?.files
+                ?.mapTo(HashSet()) { File(directory, it.obfuscatedName).absolutePath }.orEmpty()
+        } else {
+            folderMap[directory.absolutePath]?.videos?.mapTo(HashSet()) { it.path }.orEmpty()
+        }
+        readFolderChildren(directory, knownVideoPaths).subfolders.forEach { subDir ->
+            if (subDir.name == ".neko_thumbs") return@forEach
+            if (!subDir.name.startsWith(".") || isSecure || isLocked ||
+                File(subDir, ".nomedia").exists() || FolderLockManager.isLocked(subDir.absolutePath)) {
+                scanSecureFoldersRecursive(context, subDir, folderMap)
             }
         }
     }

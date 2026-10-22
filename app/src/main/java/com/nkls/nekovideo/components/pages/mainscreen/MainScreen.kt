@@ -900,7 +900,6 @@ fun MainScreen(
                             selectedTagIds = selectedTagIds
                         )
                     }
-                    renameTrigger++
                     selectedItems.clear()
                     SortRowMessageCenter.showSuccess(context.getString(R.string.video_tags_add_success))
                     Result.success(Unit)

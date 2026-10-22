@@ -78,6 +78,17 @@ data class TagVideoCount(
     val videoCount: Int
 )
 
+data class VideoTagCount(
+    val videoPath: String,
+    val tagCount: Int
+)
+
+data class VideoTagChange(
+    val version: Long = 0L,
+    // null invalidates all counts (for example, deleting a tag or importing a backup).
+    val affectedVideoPaths: Set<String>? = null
+)
+
 data class MissingVideoTagCleanupResult(
     val checkedVideoPaths: Int,
     val removedVideoPaths: Int,
@@ -146,8 +157,8 @@ interface VideoTagDao {
     @Query("SELECT DISTINCT videoPath FROM video_tag_refs")
     suspend fun getDistinctTaggedVideoPaths(): List<String>
 
-    @Query("SELECT DISTINCT videoPath FROM video_tag_refs WHERE videoPath IN (:videoPaths)")
-    suspend fun getTaggedVideoPaths(videoPaths: List<String>): List<String>
+    @Query("SELECT videoPath, COUNT(*) AS tagCount FROM video_tag_refs WHERE videoPath IN (:videoPaths) GROUP BY videoPath")
+    suspend fun getTagCountsForVideoPaths(videoPaths: List<String>): List<VideoTagCount>
 
     @Query("DELETE FROM video_tag_refs WHERE videoPath IN (:videoPaths)")
     suspend fun deleteVideoTagRefsForPaths(videoPaths: List<String>): Int
@@ -161,6 +172,15 @@ abstract class VideoTagDatabase : RoomDatabase() {
 object VideoTagStore {
     private val _tagChangeEvent = MutableStateFlow(0L)
     val tagChangeEvent: StateFlow<Long> = _tagChangeEvent.asStateFlow()
+    private val _tagChanges = MutableStateFlow(VideoTagChange())
+    val tagChanges: StateFlow<VideoTagChange> = _tagChanges.asStateFlow()
+
+    @Synchronized
+    private fun notifyTagChange(affectedVideoPaths: Set<String>? = null) {
+        val version = _tagChangeEvent.value + 1L
+        _tagChanges.value = VideoTagChange(version, affectedVideoPaths)
+        _tagChangeEvent.value = version
+    }
 
     private data class AutomaticBackupManifest(
         @SerializedName(value = "version", alternate = ["a"]) val version: Int,
@@ -300,7 +320,7 @@ object VideoTagStore {
 
         if (removedTagLinks > 0) {
             writeAutomaticBackupSafely(context)
-            _tagChangeEvent.value++
+            notifyTagChange(missingPaths.toSet())
         }
 
         MissingVideoTagCleanupResult(
@@ -344,14 +364,14 @@ object VideoTagStore {
 
         val id = dao.insertTag(TagEntity(name = name, scope = scope))
         writeAutomaticBackupSafely(context)
-        _tagChangeEvent.value++
+        notifyTagChange(emptySet())
         return Result.success(TagEntity(id = id, name = name, scope = scope))
     }
 
     suspend fun deleteTag(context: Context, tagId: Long) {
         getDatabase(context).videoTagDao().deleteTag(tagId)
         writeAutomaticBackupSafely(context)
-        _tagChangeEvent.value++
+        notifyTagChange()
     }
 
     suspend fun renameTag(context: Context, tagId: Long, rawName: String, scope: TagScope): Result<Unit> {
@@ -363,7 +383,7 @@ object VideoTagStore {
 
         dao.updateTagName(tagId, name)
         writeAutomaticBackupSafely(context)
-        _tagChangeEvent.value++
+        notifyTagChange(emptySet())
         return Result.success(Unit)
     }
 
@@ -388,7 +408,7 @@ object VideoTagStore {
 
         getDatabase(context).videoTagDao().insertVideoTagRefs(refs)
         writeAutomaticBackupSafely(context)
-        _tagChangeEvent.value++
+        notifyTagChange(videoPaths.toSet())
     }
 
     suspend fun syncCommonTagsForVideos(
@@ -423,7 +443,7 @@ object VideoTagStore {
         }
 
         writeAutomaticBackupSafely(context)
-        _tagChangeEvent.value++
+        notifyTagChange(distinctPaths.toSet())
     }
 
     suspend fun getVideoPathsForAnyTagIds(context: Context, tagIds: Set<Long>, scope: TagScope): Set<String> {
@@ -442,12 +462,14 @@ object VideoTagStore {
             .toSet()
     }
 
-    suspend fun getTaggedVideoPaths(context: Context, videoPaths: List<String>): Set<String> {
-        if (videoPaths.isEmpty()) return emptySet()
+    suspend fun getTagCountsForVideoPaths(context: Context, videoPaths: List<String>): Map<String, Int> {
+        if (videoPaths.isEmpty()) return emptyMap()
         val dao = getDatabase(context).videoTagDao()
-        return videoPaths.distinct().chunked(500)
-            .flatMap { dao.getTaggedVideoPaths(it) }
-            .toSet()
+        val counts = videoPaths.associateWith { 0 }.toMutableMap()
+        videoPaths.distinct().chunked(500).forEach { batch ->
+            dao.getTagCountsForVideoPaths(batch).forEach { counts[it.videoPath] = it.tagCount }
+        }
+        return counts
     }
 
     suspend fun moveTagsForPath(context: Context, oldPath: String, newPath: String) {
@@ -752,7 +774,7 @@ object VideoTagStore {
                 restoredRefs = refsToInsert.size
             )
         }
-        _tagChangeEvent.value++
+        notifyTagChange()
         return result
     }
 

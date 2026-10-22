@@ -84,12 +84,17 @@ import com.nkls.nekovideo.components.helpers.VideoProgressStore
 import com.nkls.nekovideo.components.helpers.PinnedFoldersStore
 import com.nkls.nekovideo.components.helpers.supportedVideoExtensions
 import com.nkls.nekovideo.components.helpers.VideoTagStore
+import com.nkls.nekovideo.components.helpers.VideoTagCountCache
+import com.nkls.nekovideo.components.helpers.PrivateFolderSummaryCache
+import com.nkls.nekovideo.components.helpers.readFolderChildren
+import com.nkls.nekovideo.components.helpers.sortedByName
 import com.nkls.nekovideo.services.FolderVideoScanner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -246,47 +251,28 @@ private fun getRandomColor(path: String): Color {
 }
 
 // SIMPLIFICADO - Função principal de carregamento
-fun loadFolderContent(
+internal fun loadFolderContent(
     context: Context,
     folderPath: String,
     sortType: SortType,
     isSecureMode: Boolean,
     isRootLevel: Boolean,
-    showPrivateFolders: Boolean
+    showPrivateFolders: Boolean,
+    privateFolderSummaries: PrivateFolderSummaryCache = PrivateFolderSummaryCache()
 ): List<MediaItem> {
     return if (isSecureMode) {
-        loadSecureContent(folderPath, sortType)
+        loadSecureContent(folderPath, sortType, privateFolderSummaries)
     } else {
         loadNormalContentFromCache(context, folderPath, sortType, isRootLevel, showPrivateFolders)
     }
 }
 
-private fun naturalComparator(s1: String, s2: String): Int {
-    val pattern = "\\d+|\\D+".toRegex()
-    val tokens1 = pattern.findAll(s1.lowercase()).map { it.value }.toList()
-    val tokens2 = pattern.findAll(s2.lowercase()).map { it.value }.toList()
-
-    for (i in 0 until minOf(tokens1.size, tokens2.size)) {
-        val token1 = tokens1[i]
-        val token2 = tokens2[i]
-
-        val num1 = token1.toIntOrNull()
-        val num2 = token2.toIntOrNull()
-
-        val comparison = if (num1 != null && num2 != null) {
-            num1.compareTo(num2)
-        } else {
-            token1.compareTo(token2)
-        }
-
-        if (comparison != 0) return comparison
-    }
-
-    return tokens1.size.compareTo(tokens2.size)
-}
-
 // SIMPLIFICADO - Carregamento secure
-private fun loadSecureContent(folderPath: String, sortType: SortType): List<MediaItem> {
+private fun loadSecureContent(
+    folderPath: String,
+    sortType: SortType,
+    summaries: PrivateFolderSummaryCache
+): List<MediaItem> {
     val folder = File(folderPath)
     if (!folder.exists() || !folder.isDirectory) return emptyList()
 
@@ -312,22 +298,13 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
         })
 
         // Add subdirectories using manifest subfolder entries for display names
-        folder.listFiles()?.forEach { file ->
-            if (!file.isDirectory || file.name == ".neko_thumbs") return@forEach
+        val knownVideoPaths = items.mapTo(HashSet()) { it.path }
+        readFolderChildren(folder, knownVideoPaths).subfolders.forEach { file ->
+            if (file.name == ".neko_thumbs") return@forEach
             val subEntry = manifest.subfolders.orEmpty().find { it.obfuscatedName != null && it.obfuscatedName == file.name }
             val displayName = subEntry?.originalName ?: file.name
             val subIsLocked = FolderLockManager.isLocked(file.absolutePath)
-            val subChildren = file.listFiles() // single listFiles() call, reused below
-            val subVideoCount = if (subIsLocked) {
-                LockedPlaybackSession.getManifestForFolder(file.absolutePath)?.files?.size
-                    ?: subChildren?.count { f ->
-                        f.isFile && f.name !in setOf(".neko_locked", ".neko_manifest.enc", ".neko_lock_in_progress", ".nomedia", ".nekovideo")
-                    } ?: 0
-            } else {
-                subChildren?.count { it.isFile && it.extension.lowercase() in supportedVideoExtensions } ?: 0
-            }
-            val subFolderCount = subChildren?.count { it.isDirectory && it.name != ".neko_thumbs" } ?: 0
-            val subTotalSize = subChildren?.filter { it.isFile && !it.name.startsWith(".") }?.sumOf { it.length() } ?: 0L
+            val summary = summaries.read(file, subIsLocked)
             items.add(MediaItem(
                 path = file.absolutePath,
                 uri = null,
@@ -335,9 +312,9 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
                 name = displayName,
                 displayName = displayName,
                 lastModified = file.lastModified(),
-                sizeInBytes = subTotalSize,
-                videoCount = subVideoCount,
-                subfolderCount = subFolderCount,
+                sizeInBytes = summary.sizeInBytes,
+                videoCount = summary.videoCount,
+                subfolderCount = summary.subfolderCount,
                 isInsidePrivateFolder = true,
                 isPinned = PinnedFoldersStore.isPinned(file.absolutePath)
             ))
@@ -352,24 +329,15 @@ private fun loadSecureContent(folderPath: String, sortType: SortType): List<Medi
                 ".neko_lock_in_progress", ".nomedia", "recovery_hint.txt", ".neko_thumbs") -> null
             file.isDirectory -> {
                     val subIsLocked = FolderLockManager.isLocked(file.absolutePath)
-                    val subChildren = file.listFiles()
-                    val subVideoCount = if (subIsLocked) {
-                        subChildren?.count { f ->
-                            f.isFile && f.name !in setOf(".neko_locked", ".neko_manifest.enc", ".neko_lock_in_progress", ".nomedia", ".nekovideo")
-                        } ?: 0
-                    } else {
-                        subChildren?.count { it.isFile && it.extension.lowercase() in supportedVideoExtensions } ?: 0
-                    }
-                    val subFolderCount = subChildren?.count { it.isDirectory && it.name != ".neko_thumbs" } ?: 0
-                    val subTotalSize = subChildren?.filter { it.isFile && !it.name.startsWith(".") }?.sumOf { it.length() } ?: 0L
+                    val summary = summaries.read(file, subIsLocked)
                     MediaItem(
                         path = file.absolutePath,
                         uri = null,
                         isFolder = true,
                         lastModified = file.lastModified(),
-                        sizeInBytes = subTotalSize,
-                        videoCount = subVideoCount,
-                        subfolderCount = subFolderCount,
+                        sizeInBytes = summary.sizeInBytes,
+                        videoCount = summary.videoCount,
+                        subfolderCount = summary.subfolderCount,
                         isInsidePrivateFolder = true,
                         isPinned = PinnedFoldersStore.isPinned(file.absolutePath)
                     )
@@ -423,9 +391,12 @@ private fun loadNormalContentFromCache(
     val items = mutableListOf<MediaItem>()
     val folder = File(folderPath)
     val folderCache = FolderVideoScanner.cache.value
+    val folderInfo = folderCache[folderPath]
+    val cachedVideos = folderInfo?.videos.orEmpty()
+    val children = readFolderChildren(folder, cachedVideos.mapTo(HashSet()) { it.path })
 
     // Carregar pastas usando o cache
-    folder.listFiles()?.filter { it.isDirectory }?.forEach { subfolder ->
+    children.subfolders.forEach { subfolder ->
         if (subfolder.name in listOf(".nekovideo", ".neko_thumbs")) return@forEach
         if (isRootLevel && subfolder.name == "Android") return@forEach
 
@@ -486,12 +457,13 @@ private fun loadNormalContentFromCache(
         }
 
         if (shouldShow) {
+            val subfolderChildren by lazy(LazyThreadSafetyMode.NONE) { subfolder.listFiles() }
             // Para pastas seguras/privadas: conta direto do filesystem (cache pode estar desatualizado)
             // Para pastas normais: usa o cache do scanner (MediaStore mantém atualizado)
             val directVideoCount = when {
                 isFolderLocked -> FolderLockManager.getRegistryEntry(context, subfolder.absolutePath)?.fileCount ?: 0
                 isSecure -> try {
-                    subfolder.listFiles()?.count {
+                    subfolderChildren?.count {
                         it.isFile && it.extension.lowercase() in supportedVideoExtensions
                     } ?: 0
                 } catch (e: Exception) { folderInfo?.videoCount ?: 0 }
@@ -499,12 +471,12 @@ private fun loadNormalContentFromCache(
             }
             val directSubfolderCount = when {
                 isFolderLocked -> try {
-                    subfolder.listFiles()?.count { child ->
+                    subfolderChildren?.count { child ->
                         shouldCountVisibleSubfolder(child, folderCache, showPrivateFolders)
                     } ?: 0
                 } catch (e: Exception) { 0 }
                 isSecure -> try {
-                    subfolder.listFiles()?.count { child ->
+                    subfolderChildren?.count { child ->
                         shouldCountVisibleSubfolder(child, folderCache, showPrivateFolders)
                     } ?: 0
                 } catch (e: Exception) {
@@ -522,10 +494,10 @@ private fun loadNormalContentFromCache(
             }
             val totalFolderSize = when {
                 isFolderLocked -> try {
-                    subfolder.listFiles()?.filter { it.isFile && !it.name.startsWith(".") }?.sumOf { it.length() } ?: 0L
+                    subfolderChildren?.filter { it.isFile && !it.name.startsWith(".") }?.sumOf { it.length() } ?: 0L
                 } catch (e: Exception) { 0L }
                 isSecure -> try {
-                    subfolder.listFiles()?.filter { it.isFile && it.extension.lowercase() in supportedVideoExtensions }?.sumOf { it.length() } ?: 0L
+                    subfolderChildren?.filter { it.isFile && it.extension.lowercase() in supportedVideoExtensions }?.sumOf { it.length() } ?: 0L
                 } catch (e: Exception) { folderInfo?.videos?.sumOf { it.sizeInBytes } ?: 0L }
                 else -> folderInfo?.videos?.sumOf { it.sizeInBytes } ?: 0L
             }
@@ -548,8 +520,6 @@ private fun loadNormalContentFromCache(
     }
 
     // Carregar vídeos: usa cache do scanner; se vazio, lê direto do filesystem
-    val folderInfo = folderCache[folderPath]
-    val cachedVideos = folderInfo?.videos.orEmpty()
     if (cachedVideos.isNotEmpty()) {
         cachedVideos.forEach { videoInfo ->
             items.add(
@@ -563,7 +533,7 @@ private fun loadNormalContentFromCache(
             )
         }
     } else {
-        folder.listFiles()?.forEach { videoFile ->
+        children.entries.forEach { videoFile ->
             if (videoFile.isFile && videoFile.extension.lowercase() in supportedVideoExtensions) {
                 items.add(
                     MediaItem(
@@ -695,19 +665,17 @@ private fun buildPinnedFolderItem(
 
 
 private fun applySorting(items: List<MediaItem>, sortType: SortType): List<MediaItem> {
-    val folders = items.filter { it.isFolder }
-    val videos = items.filter { !it.isFolder }
-
-    val comparator: Comparator<MediaItem> = when (sortType) {
-        SortType.NAME_ASC -> Comparator { a, b -> naturalComparator(a.displayName, b.displayName) }
-        SortType.NAME_DESC -> Comparator { a, b -> naturalComparator(b.displayName, a.displayName) }
-        SortType.DATE_NEWEST -> compareByDescending { it.lastModified }
-        SortType.DATE_OLDEST -> compareBy { it.lastModified }
-        SortType.SIZE_LARGEST -> compareByDescending { it.sizeInBytes }
-        SortType.SIZE_SMALLEST -> compareBy { it.sizeInBytes }
+    val (folders, videos) = items.partition { it.isFolder }
+    fun sortGroup(group: List<MediaItem>): List<MediaItem> = when (sortType) {
+        SortType.NAME_ASC -> group.sortedByName { it.displayName }
+        SortType.NAME_DESC -> group.sortedByName(descending = true) { it.displayName }
+        SortType.DATE_NEWEST -> group.sortedByDescending { it.lastModified }
+        SortType.DATE_OLDEST -> group.sortedBy { it.lastModified }
+        SortType.SIZE_LARGEST -> group.sortedByDescending { it.sizeInBytes }
+        SortType.SIZE_SMALLEST -> group.sortedBy { it.sizeInBytes }
     }
 
-    return folders.sortedWith(comparator) + videos.sortedWith(comparator)
+    return sortGroup(folders) + sortGroup(videos)
 }
 
 @Composable
@@ -1185,7 +1153,7 @@ fun FolderScreen(
     val hasActivePlayback by ContinueWatchingStore.hasActivePlayback.collectAsStateWithLifecycle()
     val pinnedFolders by PinnedFoldersStore.entries.collectAsStateWithLifecycle()
     val videoProgressVersion by VideoProgressStore.changeVersion.collectAsStateWithLifecycle()
-    val tagChangeEvent by VideoTagStore.tagChangeEvent.collectAsStateWithLifecycle()
+    val tagChange by VideoTagStore.tagChanges.collectAsStateWithLifecycle()
     val castManager = remember { DLNACastManager.getInstance(context) }
     var hasActiveCastPlayback by remember {
         mutableStateOf(castManager.isConnected && castManager.currentTitle.isNotBlank())
@@ -1211,14 +1179,16 @@ fun FolderScreen(
     // Cache de items por pasta para evitar flicker durante transições
     var itemsByPath by remember { mutableStateOf<Map<String, List<MediaItem>>>(emptyMap()) }
     var loadingPaths by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var tagCountCache by remember { mutableStateOf(VideoTagCountCache()) }
+    val cachedVideoPaths = remember(itemsByPath) {
+        itemsByPath.values.asSequence().flatten()
+            .filterNot { it.isFolder }.map { it.path }.toSet()
+    }
     val displayPrefs = remember(context) { context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) }
     var sortType by remember(displayPrefs) {
         val savedSort = displayPrefs.getString(SORT_TYPE_PREFERENCE_KEY, null)
         mutableStateOf(SortType.entries.firstOrNull { it.name == savedSort } ?: SortType.NAME_ASC)
     }
-
-    // Items da pasta atual (para compatibilidade com indicador de scan)
-    val items = itemsByPath[folderPath] ?: emptyList()
 
     val scannerCache by FolderVideoScanner.cache.collectAsState()
     val isScanning by FolderVideoScanner.isScanning.collectAsState()
@@ -1271,8 +1241,18 @@ fun FolderScreen(
         }
     }
 
+    val privateFolderSummaries = remember(renameTrigger) { PrivateFolderSummaryCache() }
+    DisposableEffect(lifecycleOwner, privateFolderSummaries) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) privateFolderSummaries.clear()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     // Refresh manual continua global independente da pasta atual
     fun performRefresh() {
+        privateFolderSummaries.clear()
         FolderVideoScanner.startScan(context, forceRefresh = true)
     }
 
@@ -1294,6 +1274,8 @@ fun FolderScreen(
                 reloadContinueWatching()
             } else {
                 delay(500)
+                // Let the initial list finish before a validation scan competes for disk access.
+                snapshotFlow { folderPath in itemsByPath && folderPath !in loadingPaths }.first { it }
                 refreshCurrentFolderSilently(this)
             }
 
@@ -1329,34 +1311,23 @@ fun FolderScreen(
         return
     }
 
-    // Sincroniza thumbnails ao entrar na pasta (background, não bloqueia UI)
-    LaunchedEffect(folderPath) {
-        OptimizedThumbnailManager.syncThumbnails(context, folderPath)
-    }
-
     // Carrega items para a pasta atual e mantém cache das anteriores
-    LaunchedEffect(folderPath, sortType, renameTrigger, isSecureMode, showPrivateFolders, scannerCache, searchQuery, pinnedFolders, storageVolumesVersion, showUntaggedOnly, if (showUntaggedOnly) tagChangeEvent else 0L) {
+    LaunchedEffect(folderPath, sortType, renameTrigger, isSecureMode, showPrivateFolders, scannerCache, searchQuery, pinnedFolders, storageVolumesVersion) {
         // Marca esta pasta como carregando
         loadingPaths = loadingPaths + folderPath
 
         val loadedItems = withContext(Dispatchers.IO) {
-            val allItems = loadFolderContent(context, folderPath, sortType, isSecureMode, isRootLevel, showPrivateFolders)
+            val allItems = loadFolderContent(
+                context, folderPath, sortType, isSecureMode, isRootLevel, showPrivateFolders,
+                privateFolderSummaries
+            )
 
-            val searchedItems = if (searchQuery.isNotEmpty()) {
+            if (searchQuery.isNotEmpty()) {
                 allItems.filter { item ->
                     item.name.contains(searchQuery, ignoreCase = true)
                 }
             } else {
                 allItems
-            }
-            if (showUntaggedOnly) {
-                val taggedPaths = VideoTagStore.getTaggedVideoPaths(
-                    context,
-                    searchedItems.filterNot { it.isFolder }.map { it.path }
-                )
-                searchedItems.filter { it.isFolder || it.path !in taggedPaths }
-            } else {
-                searchedItems
             }
         }
 
@@ -1380,6 +1351,16 @@ fun FolderScreen(
             .apply { put(folderPath, loadedItems) }
 
         loadingPaths = loadingPaths - folderPath
+    }
+
+    // Tag edits update only affected counts; the folder contents stay cached.
+    LaunchedEffect(cachedVideoPaths, tagChange, renameTrigger) {
+        val currentCache = tagCountCache
+        tagCountCache = withContext(Dispatchers.IO) {
+            currentCache.refresh(cachedVideoPaths, tagChange, renameTrigger) { paths ->
+                VideoTagStore.getTagCountsForVideoPaths(context, paths)
+            }
+        }
     }
 
     LaunchedEffect(deletedVideoPath) {
@@ -1469,10 +1450,17 @@ fun FolderScreen(
                     },
                     label = "FolderTransition"
                 ) { targetPath ->
-                    // Usa os items específicos deste path do cache
-                    val pathItems = itemsByPath[targetPath] ?: emptyList()
+                    val cachedItems = itemsByPath[targetPath].orEmpty()
+                    val pathItems = remember(cachedItems, showUntaggedOnly, tagCountCache.counts) {
+                        if (showUntaggedOnly) {
+                            cachedItems.filter { it.isFolder || tagCountCache.counts[it.path] == 0 }
+                        } else {
+                            cachedItems
+                        }
+                    }
                     val isPathLoading = targetPath in loadingPaths ||
-                        (targetPath == folderPath && targetPath !in itemsByPath)
+                        (targetPath == folderPath && targetPath !in itemsByPath) ||
+                        (showUntaggedOnly && cachedItems.any { !it.isFolder && it.path !in tagCountCache.counts })
                     val listState = rememberSaveable(targetPath, saver = LazyListState.Saver) {
                         LazyListState()
                     }
@@ -1701,7 +1689,7 @@ fun FolderScreen(
                                                 itemsToMove = itemsToMove,
                                                 privateFolderRevealPaths = privateFolderRevealPaths,
                                                 progressByPath = progressByPath,
-                                                tagChangeEvent = tagChangeEvent,
+                                                tagCountsByPath = tagCountCache.counts,
                                                 onFolderClick = onFolderClick,
                                                 onSelectionChange = onSelectionChange,
                                                 onPrivateFolderRevealFinished = { path ->
@@ -1769,7 +1757,7 @@ private fun MediaRow(
     itemsToMove: List<String>,
     privateFolderRevealPaths: Set<String>,
     progressByPath: Map<String, VideoProgressEntry>,
-    tagChangeEvent: Long,
+    tagCountsByPath: Map<String, Int>,
     onFolderClick: (String, SortType, Boolean) -> Unit,
     onSelectionChange: (List<String>) -> Unit,
     onPrivateFolderRevealFinished: (String) -> Unit,
@@ -1781,7 +1769,7 @@ private fun MediaRow(
             MediaCard(
                 item = item,
                 renameTrigger = renameTrigger,
-                tagChangeEvent = tagChangeEvent,
+                tagCount = tagCountsByPath[item.path] ?: 0,
                 isPlayerOverlayVisible = isPlayerOverlayVisible,
                 isSelected = item.path in selectedItems,
                 isPreviewing = previewingPath == item.path,
@@ -1959,7 +1947,7 @@ private fun formatContinueWatchingTime(timeMs: Long): String {
 private fun MediaCard(
     item: MediaItem,
     renameTrigger: Int,
-    tagChangeEvent: Long,
+    tagCount: Int,
     isPlayerOverlayVisible: Boolean,
     isSelected: Boolean,
     isPreviewing: Boolean,
@@ -1984,7 +1972,6 @@ private fun MediaCard(
     var thumbnail by remember(item.path) { mutableStateOf<Bitmap?>(null) }
     var duration by remember(item.path, item.durationHint) { mutableStateOf(item.durationHint) }
     var fileSize by remember(item.path) { mutableStateOf<String?>(null) }
-    var tagCount by remember(item.path) { mutableIntStateOf(0) }
     var isLoading by remember(item.path) { mutableStateOf(false) }
     var job by remember(item.path) { mutableStateOf<Job?>(null) }
 
@@ -2124,14 +2111,6 @@ private fun MediaCard(
                         isLoading = false
                     }
                 }
-            }
-        }
-    }
-
-    LaunchedEffect(item.path, renameTrigger, tagChangeEvent, isPlayerOverlayVisible) {
-        if (!item.isFolder && !isPlayerOverlayVisible) {
-            tagCount = withContext(Dispatchers.IO) {
-                VideoTagStore.getTagCountForVideoPath(context, item.path)
             }
         }
     }

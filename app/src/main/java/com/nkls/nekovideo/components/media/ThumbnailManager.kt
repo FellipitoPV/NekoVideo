@@ -285,51 +285,6 @@ object OptimizedThumbnailManager {
     }
 
     /**
-     * Sincroniza thumbnails ao entrar numa pasta:
-     * - Remove thumbnails órfãs (vídeo deletado mas thumb ficou)
-     * - Pré-gera thumbnails faltantes em background
-     * Não sincroniza pastas locked (elas gerenciam suas próprias thumbs)
-     */
-    fun syncThumbnails(context: Context, folderPath: String) {
-        // Não sincroniza pastas locked
-        if (FolderLockManager.isLocked(folderPath)) return
-
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val folder = File(folderPath)
-                if (!folder.exists() || !folder.isDirectory) return@launch
-
-                 val legacyThumbsDir = File(folder, THUMBS_DIR)
-
-                 // Pré-gera thumbnails faltantes no cache central
-                 val videoFiles = folder.listFiles()
-                     ?.filter { it.isFile && isVideoFile(it.name) }
-                     ?: return@launch
-
-                 for (videoFile in videoFiles) {
-                     val thumbFile = getCentralThumbnailFile(context, videoFile.absolutePath)
-                     if (!thumbFile.exists()) {
-                         // Gera thumbnail (inclui salvar no cache central)
-                         generateThumbnailSync(context, videoFile.absolutePath)
-                         delay(50) // Pequeno delay entre gerações
-                     }
-                 }
-
-                 if (legacyThumbsDir.exists()) {
-                     legacyThumbsDir.deleteRecursively()
-                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    private fun isVideoFile(name: String): Boolean {
-        val ext = name.substringAfterLast('.', "").lowercase()
-        return ext in setOf("mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v", "3gp", "ts", "mpg", "mpeg")
-    }
-
-    /**
      * Limpa o cache centralizado antigo (one-time migration).
      * Chamado do MainActivity.onCreate().
      */
