@@ -562,6 +562,8 @@ object FilesManager {
             val folder = File(path)
 
             if (!folder.exists() || !folder.isDirectory) return videos
+            PortablePrivateFolders.restoreExternalArrivals(context, path,
+                sessionPassword ?: LockedPlaybackSession.sessionPassword)
 
             fun canEnterPrivateFolder(directory: File): Boolean {
                 if (showPrivateFolders || isSecure) return true
@@ -591,7 +593,7 @@ object FilesManager {
                     when {
                         file.isFile && file.extension.lowercase() in listOf(
                             "mp4", "mkv", "webm", "avi", "mov", "wmv", "m4v", "3gp", "flv"
-                        ) -> {
+                        ) && !PortableVideoStore.hasRecoveryRecord(file) -> {
                             videos.add("file://${file.absolutePath}")
                         }
                         file.isDirectory && file.name !in listOf(".neko_thumbs") -> {
@@ -620,7 +622,7 @@ object FilesManager {
                         val isSelectedSecure = isSecureFolder(selectedPath)
                         allVideos.addAll(scanFolder(selectedPath, isSelectedSecure))
                     }
-                    file.isFile -> {
+                    file.isFile && !PortableVideoStore.hasRecoveryRecord(file) -> {
                         allVideos.add("file://$selectedPath")
                     }
                 }
@@ -721,8 +723,7 @@ object FilesManager {
                 val editor = sharedPrefs.edit()
                 val encryptedPassword = encryptPassword(password)
                 editor.putString(PREF_PASSWORD_KEY, encryptedPassword)
-                editor.apply()
-                true
+                editor.commit()
             } catch (e: Exception) {
                 false
             }

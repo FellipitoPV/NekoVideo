@@ -94,6 +94,7 @@ import com.nkls.nekovideo.components.UnpinFolderConfirmationDialog
 import com.nkls.nekovideo.components.EnableBiometricDialog
 import com.nkls.nekovideo.components.PasswordDialog
 import com.nkls.nekovideo.components.ProcessingDialog
+import com.nkls.nekovideo.components.PrivateMigrationCoordinator
 import com.nkls.nekovideo.components.ShuffleTagsDialog
 import com.nkls.nekovideo.components.ShuffleTagFilter
 import com.nkls.nekovideo.components.VideoTagsDialog
@@ -320,7 +321,8 @@ fun MainScreen(
                 folderPath.contains(".secure_videos") ||
                 folderPath.endsWith(".secure_videos") ||
                 File(folderPath, ".secure").exists() ||
-                File(folderPath, ".nomedia").exists()
+                File(folderPath, ".nomedia").exists() ||
+                FolderLockManager.isLocked(folderPath)
     }
 
     fun isPrivateTagContext(folderPath: String): Boolean {
@@ -822,7 +824,7 @@ fun MainScreen(
                     coroutineScope.launch {
                         val pwd = sessionPassword ?: LockedPlaybackSession.sessionPassword
                         if (pwd != null) {
-                            withContext(Dispatchers.IO) {
+                            try { withContext(Dispatchers.IO) {
                                 val updatedManifest = if (isFolderRename) {
                                     FolderLockManager.renameSubfolderInManifest(
                                         context = context,
@@ -839,6 +841,9 @@ fun MainScreen(
                                 if (updatedManifest != null) {
                                     LockedPlaybackSession.updateManifest(folderPath, updatedManifest)
                                 }
+                            } } catch (failure: Exception) {
+                                if (failure is kotlinx.coroutines.CancellationException) throw failure
+                                SortRowMessageCenter.showError(failure.message ?: context.getString(R.string.invalid_password_or_corrupted))
                             }
                         }
                         showRenameDialog = false
@@ -967,6 +972,7 @@ fun MainScreen(
                     sessionPassword = null
                     SortRowMessageCenter.showInfo(context.getString(R.string.secure_folders_hidden))
                 } else {
+                    LockedPlaybackSession.authorize(password)
                     FilesManager.SecureFoldersVisibility.showSecureFolders(context)
                     showPrivateFolders = true
                     SortRowMessageCenter.showInfo(context.getString(R.string.secure_folders_shown))
@@ -976,6 +982,12 @@ fun MainScreen(
             }
         )
     }
+
+    PrivateMigrationCoordinator(sessionPassword, showPrivateFolders,
+        busy = showPasswordDialog || showLockPasswordDialog || showSecurePasswordDialog ||
+            isLocking || isUnlocking || isMoving || isDeleting || showPlayerOverlay || showRenameDialog ||
+            showCreateFolderDialog || showDeleteConfirmDialog || showVideoTagsDialog || showShuffleTagsDialog || showMoveDestinationDialog,
+        onCompleted = { paths -> renameTrigger++; refreshAffectedPaths(paths) })
 
     // Lock/Unlock password dialog (when sessionPassword is not available)
     if (showLockPasswordDialog && pendingLockAction != null) {
@@ -994,6 +1006,7 @@ fun MainScreen(
             onPasswordVerified = { password ->
                 showLockPasswordDialog = false
                 sessionPassword = password
+                LockedPlaybackSession.authorize(password)
                 val folders = pendingLockAction ?: return@PasswordDialog
                 val isUnlock = pendingActionIsUnlock
                 pendingLockAction = null
@@ -1020,6 +1033,7 @@ fun MainScreen(
             onPasswordVerified = { password ->
                 showSecurePasswordDialog = false
                 sessionPassword = password
+                LockedPlaybackSession.authorize(password)
                 val itemsToSecure = pendingSecureItems ?: return@PasswordDialog
                 pendingSecureItems = null
 
@@ -1650,7 +1664,9 @@ fun MainScreen(
                                     if (pwd != null) {
                                         coroutineScope.launch {
                                             val manifest = withContext(Dispatchers.IO) {
-                                                FolderLockManager.readManifest(itemPath, pwd)
+                                                FolderLockManager.readManifest(itemPath, pwd)?.also {
+                                                    FolderLockManager.noteUnlockedFolder(context, itemPath, it)
+                                                }
                                             }
                                             if (manifest != null) {
                                                 val salt = withContext(Dispatchers.IO) {

@@ -22,11 +22,12 @@ class LocalVideoServer(private val context: Context, port: Int = 0) : NanoHTTPD(
 
     fun addLockedVideo(videoPath: String, xorKey: ByteArray, originalName: String) {
         videoMap[originalName] = videoPath
-        lockedVideoKeys[originalName] = xorKey
+        lockedVideoKeys.put(originalName, xorKey.copyOf())?.fill(0)
     }
 
     fun clearVideos() {
         videoMap.clear()
+        lockedVideoKeys.values.forEach { it.fill(0) }
         lockedVideoKeys.clear()
     }
 
@@ -40,35 +41,46 @@ class LocalVideoServer(private val context: Context, port: Int = 0) : NanoHTTPD(
 
             if (videoPath != null) {
                 val xorKey = lockedVideoKeys[videoName]
-                return serveVideo(videoPath, session, xorKey)
+                return serveVideo(videoPath, session, xorKey, videoName)
             }
         }
 
         return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Video not found")
     }
 
-    private fun serveVideo(videoPath: String, session: IHTTPSession, xorKey: ByteArray? = null): Response {
+    private fun serveVideo(videoPath: String, session: IHTTPSession, xorKey: ByteArray? = null,
+                           originalName: String = File(videoPath).name): Response {
         try {
             val file = File(videoPath)
             if (!file.exists()) {
                 return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Video not found")
             }
 
-            val mimeType = mimeTypeForVideoFileName(file.name)
-            val fileSize = file.length()
+            val mimeType = mimeTypeForVideoFileName(originalName)
+            val fileSize = LockedPlaybackSession.getPayloadSize(videoPath) ?: file.length()
 
             val headers = session.headers
             val rangeHeader = headers["range"]
 
             if (rangeHeader != null) {
                 // Range request (seek support)
-                val range = rangeHeader.substring("bytes=".length).split("-")
-                val start = range[0].toLongOrNull() ?: 0L
-                val end = if (range.size > 1 && range[1].isNotEmpty()) {
-                    range[1].toLong()
+                fun unsatisfied() = newFixedLengthResponse(Response.Status.RANGE_NOT_SATISFIABLE, "text/plain", "Invalid range")
+                    .apply { addHeader("Content-Range", "bytes */$fileSize") }
+                val range = Regex("bytes=(\\d*)-(\\d*)").matchEntire(rangeHeader) ?: return unsatisfied()
+                if (fileSize == 0L) return unsatisfied()
+                val first = range.groupValues[1]
+                val last = range.groupValues[2]
+                val start: Long
+                val end: Long
+                if (first.isEmpty()) {
+                    val suffix = last.toLongOrNull()?.takeIf { it > 0 } ?: return unsatisfied()
+                    start = (fileSize - suffix).coerceAtLeast(0)
+                    end = fileSize - 1
                 } else {
-                    fileSize - 1
+                    start = first.toLongOrNull() ?: return unsatisfied()
+                    end = if (last.isEmpty()) fileSize - 1 else (last.toLongOrNull() ?: return unsatisfied()).coerceAtMost(fileSize - 1)
                 }
+                if (start >= fileSize || end < start) return unsatisfied()
 
                 val contentLength = end - start + 1
                 val fis = FileInputStream(file)

@@ -3,6 +3,7 @@ package com.nkls.nekovideo.services
 import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
+import android.os.Environment
 import android.provider.MediaStore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -13,6 +14,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.readFolderChildren
 import com.nkls.nekovideo.components.helpers.FolderLockManager
+import com.nkls.nekovideo.components.helpers.PortablePrivateFolders
+import com.nkls.nekovideo.components.helpers.PortableVideoStore
+import com.nkls.nekovideo.components.helpers.PrivateVideoMigration
+import com.nkls.nekovideo.components.helpers.PrivateMigrationHistory
+import com.nkls.nekovideo.BuildConfig
 import com.nkls.nekovideo.components.helpers.supportedVideoExtensions
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -94,7 +100,14 @@ object FolderVideoScanner {
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
+    internal data class MigrationCheck(val credentialVersion: Long, val pathsOverride: List<String>?,
+                                       val plan: PrivateVideoMigration.Plan)
+    private val _migrationCheck = MutableStateFlow<MigrationCheck?>(null)
+    internal val migrationCheck: StateFlow<MigrationCheck?> = _migrationCheck.asStateFlow()
+
     private var scanJob: Job? = null
+    @Volatile private var scanGeneration = 0L
+    private val externalRecoveryPaths = ConcurrentHashMap.newKeySet<String>()
     private const val PREFS_NAME = "nekovideo_cache"
     private const val CACHE_KEY = "folder_cache"
 
@@ -138,14 +151,16 @@ object FolderVideoScanner {
         }
     }
 
-    fun startScan(context: Context, scope: CoroutineScope = GlobalScope, forceRefresh: Boolean = false) {
+    @Synchronized fun startScan(context: Context, scope: CoroutineScope = GlobalScope, forceRefresh: Boolean = false) {
         // Se não for refresh forçado e já tem cache, não escaneia
         if (!forceRefresh && _cache.value.isNotEmpty()) {
             return
         }
 
         scanJob?.cancel()
+        val generation = ++scanGeneration
         _isScanning.value = true
+        _migrationCheck.value = null
 
         scanJob = scope.launch(Dispatchers.IO) {
             try {
@@ -158,22 +173,26 @@ object FolderVideoScanner {
                 scanSecureFolders(context, folderMap)
 
                 // Scan direto das pastas principais para pegar arquivos não indexados
-                scanDirectFolders(folderMap)
+                scanDirectFolders(context, folderMap)
 
+                restoreQueuedExternalArrivals(context, folderMap)
+                prepareMigrationCheck(context, folderMap.keys, generation, fullScan = true)
+                if (generation != scanGeneration) return@launch
                 _cache.value = folderMap.toMap()
 
                 // ✅ Salva o cache após o scan
                 saveCacheToDisk(context)
 
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 e.printStackTrace()
             } finally {
-                _isScanning.value = false
+                finishScan(generation)
             }
         }
     }
 
-    fun refreshPaths(
+    @Synchronized fun refreshPaths(
         context: Context,
         paths: List<String>,
         scope: CoroutineScope = GlobalScope,
@@ -195,6 +214,8 @@ object FolderVideoScanner {
             scanJob?.cancel()
         }
 
+        val generation = ++scanGeneration
+
         if (showProgress) {
             _isScanning.value = true
         }
@@ -202,36 +223,120 @@ object FolderVideoScanner {
         scanJob = scope.launch(Dispatchers.IO) {
             try {
                 val updatedCache = _cache.value.toMutableMap()
+                val observedPaths = mutableSetOf<String>()
 
                 targetPaths.forEach { rootPath ->
+                    observedPaths += rootPath
                     updatedCache.keys
                         .filter { cachedPath -> isSameOrDescendant(cachedPath, rootPath) }
                         .toList()
-                        .forEach { updatedCache.remove(it) }
+                        .forEach { observedPaths += it; updatedCache.remove(it) }
 
                     val rootDir = File(rootPath)
                     if (rootDir.exists() && rootDir.isDirectory) {
                         val subtreeMap = ConcurrentHashMap<String, FolderInfo>()
                         scanSecureFoldersRecursive(context, rootDir, subtreeMap)
+                        observedPaths += subtreeMap.keys
                         updatedCache.putAll(subtreeMap)
                     }
 
                     recomputeAncestors(context, updatedCache, rootPath)
                 }
 
+                restoreQueuedExternalArrivals(context, updatedCache, targetPaths)
+                prepareMigrationCheck(context, updatedCache.keys, generation, observedPaths = observedPaths)
+                if (generation != scanGeneration) return@launch
                 _cache.value = updatedCache.toMap()
                 saveCacheToDisk(context)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 e.printStackTrace()
             } finally {
-                if (showProgress) {
-                    _isScanning.value = false
-                }
+                finishScan(generation)
             }
         }
     }
 
-    private suspend fun scanDirectFolders(folderMap: ConcurrentHashMap<String, FolderInfo>) {
+    /** Also covers authentication after an already cached scan; counting remains inside the loading state. */
+    @Synchronized internal fun requestPrivateMigrationCheck(context: Context, password: String,
+                                                            pathsOverride: Collection<String>? = null) {
+        if (!BuildConfig.PORTABLE_PRIVATE_WRITES || password != LockedPlaybackSession.sessionPassword) return
+        if (scanJob?.isActive == true) {
+            _isScanning.value = true
+            return // Reuse the existing scan; authentication never starts another global scan.
+        }
+        if (pathsOverride == null && PrivateMigrationHistory(context).isComplete() && externalRecoveryPaths.isEmpty()) {
+            _migrationCheck.value = MigrationCheck(LockedPlaybackSession.credentialVersion, null,
+                PrivateVideoMigration.Plan(emptyList(), 0, 0))
+            return
+        }
+        _isScanning.value = true
+        val generation = ++scanGeneration
+        _migrationCheck.value = null
+        scanJob = GlobalScope.launch(Dispatchers.IO) {
+            try {
+                val updated = _cache.value.toMutableMap()
+                if (restoreQueuedExternalArrivals(context, updated, pathsOverride) && generation == scanGeneration) {
+                    _cache.value = updated.toMap()
+                    saveCacheToDisk(context)
+                }
+                prepareMigrationCheck(context, _cache.value.keys, generation, pathsOverride?.toList())
+            }
+            finally { finishScan(generation) }
+        }
+    }
+
+    private fun prepareMigrationCheck(context: Context, paths: Collection<String>, generation: Long,
+                                       pathsOverride: List<String>? = null, fullScan: Boolean = false,
+                                       observedPaths: Collection<String>? = null) {
+        if (!BuildConfig.PORTABLE_PRIVATE_WRITES) return
+        val history = PrivateMigrationHistory(context)
+        val accessible = Environment.isExternalStorageManager()
+        if (pathsOverride == null && accessible && generation == scanGeneration) {
+            when {
+                fullScan -> history.observe(paths + FolderLockManager.getAllLockedFolders(context).map { it.folderPath }, true)
+                observedPaths != null -> history.observe(observedPaths, false)
+                !history.hasDiscovery() -> history.observe(paths + FolderLockManager.getAllLockedFolders(context).map { it.folderPath }, false)
+            }
+        }
+        val password = LockedPlaybackSession.sessionPassword ?: return
+        val credential = LockedPlaybackSession.credentialVersion
+        val plan = when {
+            pathsOverride != null -> PrivateVideoMigration.plan(pathsOverride, password)
+            accessible -> history.plan(password)
+            else -> PrivateVideoMigration.Plan(emptyList(), 0, history.pendingPaths().size)
+        }
+        synchronized(this) {
+            if (generation == scanGeneration && credential == LockedPlaybackSession.credentialVersion &&
+                password == LockedPlaybackSession.sessionPassword) {
+                _migrationCheck.value = MigrationCheck(credential, pathsOverride, plan)
+            }
+        }
+    }
+
+    @Synchronized private fun finishScan(generation: Long) {
+        if (generation == scanGeneration) _isScanning.value = false
+    }
+
+    /** Recover only ordinary directories already found by the regular scan, without traversing the device again. */
+    private fun restoreQueuedExternalArrivals(context: Context, cache: MutableMap<String, FolderInfo>,
+                                              roots: Collection<String>? = null): Boolean {
+        val password = LockedPlaybackSession.sessionPassword ?: return false
+        var changed = false
+        externalRecoveryPaths.toList().filter { path -> roots == null || roots.any { isSameOrDescendant(path, it) } }
+            .forEach { path ->
+                val restored = PortablePrivateFolders.restoreExternalArrivals(context, path, password)
+                if (restored.isNotEmpty()) {
+                    recomputeFolderInfo(context, cache, File(path))
+                    recomputeAncestors(context, cache, path)
+                    changed = true
+                }
+                if (!PortablePrivateFolders.hasExternalArrivals(context, path)) externalRecoveryPaths.remove(path)
+            }
+        return changed
+    }
+
+    private suspend fun scanDirectFolders(context: Context, folderMap: ConcurrentHashMap<String, FolderInfo>) {
         val directScanPaths = listOf(
             "/storage/emulated/0/Download",
             "/storage/emulated/0/Downloads",
@@ -243,12 +348,13 @@ object FolderVideoScanner {
         directScanPaths.forEach { path ->
             val dir = File(path)
             if (dir.exists() && dir.isDirectory) {
-                scanDirectoryForVideos(dir, folderMap)
+                scanDirectoryForVideos(context, dir, folderMap)
             }
         }
     }
 
     private suspend fun scanDirectoryForVideos(
+        context: Context,
         directory: File,
         folderMap: ConcurrentHashMap<String, FolderInfo>
     ) {
@@ -257,8 +363,9 @@ object FolderVideoScanner {
         if (!directory.exists() || !directory.isDirectory) return
 
         try {
+            PortablePrivateFolders.restoreExternalArrivals(context, directory.absolutePath)
             val videoFiles = directory.listFiles()?.filter { file ->
-                file.isFile && file.extension.lowercase() in supportedVideoExtensions
+                file.isFile && file.extension.lowercase() in supportedVideoExtensions && !PortableVideoStore.hasRecoveryRecord(file)
             } ?: emptyList()
 
             videoFiles.forEach { videoFile ->
@@ -274,7 +381,7 @@ object FolderVideoScanner {
 
             directory.listFiles()?.forEach { subDir ->
                 if (subDir.isDirectory && !subDir.name.startsWith(".")) {
-                    scanDirectoryForVideos(subDir, folderMap)
+                    scanDirectoryForVideos(context, subDir, folderMap)
                 }
             }
 
@@ -307,6 +414,10 @@ object FolderVideoScanner {
                 yield()
 
                 val videoPath = cursor.getString(dataColumn)
+                if (PortableVideoStore.hasRecoveryRecord(File(videoPath))) {
+                    File(videoPath).parent?.let { externalRecoveryPaths += it }
+                    continue
+                }
                 val videoId = cursor.getLong(idColumn)
                 val lastModified = cursor.getLong(dateColumn) * 1000L
                 val size = cursor.getLong(sizeColumn)
@@ -351,13 +462,18 @@ object FolderVideoScanner {
 
         if (!directory.exists() || !directory.isDirectory) return
 
+        val restored = PortablePrivateFolders.restoreExternalArrivals(context, directory.absolutePath)
+        if (restored.isNotEmpty()) folderMap.remove(directory.absolutePath) // Replace stale MediaStore rows.
         val isSecure = File(directory, ".nomedia").exists()
         val isLocked = FolderLockManager.isLocked(directory.absolutePath)
+        if (!isLocked && !isSecure && PortablePrivateFolders.hasExternalArrivals(context, directory.absolutePath)) {
+            externalRecoveryPaths += directory.absolutePath
+        }
 
         if (isLocked) {
             // Locked folder: get file count from registry, do NOT scan by extension
             val registryEntry = FolderLockManager.getRegistryEntry(context, directory.absolutePath)
-            val fileCount = registryEntry?.fileCount ?: 0
+            val fileCount = registryEntry?.fileCount ?: FolderLockManager.getLockedFileCount(context, directory.absolutePath)
 
             folderMap[directory.absolutePath] = FolderInfo(
                 path = directory.absolutePath,
@@ -371,7 +487,7 @@ object FolderVideoScanner {
             propagateToParents(folderMap, directory.absolutePath, directory.lastModified())
         } else if (isSecure) {
             val videoFiles = directory.listFiles()?.filter { file ->
-                file.isFile && file.extension.lowercase() in supportedVideoExtensions
+                file.isFile && file.extension.lowercase() in supportedVideoExtensions && !PortableVideoStore.hasRecoveryRecord(file)
             } ?: emptyList()
 
             if (videoFiles.isNotEmpty()) {
@@ -398,7 +514,7 @@ object FolderVideoScanner {
             // Pasta normal não coberta pelo MediaStore ainda (ex: recém destravada).
             // Só age se o MediaStore não a indexou — evita duplicatas.
             val videoFiles = directory.listFiles()?.filter { file ->
-                file.isFile && file.extension.lowercase() in supportedVideoExtensions
+                file.isFile && file.extension.lowercase() in supportedVideoExtensions && !PortableVideoStore.hasRecoveryRecord(file)
             } ?: emptyList()
 
             if (videoFiles.isNotEmpty()) {
@@ -543,12 +659,13 @@ object FolderVideoScanner {
             return
         }
 
+        PortablePrivateFolders.restoreExternalArrivals(context, directory.absolutePath)
         val isLocked = FolderLockManager.isLocked(directory.absolutePath)
         val isSecure = File(directory, ".nomedia").exists() || isLocked
 
         if (isLocked) {
             val registryEntry = FolderLockManager.getRegistryEntry(context, directory.absolutePath)
-            val fileCount = registryEntry?.fileCount ?: 0
+            val fileCount = registryEntry?.fileCount ?: FolderLockManager.getLockedFileCount(context, directory.absolutePath)
             cacheMap[directory.absolutePath] = FolderInfo(
                 path = directory.absolutePath,
                 hasVideos = fileCount > 0,
@@ -562,7 +679,7 @@ object FolderVideoScanner {
         }
 
         val directVideos = directory.listFiles()?.filter { file ->
-            file.isFile && file.extension.lowercase() in supportedVideoExtensions
+            file.isFile && file.extension.lowercase() in supportedVideoExtensions && !PortableVideoStore.hasRecoveryRecord(file)
         } ?: emptyList()
 
         val videoInfos = directVideos.map { file ->

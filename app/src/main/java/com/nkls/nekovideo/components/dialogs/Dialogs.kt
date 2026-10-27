@@ -730,7 +730,7 @@ fun PasswordDialog(
                 }
                 onPasswordVerified(password)
             } else {
-                errorMessage = "Invalid password"
+                errorMessage = context.getString(if (isFirstTime) R.string.password_save_failed else R.string.invalid_password_error)
             }
         }
     }
@@ -1021,7 +1021,19 @@ fun ChangePasswordDialog(
                 }
                 if (failed) { step = ChangePasswordStep.EnterNew; return@LaunchedEffect }
 
-                FilesManager.SecureStorage.savePassword(context, newPassword)
+                val passwordSaved = withContext(Dispatchers.IO) {
+                    FilesManager.SecureStorage.savePassword(context, newPassword)
+                }
+                if (!passwordSaved) {
+                    errorMessage = context.getString(R.string.password_save_failed)
+                    step = ChangePasswordStep.EnterNew
+                    return@LaunchedEffect
+                }
+                val finalized = withContext(Dispatchers.IO) {
+                    runCatching { FolderLockManager.finalizePortablePasswordChange(context, newPassword) }.isSuccess
+                }
+                if (!finalized) android.widget.Toast.makeText(context,
+                    context.getString(R.string.password_cleanup_failed), android.widget.Toast.LENGTH_LONG).show()
 
                 if (BiometricHelper.isBiometricEnabled(context)) {
                     BiometricHelper.disable(context)
@@ -1418,20 +1430,9 @@ fun ProcessingDialog(
     title: String,
     message: String
 ) {
-    val bottomSheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true,
-        confirmValueChange = { it != SheetValue.Hidden }
-    )
-
-    AppBottomSheet(
-        onDismissRequest = { },
-        sheetState = bottomSheetState,
+    NonDismissibleBottomSheet(
         title = title,
         horizontalAlignment = Alignment.CenterHorizontally,
-        properties = ModalBottomSheetProperties(
-            securePolicy = SecureFlagPolicy.Inherit,
-            shouldDismissOnBackPress = false
-        ),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             start = 16.dp,
             top = 12.dp,

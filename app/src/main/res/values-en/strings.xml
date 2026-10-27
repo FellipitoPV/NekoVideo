@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="password_save_failed">Could not save the password. Please try again before closing the app.</string>
+    <string name="password_cleanup_failed">Password saved. Some old recovery data could not be removed.</string>
     <!-- Button actions -->
     <string name="action_paste_here">Paste Here</string>
     <string name="action_cancel">Cancel</string>
@@ -544,4 +546,16 @@
     <string name="player_seek_backward">Seek backward</string>
     <string name="player_audio_track_number">Audio %1$d</string>
     <string name="player_track_number">Track %1$d</string>
+    <string name="private_migration_title">Update private videos</string>
+    <plurals name="private_migration_offer">
+        <item quantity="one">We found %1$d video in %2$d private folder(s) using the previous format.\n\nThis encryption format improvement allows recovery after external moves or renames. Your videos remain private and keep the current password.\n\nYou can update now or later.</item>
+        <item quantity="other">We found %1$d videos in %2$d private folder(s) using the previous format.\n\nThis encryption format improvement allows recovery after external moves or renames. Your videos remain private and keep the current password.\n\nYou can update now or later.</item>
+    </plurals>
+    <string name="private_migration_update">Update now</string>
+    <string name="private_migration_later">Later</string>
+    <string name="private_migration_progress">Updating private videos… %1$d/%2$d</string>
+    <string name="private_migration_complete">%1$d video(s) updated.</string>
+    <string name="private_migration_partial">%1$d video(s) updated. %2$d folder(s) need another attempt. Pending files were preserved.</string>
+    <string name="private_migration_unavailable">Could not check %1$d private folder(s). Files were preserved.</string>
+    <string name="private_migration_retry">The update did not finish. Your videos remain private; try again after unlocking private access.</string>
 </resources>

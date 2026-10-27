@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="password_save_failed">No se pudo guardar la contraseña. Inténtalo de nuevo antes de cerrar la aplicación.</string>
+    <string name="password_cleanup_failed">Contraseña guardada. No se pudieron eliminar algunos datos de recuperación antiguos.</string>
     <!-- Button actions -->
     <string name="action_paste_here">Pegar Aquí</string>
     <string name="action_cancel">Cancelar</string>
@@ -543,4 +545,16 @@
     <string name="player_seek_backward">Retroceder búsqueda</string>
     <string name="player_audio_track_number">Audio %1$d</string>
     <string name="player_track_number">Pista %1$d</string>
+    <string name="private_migration_title">Actualizar videos privados</string>
+    <plurals name="private_migration_offer">
+        <item quantity="one">Encontramos %1$d video en %2$d carpeta(s) privada(s) con el formato anterior.\n\nEsta mejora del formato de cifrado permite recuperar los videos después de moverlos o renombrarlos desde otras aplicaciones. Seguirán privados y conservarán la contraseña actual.\n\nPuedes actualizar ahora o más tarde.</item>
+        <item quantity="other">Encontramos %1$d videos en %2$d carpeta(s) privada(s) con el formato anterior.\n\nEsta mejora del formato de cifrado permite recuperar los videos después de moverlos o renombrarlos desde otras aplicaciones. Seguirán privados y conservarán la contraseña actual.\n\nPuedes actualizar ahora o más tarde.</item>
+    </plurals>
+    <string name="private_migration_update">Actualizar ahora</string>
+    <string name="private_migration_later">Más tarde</string>
+    <string name="private_migration_progress">Actualizando videos privados… %1$d/%2$d</string>
+    <string name="private_migration_complete">%1$d video(s) actualizado(s).</string>
+    <string name="private_migration_partial">%1$d video(s) actualizado(s). %2$d carpeta(s) necesitan otro intento. Los archivos pendientes se conservaron.</string>
+    <string name="private_migration_unavailable">No se pudieron comprobar %1$d carpeta(s) privada(s). Los archivos se conservaron.</string>
+    <string name="private_migration_retry">La actualización no terminó. Los videos siguen privados; vuelve a intentarlo al desbloquear el acceso privado.</string>
 </resources>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- The lab can read its own copies, never request access to the real video library. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:node="remove" />
+    <application android:allowBackup="false" tools:replace="android:allowBackup">
+        <!-- Never launch the normal library scanner in the laboratory. -->
+        <activity android:name=".MainActivity" tools:node="remove" />
+        <service android:name=".MediaPlaybackService" tools:node="remove" />
+        <service android:name=".DLNACastService" tools:node="remove" />
+        <activity android:name=".recoverylab.RecoveryLabActivity"
+            android:exported="true" android:theme="@android:style/Theme.Material.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

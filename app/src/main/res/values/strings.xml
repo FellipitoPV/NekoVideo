@@ -276,6 +276,8 @@
     <string name="change_password_confirm_btn">Confirmar</string>
     <string name="change_password_processing">Atualizando pastas privadas…</string>
     <string name="change_password_success">Senha alterada com sucesso!</string>
+    <string name="password_save_failed">Não foi possível salvar a senha. Tente novamente antes de fechar o aplicativo.</string>
+    <string name="password_cleanup_failed">Senha salva. Alguns dados de recuperação antigos não puderam ser removidos.</string>
     <string name="change_password_section">Senha</string>
     <string name="biometric_reactivate_prompt_title">Reativar biometria</string>
     <string name="biometric_reactivate_prompt_subtitle">Confirme para atualizar o desbloqueio biométrico com a nova senha</string>
@@ -544,4 +546,16 @@
     <string name="player_seek_backward">Retroceder</string>
     <string name="player_audio_track_number">Áudio %1$d</string>
     <string name="player_track_number">Faixa %1$d</string>
+    <string name="private_migration_title">Atualizar vídeos privados</string>
+    <plurals name="private_migration_offer">
+        <item quantity="one">Encontramos %1$d vídeo em %2$d pasta(s) privada(s) do formato anterior.\n\nEsta melhoria no formato de criptografia permite recuperar os vídeos após movimentações ou renomeações externas. Eles continuam privados e mantêm a senha atual.\n\nVocê pode atualizar agora ou deixar para depois.</item>
+        <item quantity="other">Encontramos %1$d vídeos em %2$d pasta(s) privada(s) do formato anterior.\n\nEsta melhoria no formato de criptografia permite recuperar os vídeos após movimentações ou renomeações externas. Eles continuam privados e mantêm a senha atual.\n\nVocê pode atualizar agora ou deixar para depois.</item>
+    </plurals>
+    <string name="private_migration_update">Atualizar agora</string>
+    <string name="private_migration_later">Mais tarde</string>
+    <string name="private_migration_progress">Atualizando vídeos privados… %1$d/%2$d</string>
+    <string name="private_migration_complete">%1$d vídeo(s) atualizado(s).</string>
+    <string name="private_migration_partial">%1$d vídeo(s) atualizado(s). %2$d pasta(s) precisam de outra tentativa. Os arquivos pendentes foram preservados.</string>
+    <string name="private_migration_unavailable">Não foi possível verificar %1$d pasta(s) privada(s). Os arquivos foram preservados.</string>
+    <string name="private_migration_retry">A atualização não terminou. Os vídeos continuam privados; tente novamente ao liberar o acesso privado.</string>
 </resources>

@@ -17,15 +17,26 @@ android {
         targetSdk = 36
         versionCode = 45
         versionName = "1.9.1"
+        buildConfigField("boolean", "PORTABLE_PRIVATE_WRITES", "true")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         debug {
+            buildConfigField("boolean", "PORTABLE_PRIVATE_WRITES", "true")
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
             resValue("string", "app_name", "NekoVideo Debug")
+        }
+        // Opt-in laboratory: separate install/data and no changes to the production lock path.
+        create("recoveryLab") {
+            initWith(getByName("debug"))
+            buildConfigField("boolean", "PORTABLE_PRIVATE_WRITES", "false")
+            applicationIdSuffix = ".recoverylab"
+            versionNameSuffix = "-recoverylab"
+            resValue("string", "app_name", "NekoVideo Recovery Lab")
+            matchingFallbacks += listOf("debug")
         }
         release {
             isMinifyEnabled = true
@@ -41,6 +52,12 @@ android {
                 "proguard-rules.pro"
             )
         }
+    }
+
+    testBuildType = if (providers.gradleProperty("nekoRecoveryLab").orNull == "true") {
+        "recoveryLab"
+    } else {
+        "debug"
     }
 
     compileOptions {

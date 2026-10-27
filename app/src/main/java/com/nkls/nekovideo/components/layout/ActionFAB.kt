@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.helpers.FilesManager
+import com.nkls.nekovideo.components.helpers.FolderLockManager
 
 enum class ActionType {
     UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS, PASTE,
@@ -116,17 +117,17 @@ fun ActionFAB(
     val navigateToDestination = stringResource(R.string.navigate_to_destination)
 
     // Verifica se algum item selecionado é pasta trancada
-    val hasLockedFolders = remember(selectedItems) {
+    val hasLockedFolders = remember(selectedItems, showBottomSheet) {
         selectedItems.any { path ->
-            java.io.File(path, ".neko_locked").exists()
+            java.io.File(path).isDirectory && FolderLockManager.isLocked(path)
         }
     }
 
     // Verifica se algum item selecionado é pasta normal (pode ser trancada)
-    val hasLockableFolders = remember(selectedItems) {
+    val hasLockableFolders = remember(selectedItems, showBottomSheet) {
         selectedItems.any { path ->
             val file = java.io.File(path)
-            file.isDirectory && !java.io.File(path, ".neko_locked").exists()
+            file.isDirectory && !FolderLockManager.isLocked(path)
         }
     }
 

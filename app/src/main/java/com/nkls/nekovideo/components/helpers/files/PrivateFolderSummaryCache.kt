@@ -12,7 +12,7 @@ internal data class PrivateFolderSummary(
 
 /** Screen-scoped counts only; never stores keys, passwords or decrypted manifests. */
 internal class PrivateFolderSummaryCache(private val capacity: Int = 128) {
-    private data class Stamp(val modified: Long, val manifestModified: Long, val locked: Boolean)
+    private data class Stamp(val modified: Long, val manifestModified: Long, val recoveryModified: Long, val locked: Boolean)
     private data class Cached(val stamp: Stamp, val summary: PrivateFolderSummary)
     private val entries = object : LinkedHashMap<String, Cached>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Cached>): Boolean =
@@ -30,6 +30,7 @@ internal class PrivateFolderSummaryCache(private val capacity: Int = 128) {
         val stamp = Stamp(
             folder.lastModified(),
             if (locked) File(folder, ".neko_manifest.enc").lastModified() else 0L,
+            if (locked) File(folder, PortablePrivateFolders.INDEX).lastModified() else 0L,
             locked
         )
         val readGeneration = synchronized(this) {
@@ -53,7 +54,7 @@ internal class PrivateFolderSummaryCache(private val capacity: Int = 128) {
                 if (child.name != ".neko_thumbs") subfolders++
             } else if (attributes.isRegularFile) {
                 if (locked) {
-                    if (child.name !in lockedMetadataFiles) videos++
+                    if (child.name !in lockedMetadataFiles && !child.name.startsWith(".neko_") && !child.name.endsWith(".part")) videos++
                 } else if (child.extension.lowercase() in supportedVideoExtensions) {
                     videos++
                 }
@@ -63,7 +64,8 @@ internal class PrivateFolderSummaryCache(private val capacity: Int = 128) {
         val summary = PrivateFolderSummary(videos, subfolders, bytes)
         // Do not retain a partial snapshot if entries changed during the read.
         if (complete && folder.lastModified() == stamp.modified &&
-            (!locked || File(folder, ".neko_manifest.enc").lastModified() == stamp.manifestModified)) {
+            (!locked || (File(folder, ".neko_manifest.enc").lastModified() == stamp.manifestModified &&
+                File(folder, PortablePrivateFolders.INDEX).lastModified() == stamp.recoveryModified))) {
             synchronized(this) {
                 if (generation == readGeneration) entries[folder.absolutePath] = Cached(stamp, summary)
             }

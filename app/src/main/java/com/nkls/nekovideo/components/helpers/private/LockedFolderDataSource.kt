@@ -18,8 +18,9 @@ import java.io.RandomAccessFile
  */
 @OptIn(UnstableApi::class)
 class LockedFolderDataSource(
-    private val xorKey: ByteArray
+    xorKey: ByteArray
 ) : DataSource {
+    private val xorKey = xorKey.copyOf()
 
     companion object {
         private const val HEADER_SIZE = 8192L // 8KB
@@ -40,14 +41,15 @@ class LockedFolderDataSource(
         }
 
         randomAccessFile = RandomAccessFile(file, "r")
-        val fileLength = randomAccessFile!!.length()
+        val fileLength = LockedPlaybackSession.getPayloadSize(filePath) ?: randomAccessFile!!.length()
 
         val position = if (dataSpec.position != 0L) dataSpec.position else 0L
+        require(position in 0..fileLength) { "Read position is outside the video" }
         currentPosition = position
         randomAccessFile!!.seek(position)
 
         bytesRemaining = if (dataSpec.length != C.LENGTH_UNSET.toLong()) {
-            dataSpec.length
+            minOf(dataSpec.length, fileLength - position)
         } else {
             fileLength - position
         }
@@ -56,6 +58,7 @@ class LockedFolderDataSource(
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+        if (length == 0) return 0
         if (bytesRemaining <= 0) return C.RESULT_END_OF_INPUT
 
         val raf = randomAccessFile ?: return C.RESULT_END_OF_INPUT
@@ -102,8 +105,9 @@ class LockedFolderDataSource(
  */
 @OptIn(UnstableApi::class)
 class LockedFolderDataSourceFactory(
-    private val xorKey: ByteArray
+    xorKey: ByteArray
 ) : DataSource.Factory {
+    private val xorKey = xorKey.copyOf()
 
     override fun createDataSource(): DataSource {
         return LockedFolderDataSource(xorKey)

@@ -166,12 +166,13 @@ object LockedFolderOperations {
                 if (sourceLockedFolder != null && password != null) {
                     val obfuscatedNames = movedItems.map { File(it).name }
                     val sourceManifest = FolderLockManager.readManifest(sourceLockedFolder, password)
+                        ?: error("Invalid password or unavailable private metadata")
 
                     val fileObfNames = obfuscatedNames.filter { name ->
-                        sourceManifest?.files?.any { it.obfuscatedName == name } == true
+                        sourceManifest.files.any { it.obfuscatedName == name }
                     }
                     val subfolderObfNames = obfuscatedNames.filter { name ->
-                        sourceManifest?.subfolders?.any { it.obfuscatedName == name } == true
+                        sourceManifest.subfolders.any { it.obfuscatedName == name }
                     }
 
                     val restoredFilePaths = if (fileObfNames.isNotEmpty()) {
@@ -195,10 +196,27 @@ object LockedFolderOperations {
                             sourceLockedFolder,
                             obfName,
                             password
-                        )?.absolutePath
+                        )?.let { directory ->
+                            var restoredPath = directory.absolutePath
+                            FolderLockManager.unlockFolderRecursive(context, directory.absolutePath, password,
+                                onError = { error(it) }, onResolvedPath = { restoredPath = it })
+                            restoredPath
+                        }
                     }
 
-                    restoredFilePaths + restoredFolderPaths
+                    val untracked = movedItems.filter { path ->
+                        val file = File(path)
+                        file.name !in fileObfNames && file.name !in subfolderObfNames &&
+                            (file.isDirectory || (file.isFile && file.extension.lowercase() in supportedVideoExtensions &&
+                                !PortableVideoStore.hasRecoveryRecord(file)))
+                    }.map { path ->
+                        var restoredPath = path
+                        if (File(path).isDirectory) FolderLockManager.unlockFolderRecursive(context, path, password,
+                            onError = { error(it) }, onResolvedPath = { restoredPath = it })
+                        restoredPath
+                    }
+
+                    restoredFilePaths + restoredFolderPaths + untracked
                 } else {
                     movedItems
                 }
@@ -209,12 +227,13 @@ object LockedFolderOperations {
                 return false
             }
 
+            var operationFailed = false
             FilesManager.moveSelectedItems(
                 context = context,
                 selectedItems = actualItemsToMove,
                 destinationPath = destinationPath,
                 onProgress = onMoveProgress,
-                onError = onError,
+                onError = { operationFailed = true; onError(it) },
                 onSuccess = {}
             )
 
@@ -226,13 +245,17 @@ object LockedFolderOperations {
                     password = password,
                     onLockStateChange = onLockStateChange,
                     onLockProgress = onLockProgress,
-                    onError = onError
+                    onError = { operationFailed = true; onError(it) }
                 )
                 refreshLockedPlaybackSessionIfNeeded(destinationPath, password)
             }
 
-            notifySuccess(onSuccess)
-            return true
+            if (!operationFailed) notifySuccess(onSuccess)
+            return !operationFailed
+        } catch (failure: Exception) {
+            if (failure is kotlinx.coroutines.CancellationException) throw failure
+            notifyError(onError, failure.message ?: "Could not move private files")
+            return false
         } finally {
             notifyState(onMoveStateChange, false)
             notifyProgress(onMoveProgress, 0, 0)
@@ -248,7 +271,7 @@ object LockedFolderOperations {
         onError: (String) -> Unit = {},
         onSuccess: () -> Unit = {}
     ) {
-        withContext(Dispatchers.IO) {
+        try { withContext(Dispatchers.IO) {
             val totalItems = selectedItems.size
 
             selectedItems.forEachIndexed { index, itemPath ->
@@ -257,10 +280,10 @@ object LockedFolderOperations {
                     if (FolderLockManager.isLocked(itemPath)) {
                         LockedPlaybackSession.removeSession(itemPath)
                     }
-                    file.deleteRecursively()
+                    check(file.deleteRecursively()) { "Could not delete folder" }
                 } else {
                     val obfuscatedName = file.name
-                    file.delete()
+                    check(file.delete()) { "Could not delete video" }
                     val updatedManifest = FolderLockManager.removeFileFromManifest(
                         context,
                         parentLockedFolder,
@@ -274,6 +297,10 @@ object LockedFolderOperations {
 
                 notifyProgress(onProgress, index + 1, totalItems)
             }
+        } } catch (failure: Exception) {
+            if (failure is kotlinx.coroutines.CancellationException) throw failure
+            notifyError(onError, failure.message ?: "Could not delete private files")
+            return
         }
 
         notifySuccess(onSuccess)

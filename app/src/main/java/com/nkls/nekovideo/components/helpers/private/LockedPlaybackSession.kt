@@ -1,5 +1,9 @@
 package com.nkls.nekovideo.components.helpers
 
+import java.io.File
+import java.util.Base64
+import java.util.concurrent.ConcurrentHashMap
+
 /**
  * Singleton session state for locked folder playback.
  * Supports multiple locked folders simultaneously for cross-folder playlist playback.
@@ -8,18 +12,24 @@ object LockedPlaybackSession {
 
     private data class FolderSession(
         val xorKey: ByteArray,
-        val manifest: LockedFolderManifest
-    )
+        val manifest: LockedFolderManifest,
+        val entries: Map<String, LockedFileEntry>,
+        val fileKeys: Map<String, ByteArray>
+    ) {
+        fun clearKeys() { xorKey.fill(0); fileKeys.values.forEach { it.fill(0) } }
+    }
 
     /** Map of folder path -> session data (supports multiple locked folders) */
-    private val sessions = mutableMapOf<String, FolderSession>()
+    private val sessions = ConcurrentHashMap<String, FolderSession>()
 
     /** Path of the "primary" locked folder (the one the user is currently browsing) */
     var currentFolderPath: String? = null
         private set
 
     /** Session password (needed to re-encrypt manifests on delete) */
-    var sessionPassword: String? = null
+    @Volatile var sessionPassword: String? = null
+        private set
+    @Volatile var credentialVersion: Long = 0L
         private set
 
     /** Active XOR key for the primary folder */
@@ -34,15 +44,25 @@ object LockedPlaybackSession {
     val isActive: Boolean
         get() = sessions.isNotEmpty()
 
+    /** Keep an already verified credential available to the scanner before any folder is opened. */
+    fun authorize(password: String) {
+        if (sessionPassword != password) credentialVersion++
+        sessionPassword = password
+    }
+
     /**
      * Start/add a locked playback session for a folder.
      * Sets this folder as the "primary" (current) folder.
      */
     fun start(xorKey: ByteArray, manifest: LockedFolderManifest, folderPath: String, password: String? = null) {
-        sessions[folderPath] = FolderSession(xorKey.copyOf(), manifest)
+        val entries = manifest.files.associateBy { it.obfuscatedName }
+        val keys = entries.mapNotNull { (name, entry) ->
+            entry.portableMetadata?.let { name to Base64.getDecoder().decode(it.contentKey) }
+        }.toMap()
+        sessions.put(folderPath, FolderSession(xorKey.copyOf(), manifest, entries, keys))?.clearKeys()
         currentFolderPath = folderPath
         if (password != null) {
-            sessionPassword = password
+            authorize(password)
         }
     }
 
@@ -51,11 +71,13 @@ object LockedPlaybackSession {
      */
     fun clear() {
         sessions.values.forEach { session ->
-            session.xorKey.fill(0)
+            session.clearKeys()
         }
         sessions.clear()
         currentFolderPath = null
         sessionPassword = null
+        credentialVersion++
+        PortablePrivateFolders.clearSession()
     }
 
     /**
@@ -63,8 +85,17 @@ object LockedPlaybackSession {
      * Used by HybridDataSource for multi-folder playlist playback.
      */
     fun getXorKeyForFile(filePath: String): ByteArray? {
-        val parentPath = java.io.File(filePath).parent ?: return null
-        return sessions[parentPath]?.xorKey
+        val file = File(filePath)
+        val parent = file.parent ?: return null
+        val session = sessions[parent] ?: return null
+        if (file.name !in session.entries) return null
+        return session.fileKeys[file.name] ?: session.xorKey
+    }
+
+    fun getPayloadSize(filePath: String): Long? {
+        val file = File(filePath)
+        val parent = file.parent ?: return null
+        return sessions[parent]?.entries?.get(file.name)?.portableMetadata?.payloadSize
     }
 
     /**
@@ -79,7 +110,9 @@ object LockedPlaybackSession {
      */
     fun updateManifest(folderPath: String, manifest: LockedFolderManifest) {
         val existing = sessions[folderPath] ?: return
-        sessions[folderPath] = existing.copy(manifest = manifest)
+        val activeFolder = currentFolderPath
+        start(existing.xorKey, manifest, folderPath, sessionPassword)
+        currentFolderPath = activeFolder
     }
 
     /**
@@ -131,8 +164,7 @@ object LockedPlaybackSession {
      * Remove a session for a specific folder (e.g. when deleting a locked subfolder).
      */
     fun removeSession(folderPath: String) {
-        sessions[folderPath]?.xorKey?.fill(0)
-        sessions.remove(folderPath)
+        sessions.remove(folderPath)?.clearKeys()
         if (currentFolderPath == folderPath) {
             currentFolderPath = null
         }
@@ -144,7 +176,7 @@ object LockedPlaybackSession {
      */
     fun getOriginalName(obfuscatedName: String): String? {
         for (session in sessions.values) {
-            session.manifest.files.find { it.obfuscatedName == obfuscatedName }?.originalName?.let { return it }
+            session.entries[obfuscatedName]?.originalName?.let { return it }
         }
         return null
     }
@@ -166,10 +198,6 @@ object LockedPlaybackSession {
     fun getDurationForFile(filePath: String): String? {
         val parentPath = java.io.File(filePath).parent ?: return null
         val obfuscatedName = java.io.File(filePath).name
-        return sessions[parentPath]
-            ?.manifest
-            ?.files
-            ?.find { it.obfuscatedName == obfuscatedName }
-            ?.duration
+        return sessions[parentPath]?.entries?.get(obfuscatedName)?.duration
     }
 }

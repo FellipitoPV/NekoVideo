@@ -6,6 +6,8 @@ import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.util.Base64
 import android.util.Log
+import android.util.AtomicFile
+import com.nkls.nekovideo.BuildConfig
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
@@ -24,7 +26,8 @@ data class LockedFileEntry(
     val obfuscatedName: String,
     val originalName: String,
     val originalSize: Long,
-    val duration: String? = null
+    val duration: String? = null,
+    val portableMetadata: PortableVideoStore.Metadata? = null
 )
 
 data class LockedSubfolderEntry(
@@ -77,7 +80,7 @@ object FolderLockManager {
         return !isLocked(parentPath)
     }
 
-    private fun obfuscateLockedFolderNameIfNeeded(context: Context, folderPath: String): String {
+    internal fun obfuscateLockedFolderNameIfNeeded(context: Context, folderPath: String): String {
         if (!shouldObfuscateLockedFolderName(folderPath)) return folderPath
 
         val folder = File(folderPath)
@@ -101,7 +104,7 @@ object FolderLockManager {
         return renamedFolder.absolutePath
     }
 
-    private fun restoreUnlockedFolderNameIfNeeded(context: Context, folderPath: String, originalFolderName: String): String {
+    internal fun restoreUnlockedFolderNameIfNeeded(context: Context, folderPath: String, originalFolderName: String): String {
         if (folderPath == FilesManager.SecureStorage.getNekoPrivateFolderPath()) return folderPath
 
         val folder = File(folderPath)
@@ -118,6 +121,8 @@ object FolderLockManager {
             Log.w(TAG, "Failed to restore unlocked folder name: $folderPath")
             return folderPath
         }
+
+        onLockedFolderMoved(context, folderPath, restoredFolder.absolutePath)
 
         if (FilesManager.SecureStorage.getCustomSecureFolderPath(context) == folderPath) {
             FilesManager.SecureStorage.setCustomSecureFolderPath(context, restoredFolder.absolutePath)
@@ -194,7 +199,7 @@ object FolderLockManager {
         }
     }
 
-    private fun getFormattedVideoDuration(videoFile: File): String? {
+    internal fun getFormattedVideoDuration(videoFile: File): String? {
         val retriever = MediaMetadataRetriever()
         return try {
             retriever.setDataSource(videoFile.absolutePath)
@@ -274,21 +279,32 @@ object FolderLockManager {
 
     // Read manifest from a locked folder (requires password)
     fun readManifest(folderPath: String, password: String): LockedFolderManifest? {
-        val manifestFile = File(folderPath, MANIFEST_FILE)
-        if (!manifestFile.exists()) return null
+        if (PortablePrivateFolders.isPortable(folderPath)) return PortablePrivateFolders.manifest(folderPath, password)
+        val manifest = readLegacyManifest(folderPath, password) ?: return null
+        return PortablePrivateFolders.mergeLegacy(folderPath, password, manifest)
+    }
 
-        val markerFile = File(folderPath, LOCKED_MARKER)
-        if (!markerFile.exists()) return null
+    @Synchronized internal fun readLegacyManifest(folderPath: String, password: String): LockedFolderManifest? = runCatching {
+        val marker = File(folderPath, LOCKED_MARKER)
+        if (!marker.isFile) return@runCatching null
+        val salt = Base64.decode(marker.readText().trim(), Base64.NO_WRAP)
+        val encrypted = AtomicFile(File(folderPath, MANIFEST_FILE)).openRead().use { it.readBytes() }
+        decryptManifest(encrypted, password, salt)
+    }.getOrNull()
 
-        val saltBase64 = markerFile.readText().trim()
-        val salt = Base64.decode(saltBase64, Base64.NO_WRAP)
-
-        val encryptedData = manifestFile.readBytes()
-        return decryptManifest(encryptedData, password, salt)
+    /** Durable legacy-manifest writer, including recovery of an interrupted atomic write. */
+    @Synchronized internal fun saveLegacyManifest(folderPath: String, manifest: LockedFolderManifest, password: String) {
+        val salt = Base64.decode(manifest.salt, Base64.NO_WRAP)
+        val atomic = AtomicFile(File(folderPath, MANIFEST_FILE))
+        val bytes = encryptManifest(manifest, password, salt)
+        val stream = atomic.startWrite()
+        try { stream.write(bytes); atomic.finishWrite(stream) }
+        catch (failure: Throwable) { atomic.failWrite(stream); throw failure }
     }
 
     // Get salt from a locked folder (does not require password)
     fun getSalt(folderPath: String): ByteArray? {
+        if (PortablePrivateFolders.isPortable(folderPath)) return PortablePrivateFolders.salt(folderPath)
         val markerFile = File(folderPath, LOCKED_MARKER)
         if (!markerFile.exists()) return null
         return try {
@@ -307,8 +323,13 @@ object FolderLockManager {
         password: String,
         onProgress: (current: Int, total: Int, fileName: String) -> Unit = { _, _, _ -> },
         onError: (String) -> Unit = {},
+        onResolvedPath: (String) -> Unit = {},
         onSuccess: () -> Unit = {}
     ) {
+        if (BuildConfig.PORTABLE_PRIVATE_WRITES) {
+            PortablePrivateFolders.lock(context, folderPath, password, onProgress, onError, onSuccess, onResolvedPath)
+            return
+        }
         val folder = File(folderPath)
         if (!folder.exists() || !folder.isDirectory) {
             onError("Folder not found: $folderPath")
@@ -420,7 +441,7 @@ object FolderLockManager {
             // Update registry
             addToRegistry(context, folderPath, folder.name, entries.size)
 
-            obfuscateLockedFolderNameIfNeeded(context, folderPath)
+            onResolvedPath(obfuscateLockedFolderNameIfNeeded(context, folderPath))
 
             onSuccess()
 
@@ -443,6 +464,11 @@ object FolderLockManager {
         onError: (String) -> Unit = {},
         onSuccess: (String) -> Unit = {}
     ) {
+        if (PortablePrivateFolders.isPortable(folderPath)) {
+            try { onSuccess(PortablePrivateFolders.unlock(context, folderPath, password, onProgress)) }
+            catch (failure: Exception) { onError(failure.message ?: "Could not restore private folder") }
+            return
+        }
         val folder = File(folderPath)
         if (!folder.exists() || !folder.isDirectory) {
             onError("Folder not found")
@@ -479,6 +505,13 @@ object FolderLockManager {
                 }
 
                 onProgress(index + 1, totalFiles, entry.originalName)
+
+                if (entry.portableMetadata != null) {
+                    val restored = PortablePrivateFolders.restoreEntry(folder, entry.obfuscatedName, entry.portableMetadata)
+                    if (restored != obfuscatedFile) check(obfuscatedFile.delete()) { "Export verified; protected copy could not be removed" }
+                    kotlinx.coroutines.runBlocking { VideoTagStore.moveTagsForPath(context, obfuscatedFile.absolutePath, restored.absolutePath) }
+                    return@forEachIndexed
+                }
 
                 // Revert XOR on header
                 xorFileHeader(obfuscatedFile, xorKey)
@@ -541,7 +574,7 @@ object FolderLockManager {
      * Check if a folder is locked
      */
     fun isLocked(folderPath: String): Boolean {
-        return File(folderPath, LOCKED_MARKER).exists()
+        return File(folderPath, LOCKED_MARKER).exists() || PortablePrivateFolders.isPortable(folderPath)
     }
 
     /**
@@ -571,7 +604,7 @@ object FolderLockManager {
         prefs.edit().putString(REGISTRY_KEY, gson.toJson(registry)).apply()
     }
 
-    private fun addToRegistry(context: Context, folderPath: String, originalName: String, fileCount: Int) {
+    internal fun addToRegistry(context: Context, folderPath: String, originalName: String, fileCount: Int) {
         val registry = loadRegistry(context)
         registry.folders.removeAll { it.folderPath == folderPath }
         registry.folders.add(
@@ -585,7 +618,7 @@ object FolderLockManager {
         saveRegistry(context, registry)
     }
 
-    private fun removeFromRegistry(context: Context, folderPath: String) {
+    internal fun removeFromRegistry(context: Context, folderPath: String) {
         val registry = loadRegistry(context)
         registry.folders.removeAll { it.folderPath == folderPath }
         saveRegistry(context, registry)
@@ -632,6 +665,23 @@ object FolderLockManager {
         return registry.folders.find { it.folderPath == folderPath }
     }
 
+    fun getLockedFileCount(context: Context, folderPath: String): Int =
+        getRegistryEntry(context, folderPath)?.fileCount ?: if (PortablePrivateFolders.isPortable(folderPath)) {
+            PortablePrivateFolders.fileCount(folderPath)
+        } else 0
+
+    fun noteUnlockedFolder(context: Context, folderPath: String, manifest: LockedFolderManifest) {
+        if (PortablePrivateFolders.isPortable(folderPath) || manifest.files.any { it.portableMetadata != null }) {
+            addToRegistry(context, folderPath, manifest.originalFolderName, manifest.files.size)
+        }
+    }
+
+    fun finalizePortablePasswordChange(context: Context, password: String) {
+        getAllLockedFolders(context).forEach { entry ->
+            PortablePrivateFolders.finalizePasswordChange(entry.folderPath, password)
+        }
+    }
+
     /**
      * Get all locked folders from registry
      */
@@ -659,6 +709,11 @@ object FolderLockManager {
         onError: (String) -> Unit = {},
         onSuccess: () -> Unit = {}
     ) {
+        if (PortablePrivateFolders.isPortable(folderPath)) {
+            try { PortablePrivateFolders.rekey(folderPath, oldPassword, newPassword, onProgress); onSuccess() }
+            catch (failure: Exception) { onError(failure.message ?: "Could not update private password") }
+            return
+        }
         val folder = File(folderPath)
         if (!folder.exists() || !folder.isDirectory) { onError("Folder not found"); return }
         if (!isLocked(folderPath)) { onSuccess(); return } // nothing to re-key
@@ -672,22 +727,33 @@ object FolderLockManager {
         val newXorKey = deriveXorKey(newPassword, newSalt)
         val total = manifest.files.size
 
+        val wrappingKeys = PortableVideoStore.Keyring(newPassword.toCharArray())
         try {
-            manifest.files.forEachIndexed { index, entry ->
+            // Preserve portable metadata under the old credential until the new index is committed.
+            if (manifest.files.any { it.portableMetadata != null }) {
+                File(folder, MANIFEST_FILE).writeBytes(encryptManifest(manifest, oldPassword, oldSalt))
+            }
+            val updatedFiles = manifest.files.mapIndexed { index, entry ->
                 val file = File(folder, entry.obfuscatedName)
-                if (!file.exists()) return@forEachIndexed
+                if (!file.exists()) return@mapIndexed entry
                 onProgress(index + 1, total)
-                xorFileHeader(file, oldXorKey) // restore original 8KB
-                xorFileHeader(file, newXorKey) // apply new 8KB XOR
+                if (entry.portableMetadata != null) {
+                    val rewritten = PortablePrivateFolders.replaceRecord(folder, file, entry.portableMetadata, wrappingKeys, newSalt)
+                    entry.copy(portableMetadata = rewritten.metadata)
+                } else {
+                    xorFileHeader(file, oldXorKey) // restore original 8KB
+                    xorFileHeader(file, newXorKey) // apply new 8KB XOR
+                    entry
+                }
             }
 
-            val newManifest = manifest.copy(salt = Base64.encodeToString(newSalt, Base64.NO_WRAP))
+            val newManifest = manifest.copy(files = updatedFiles, salt = Base64.encodeToString(newSalt, Base64.NO_WRAP))
             File(folder, MANIFEST_FILE).writeBytes(encryptManifest(newManifest, newPassword, newSalt))
             File(folder, LOCKED_MARKER).writeText(Base64.encodeToString(newSalt, Base64.NO_WRAP))
             onSuccess()
         } catch (e: Exception) {
             onError(e.message ?: "Re-key failed")
-        }
+        } finally { wrappingKeys.close() }
     }
 
     /**
@@ -712,6 +778,11 @@ object FolderLockManager {
         val total = allPaths.size
 
         for ((index, path) in allPaths.withIndex()) {
+            // A previous attempt may have finished this legacy folder before preferences were saved.
+            if (!PortablePrivateFolders.isPortable(path) && verifyPassword(path, newPassword) && !verifyPassword(path, oldPassword)) {
+                onProgress(index + 1, total, 0, 0)
+                continue
+            }
             var failed = false
             reKeyFolder(
                 folderPath = path,
@@ -744,6 +815,10 @@ object FolderLockManager {
         onError: (String) -> Unit = {},
         onSuccess: () -> Unit = {}
     ) {
+        if (PortablePrivateFolders.isPortable(folderPath)) {
+            PortablePrivateFolders.addFiles(context, folderPath, password, newFiles, onProgress, onError, onSuccess)
+            return
+        }
         if (!isLocked(folderPath)) {
             onError("Folder is not locked")
             return
@@ -851,6 +926,7 @@ object FolderLockManager {
         onError: (String) -> Unit = {},
         onSuccess: () -> Unit = {}
     ) {
+        var resolvedPath = folderPath
         if (!isLocked(folderPath)) {
             var didError = false
             lockFolder(
@@ -859,28 +935,30 @@ object FolderLockManager {
                 password = password,
                 onProgress = onProgress,
                 onError = { msg -> didError = true; onError(msg) },
+                onResolvedPath = { resolvedPath = it },
                 onSuccess = {}
             )
             if (didError) return
         }
 
         // Recurse into subfolders (already renamed to UUIDs in manifest after lockFolder)
-        val manifest = readManifest(folderPath, password) ?: run { onSuccess(); return }
+        val manifest = readManifest(resolvedPath, password) ?: run { onError("Could not read private folder metadata"); return }
+        var childFailed = false
         manifest.subfolders?.forEach { subEntry ->
-            val subPath = File(folderPath, subEntry.obfuscatedName).absolutePath
+            val subPath = File(resolvedPath, subEntry.obfuscatedName).absolutePath
             if (File(subPath).exists()) {
                 lockFolderRecursive(
                     context = context,
                     folderPath = subPath,
                     password = password,
                     onProgress = onProgress,
-                    onError = { /* continue with other subfolders */ },
+                    onError = { childFailed = true; onError(it) },
                     onSuccess = {}
                 )
             }
         }
 
-        onSuccess()
+        if (!childFailed) onSuccess()
     }
 
     /**
@@ -894,6 +972,9 @@ object FolderLockManager {
         obfuscatedName: String,
         password: String
     ): File? {
+        if (PortablePrivateFolders.isPortable(parentFolderPath)) {
+            return PortablePrivateFolders.extractDirectory(context, parentFolderPath, obfuscatedName, password)
+        }
         val manifest = readManifest(parentFolderPath, password) ?: return null
         val salt = getSalt(parentFolderPath) ?: return null
 
@@ -933,15 +1014,17 @@ object FolderLockManager {
         password: String,
         onProgress: (current: Int, total: Int, fileName: String) -> Unit = { _, _, _ -> },
         onError: (String) -> Unit = {},
+        onResolvedPath: (String) -> Unit = {},
         onSuccess: () -> Unit = {}
     ) {
         if (!isLocked(folderPath)) {
             // Not locked — still recurse into any locked subfolders
+            var childFailed = false
             File(folderPath).listFiles()?.filter { it.isDirectory && isLocked(it.absolutePath) }
                 ?.forEach { subdir ->
-                    unlockFolderRecursive(context, subdir.absolutePath, password, onProgress, {}, {})
+                    unlockFolderRecursive(context, subdir.absolutePath, password, onProgress, { childFailed = true; onError(it) }, {})
                 }
-            onSuccess()
+            if (!childFailed) { onResolvedPath(folderPath); onSuccess() }
             return
         }
 
@@ -950,25 +1033,26 @@ object FolderLockManager {
             ?.map { it.originalName } ?: emptyList()
 
         var didError = false
+        var restoredPath = folderPath
         unlockFolder(
             context = context,
             folderPath = folderPath,
             password = password,
             onProgress = onProgress,
             onError = { msg -> didError = true; onError(msg) },
-            onSuccess = { _ -> }
+            onSuccess = { restoredPath = it }
         )
         if (didError) return
 
         // After unlock, subfolders have original names again — recurse into locked ones
         subOriginalNames.forEach { originalName ->
-            val subPath = File(folderPath, originalName).absolutePath
+            val subPath = File(restoredPath, originalName).absolutePath
             if (File(subPath).exists()) {
-                unlockFolderRecursive(context, subPath, password, onProgress, {}, {})
+                unlockFolderRecursive(context, subPath, password, onProgress, { didError = true; onError(it) }, {})
             }
         }
 
-        onSuccess()
+        if (!didError) { onResolvedPath(restoredPath); onSuccess() }
     }
 
     /**
@@ -982,6 +1066,9 @@ object FolderLockManager {
         subfolderPath: String,
         password: String
     ): String? {
+        if (PortablePrivateFolders.isPortable(parentFolderPath)) {
+            return PortablePrivateFolders.addDirectory(context, parentFolderPath, subfolderPath, password)
+        }
         if (!isLocked(parentFolderPath)) return null
         val manifest = readManifest(parentFolderPath, password) ?: return null
         val salt = getSalt(parentFolderPath) ?: return null
@@ -1022,12 +1109,22 @@ object FolderLockManager {
         newOriginalName: String,
         password: String
     ): LockedFolderManifest? {
+        if (PortablePrivateFolders.isPortable(folderPath)) {
+            return PortablePrivateFolders.renameFile(folderPath, obfuscatedName, newOriginalName, password)
+        }
         val manifest = readManifest(folderPath, password) ?: return null
         val salt = getSalt(folderPath) ?: return null
 
         val updatedFiles = manifest.files.map { entry ->
             if (entry.obfuscatedName == obfuscatedName) {
-                entry.copy(originalName = newOriginalName)
+                if (entry.portableMetadata != null) {
+                    val folder = File(folderPath)
+                    PortableVideoStore.Keyring(password.toCharArray()).use { keys ->
+                        val updated = PortablePrivateFolders.replaceRecord(folder, File(folder, obfuscatedName),
+                            entry.portableMetadata.copy(originalName = newOriginalName), keys, salt)
+                        entry.copy(originalName = newOriginalName, portableMetadata = updated.metadata)
+                    }
+                } else entry.copy(originalName = newOriginalName)
             } else {
                 entry
             }
@@ -1052,6 +1149,9 @@ object FolderLockManager {
         newOriginalName: String,
         password: String
     ): LockedFolderManifest? {
+        if (PortablePrivateFolders.isPortable(parentFolderPath)) {
+            return PortablePrivateFolders.renameDirectory(context, parentFolderPath, obfuscatedName, newOriginalName, password)
+        }
         val manifest = readManifest(parentFolderPath, password) ?: return null
         val salt = getSalt(parentFolderPath) ?: return null
 
@@ -1068,7 +1168,9 @@ object FolderLockManager {
         File(parentFolderPath, MANIFEST_FILE).writeBytes(encryptedManifest)
 
         val childFolderPath = File(parentFolderPath, obfuscatedName).absolutePath
-        if (isLocked(childFolderPath)) {
+        if (PortablePrivateFolders.isPortable(childFolderPath)) {
+            PortablePrivateFolders.renameFolder(context, childFolderPath, newOriginalName, password)
+        } else if (isLocked(childFolderPath)) {
             val childManifest = readManifest(childFolderPath, password)
             val childSalt = getSalt(childFolderPath)
             if (childManifest != null && childSalt != null) {
@@ -1096,6 +1198,9 @@ object FolderLockManager {
         obfuscatedNames: List<String>,
         password: String
     ): LockedFolderManifest? {
+        if (PortablePrivateFolders.isPortable(folderPath)) {
+            return PortablePrivateFolders.removeMany(context, folderPath, obfuscatedNames, password)
+        }
         val manifest = readManifest(folderPath, password) ?: return null
         val salt = getSalt(folderPath) ?: return null
 
@@ -1129,6 +1234,9 @@ object FolderLockManager {
         obfuscatedNames: List<String>,
         password: String
     ): Pair<List<File>, LockedFolderManifest?> {
+        if (PortablePrivateFolders.isPortable(folderPath)) {
+            return PortablePrivateFolders.extract(context, folderPath, obfuscatedNames, password)
+        }
         val manifest = readManifest(folderPath, password) ?: return Pair(emptyList(), null)
         val salt = getSalt(folderPath) ?: return Pair(emptyList(), null)
         val xorKey = deriveXorKey(password, salt)
@@ -1136,10 +1244,20 @@ object FolderLockManager {
 
         val restoredFiles = mutableListOf<File>()
         val namesToRemove = obfuscatedNames.toSet()
+        val successfulNames = mutableSetOf<String>()
 
         manifest.files.filter { it.obfuscatedName in namesToRemove }.forEach { entry ->
             val obfuscatedFile = File(folder, entry.obfuscatedName)
             if (!obfuscatedFile.exists()) return@forEach
+
+            if (entry.portableMetadata != null) {
+                val restored = PortablePrivateFolders.restoreEntry(folder, entry.obfuscatedName, entry.portableMetadata)
+                if (restored != obfuscatedFile) check(obfuscatedFile.delete()) { "Export verified; protected copy could not be removed" }
+                kotlinx.coroutines.runBlocking { VideoTagStore.moveTagsForPath(context, obfuscatedFile.absolutePath, restored.absolutePath) }
+                restoredFiles += restored
+                successfulNames += entry.obfuscatedName
+                return@forEach
+            }
 
             // Revert XOR
             xorFileHeader(obfuscatedFile, xorKey)
@@ -1151,6 +1269,7 @@ object FolderLockManager {
                     VideoTagStore.moveTagsForPath(context, obfuscatedFile.absolutePath, restoredFile.absolutePath)
                 }
                 restoredFiles.add(restoredFile)
+                successfulNames += entry.obfuscatedName
             } else {
                 // Revert XOR back if rename fails
                 xorFileHeader(obfuscatedFile, xorKey)
@@ -1162,7 +1281,7 @@ object FolderLockManager {
         }
 
         // Update manifest
-        val updatedFiles = manifest.files.filter { it.obfuscatedName !in namesToRemove }
+        val updatedFiles = manifest.files.filter { it.obfuscatedName !in successfulNames }
         val updatedManifest = manifest.copy(files = updatedFiles)
         val encryptedManifest = encryptManifest(updatedManifest, password, salt)
         File(folderPath, MANIFEST_FILE).writeBytes(encryptedManifest)
@@ -1182,6 +1301,9 @@ object FolderLockManager {
         obfuscatedName: String,
         password: String
     ): LockedFolderManifest? {
+        if (PortablePrivateFolders.isPortable(folderPath)) {
+            return PortablePrivateFolders.remove(context, folderPath, obfuscatedName, password)
+        }
         val manifest = readManifest(folderPath, password) ?: return null
         val salt = getSalt(folderPath) ?: return null
 
@@ -1217,6 +1339,9 @@ object FolderLockManager {
         folderPath: String,
         password: String
     ): Boolean {
+        if (BuildConfig.PORTABLE_PRIVATE_WRITES) {
+            return PortablePrivateFolders.createEmpty(context, folderPath, password)
+        }
         return try {
             val folder = File(folderPath)
             if (!folder.exists()) folder.mkdirs()
@@ -1366,15 +1491,19 @@ object FolderLockManager {
 
 internal class XorMediaDataSource(
     private val file: File,
-    private val xorKey: ByteArray,
-    private val headerSize: Int = 8192
+    xorKey: ByteArray,
+    private val headerSize: Int = 8192,
+    private val payloadSize: Long = LockedPlaybackSession.getPayloadSize(file.absolutePath) ?: file.length()
 ) : android.media.MediaDataSource() {
+    private val xorKey = xorKey.copyOf()
     private val raf = RandomAccessFile(file, "r")
 
     override fun readAt(position: Long, buffer: ByteArray, offset: Int, size: Int): Int {
-        if (position >= raf.length()) return -1
+        require(position >= 0)
+        if (size == 0) return 0
+        if (position >= payloadSize) return -1
         raf.seek(position)
-        val read = raf.read(buffer, offset, size)
+        val read = raf.read(buffer, offset, minOf(size.toLong(), payloadSize - position).toInt())
         if (read <= 0) return read
         for (i in 0 until read) {
             val filePos = position + i
@@ -1385,9 +1514,9 @@ internal class XorMediaDataSource(
         return read
     }
 
-    override fun getSize(): Long = try { raf.length() } catch (e: Exception) { -1 }
+    override fun getSize(): Long = payloadSize
 
     override fun close() {
-        try { raf.close() } catch (e: Exception) {}
+        try { raf.close() } catch (e: Exception) {} finally { xorKey.fill(0) }
     }
 }

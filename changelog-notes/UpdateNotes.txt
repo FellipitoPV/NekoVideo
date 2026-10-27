@@ -3,3 +3,14 @@
 Anotações para próxima atualização
 
 As mudanças anteriores foram incluídas na versão 1.9.1 (código 45).
+
+27/10/2026
+
+- Melhoria no formato dos vídeos privados, permitindo reconhecê-los após movimentações e renomeações feitas por outros aplicativos.
+- Conversão das pastas privadas antigas pelo próprio app, após informar a senha e confirmar a atualização, incluindo subpastas e mantendo as TAGs e os caminhos atuais.
+- Possibilidade de retomar uma conversão interrompida, reaproveitando os arquivos já atualizados.
+- Vídeos privados do novo formato movidos externamente para pastas comuns são restaurados automaticamente após a autenticação, sem tornar a pasta de destino privada.
+- Correção da opção Desprivar no menu de ações das pastas com o novo formato.
+- Aviso de atualização no estilo dos outros bottom sheets, com a contagem preparada durante o loading.
+- A senha não inicia mais um scan global adicional: a conclusão da conversão fica salva, e eventuais pendências são verificadas de forma direcionada.
+- Janelas de progresso fixas, sem fechamento por arraste, toque fora ou Voltar, com a área dos botões de navegação acompanhando o tema do app.

@@ -78,6 +78,8 @@ import com.nkls.nekovideo.components.helpers.ContinueWatchingEntry
 import com.nkls.nekovideo.components.helpers.ContinueWatchingStore
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
+import com.nkls.nekovideo.components.helpers.PortablePrivateFolders
+import com.nkls.nekovideo.components.helpers.PortableVideoStore
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.VideoProgressEntry
 import com.nkls.nekovideo.components.helpers.VideoProgressStore
@@ -260,10 +262,12 @@ internal fun loadFolderContent(
     showPrivateFolders: Boolean,
     privateFolderSummaries: PrivateFolderSummaryCache = PrivateFolderSummaryCache()
 ): List<MediaItem> {
-    return if (isSecureMode) {
+    val restored = PortablePrivateFolders.restoreExternalArrivals(context, folderPath)
+    if (FolderLockManager.isLocked(folderPath) && !showPrivateFolders) return emptyList()
+    return if ((isSecureMode && restored.isEmpty()) || FolderLockManager.isLocked(folderPath)) {
         loadSecureContent(folderPath, sortType, privateFolderSummaries)
     } else {
-        loadNormalContentFromCache(context, folderPath, sortType, isRootLevel, showPrivateFolders)
+        loadNormalContentFromCache(context, folderPath, sortType, isRootLevel, showPrivateFolders, restored.isNotEmpty())
     }
 }
 
@@ -275,6 +279,19 @@ private fun loadSecureContent(
 ): List<MediaItem> {
     val folder = File(folderPath)
     if (!folder.exists() || !folder.isDirectory) return emptyList()
+
+    // Refresh after external moves/renames; reading never rewrites an existing index.
+    if (FolderLockManager.isLocked(folderPath)) {
+        val password = LockedPlaybackSession.sessionPassword
+        if (password != null) {
+            val refreshed = FolderLockManager.readManifest(folderPath, password)
+            val salt = FolderLockManager.getSalt(folderPath)
+            if (refreshed != null && salt != null && LockedPlaybackSession.sessionPassword == password) {
+                LockedPlaybackSession.start(FolderLockManager.deriveXorKey(password, salt), refreshed, folderPath, password)
+            } else LockedPlaybackSession.removeSession(folderPath)
+        }
+        if (!LockedPlaybackSession.hasSessionForFolder(folderPath)) return emptyList()
+    }
 
     // Check if this is a locked folder with an active session
     if (FolderLockManager.isLocked(folderPath) && LockedPlaybackSession.isActive &&
@@ -296,6 +313,15 @@ private fun loadSecureContent(
                 durationHint = entry.duration
             )
         })
+
+        // External plaintext arrivals stay ordinary files and receive no private playback key.
+        val indexedNames = manifest.files.mapTo(HashSet()) { it.obfuscatedName }
+        folder.listFiles().orEmpty().filter {
+            it.isFile && it.name !in indexedNames && it.extension.lowercase() in supportedVideoExtensions &&
+                !com.nkls.nekovideo.components.helpers.PortableVideoStore.hasRecoveryRecord(it)
+        }.forEach { plain ->
+            items.add(MediaItem(plain.absolutePath, null, false, lastModified = plain.lastModified(), sizeInBytes = plain.length()))
+        }
 
         // Add subdirectories using manifest subfolder entries for display names
         val knownVideoPaths = items.mapTo(HashSet()) { it.path }
@@ -386,13 +412,16 @@ private fun loadNormalContentFromCache(
     folderPath: String,
     sortType: SortType,
     isRootLevel: Boolean,
-    showPrivateFolders: Boolean
+    showPrivateFolders: Boolean,
+    refreshFiles: Boolean = false
 ): List<MediaItem> {
     val items = mutableListOf<MediaItem>()
     val folder = File(folderPath)
     val folderCache = FolderVideoScanner.cache.value
     val folderInfo = folderCache[folderPath]
-    val cachedVideos = folderInfo?.videos.orEmpty()
+    val cachedVideos = if (refreshFiles) emptyList() else folderInfo?.videos.orEmpty().filter {
+        File(it.path).let { file -> file.isFile && !PortableVideoStore.hasRecoveryRecord(file) }
+    }
     val children = readFolderChildren(folder, cachedVideos.mapTo(HashSet()) { it.path })
 
     // Carregar pastas usando o cache
@@ -401,9 +430,9 @@ private fun loadNormalContentFromCache(
         if (isRootLevel && subfolder.name == "Android") return@forEach
 
         val folderInfo = folderCache[subfolder.absolutePath]
-        val isSecure = folderInfo?.isSecure ?: File(subfolder, ".nomedia").exists()
+        val isSecure = File(subfolder, ".nomedia").exists()
         val isAppManagedFolder = File(subfolder, ".nekovideo").exists()
-        val isFolderLocked = folderInfo?.isLocked ?: FolderLockManager.isLocked(subfolder.absolutePath)
+        val isFolderLocked = FolderLockManager.isLocked(subfolder.absolutePath)
         val lockedRegistryEntry = if (isFolderLocked) {
             FolderLockManager.getRegistryEntry(context, subfolder.absolutePath)
         } else {
@@ -534,7 +563,7 @@ private fun loadNormalContentFromCache(
         }
     } else {
         children.entries.forEach { videoFile ->
-            if (videoFile.isFile && videoFile.extension.lowercase() in supportedVideoExtensions) {
+            if (videoFile.isFile && videoFile.extension.lowercase() in supportedVideoExtensions && !PortableVideoStore.hasRecoveryRecord(videoFile)) {
                 items.add(
                     MediaItem(
                         path = videoFile.absolutePath,
@@ -607,9 +636,9 @@ private fun buildPinnedFolderItem(
     if (!folder.exists() || !folder.isDirectory || path in existingPaths) return null
 
     val folderInfo = folderCache[path]
-    val isSecure = folderInfo?.isSecure ?: File(folder, ".nomedia").exists()
+    val isSecure = File(folder, ".nomedia").exists()
     val isAppManagedFolder = File(folder, ".nekovideo").exists()
-    val isLocked = folderInfo?.isLocked ?: FolderLockManager.isLocked(path)
+    val isLocked = FolderLockManager.isLocked(path)
     val lockedRegistryEntry = if (isLocked) FolderLockManager.getRegistryEntry(context, path) else null
     val children = runCatching { folder.listFiles() }.getOrNull().orEmpty()
     val hasVideos = folderInfo?.hasVideos ?: children.any { child ->
