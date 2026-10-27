@@ -1662,27 +1662,10 @@ fun MainScreen(
                                 if (FolderLockManager.isLocked(itemPath)) {
                                     val pwd = sessionPassword ?: LockedPlaybackSession.sessionPassword
                                     if (pwd != null) {
-                                        coroutineScope.launch {
-                                            val manifest = withContext(Dispatchers.IO) {
-                                                FolderLockManager.readManifest(itemPath, pwd)?.also {
-                                                    FolderLockManager.noteUnlockedFolder(context, itemPath, it)
-                                                }
-                                            }
-                                            if (manifest != null) {
-                                                val salt = withContext(Dispatchers.IO) {
-                                                    FolderLockManager.getSalt(itemPath)
-                                                }
-                                                if (salt != null) {
-                                                    val xorKey = withContext(Dispatchers.IO) {
-                                                        FolderLockManager.deriveXorKey(pwd, salt)
-                                                    }
-                                                    LockedPlaybackSession.start(xorKey, manifest, itemPath, pwd)
-                                                    folderNavState.navigateTo(itemPath)
-                                                }
-                                            } else {
-                                                SortRowMessageCenter.showError(context.getString(R.string.invalid_password_or_corrupted))
-                                            }
-                                        }
+                                        // The destination loads and validates the folder once on IO.
+                                        // Enter immediately so its existing loading state is visible.
+                                        LockedPlaybackSession.authorize(pwd)
+                                        folderNavState.navigateTo(itemPath)
                                     }
                                 } else {
                                     folderNavState.navigateTo(itemPath)

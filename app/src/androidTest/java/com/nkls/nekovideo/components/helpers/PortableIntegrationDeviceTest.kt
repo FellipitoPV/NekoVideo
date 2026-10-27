@@ -71,6 +71,53 @@ class PortableIntegrationDeviceTest {
     }
     private fun report(text: String) { File(owned, "report.txt").appendText("$text\n") }
 
+    @Test fun folderEntryLoadsWithoutPreparedSessionAndReportsInvalidMetadata() {
+        val root = work()
+        try {
+            var folder = File(root, "entry").apply { check(mkdir()) }
+            val sample = samples().first()
+            sample.copyTo(File(folder, sample.name))
+            folder = protect(folder)
+            val protected = folder.listFiles().orEmpty().single { PortableVideoStore.hasRecoveryRecord(it) }
+            val hash = PortableVideoStore.sha256(protected)
+            LockedPlaybackSession.clear()
+            LockedPlaybackSession.authorize(password)
+            assertFalse(LockedPlaybackSession.hasSessionForFolder(folder.path))
+            var failures = 0
+            val items = loadFolderContent(context, folder.path, SortType.NAME_ASC, true, false, true,
+                onPrivateFolderUnavailable = { failures++ })
+            assertEquals(1, items.size)
+            assertEquals(0, failures)
+            assertEquals(sample.name, items.single().displayName)
+            assertTrue(LockedPlaybackSession.hasSessionForFolder(folder.path))
+            val data = HybridDataSourceFactory(context).createDataSource()
+            data.open(DataSpec(Uri.parse("locked://${protected.path}")))
+            try {
+                val actual = MessageDigest.getInstance("SHA-256")
+                val buffer = ByteArray(65536)
+                while (true) {
+                    val size = data.read(buffer, 0, buffer.size)
+                    if (size < 0) break
+                    actual.update(buffer, 0, size)
+                }
+                assertArrayEquals(MessageDigest.getInstance("SHA-256").digest(sample.readBytes()), actual.digest())
+            } finally { data.close() }
+            LockedPlaybackSession.clear()
+            LockedPlaybackSession.authorize("incorrect-test-credential")
+            assertTrue(loadFolderContent(context, folder.path, SortType.NAME_ASC, true, false, true,
+                onPrivateFolderUnavailable = { failures++ }).isEmpty())
+            assertEquals(1, failures)
+            assertFalse(LockedPlaybackSession.hasSessionForFolder(folder.path))
+            assertEquals(hash, PortableVideoStore.sha256(protected))
+        } finally {
+            LockedPlaybackSession.clear()
+            val checked = checkedWork(root)
+            FolderLockManager.getAllLockedFolders(context).filter { File(it.folderPath).toPath().startsWith(checked.toPath()) }
+                .forEach { FolderLockManager.removeFromRegistry(context, it.folderPath) }
+            check(checked.deleteRecursively())
+        }
+    }
+
     private fun protect(folder: File): File {
         var resolved = folder.absolutePath
         var completed = false

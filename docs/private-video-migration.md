@@ -103,3 +103,24 @@ ou falhar, descoberta parcial sem conclusão indevida, pasta legada restaurada a
 recuperação direcionada de arquivos movidos antes da autenticação, abertura do aviso ao fim
 do loading e regressões dos gestos da modal. As preferências desses testes são isoladas e removidas
 ao terminar; os vídeos usados são cópias descartáveis.
+
+## Falsas pendências de diretórios do sistema
+
+No POCO, o histórico do Debug continha somente `/`, `/storage` e `/storage/emulated` como
+pendências. Esses caminhos são ancestrais adicionados ao cache da biblioteca e não possuem
+marcadores de pasta privada. A restrição de leitura do Android fazia o histórico classificá-los
+indevidamente como pastas privadas indisponíveis, impedindo salvar a conclusão.
+
+A descoberta agora exige um marcador legado/journal, ou evidência anterior de pasta privada
+para conservar uma pendência sem acesso. O histórico guarda essa evidência separadamente;
+restrições de acesso em diretórios comuns não criam pendências. As entradas indevidas da versão
+anterior são retiradas na próxima verificação, sem alterar vídeos ou manifests. Uma pasta privada
+com manifest ilegível continua pendente e não é convertida silenciosamente.
+
+Validação: 34 testes locais e seis testes no POCO passaram. O teste opt-in
+`verifyAndRepairReportedSystemAncestors`, ativado por `repairReportedAncestors=true`, confirmou
+as três entradas reais do Debug, corrigiu somente seu histórico e verificou duas autenticações
+sem loading ou aviso de migração. Os outros cenários usaram preferências isoladas e cópias de
+vídeos, incluindo um manifest removido intencionalmente que continuou sendo sinalizado. O
+histórico final do Debug ficou com `completed_version=1` e nenhuma pasta pendente; o release
+instalado não foi substituído nem teve seus dados internos modificados.

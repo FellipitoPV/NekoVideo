@@ -260,12 +260,13 @@ internal fun loadFolderContent(
     isSecureMode: Boolean,
     isRootLevel: Boolean,
     showPrivateFolders: Boolean,
-    privateFolderSummaries: PrivateFolderSummaryCache = PrivateFolderSummaryCache()
+    privateFolderSummaries: PrivateFolderSummaryCache = PrivateFolderSummaryCache(),
+    onPrivateFolderUnavailable: () -> Unit = {}
 ): List<MediaItem> {
     val restored = PortablePrivateFolders.restoreExternalArrivals(context, folderPath)
     if (FolderLockManager.isLocked(folderPath) && !showPrivateFolders) return emptyList()
     return if ((isSecureMode && restored.isEmpty()) || FolderLockManager.isLocked(folderPath)) {
-        loadSecureContent(folderPath, sortType, privateFolderSummaries)
+        loadSecureContent(context, folderPath, sortType, privateFolderSummaries, onPrivateFolderUnavailable)
     } else {
         loadNormalContentFromCache(context, folderPath, sortType, isRootLevel, showPrivateFolders, restored.isNotEmpty())
     }
@@ -273,9 +274,11 @@ internal fun loadFolderContent(
 
 // SIMPLIFICADO - Carregamento secure
 private fun loadSecureContent(
+    context: Context,
     folderPath: String,
     sortType: SortType,
-    summaries: PrivateFolderSummaryCache
+    summaries: PrivateFolderSummaryCache,
+    onPrivateFolderUnavailable: () -> Unit
 ): List<MediaItem> {
     val folder = File(folderPath)
     if (!folder.exists() || !folder.isDirectory) return emptyList()
@@ -283,12 +286,28 @@ private fun loadSecureContent(
     // Refresh after external moves/renames; reading never rewrites an existing index.
     if (FolderLockManager.isLocked(folderPath)) {
         val password = LockedPlaybackSession.sessionPassword
+        val credentialVersion = LockedPlaybackSession.credentialVersion
         if (password != null) {
             val refreshed = FolderLockManager.readManifest(folderPath, password)
             val salt = FolderLockManager.getSalt(folderPath)
-            if (refreshed != null && salt != null && LockedPlaybackSession.sessionPassword == password) {
-                LockedPlaybackSession.start(FolderLockManager.deriveXorKey(password, salt), refreshed, folderPath, password)
-            } else LockedPlaybackSession.removeSession(folderPath)
+            if (LockedPlaybackSession.sessionPassword != password ||
+                LockedPlaybackSession.credentialVersion != credentialVersion) return emptyList()
+            if (refreshed != null && salt != null) {
+                val key = FolderLockManager.deriveXorKey(password, salt)
+                try {
+                    if (LockedPlaybackSession.sessionPassword != password ||
+                        LockedPlaybackSession.credentialVersion != credentialVersion) return emptyList()
+                    LockedPlaybackSession.start(key, refreshed, folderPath, password)
+                } finally { key.fill(0) }
+                val registered = FolderLockManager.getRegistryEntry(context, folderPath)
+                if (registered == null || registered.fileCount != refreshed.files.size ||
+                    registered.originalFolderName != refreshed.originalFolderName) {
+                    FolderLockManager.noteUnlockedFolder(context, folderPath, refreshed)
+                }
+            } else {
+                LockedPlaybackSession.removeSession(folderPath)
+                onPrivateFolderUnavailable()
+            }
         }
         if (!LockedPlaybackSession.hasSessionForFolder(folderPath)) return emptyList()
     }
@@ -1345,10 +1364,12 @@ fun FolderScreen(
         // Marca esta pasta como carregando
         loadingPaths = loadingPaths + folderPath
 
+        var privateFolderUnavailable = false
         val loadedItems = withContext(Dispatchers.IO) {
             val allItems = loadFolderContent(
                 context, folderPath, sortType, isSecureMode, isRootLevel, showPrivateFolders,
-                privateFolderSummaries
+                privateFolderSummaries,
+                onPrivateFolderUnavailable = { privateFolderUnavailable = true }
             )
 
             if (searchQuery.isNotEmpty()) {
@@ -1358,6 +1379,11 @@ fun FolderScreen(
             } else {
                 allItems
             }
+        }
+
+        if (privateFolderUnavailable) {
+            com.nkls.nekovideo.components.helpers.SortRowMessageCenter.showError(
+                context.getString(com.nkls.nekovideo.R.string.invalid_password_or_corrupted))
         }
 
         if (pendingPrivateFolderReveal) {

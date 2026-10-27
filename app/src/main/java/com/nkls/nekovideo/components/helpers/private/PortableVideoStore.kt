@@ -180,6 +180,12 @@ class PortableVideoStore(
     }
 
     fun resolve(file: File, index: Index?, keyring: Keyring, allowManifestRecovery: Boolean = false): Resolved {
+        return inspect(file, index, keyring, allowManifestRecovery).first
+    }
+
+    /** Read and fingerprint the envelope once, including when the caller needs an index entry. */
+    private fun inspect(file: File, index: Index?, keyring: Keyring,
+                        allowManifestRecovery: Boolean): Pair<Resolved, String> {
         keyring.requireOpen()
         val cached = index?.takeIf { it.authenticatedFor(keyring) }?.find(file.name)
         fun trustedRecovery(): Resolved? {
@@ -190,31 +196,34 @@ class PortableVideoStore(
                 Resolved(cached.metadata, Lookup.MANIFEST) else null
         }
         val envelope = try { readEnvelope(checked(file), FILE_MAGIC) }
-        catch (failure: Exception) { return trustedRecovery() ?: throw failure }
+        catch (failure: Exception) {
+            val recovered = trustedRecovery() ?: throw failure
+            return recovered to checkNotNull(cached).envelopeSha256
+        }
+        val fingerprint = envelopeHash(envelope)
         // The authenticated index is trusted only when the actual file's record still matches.
         if (cached != null && cached.metadata.payloadSize == envelope.payloadSize &&
-            cached.envelopeSha256 == envelopeHash(envelope)) {
+            cached.envelopeSha256 == fingerprint) {
             validate(cached.metadata)
-            return Resolved(cached.metadata, Lookup.MANIFEST)
+            return Resolved(cached.metadata, Lookup.MANIFEST) to fingerprint
         }
-        return try {
+        val resolved = try {
             val metadata = gson.fromJson(decrypt(envelope, keyring), Metadata::class.java)
             validate(metadata)
             require(metadata.payloadSize == envelope.payloadSize) { "Payload length mismatch" }
             Resolved(metadata, Lookup.EMBEDDED)
         } catch (failure: Exception) { trustedRecovery() ?: throw failure }
+        return resolved to fingerprint
     }
 
     fun inspectEntry(file: File, index: Index?, keyring: Keyring,
                      allowManifestRecovery: Boolean = false): Entry {
-        val metadata = resolve(file, index, keyring, allowManifestRecovery).metadata
-        val fingerprint = runCatching { envelopeHash(readEnvelope(file, FILE_MAGIC)) }
-            .getOrElse { index?.find(file.name)?.envelopeSha256 ?: throw it }
-        return Entry(file.name, metadata, fingerprint)
+        val (resolved, fingerprint) = inspect(file, index, keyring, allowManifestRecovery)
+        return Entry(file.name, resolved.metadata, fingerprint)
     }
 
     fun readSalt(file: File, index: Boolean = false): ByteArray =
-        readEnvelope(checked(file), if (index) INDEX_MAGIC else FILE_MAGIC).salt.copyOf()
+        readEnvelope(checked(file), if (index) INDEX_MAGIC else FILE_MAGIC, readCiphertext = false).salt.copyOf()
 
     fun rebuildIndex(folder: File, files: List<File>, keyring: Keyring, salt: ByteArray): Index {
         val directory = checked(folder)
@@ -403,7 +412,7 @@ class PortableVideoStore(
         return Envelope(footer, cipher.doFinal(plain), salt.copyOf(), nonce, size)
     }
 
-    private fun readEnvelope(file: File, magic: ByteArray): Envelope {
+    private fun readEnvelope(file: File, magic: ByteArray, readCiphertext: Boolean = true): Envelope {
         RandomAccessFile(file, "r").use { raf ->
             require(raf.length() >= FOOTER_SIZE) { "Not a portable private file" }
             val footer = ByteArray(FOOTER_SIZE)
@@ -420,9 +429,10 @@ class PortableVideoStore(
             val size = buffer.long
             require(length in 16..metadataLimit(magic) && size >= 0 &&
                 size == raf.length() - FOOTER_SIZE - length) { "Invalid portable private file length" }
-            val encrypted = ByteArray(length)
-            raf.seek(size)
-            raf.readFully(encrypted)
+            val encrypted = if (readCiphertext) ByteArray(length).also {
+                raf.seek(size)
+                raf.readFully(it)
+            } else ByteArray(0)
             return Envelope(footer, encrypted, salt, nonce, size)
         }
     }
@@ -508,7 +518,16 @@ class PortableVideoStore(
             }
             return hex(hash.digest())
         }
-        private fun hex(bytes: ByteArray) = bytes.joinToString("") { "%02x".format(it) }
+        private fun hex(bytes: ByteArray): String {
+            val digits = "0123456789abcdef"
+            return CharArray(bytes.size * 2).also { chars ->
+                bytes.forEachIndexed { index, byte ->
+                    val value = byte.toInt() and 255
+                    chars[index * 2] = digits[value ushr 4]
+                    chars[index * 2 + 1] = digits[value and 15]
+                }
+            }.concatToString()
+        }
         private fun envelopeHash(envelope: Envelope): String {
             val hash = MessageDigest.getInstance("SHA-256")
             hash.update(envelope.ciphertext)

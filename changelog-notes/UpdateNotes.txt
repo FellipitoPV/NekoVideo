@@ -14,3 +14,5 @@ As mudanças anteriores foram incluídas na versão 1.9.1 (código 45).
 - Aviso de atualização no estilo dos outros bottom sheets, com a contagem preparada durante o loading.
 - A senha não inicia mais um scan global adicional: a conclusão da conversão fica salva, e eventuais pendências são verificadas de forma direcionada.
 - Janelas de progresso fixas, sem fechamento por arraste, toque fora ou Voltar, com a área dos botões de navegação acompanhando o tema do app.
+- Correção de avisos repetidos de verificação de pastas privadas causados por diretórios do sistema, sem pendências reais nos vídeos.
+- Abertura mais rápida de pastas privadas, reduzindo leituras repetidas dos vídeos e mostrando o carregamento ao entrar.

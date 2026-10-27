@@ -174,8 +174,9 @@ internal object PortablePrivateFolders {
         val known = index?.entries.orEmpty().associateBy { it.diskName }
         val entries = candidates(folder).mapNotNull { file ->
             val cached = known[file.name]
-            if (cached == null && !PortableVideoStore.hasRecoveryRecord(file)) return@mapNotNull null
-            if (cached != null && !PortableVideoStore.hasRecoveryRecord(file) && file.length() == cached.metadata.payloadSize &&
+            // A protected file is longer than its payload. Check possible plaintext restoration
+            // only at that exact length; inspectEntry validates every other record in one read.
+            if (cached != null && file.length() == cached.metadata.payloadSize &&
                 PortableVideoStore.sha256(file) == cached.metadata.originalSha256) return@mapNotNull null
             runCatching { store.inspectEntry(file, index, keys, allowManifestRecovery = true) }
                 .getOrNull() ?: cached // Keep an authenticated damaged entry visible; export will reject damage.

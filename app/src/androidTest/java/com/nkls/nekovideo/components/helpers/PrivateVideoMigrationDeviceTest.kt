@@ -246,6 +246,60 @@ class PrivateVideoMigrationDeviceTest {
         assertTrue(state.isComplete())
     }
 
+    @Test fun unreadableSystemAncestorsAreNotPrivateMigrationFailures() {
+        val (name, state) = history()
+        val ancestors = setOf("/", "/storage", "/storage/emulated")
+        assertTrue("Reproduce Android's restricted ancestors", ancestors.any { !File(it).canRead() })
+        // Reproduce preferences written by the previous version, not just a fresh scan.
+        context.getSharedPreferences(name, android.content.Context.MODE_PRIVATE).edit()
+            .putStringSet("pending_folders", ancestors).putInt("discovery_version", 1).commit()
+        val plan = state.plan(password)
+        assertEquals(0, plan.unavailableFolders)
+        assertTrue(plan.folders.isEmpty())
+        assertTrue(PrivateMigrationHistory(context, name).isComplete())
+        state.observe(ancestors, true)
+        assertTrue(state.pendingPaths().isEmpty())
+        state.plan(password) { _, _ -> error("Completed history must not inspect manifests") }
+    }
+
+    @Test fun staleSystemAncestorsDoNotHideAnActualBrokenPrivateFolder() {
+        val (name, state) = history()
+        val folder = legacy(File(root(), "broken"))
+        check(File(folder, ".neko_manifest.enc").delete())
+        context.getSharedPreferences(name, android.content.Context.MODE_PRIVATE).edit()
+            .putStringSet("pending_folders", setOf("/", "/storage", "/storage/emulated", folder.path))
+            .putInt("discovery_version", 1).commit()
+        val plan = state.plan(password)
+        assertEquals(1, plan.unavailableFolders)
+        assertEquals(setOf(folder.path), state.pendingPaths())
+        assertFalse(state.isComplete())
+        assertTrue(File(folder, ".neko_locked").isFile)
+    }
+
+    /** Opt-in repair of the exact false positives reported on the connected Debug install. No video writes. */
+    @Test fun verifyAndRepairReportedSystemAncestors() {
+        assumeTrue(args.getString("repairReportedAncestors") == "true")
+        val state = PrivateMigrationHistory(context)
+        val before = state.pendingPaths()
+        assertEquals(setOf("/", "/storage", "/storage/emulated"), before)
+        assertTrue(before.none(PrivateVideoMigration::isCandidate))
+        val plan = state.plan(password)
+        assertEquals(0, plan.unavailableFolders)
+        assertTrue(plan.folders.isEmpty())
+        assertTrue(state.isComplete())
+        assertTrue(state.pendingPaths().isEmpty())
+        repeat(2) {
+            LockedPlaybackSession.authorize(password)
+            com.nkls.nekovideo.services.FolderVideoScanner.requestPrivateMigrationCheck(context, password)
+            assertFalse(com.nkls.nekovideo.services.FolderVideoScanner.isScanning.value)
+            val checked = checkNotNull(com.nkls.nekovideo.services.FolderVideoScanner.migrationCheck.value)
+            assertEquals(LockedPlaybackSession.credentialVersion, checked.credentialVersion)
+            assertEquals(0, checked.plan.unavailableFolders)
+            assertTrue(checked.plan.folders.isEmpty())
+            LockedPlaybackSession.clear()
+        }
+    }
+
     @Test fun manyVideosUseOneFinalIndexAndKeepTheLegacyManifestUntilCommit() {
         val folder = legacy(File(root(), "many"))
         val manifest = checkNotNull(FolderLockManager.readManifest(folder.path, password))
