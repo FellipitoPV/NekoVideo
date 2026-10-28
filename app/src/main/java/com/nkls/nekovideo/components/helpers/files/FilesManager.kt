@@ -241,9 +241,9 @@ object FilesManager {
             }
 
             try {
-                VideoTagStore.resetTagsForPathTree(context, file.absolutePath)
                 if (file.deleteRecursively()) {
                     deletedCount++
+                    VideoTagStore.resetTagsForPathTree(context, file.absolutePath)
                 } else {
                     notifyMessage(onError, context.getString(R.string.delete_item_failed, file.name))
                 }
@@ -315,9 +315,9 @@ object FilesManager {
             }
 
             try {
-                VideoTagStore.resetTagsForPathTree(context, file.absolutePath)
                 if (file.deleteRecursively()) {
                     deletedCount++
+                    VideoTagStore.resetTagsForPathTree(context, file.absolutePath)
                 } else {
                     notifyMessage(onError, context.getString(R.string.delete_secure_item_failed, file.name))
                 }
@@ -551,7 +551,17 @@ object FilesManager {
         }
 
         fun getLockedVideos(path: String, password: String): List<String> {
+            val cached = com.nkls.nekovideo.components.FolderContentCache.reusable(path, showPrivateFolders, true)
+            if (cached != null) return cached.filterNot { it.isFolder }.map { "locked://${it.path}" }
             val manifest = FolderLockManager.readManifest(path, password) ?: return emptyList()
+            if (LockedPlaybackSession.sessionPassword == password) {
+                FolderLockManager.getSalt(path)?.let { salt ->
+                    val key = FolderLockManager.deriveXorKey(password, salt)
+                    try { if (LockedPlaybackSession.sessionPassword == password) {
+                        LockedPlaybackSession.start(key, manifest, path, password)
+                    } } finally { key.fill(0) }
+                }
+            }
             return manifest.files.map { entry ->
                 "locked://${File(path, entry.obfuscatedName).absolutePath}"
             }
@@ -642,23 +652,22 @@ object FilesManager {
 
         private const val PREF_CUSTOM_SECURE_PATH = "custom_secure_folder_path"
 
-        fun setCustomSecureFolderPath(context: Context, folderPath: String) {
+        /** Compatibility only: preserve an existing historical path when its folder is moved. */
+        internal fun relocateLegacySecureFolder(context: Context, oldPath: String, newPath: String) {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            prefs.edit().putString(PREF_CUSTOM_SECURE_PATH, folderPath).apply()
+            if (prefs.getString(PREF_CUSTOM_SECURE_PATH, null) == oldPath) {
+                prefs.edit().putString(PREF_CUSTOM_SECURE_PATH, newPath).apply()
+            }
         }
 
-        fun getCustomSecureFolderPath(context: Context): String? {
+        private fun getLegacySecureFolderPath(context: Context): String? {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             return prefs.getString(PREF_CUSTOM_SECURE_PATH, null)
         }
 
-        fun hasCustomSecureFolder(context: Context): Boolean {
-            return getCustomSecureFolderPath(context) != null
-        }
-
         fun getSecureFolderPath(context: Context): String {
             // Primeiro tenta pegar o caminho customizado
-            val customPath = getCustomSecureFolderPath(context)
+            val customPath = getLegacySecureFolderPath(context)
             if (customPath != null) {
                 return customPath
             }

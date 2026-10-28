@@ -69,8 +69,6 @@
     <string name="items_deleted_locked">Itens excluídos!</string>
     <string name="files_secured">Arquivos protegidos!</string>
     <string name="folder_created">Pasta criada</string>
-    <string name="action_set_secure_folder">Definir Como Pasta Segura</string>
-    <string name="secure_folder_set">Esta pasta agora é a pasta segura!</string>
     <string name="pull_to_refresh_tutorial">Arraste para baixo para atualizar vídeos</string>
 
     <!-- Content descriptions -->
@@ -558,4 +556,15 @@
     <string name="private_migration_partial">%1$d vídeo(s) atualizado(s). %2$d pasta(s) precisam de outra tentativa. Os arquivos pendentes foram preservados.</string>
     <string name="private_migration_unavailable">Não foi possível verificar %1$d pasta(s) privada(s). Os arquivos foram preservados.</string>
     <string name="private_migration_retry">A atualização não terminou. Os vídeos continuam privados; tente novamente ao liberar o acesso privado.</string>
+    <string name="tag_sync_title">TAGs compartilhadas</string>
+    <string name="tag_sync_description">Use no Debug as TAGs e os vínculos dos vídeos do NekoVideo normal. A lista local do Debug não será enviada ao normal.</string>
+    <string name="tag_sync_connected_description">Os dois apps usam a mesma lista. Alterações e backups são salvos pelo NekoVideo normal.</string>
+    <string name="tag_sync_authorize_title">Compartilhar TAGs com o Debug</string>
+    <string name="tag_sync_authorize_description">O NekoVideo Debug poderá consultar e alterar suas TAGs normais e privadas e os vínculos com os vídeos. O banco atual deste app será mantido como fonte única.</string>
+    <string name="tag_sync_allow">Permitir conexão</string>
+    <string name="tag_sync_connect">Conectar ao NekoVideo</string>
+    <string name="tag_sync_disconnect">Desconectar</string>
+    <string name="tag_sync_revoke">Desconectar NekoVideo Debug</string>
+    <string name="tag_sync_unavailable">Atualize o NekoVideo normal e autorize a conexão para usar suas TAGs.</string>
+    <string name="tag_sync_restore_in_normal">Restaure backups pelo NekoVideo normal enquanto as TAGs estiverem compartilhadas.</string>
 </resources>

@@ -70,8 +70,6 @@
     <string name="items_deleted_locked">Items deleted!</string>
     <string name="files_secured">Files secured!</string>
     <string name="folder_created">Folder created</string>
-    <string name="action_set_secure_folder">Set as Secure Folder</string>
-    <string name="secure_folder_set">This folder is now the secure folder!</string>
     <string name="pull_to_refresh_tutorial">Drag down to refresh videos</string>
 
     <!-- Content descriptions -->
@@ -558,4 +556,15 @@
     <string name="private_migration_partial">%1$d video(s) updated. %2$d folder(s) need another attempt. Pending files were preserved.</string>
     <string name="private_migration_unavailable">Could not check %1$d private folder(s). Files were preserved.</string>
     <string name="private_migration_retry">The update did not finish. Your videos remain private; try again after unlocking private access.</string>
+    <string name="tag_sync_title">Shared tags</string>
+    <string name="tag_sync_description">Use the normal NekoVideo app’s tags and video links in Debug. Debug’s local list will not be sent to the normal app.</string>
+    <string name="tag_sync_connected_description">Both apps use the same list. Changes and backups are saved by the normal NekoVideo app.</string>
+    <string name="tag_sync_authorize_title">Share tags with Debug</string>
+    <string name="tag_sync_authorize_description">NekoVideo Debug will be able to read and edit your normal and private tags and video links. This app’s current database remains the single source.</string>
+    <string name="tag_sync_allow">Allow connection</string>
+    <string name="tag_sync_connect">Connect to NekoVideo</string>
+    <string name="tag_sync_disconnect">Disconnect</string>
+    <string name="tag_sync_revoke">Disconnect NekoVideo Debug</string>
+    <string name="tag_sync_unavailable">Update the normal NekoVideo app and authorize the connection to use its tags.</string>
+    <string name="tag_sync_restore_in_normal">Restore backups in the normal NekoVideo app while tags are shared.</string>
 </resources>

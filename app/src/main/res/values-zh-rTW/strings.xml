@@ -68,8 +68,6 @@
     <string name="items_deleted_locked">項目已刪除！</string>
     <string name="files_secured">檔案已保護！</string>
     <string name="folder_created">資料夾已建立</string>
-    <string name="action_set_secure_folder">設為安全資料夾</string>
-    <string name="secure_folder_set">此資料夾現在是安全資料夾！</string>
     <string name="pull_to_refresh_tutorial">下拉以重新整理影片</string>
 
     <!-- Content descriptions -->

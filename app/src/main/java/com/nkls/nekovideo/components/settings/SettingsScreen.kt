@@ -1014,6 +1014,7 @@ fun TagsSettingsScreen() {
                 .padding(if (isCompact) 8.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
         ) {
+            item { com.nkls.nekovideo.components.helpers.TagSyncSettingsItem() }
             item { SettingsSectionHeader(stringResource(R.string.tags_normal_section), isCompact) }
             item {
                 TagScopeManagerCard(

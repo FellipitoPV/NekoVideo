@@ -165,15 +165,22 @@ internal object PortablePrivateFolders {
         candidates(folder).firstOrNull(PortableVideoStore::hasRecoveryRecord)?.let { store.readSalt(it) }
     }.getOrNull()
 
-    private fun read(folder: File, password: String): Snapshot? = unlocked(password) { keys ->
+    private fun read(folder: File, password: String, verifyKnownRecords: Boolean = true): Snapshot? = unlocked(password) { keys ->
         if (!folder.isDirectory) return@unlocked null
         val store = PortableVideoStore(folder)
         val indexFile = File(folder, INDEX)
         val backup = File(folder, PASSWORD_BACKUP)
         val index = store.readIndexOrNull(indexFile, keys) ?: store.readIndexOrNull(backup, keys)
         val known = index?.entries.orEmpty().associateBy { it.diskName }
-        val entries = candidates(folder).mapNotNull { file ->
+        val children = folder.listFiles().orEmpty()
+        val entries = children.mapNotNull { file ->
+            if (file.name.startsWith(".neko_") || file.name.endsWith(".part") ||
+                file.name == ".nomedia" || file.name == ".nekovideo") return@mapNotNull null
             val cached = known[file.name]
+            // Local edits use the authenticated index for unchanged entries. Unknown arrivals
+            // still recover from their record; navigation/manual refresh verifies every record.
+            if (!verifyKnownRecords && cached != null) return@mapNotNull cached
+            if (!file.isFile) return@mapNotNull null
             // A protected file is longer than its payload. Check possible plaintext restoration
             // only at that exact length; inspectEntry validates every other record in one read.
             if (cached != null && file.length() == cached.metadata.payloadSize &&
@@ -183,7 +190,8 @@ internal object PortablePrivateFolders {
         }
         if (index == null && entries.isEmpty()) return@unlocked null
         val directoryNames = index?.directories.orEmpty().associateBy { it.diskName }
-        val directories = folder.listFiles().orEmpty().filter { it.isDirectory && it.name != ".neko_thumbs" }
+        val videoNames = entries.mapTo(HashSet()) { it.diskName }
+        val directories = children.filter { it.name !in videoNames && it.name != ".neko_thumbs" && it.isDirectory }
             .map { directoryNames[it.name] ?: PortableVideoStore.Directory(it.name, it.name) }
         val recoveredName = if (folder.name.matches(Regex("[0-9a-f]{32}|[0-9a-f-]{36}"))) {
             entries.firstOrNull()?.metadata?.folderName
@@ -204,6 +212,11 @@ internal object PortablePrivateFolders {
     fun manifest(folderPath: String, password: String): LockedFolderManifest? = runCatching {
         val folder = File(folderPath)
         read(folder, password)?.manifest(folder)
+    }.getOrNull()
+
+    internal fun manifestForLocalEdit(folderPath: String, password: String): LockedFolderManifest? = runCatching {
+        val folder = File(folderPath)
+        read(folder, password, verifyKnownRecords = false)?.manifest(folder)
     }.getOrNull()
 
     fun mergeLegacy(folderPath: String, password: String, legacy: LockedFolderManifest): LockedFolderManifest = unlocked(password) { keys ->
@@ -258,7 +271,7 @@ internal object PortablePrivateFolders {
     private fun nameFromParent(folder: File, password: String): String {
         val parent = folder.parentFile ?: return folder.name
         if (!FolderLockManager.isLocked(parent.absolutePath)) return folder.name
-        return FolderLockManager.readManifest(parent.absolutePath, password)?.subfolders
+        return FolderLockManager.readManifestForLocalEdit(parent.absolutePath, password)?.subfolders
             ?.firstOrNull { it.obfuscatedName == folder.name }?.originalName ?: folder.name
     }
 
@@ -291,7 +304,7 @@ internal object PortablePrivateFolders {
                  onProgress: (Int, Int, String) -> Unit, onError: (String) -> Unit, onSuccess: () -> Unit) {
         try {
             val folder = File(folderPath)
-            val base = checkNotNull(read(folder, password)) { "Invalid password or unavailable recovery metadata" }
+            val base = checkNotNull(read(folder, password, false)) { "Invalid password or unavailable recovery metadata" }
             protectFiles(context, folder, password, base, files.filter {
                 it.isFile && it.parentFile?.absolutePath == folder.absolutePath &&
                     it.extension.lowercase() in supportedVideoExtensions && !PortableVideoStore.hasRecoveryRecord(it)
@@ -355,7 +368,7 @@ internal object PortablePrivateFolders {
     fun extract(context: Context, folderPath: String, names: List<String>, password: String,
                 progress: (Int, Int, String) -> Unit = { _, _, _ -> }): Pair<List<File>, LockedFolderManifest?> {
         val folder = File(folderPath)
-        val snapshot = checkNotNull(read(folder, password)) { "Invalid password or unavailable recovery metadata" }
+        val snapshot = checkNotNull(read(folder, password, false)) { "Invalid password or unavailable recovery metadata" }
         val store = PortableVideoStore(folder)
         val restored = mutableListOf<File>()
         val selected = snapshot.entries.filter { it.diskName in names }
@@ -404,8 +417,9 @@ internal object PortablePrivateFolders {
 
     fun removeMany(context: Context, folderPath: String, names: Collection<String>, password: String): LockedFolderManifest? {
         val folder = File(folderPath)
-        val snapshot = read(folder, password) ?: return null
-        val next = snapshot.copy(entries = snapshot.entries.filter { it.diskName !in names })
+        val snapshot = read(folder, password, false) ?: return null
+        val next = snapshot.copy(entries = snapshot.entries.filter { it.diskName !in names },
+            directories = snapshot.directories.filter { it.diskName !in names })
         persist(folder, next, password)
         names.forEach { name ->
             requireValidName(name)
@@ -429,7 +443,7 @@ internal object PortablePrivateFolders {
 
     fun renameFile(folderPath: String, name: String, newName: String, password: String): LockedFolderManifest? {
         val folder = File(folderPath)
-        val snapshot = read(folder, password) ?: return null
+        val snapshot = read(folder, password, false) ?: return null
         requireValidName(newName)
         require(snapshot.entries.none { it.diskName != name && it.metadata.originalName == newName }) { "Name already in use" }
         val old = snapshot.entries.firstOrNull { it.diskName == name } ?: return null
@@ -443,10 +457,10 @@ internal object PortablePrivateFolders {
 
     fun addDirectory(context: Context, folderPath: String, childPath: String, password: String): String? {
         val folder = File(folderPath)
-        val snapshot = read(folder, password) ?: return null
+        val snapshot = read(folder, password, false) ?: return null
         val child = PortableVideoStore(folder).checked(File(childPath))
         require(child.parentFile == folder.canonicalFile && child.isDirectory)
-        val name = FolderLockManager.readManifest(childPath, password)?.originalFolderName ?: child.name
+        val name = FolderLockManager.readManifestForLocalEdit(childPath, password)?.originalFolderName ?: child.name
         val target = File(folder, UUID.randomUUID().toString().replace("-", ""))
         check(child.renameTo(target))
         try { persist(folder, snapshot.copy(directories = snapshot.directories + PortableVideoStore.Directory(target.name, name)), password) }
@@ -457,7 +471,7 @@ internal object PortablePrivateFolders {
 
     fun extractDirectory(context: Context, folderPath: String, name: String, password: String): File? {
         val folder = File(folderPath)
-        val snapshot = read(folder, password) ?: return null
+        val snapshot = read(folder, password, false) ?: return null
         val item = snapshot.directories.firstOrNull { it.diskName == name } ?: return null
         val source = File(folder, name)
         val target = File(folder, item.originalName)
@@ -472,21 +486,21 @@ internal object PortablePrivateFolders {
     fun renameDirectory(context: Context, folderPath: String, name: String, newName: String, password: String): LockedFolderManifest? {
         requireValidName(newName)
         val folder = File(folderPath)
-        val snapshot = read(folder, password) ?: return null
+        val snapshot = read(folder, password, false) ?: return null
         require(snapshot.directories.none { it.diskName != name && it.originalName == newName })
         val next = snapshot.copy(directories = snapshot.directories.map { if (it.diskName == name) it.copy(originalName = newName) else it })
         val child = File(folder, name)
-        if (isPortable(child.absolutePath)) read(child, password)?.let { persist(child, it.copy(name = newName), password) }
+        if (isPortable(child.absolutePath)) read(child, password, false)?.let { persist(child, it.copy(name = newName), password) }
         persist(folder, next, password)
         if (FolderLockManager.isLocked(child.absolutePath)) FolderLockManager.addToRegistry(context, child.absolutePath, newName,
-            FolderLockManager.readManifest(child.absolutePath, password)?.files?.size ?: 0)
+            FolderLockManager.readManifestForLocalEdit(child.absolutePath, password)?.files?.size ?: 0)
         return next.manifest(folder)
     }
 
     fun renameFolder(context: Context, folderPath: String, newName: String, password: String) {
         requireValidName(newName)
         val folder = File(folderPath)
-        val snapshot = checkNotNull(read(folder, password))
+        val snapshot = checkNotNull(read(folder, password, false))
         persist(folder, snapshot.copy(name = newName), password)
         FolderLockManager.addToRegistry(context, folderPath, newName, snapshot.entries.size)
     }

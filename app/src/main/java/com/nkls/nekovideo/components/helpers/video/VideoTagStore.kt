@@ -35,6 +35,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.StringReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
@@ -177,6 +179,11 @@ object VideoTagStore {
 
     @Synchronized
     private fun notifyTagChange(affectedVideoPaths: Set<String>? = null) {
+        if (TagSyncBridge.routingToHost()) return
+        emitTagChange(affectedVideoPaths)
+        TagSyncBridge.localChange(_tagChangeEvent.value, affectedVideoPaths)
+    }
+    @Synchronized private fun emitTagChange(affectedVideoPaths: Set<String>?) {
         val version = _tagChangeEvent.value + 1L
         _tagChanges.value = VideoTagChange(version, affectedVideoPaths)
         _tagChangeEvent.value = version
@@ -267,8 +274,16 @@ object VideoTagStore {
     private const val AUTO_BACKUP_MANIFEST_FILE_NAME = "manifest.json"
     private const val AUTO_BACKUP_TAGS_FILE_NAME = "tags.json"
     private const val AUTO_BACKUP_REFS_FILE_NAME = "video-tag-refs.json"
-    private const val AUTO_BACKUP_RELATIVE_PATH = "Documents/NekoVideo/Backup/Tags/"
-    private const val AUTO_BACKUP_LEGACY_RELATIVE_PATH = "Documents/NekoVideo/Backup/"
+    private val AUTO_BACKUP_RELATIVE_PATH = when (com.nkls.nekovideo.BuildConfig.APPLICATION_ID) {
+        TagSyncBridge.CLIENT -> "Documents/NekoVideo/Backup/Debug/Tags/"
+        "com.nkls.nekovideo.tagsynchost" -> "Documents/NekoVideo/Backup/Testing/TagSyncHost/"
+        else -> "Documents/NekoVideo/Backup/Tags/"
+    }
+    private val AUTO_BACKUP_LEGACY_RELATIVE_PATH = when (com.nkls.nekovideo.BuildConfig.APPLICATION_ID) {
+        TagSyncBridge.CLIENT -> "Documents/NekoVideo/Backup/Debug/"
+        "com.nkls.nekovideo.tagsynchost" -> "Documents/NekoVideo/Backup/Testing/TagSyncHost/Legacy/"
+        else -> "Documents/NekoVideo/Backup/"
+    }
     private const val AUTO_BACKUP_INTERVAL_MS = 5 * 60 * 1000L
 
     private val migration1To2 = object : Migration(1, 2) {
@@ -277,7 +292,17 @@ object VideoTagStore {
         }
     }
 
+    internal fun localDatabase(context: Context) = getDatabase(context)
+    internal fun localDao(context: Context): VideoTagDao = getDatabase(context).videoTagDao()
+    private fun getDao(context: Context): VideoTagDao = if (TagSyncBridge.enabled(context))
+        TagSyncBridge.remoteDao(context) else localDao(context)
+    internal fun receiveSyncedTagChange(paths: Set<String>?) { emitTagChange(paths) }
+    internal suspend fun changedByRemoteClient(context: Context, paths: Set<String>?) {
+        writeAutomaticBackupSafely(context, minimumDelayMs = 1000L)
+        notifyTagChange(paths)
+    }
     private fun getDatabase(context: Context): VideoTagDatabase {
+        TagSyncBridge.attach(context)
         return database ?: synchronized(this) {
             database ?: Room.databaseBuilder(
                 context.applicationContext,
@@ -288,11 +313,11 @@ object VideoTagStore {
     }
 
     suspend fun getAllTags(context: Context, scope: TagScope): List<TagEntity> {
-        return getDatabase(context).videoTagDao().getAllTags(scope)
+        return getDao(context).getAllTags(scope)
     }
 
     suspend fun getVideoCountsByTag(context: Context, scope: TagScope): Map<Long, Int> {
-        return getDatabase(context).videoTagDao().getVideoCountsByTag(scope)
+        return getDao(context).getVideoCountsByTag(scope)
             .associate { it.tagId to it.videoCount }
     }
 
@@ -300,7 +325,7 @@ object VideoTagStore {
         context: Context,
         onProgress: suspend (checked: Int, total: Int) -> Unit
     ): MissingVideoTagCleanupResult = withContext(Dispatchers.IO) {
-        val dao = getDatabase(context).videoTagDao()
+        val dao = getDao(context)
         val paths = dao.getDistinctTaggedVideoPaths()
         val missingPaths = mutableListOf<String>()
 
@@ -359,7 +384,7 @@ object VideoTagStore {
         val name = rawName.trim()
         if (name.isEmpty()) return Result.failure(IllegalArgumentException("empty"))
 
-        val dao = getDatabase(context).videoTagDao()
+        val dao = getDao(context)
         if (dao.tagExists(name, scope)) return Result.failure(IllegalStateException("exists"))
 
         val id = dao.insertTag(TagEntity(name = name, scope = scope))
@@ -369,7 +394,7 @@ object VideoTagStore {
     }
 
     suspend fun deleteTag(context: Context, tagId: Long) {
-        getDatabase(context).videoTagDao().deleteTag(tagId)
+        getDao(context).deleteTag(tagId)
         writeAutomaticBackupSafely(context)
         notifyTagChange()
     }
@@ -378,7 +403,7 @@ object VideoTagStore {
         val name = rawName.trim()
         if (name.isEmpty()) return Result.failure(IllegalArgumentException("empty"))
 
-        val dao = getDatabase(context).videoTagDao()
+        val dao = getDao(context)
         if (dao.tagExistsForOther(tagId, name, scope)) return Result.failure(IllegalStateException("exists"))
 
         dao.updateTagName(tagId, name)
@@ -389,8 +414,7 @@ object VideoTagStore {
 
     suspend fun getCommonTagIds(context: Context, videoPaths: List<String>, scope: TagScope): Set<Long> {
         if (videoPaths.isEmpty()) return emptySet()
-        return getDatabase(context)
-            .videoTagDao()
+        return getDao(context)
             .getCommonTagIds(videoPaths, videoPaths.distinct().size, scope)
             .toSet()
     }
@@ -406,7 +430,7 @@ object VideoTagStore {
             }
         }
 
-        getDatabase(context).videoTagDao().insertVideoTagRefs(refs)
+        getDao(context).insertVideoTagRefs(refs)
         writeAutomaticBackupSafely(context)
         notifyTagChange(videoPaths.toSet())
     }
@@ -421,7 +445,7 @@ object VideoTagStore {
         if (distinctPaths.isEmpty()) return
         if (initiallyCommonTagIds == selectedTagIds) return
 
-        val dao = getDatabase(context).videoTagDao()
+        val dao = getDao(context)
         val tagsToAdd = selectedTagIds - initiallyCommonTagIds
         val tagsToRemove = initiallyCommonTagIds - selectedTagIds
 
@@ -448,23 +472,21 @@ object VideoTagStore {
 
     suspend fun getVideoPathsForAnyTagIds(context: Context, tagIds: Set<Long>, scope: TagScope): Set<String> {
         if (tagIds.isEmpty()) return emptySet()
-        return getDatabase(context)
-            .videoTagDao()
+        return getDao(context)
             .getVideoPathsForAnyTagIds(tagIds.toList(), scope)
             .toSet()
     }
 
     suspend fun getVideoPathsForAllTagIds(context: Context, tagIds: Set<Long>, scope: TagScope): Set<String> {
         if (tagIds.isEmpty()) return emptySet()
-        return getDatabase(context)
-            .videoTagDao()
+        return getDao(context)
             .getVideoPathsForAllTagIds(tagIds.toList(), tagIds.size, scope)
             .toSet()
     }
 
     suspend fun getTagCountsForVideoPaths(context: Context, videoPaths: List<String>): Map<String, Int> {
         if (videoPaths.isEmpty()) return emptyMap()
-        val dao = getDatabase(context).videoTagDao()
+        val dao = getDao(context)
         val counts = videoPaths.associateWith { 0 }.toMutableMap()
         videoPaths.distinct().chunked(500).forEach { batch ->
             dao.getTagCountsForVideoPaths(batch).forEach { counts[it.videoPath] = it.tagCount }
@@ -474,8 +496,13 @@ object VideoTagStore {
 
     suspend fun moveTagsForPath(context: Context, oldPath: String, newPath: String) {
         if (oldPath == newPath) return
-
-        val dao = getDatabase(context).videoTagDao()
+        if (TagSyncBridge.enabled(context)) {
+            TagSyncBridge.checked(context) {
+                TagSyncBridge.write(context, "moveTree", TagRpc(path = oldPath, newPath = newPath), Boolean::class.javaObjectType)
+            }
+            return
+        }
+        val dao = getDao(context)
         val childPattern = "$oldPath/%"
         val taggedPaths = dao.getTaggedPathsForTree(oldPath, childPattern)
         if (taggedPaths.isEmpty()) return
@@ -488,19 +515,27 @@ object VideoTagStore {
             }
 
         writeAutomaticBackupSafely(context)
+        notifyTagChange((taggedPaths + taggedPaths.map { newPath + it.removePrefix(oldPath) }).toSet())
     }
 
     suspend fun resetTagsForPathTree(context: Context, path: String) {
         val childPattern = "$path/%"
-        getDatabase(context).videoTagDao().deleteVideoTagRefsForTree(path, childPattern)
+        val dao = getDao(context)
+        val affected = dao.getTaggedPathsForTree(path, childPattern).toSet()
+        if (affected.isEmpty()) return
+        dao.deleteVideoTagRefsForTree(path, childPattern)
         writeAutomaticBackupSafely(context)
+        notifyTagChange(affected)
     }
 
     suspend fun getTagCountForVideoPath(context: Context, videoPath: String): Int {
-        return getDatabase(context).videoTagDao().getTagCountForVideoPath(videoPath)
+        return getDao(context).getTagCountForVideoPath(videoPath)
     }
 
     suspend fun getLastAutomaticBackupAt(context: Context): Long {
+        if (TagSyncBridge.enabled(context)) return TagSyncBridge.checked(context) {
+            TagSyncBridge.read(context, "backup", TagRpc(), TagRemoteBackup::class.java).single().updatedAt
+        }
         val storedValue = context.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE)
             .getLong(KEY_LAST_AUTO_BACKUP_AT, 0L)
         val backupFiles = findLatestUsableAutomaticBackup(context) ?: return 0L
@@ -508,10 +543,14 @@ object VideoTagStore {
     }
 
     suspend fun hasAutomaticBackup(context: Context): Boolean {
+        if (TagSyncBridge.enabled(context)) return TagSyncBridge.checked(context) {
+            TagSyncBridge.read(context, "backup", TagRpc(), TagRemoteBackup::class.java).single().exists
+        }
         return findLatestUsableAutomaticBackup(context) != null
     }
 
     suspend fun shouldOfferAutomaticImport(context: Context): Boolean {
+        if (TagSyncBridge.enabled(context)) return false
         val backupEntry = findLatestUsableAutomaticBackup(context) ?: return false
         val storedSyncAt = getStoredAutomaticBackupSyncAt(context)
         return backupEntry.updatedAt > storedSyncAt
@@ -540,7 +579,13 @@ object VideoTagStore {
         result
     }
 
-    private suspend fun writeAutomaticBackupSafely(context: Context) {
+    private suspend fun writeAutomaticBackupSafely(context: Context, minimumDelayMs: Long = 0L) {
+        if (TagSyncBridge.enabled(context)) {
+            TagSyncBridge.checked(context) {
+                TagSyncBridge.write(context, "flushBackup", TagRpc(), Boolean::class.javaObjectType)
+            }
+            return
+        }
         val appContext = context.applicationContext
         automaticBackupPending = true
 
@@ -557,7 +602,7 @@ object VideoTagStore {
         }
 
         automaticBackupJob = automaticBackupScope.launch {
-            delay(delayMs)
+            delay(maxOf(delayMs, minimumDelayMs))
             runCatching {
                 writeAutomaticBackup(appContext)
                 lastAutomaticBackupWriteAt = System.currentTimeMillis()
@@ -572,6 +617,7 @@ object VideoTagStore {
     }
 
     fun flushAutomaticBackupNow(context: Context) {
+        if (TagSyncBridge.enabled(context)) { stopLocalAutomaticBackup(); return }
         if (!automaticBackupPending) return
 
         val appContext = context.applicationContext
@@ -587,11 +633,25 @@ object VideoTagStore {
         }
     }
 
-    private suspend fun writeAutomaticBackup(context: Context) {
+    private val automaticBackupMutex = Mutex()
+    private suspend fun writeAutomaticBackup(context: Context) = automaticBackupMutex.withLock {
+        if (TagSyncBridge.enabled(context)) return@withLock
         val payload = buildBackupPayload(context)
         val files = ensureAutomaticBackupFiles(context)
         writeAutomaticBackupPayload(context, files, payload)
         updateStoredAutomaticBackupSyncAt(context, System.currentTimeMillis())
+    }
+    internal suspend fun flushCanonicalBackup(context: Context) {
+        automaticBackupJob?.cancel()
+        automaticBackupJob = null
+        writeAutomaticBackup(context)
+        lastAutomaticBackupWriteAt = System.currentTimeMillis()
+        automaticBackupPending = false
+    }
+    internal fun stopLocalAutomaticBackup() {
+        automaticBackupJob?.cancel()
+        automaticBackupJob = null
+        automaticBackupPending = false
     }
 
     private fun buildAutomaticBackupTagsPayload(payload: TagBackupPayload): AutomaticBackupTagsPayload {
@@ -696,10 +756,11 @@ object VideoTagStore {
     }
 
     private suspend fun buildBackupPayload(context: Context): TagBackupPayload {
-        val dao = getDatabase(context).videoTagDao()
-        val tags = dao.getAllTagsAllScopes()
+        val dao = getDao(context)
+        val (tags, refs) = if (TagSyncBridge.enabled(context)) {
+            dao.getAllTagsAllScopes() to dao.getAllVideoTagRefs()
+        } else getDatabase(context).withTransaction { dao.getAllTagsAllScopes() to dao.getAllVideoTagRefs() }
         val tagIndex = tags.associateBy { it.id }
-        val refs = dao.getAllVideoTagRefs()
 
         return TagBackupPayload(
             version = BACKUP_VERSION,
@@ -726,6 +787,7 @@ object VideoTagStore {
         context: Context,
         payload: TagBackupPayload
     ): TagBackupImportResult {
+        check(!TagSyncBridge.enabled(context)) { context.getString(com.nkls.nekovideo.R.string.tag_sync_restore_in_normal) }
         val database = getDatabase(context)
         val result = database.withTransaction {
             val dao = database.videoTagDao()

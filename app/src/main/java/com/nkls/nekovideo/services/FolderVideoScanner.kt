@@ -18,6 +18,7 @@ import com.nkls.nekovideo.components.helpers.PortablePrivateFolders
 import com.nkls.nekovideo.components.helpers.PortableVideoStore
 import com.nkls.nekovideo.components.helpers.PrivateVideoMigration
 import com.nkls.nekovideo.components.helpers.PrivateMigrationHistory
+import com.nkls.nekovideo.components.helpers.LocalFolderUpdates
 import com.nkls.nekovideo.BuildConfig
 import com.nkls.nekovideo.components.helpers.supportedVideoExtensions
 import java.io.File
@@ -99,6 +100,8 @@ object FolderVideoScanner {
 
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
+    private val _fullScanVersion = MutableStateFlow(0L)
+    internal val fullScanVersion: StateFlow<Long> = _fullScanVersion.asStateFlow()
 
     internal data class MigrationCheck(val credentialVersion: Long, val pathsOverride: List<String>?,
                                        val plan: PrivateVideoMigration.Plan)
@@ -179,6 +182,8 @@ object FolderVideoScanner {
                 prepareMigrationCheck(context, folderMap.keys, generation, fullScan = true)
                 if (generation != scanGeneration) return@launch
                 _cache.value = folderMap.toMap()
+                com.nkls.nekovideo.components.FolderContentCache.clear()
+                _fullScanVersion.value++
 
                 // ✅ Salva o cache após o scan
                 saveCacheToDisk(context)
@@ -190,6 +195,81 @@ object FolderVideoScanner {
                 finishScan(generation)
             }
         }
+    }
+
+    private var localRefreshJob: Job? = null
+
+    /** Known app edits reuse unchanged entries; only new subtrees need discovery. */
+    @Synchronized internal fun refreshLocalPaths(context: Context, paths: Collection<String>): Job {
+        val targets = paths.filter { it.isNotBlank() }.map { File(it).absolutePath }.toSet()
+        val previousLocal = localRefreshJob
+        val currentScan = scanJob
+        return GlobalScope.launch(Dispatchers.IO) {
+            try {
+                previousLocal?.join()
+                currentScan?.join()
+                val updated = ConcurrentHashMap(_cache.value)
+                val touched = targets.toMutableSet()
+                targets.sortedByDescending { it.length }.forEach { path ->
+                    val folder = File(path)
+                    if (!folder.isDirectory) {
+                        com.nkls.nekovideo.components.FolderContentCache.invalidate(listOf(path))
+                        updated.keys.filter { isSameOrDescendant(it, path) }.toList().forEach(updated::remove)
+                        return@forEach
+                    }
+                    val children = folder.listFiles().orEmpty()
+                    val names = children.mapTo(HashSet()) { it.name }
+                    updated.keys.filter { File(it).parent == path && File(it).name !in names }.toList().forEach { missing ->
+                        com.nkls.nekovideo.components.FolderContentCache.invalidate(listOf(missing))
+                        updated.keys.filter { isSameOrDescendant(it, missing) }.toList().forEach(updated::remove)
+                    }
+                    val locked = FolderLockManager.isLocked(path)
+                    val loadedVideos = com.nkls.nekovideo.components.FolderContentCache.loadedItems(path).orEmpty()
+                        .filterNot { it.isFolder }.map { VideoInfo(it.path, it.uri ?: Uri.fromFile(File(it.path)), it.lastModified, it.sizeInBytes) }
+                    val knownVideos = (updated[path]?.videos.orEmpty() + loadedVideos)
+                        .filter { File(it.path).name in names }.associateBy { it.path }
+                    val videos = knownVideos.values.toMutableList()
+                    val privateNames = if (locked) LockedPlaybackSession.getManifestForFolder(path)?.files
+                        ?.mapTo(HashSet()) { it.obfuscatedName }.orEmpty() else emptySet()
+                    children.forEach childLoop@ { child ->
+                        if (child.name.startsWith(".neko") || child.name.endsWith(".part") || child.path in knownVideos ||
+                            child.name in privateNames) return@childLoop
+                        if (updated.containsKey(child.path)) return@childLoop
+                        if (child.isDirectory) {
+                            scanSecureFoldersRecursive(context, child, updated)
+                            touched += child.path
+                        } else if (!locked && child.extension.lowercase() in supportedVideoExtensions &&
+                            child.isFile && !PortableVideoStore.hasRecoveryRecord(child)) {
+                            videos += VideoInfo(child.path, Uri.fromFile(child), child.lastModified(), child.length())
+                        }
+                    }
+                    val count = if (locked) FolderLockManager.getLockedFileCount(context, path) else videos.size
+                    updated[path] = FolderInfo(path, count > 0 || updated.any { (key, info) ->
+                        key.startsWith("$path/") && info.hasVideos
+                    }, count, locked || File(folder, ".nomedia").exists(), locked, folder.lastModified(), if (locked) emptyList() else videos)
+                }
+                touched.toList().forEach { path ->
+                    var parent = File(path).parentFile
+                    while (parent != null) {
+                        val key = parent.path
+                        updated[key]?.let { info ->
+                            updated[key] = info.copy(hasVideos = info.videoCount > 0 || updated.any { (child, childInfo) ->
+                                child.startsWith("$key/") && childInfo.hasVideos
+                            })
+                        }
+                        parent = parent.parentFile
+                    }
+                }
+                synchronized(this@FolderVideoScanner) { _cache.value = updated.toMap(); saveCacheToDisk(context) }
+                PrivateMigrationHistory(context).observe(touched, false)
+                LocalFolderUpdates.mark(touched)
+            } catch (failure: Exception) {
+                if (failure is CancellationException) throw failure
+                android.util.Log.w("FolderVideoScanner", "Local update requires a verified folder read", failure)
+                com.nkls.nekovideo.components.FolderContentCache.invalidate(targets)
+                LocalFolderUpdates.mark(targets)
+            }
+        }.also { localRefreshJob = it }
     }
 
     @Synchronized fun refreshPaths(
@@ -247,6 +327,8 @@ object FolderVideoScanner {
                 prepareMigrationCheck(context, updatedCache.keys, generation, observedPaths = observedPaths)
                 if (generation != scanGeneration) return@launch
                 _cache.value = updatedCache.toMap()
+                com.nkls.nekovideo.components.FolderContentCache.invalidate(targetPaths)
+                LocalFolderUpdates.mark(targetPaths)
                 saveCacheToDisk(context)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e

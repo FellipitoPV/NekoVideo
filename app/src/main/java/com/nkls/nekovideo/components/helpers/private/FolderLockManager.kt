@@ -97,9 +97,7 @@ object FolderLockManager {
 
         onLockedFolderMoved(context, folderPath, renamedFolder.absolutePath)
 
-        if (FilesManager.SecureStorage.getCustomSecureFolderPath(context) == folderPath) {
-            FilesManager.SecureStorage.setCustomSecureFolderPath(context, renamedFolder.absolutePath)
-        }
+        FilesManager.SecureStorage.relocateLegacySecureFolder(context, folderPath, renamedFolder.absolutePath)
 
         return renamedFolder.absolutePath
     }
@@ -124,9 +122,7 @@ object FolderLockManager {
 
         onLockedFolderMoved(context, folderPath, restoredFolder.absolutePath)
 
-        if (FilesManager.SecureStorage.getCustomSecureFolderPath(context) == folderPath) {
-            FilesManager.SecureStorage.setCustomSecureFolderPath(context, restoredFolder.absolutePath)
-        }
+        FilesManager.SecureStorage.relocateLegacySecureFolder(context, folderPath, restoredFolder.absolutePath)
 
         return restoredFolder.absolutePath
     }
@@ -283,6 +279,10 @@ object FolderLockManager {
         val manifest = readLegacyManifest(folderPath, password) ?: return null
         return PortablePrivateFolders.mergeLegacy(folderPath, password, manifest)
     }
+
+    internal fun readManifestForLocalEdit(folderPath: String, password: String): LockedFolderManifest? =
+        if (PortablePrivateFolders.isPortable(folderPath)) PortablePrivateFolders.manifestForLocalEdit(folderPath, password)
+        else readManifest(folderPath, password)
 
     @Synchronized internal fun readLegacyManifest(folderPath: String, password: String): LockedFolderManifest? = runCatching {
         val marker = File(folderPath, LOCKED_MARKER)
@@ -652,9 +652,7 @@ object FolderLockManager {
         updateRegistryPathsUnderPath(context, oldPath, newPath)
         LockedPlaybackSession.renameSessionsUnderPath(oldPath, newPath)
 
-        if (FilesManager.SecureStorage.getCustomSecureFolderPath(context) == oldPath) {
-            FilesManager.SecureStorage.setCustomSecureFolderPath(context, newPath)
-        }
+        FilesManager.SecureStorage.relocateLegacySecureFolder(context, oldPath, newPath)
     }
 
     /**
@@ -1301,27 +1299,33 @@ object FolderLockManager {
         obfuscatedName: String,
         password: String
     ): LockedFolderManifest? {
+        return removeItemsFromManifest(context, folderPath, listOf(obfuscatedName), password)
+    }
+
+    internal fun removeItemsFromManifest(context: Context, folderPath: String, names: Collection<String>,
+                                         password: String): LockedFolderManifest? {
+        require(names.all { it.isNotBlank() && '/' !in it && '\\' !in it && it != "." && it != ".." })
         if (PortablePrivateFolders.isPortable(folderPath)) {
-            return PortablePrivateFolders.remove(context, folderPath, obfuscatedName, password)
+            return PortablePrivateFolders.removeMany(context, folderPath, names, password)
         }
         val manifest = readManifest(folderPath, password) ?: return null
         val salt = getSalt(folderPath) ?: return null
 
-        val updatedFiles = manifest.files.filter { it.obfuscatedName != obfuscatedName }
-        if (updatedFiles.size == manifest.files.size) return manifest // not found, no change
+        val updatedFiles = manifest.files.filter { it.obfuscatedName !in names }
+        val updatedSubfolders = manifest.subfolders.filter { it.obfuscatedName !in names }
+        if (updatedFiles.size == manifest.files.size && updatedSubfolders.size == manifest.subfolders.size) return manifest
 
-        val updatedManifest = manifest.copy(files = updatedFiles)
+        val updatedManifest = manifest.copy(files = updatedFiles, subfolders = updatedSubfolders)
 
         // Re-encrypt and save manifest
-        val encryptedManifest = encryptManifest(updatedManifest, password, salt)
-        File(folderPath, MANIFEST_FILE).writeBytes(encryptedManifest)
+        saveLegacyManifest(folderPath, updatedManifest, password)
 
         // Delete thumbnail
-        val thumbFile = File(folderPath, "$THUMBS_DIR/$obfuscatedName")
-        if (thumbFile.exists()) thumbFile.delete()
-        // Legacy thumb
-        val legacyThumb = File(folderPath, "$THUMBS_DIR/$obfuscatedName.jpg")
-        if (legacyThumb.exists()) legacyThumb.delete()
+        names.forEach { name ->
+            require('/' !in name && '\\' !in name && name != "." && name != "..")
+            File(folderPath, "$THUMBS_DIR/$name").delete()
+            File(folderPath, "$THUMBS_DIR/$name.jpg").delete()
+        }
 
         // Update registry file count
         addToRegistry(context, folderPath, updatedManifest.originalFolderName, updatedFiles.size)

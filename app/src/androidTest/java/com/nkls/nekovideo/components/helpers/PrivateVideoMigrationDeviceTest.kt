@@ -53,6 +53,7 @@ class PrivateVideoMigrationDeviceTest {
         assumeTrue(context.packageName == "com.nkls.nekovideo.debug" && BuildConfig.PORTABLE_PRIVATE_WRITES)
         assumeTrue(args.containsKey("privatePassword"))
         assertTrue(FilesManager.SecureStorage.verifyPassword(context, password))
+        TagSyncBridge.localTestMode = true
         LockedPlaybackSession.clear()
     }
 
@@ -76,6 +77,7 @@ class PrivateVideoMigrationDeviceTest {
                 .forEach { FolderLockManager.removeFromRegistry(context, it.folderPath) }
             check(checked.deleteRecursively())
         }
+        TagSyncBridge.localTestMode = false
     }
 
     private fun legacy(folder: File, withVideo: Boolean = true): File {
@@ -213,6 +215,24 @@ class PrivateVideoMigrationDeviceTest {
         assertTrue(PrivateMigrationHistory(context, name).isComplete())
         assertTrue(reopened.pendingPaths().isEmpty())
         reopened.plan("unused") { _, _ -> error("No filesystem inspection after completion") }
+    }
+
+    @Test fun legacyBatchDeleteUpdatesFilesAndDirectoriesTogether() {
+        val parent = legacy(File(root(), "parent"))
+        val child = legacy(File(parent, "child"), false)
+        val manifest = checkNotNull(FolderLockManager.readManifest(parent.path, password))
+        FolderLockManager.saveLegacyManifest(parent.path, manifest.copy(subfolders = listOf(
+            LockedSubfolderEntry(child.name, "Child"))), password)
+        LockedPlaybackSession.authorize(password)
+        runBlocking {
+            LockedFolderOperations.deleteLockedItems(context,
+                listOf(File(parent, manifest.files.single().obfuscatedName).path, child.path), parent.path, password,
+                onError = { error(it) })
+        }
+        val updated = checkNotNull(FolderLockManager.readManifest(parent.path, password))
+        assertTrue(updated.files.isEmpty())
+        assertTrue(updated.subfolders.isEmpty())
+        assertFalse(child.exists())
     }
 
     @Test fun deferredAndFailedMigrationKeepPersistentPendingFolders() {

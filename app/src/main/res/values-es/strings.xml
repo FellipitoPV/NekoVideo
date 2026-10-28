@@ -70,8 +70,6 @@
     <string name="files_secured">¡Archivos asegurados!</string>
     <string name="items_deleted_locked">¡Elementos eliminados!</string>
     <string name="folder_created">Carpeta creada</string>
-    <string name="action_set_secure_folder">Establecer Como Carpeta Segura</string>
-    <string name="secure_folder_set">¡Esta carpeta ahora es la carpeta segura!</string>
     <string name="pull_to_refresh_tutorial">Arrastra hacia abajo para actualizar videos</string>
 
     <!-- Content descriptions -->
@@ -557,4 +555,15 @@
     <string name="private_migration_partial">%1$d video(s) actualizado(s). %2$d carpeta(s) necesitan otro intento. Los archivos pendientes se conservaron.</string>
     <string name="private_migration_unavailable">No se pudieron comprobar %1$d carpeta(s) privada(s). Los archivos se conservaron.</string>
     <string name="private_migration_retry">La actualización no terminó. Los videos siguen privados; vuelve a intentarlo al desbloquear el acceso privado.</string>
+    <string name="tag_sync_title">Etiquetas compartidas</string>
+    <string name="tag_sync_description">Usa en Debug las etiquetas y asociaciones de videos del NekoVideo normal. La lista local de Debug no se enviará al normal.</string>
+    <string name="tag_sync_connected_description">Ambas apps usan la misma lista. El NekoVideo normal guarda los cambios y las copias de seguridad.</string>
+    <string name="tag_sync_authorize_title">Compartir etiquetas con Debug</string>
+    <string name="tag_sync_authorize_description">NekoVideo Debug podrá consultar y modificar las etiquetas normales y privadas y sus asociaciones con videos. La base actual de esta app seguirá siendo la fuente única.</string>
+    <string name="tag_sync_allow">Permitir conexión</string>
+    <string name="tag_sync_connect">Conectar a NekoVideo</string>
+    <string name="tag_sync_disconnect">Desconectar</string>
+    <string name="tag_sync_revoke">Desconectar NekoVideo Debug</string>
+    <string name="tag_sync_unavailable">Actualiza NekoVideo normal y autoriza la conexión para usar sus etiquetas.</string>
+    <string name="tag_sync_restore_in_normal">Restaura las copias de seguridad desde NekoVideo normal mientras las etiquetas estén compartidas.</string>
 </resources>

@@ -68,8 +68,6 @@
     <string name="items_deleted_locked">项目已删除！</string>
     <string name="files_secured">文件已保护！</string>
     <string name="folder_created">文件夹已创建</string>
-    <string name="action_set_secure_folder">设为安全文件夹</string>
-    <string name="secure_folder_set">此文件夹现在是安全文件夹！</string>
     <string name="pull_to_refresh_tutorial">下拉以刷新视频</string>
 
     <!-- Content descriptions -->

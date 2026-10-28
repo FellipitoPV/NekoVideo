@@ -49,8 +49,11 @@ class PortableIntegrationDeviceTest {
         assumeTrue(context.packageName == "com.nkls.nekovideo.debug" && BuildConfig.PORTABLE_PRIVATE_WRITES)
         assumeTrue(InstrumentationRegistry.getArguments().containsKey("privatePassword"))
         assertTrue("Test credential must match Debug; do not change app preferences", FilesManager.SecureStorage.verifyPassword(context, password))
+        TagSyncBridge.localTestMode = true
         LockedPlaybackSession.clear()
     }
+
+    @org.junit.After fun restoreTagRouting() { TagSyncBridge.localTestMode = false }
 
     private fun samples() = input.listFiles().orEmpty().filter { it.extension == "mp4" }.sortedBy { it.name }.also {
         require(it.size >= 2) { "Copy two ordinary memes into the dedicated Debug test input" }

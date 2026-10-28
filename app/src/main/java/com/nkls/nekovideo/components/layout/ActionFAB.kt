@@ -44,7 +44,7 @@ import com.nkls.nekovideo.components.helpers.FolderLockManager
 
 enum class ActionType {
     UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS, PASTE,
-    PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE, SET_AS_SECURE_FOLDER, SHARE, TAGS,
+    PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE, SHARE, TAGS,
     PIN_FOLDER, UNPIN_FOLDER
 }
 
@@ -98,7 +98,6 @@ fun ActionFAB(
     val shufflePlayText = stringResource(R.string.action_shuffle_play)
     val createFolderText = stringResource(R.string.action_create_folder)
     val settingsText = stringResource(R.string.action_settings)
-    val secureFolderSet = stringResource(R.string.action_set_secure_folder)
     val shareText = stringResource(R.string.action_share)
     val tagsText = stringResource(R.string.action_tags)
     val pinFolderText = stringResource(R.string.action_pin_folder)
@@ -130,11 +129,6 @@ fun ActionFAB(
             file.isDirectory && !FolderLockManager.isLocked(path)
         }
     }
-
-    val isSingleNomediaFolder = selectedItems.size == 1 &&
-            java.io.File(selectedItems.first()).let { file ->
-                file.isDirectory && file.name.startsWith(".")
-            }
 
     val hasOnlyFiles = remember(selectedItems) {
         selectedItems.isNotEmpty() && selectedItems.all { java.io.File(it).isFile }
@@ -234,15 +228,6 @@ fun ActionFAB(
                         actionsList.add(ActionItem(ActionType.TAGS, Icons.Default.LocalOffer, tagsText))
                     }
 
-                    if (isSingleNomediaFolder) {
-                        actionsList.add(
-                            ActionItem(
-                                ActionType.SET_AS_SECURE_FOLDER,
-                                Icons.Default.FolderSpecial,
-                                secureFolderSet
-                            )
-                        )
-                    }
                 }
 
                 actionsList

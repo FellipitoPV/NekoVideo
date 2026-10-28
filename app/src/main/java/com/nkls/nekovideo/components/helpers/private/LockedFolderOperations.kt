@@ -165,7 +165,7 @@ object LockedFolderOperations {
             val actualItemsToMove = withContext(Dispatchers.IO) {
                 if (sourceLockedFolder != null && password != null) {
                     val obfuscatedNames = movedItems.map { File(it).name }
-                    val sourceManifest = FolderLockManager.readManifest(sourceLockedFolder, password)
+                    val sourceManifest = FolderLockManager.readManifestForLocalEdit(sourceLockedFolder, password)
                         ?: error("Invalid password or unavailable private metadata")
 
                     val fileObfNames = obfuscatedNames.filter { name ->
@@ -273,8 +273,13 @@ object LockedFolderOperations {
     ) {
         try { withContext(Dispatchers.IO) {
             val totalItems = selectedItems.size
-
-            selectedItems.forEachIndexed { index, itemPath ->
+            checkNotNull(FolderLockManager.readManifestForLocalEdit(parentLockedFolder, password)) {
+                "Invalid password or unavailable private metadata"
+            }
+            val parent = File(parentLockedFolder).canonicalFile
+            require(selectedItems.all { File(it).canonicalFile.parentFile == parent }) { "Selection is outside the private folder" }
+            val removed = mutableListOf<String>()
+            try { selectedItems.forEachIndexed { index, itemPath ->
                 val file = File(itemPath)
                 if (file.isDirectory) {
                     if (FolderLockManager.isLocked(itemPath)) {
@@ -282,20 +287,18 @@ object LockedFolderOperations {
                     }
                     check(file.deleteRecursively()) { "Could not delete folder" }
                 } else {
-                    val obfuscatedName = file.name
                     check(file.delete()) { "Could not delete video" }
-                    val updatedManifest = FolderLockManager.removeFileFromManifest(
-                        context,
-                        parentLockedFolder,
-                        obfuscatedName,
-                        password
-                    )
-                    if (updatedManifest != null) {
-                        LockedPlaybackSession.updateManifest(parentLockedFolder, updatedManifest)
-                    }
                 }
-
+                removed += file.name
+                VideoTagStore.resetTagsForPathTree(context, itemPath)
                 notifyProgress(onProgress, index + 1, totalItems)
+            } } finally {
+                // Commit confirmed removals together, including when a later deletion fails.
+                if (removed.isNotEmpty()) {
+                    val updated = FolderLockManager.removeItemsFromManifest(context, parentLockedFolder, removed, password)
+                    checkNotNull(updated) { "Could not update private folder metadata" }
+                    LockedPlaybackSession.updateManifest(parentLockedFolder, updated)
+                }
             }
         } } catch (failure: Exception) {
             if (failure is kotlinx.coroutines.CancellationException) throw failure
@@ -379,7 +382,7 @@ object LockedFolderOperations {
                 return@withContext
             }
 
-            val updatedManifest = FolderLockManager.readManifest(folderPath, password)
+            val updatedManifest = FolderLockManager.readManifestForLocalEdit(folderPath, password)
             val salt = FolderLockManager.getSalt(folderPath)
             if (updatedManifest != null && salt != null) {
                 val xorKey = FolderLockManager.deriveXorKey(password, salt)

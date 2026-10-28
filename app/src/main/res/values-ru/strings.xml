@@ -68,8 +68,6 @@
     <string name="files_secured">Файлы защищены!</string>
     <string name="items_deleted_locked">Элементы удалены!</string>
     <string name="folder_created">Папка создана</string>
-    <string name="action_set_secure_folder">Установить Защищённой Папкой</string>
-    <string name="secure_folder_set">Эта папка теперь защищённая папка!</string>
     <string name="pull_to_refresh_tutorial">Потяните вниз, чтобы обновить видео</string>
 
     <!-- Content descriptions -->

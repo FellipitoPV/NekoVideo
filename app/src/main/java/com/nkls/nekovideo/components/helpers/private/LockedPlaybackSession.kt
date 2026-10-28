@@ -70,6 +70,7 @@ object LockedPlaybackSession {
      * Clear all sessions, securely zeroing the key bytes in memory.
      */
     fun clear() {
+        com.nkls.nekovideo.components.FolderContentCache.clear()
         sessions.values.forEach { session ->
             session.clearKeys()
         }

@@ -16,3 +16,14 @@ As mudanças anteriores foram incluídas na versão 1.9.1 (código 45).
 - Janelas de progresso fixas, sem fechamento por arraste, toque fora ou Voltar, com a área dos botões de navegação acompanhando o tema do app.
 - Correção de avisos repetidos de verificação de pastas privadas causados por diretórios do sistema, sem pendências reais nos vídeos.
 - Abertura mais rápida de pastas privadas, reduzindo leituras repetidas dos vídeos e mostrando o carregamento ao entrar.
+
+28/10/2026
+
+- Atualização das listas após excluir, renomear, criar pastas e mover arquivos sem reconferir os vídeos que não foram alterados.
+- Busca, ordenação e pastas fixadas passam a aproveitar a lista já carregada.
+- Exclusões privadas em lote atualizam o índice uma vez por pasta, incluindo tratamento de operações parcialmente concluídas.
+- Reaproveitamento das listas e sessões ao abrir vídeos e usar o shuffle.
+- Remoção da opção antiga de definir uma pasta segura personalizada, mantendo a liberdade de privar qualquer pasta.
+- Opção de conectar o Debug às TAGs do aplicativo normal, após autorizar a conexão, usando uma fonte única para consultas e alterações.
+- TAGs e vínculos com vídeos alterados em qualquer uma das versões ficam disponíveis nas duas, sem importar ou sobrepor listas separadas.
+- Backups da lista compartilhada ficam sob responsabilidade do app normal, com gravações serializadas; o Debug desconectado usa uma pasta de backup separada.

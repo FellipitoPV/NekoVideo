@@ -18,12 +18,14 @@ android {
         versionCode = 45
         versionName = "1.9.1"
         buildConfigField("boolean", "PORTABLE_PRIVATE_WRITES", "true")
+        manifestPlaceholders["tagSyncHostEnabled"] = "true"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         debug {
+            manifestPlaceholders["tagSyncHostEnabled"] = "false"
             buildConfigField("boolean", "PORTABLE_PRIVATE_WRITES", "true")
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
@@ -36,6 +38,14 @@ android {
             applicationIdSuffix = ".recoverylab"
             versionNameSuffix = "-recoverylab"
             resValue("string", "app_name", "NekoVideo Recovery Lab")
+            matchingFallbacks += listOf("debug")
+        }
+        create("tagSyncHost") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".tagsynchost"
+            versionNameSuffix = "-tagsynchost"
+            manifestPlaceholders["tagSyncHostEnabled"] = "true"
+            resValue("string", "app_name", "NekoVideo TAG Sync Test Host")
             matchingFallbacks += listOf("debug")
         }
         release {
@@ -56,6 +66,8 @@ android {
 
     testBuildType = if (providers.gradleProperty("nekoRecoveryLab").orNull == "true") {
         "recoveryLab"
+    } else if (providers.gradleProperty("nekoTagSyncHost").orNull == "true") {
+        "tagSyncHost"
     } else {
         "debug"
     }

@@ -68,8 +68,6 @@
     <string name="files_secured">Dateien gesichert!</string>
     <string name="items_deleted_locked">Elemente gelöscht!</string>
     <string name="folder_created">Ordner erstellt</string>
-    <string name="action_set_secure_folder">Als Sicheren Ordner Festlegen</string>
-    <string name="secure_folder_set">Dieser Ordner ist jetzt der sichere Ordner!</string>
     <string name="pull_to_refresh_tutorial">Nach unten ziehen, um Videos zu aktualisieren</string>
 
     <!-- Content descriptions -->

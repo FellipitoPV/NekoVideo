@@ -363,7 +363,7 @@ fun MainScreen(
         refreshShuffleLongPressHintEligibility()
     }
 
-    fun executeOpenVideo(
+    suspend fun executeOpenVideo(
         targetFolderPath: String,
         itemPath: String,
         sortType: SortType,
@@ -371,14 +371,15 @@ fun MainScreen(
     ) {
         val targetIsSecure = isSecureFolder(targetFolderPath)
         val targetIsRootLevel = targetFolderPath == FolderNavigationState.ROOT_PATH
-        val items = loadFolderContent(
+        val items = withContext(Dispatchers.IO) { loadFolderContent(
             context = context,
             folderPath = targetFolderPath,
             sortType = sortType,
             isSecureMode = targetIsSecure,
             isRootLevel = targetIsRootLevel,
-            showPrivateFolders = showPrivateFolders
-        )
+            showPrivateFolders = showPrivateFolders,
+            reuseLoadedContent = true
+        ) }
         val videoItems = items.filter { !it.isFolder }
 
         if (videoItems.isEmpty()) {
@@ -472,12 +473,12 @@ fun MainScreen(
             return
         }
 
-        executeOpenVideo(
+        coroutineScope.launch { executeOpenVideo(
             targetFolderPath = targetFolderPath,
             itemPath = itemPath,
             sortType = sortType,
             resumePositionMs = effectiveResumePositionMs
-        )
+        ) }
     }
 
     suspend fun playShuffledVideos(tagFilter: ShuffleTagFilter? = null) {
@@ -596,10 +597,6 @@ fun MainScreen(
     }
 
 
-    fun quickRefresh() {
-        FolderVideoScanner.startScan(context, forceRefresh = true)
-    }
-
     fun refreshAffectedPaths(paths: List<String>) {
         val affectedPaths = paths
             .map { File(it).absolutePath }
@@ -607,11 +604,10 @@ fun MainScreen(
             .distinct()
 
         if (affectedPaths.isEmpty()) {
-            quickRefresh()
             return
         }
 
-        FolderVideoScanner.refreshPaths(context, affectedPaths)
+        FolderVideoScanner.refreshLocalPaths(context, affectedPaths)
     }
 
     fun launchFolderLockAction(folders: List<String>, isUnlock: Boolean, password: String) {
@@ -936,12 +932,12 @@ fun MainScreen(
                 showNewPlaylistConfirmDialog = false
                 val videoParams = pendingVideoParams
                 if (videoParams != null) {
-                    executeOpenVideo(
+                    coroutineScope.launch { executeOpenVideo(
                         targetFolderPath = videoParams.targetFolderPath,
                         itemPath = videoParams.itemPath,
                         sortType = videoParams.sortType,
                         resumePositionMs = videoParams.resumePositionMs
-                    )
+                    ) }
                 } else if (hasPendingShufflePlayback) {
                     executeShufflePlayback(pendingShuffleTagFilter)
                 }
@@ -1132,9 +1128,8 @@ fun MainScreen(
                     moveSourceLockedFolder = null
                     renameTrigger++
 
-                    if (pasted) {
-                        refreshAffectedPaths(movedItems.mapNotNull { File(it).parent } + destinationPath)
-                    }
+                    // A failed batch can still contain confirmed moves or extracted originals.
+                    refreshAffectedPaths(movedItems.mapNotNull { File(it).parent } + destinationPath)
                 }
             }
         )
@@ -1529,21 +1524,7 @@ fun MainScreen(
                                     moveSourceLockedFolder = null
                                     renameTrigger++
 
-                                    if (pasted) {
-                                        refreshAffectedPaths(movedItems.mapNotNull { File(it).parent } + folderPath)
-                                    }
-                                }
-                            }
-                            ActionType.SET_AS_SECURE_FOLDER -> {
-                                coroutineScope.launch {
-                                    val folderPath = selectedItems.first()
-                                    FilesManager.SecureStorage.setCustomSecureFolderPath(context, folderPath)
-
-                                    SortRowMessageCenter.showSuccess(context.getString(R.string.secure_folder_set))
-
-                                    selectedItems.clear()
-                                    renameTrigger++
-                                    refreshAffectedPaths(listOf(folderPath, File(folderPath).parent ?: folderPath))
+                                    refreshAffectedPaths(movedItems.mapNotNull { File(it).parent } + folderPath)
                                 }
                             }
                             ActionType.PIN_FOLDER -> {
@@ -1786,6 +1767,7 @@ fun MainScreen(
             },
             onVideoDeleted = { deletedPath ->
                 deletedVideoPath = deletedPath
+                File(deletedPath).parent?.let { refreshAffectedPaths(listOf(it)) }
                 CoroutineScope(Dispatchers.Main).launch {
                     delay(100)
                     deletedVideoPath = null

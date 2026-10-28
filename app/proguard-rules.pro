@@ -40,6 +40,15 @@
 -dontwarn com.arthenica.ffmpegkit.**
 
 # Folder scanner cache
+-keep class com.nkls.nekovideo.components.helpers.TagRpc { *; }
+-keep class com.nkls.nekovideo.components.helpers.TagRemoteChange { *; }
+-keep class com.nkls.nekovideo.components.helpers.TagRemoteBackup { *; }
+-keep class com.nkls.nekovideo.components.helpers.TagEntity { *; }
+-keep class com.nkls.nekovideo.components.helpers.VideoTagCrossRef { *; }
+-keep class com.nkls.nekovideo.components.helpers.TagVideoCount { *; }
+-keep class com.nkls.nekovideo.components.helpers.VideoTagCount { *; }
+-keep class com.nkls.nekovideo.components.helpers.TagScope { *; }
+-keep class com.nkls.nekovideo.components.helpers.TagSyncAuthorizationActivity { *; }
 -keep class com.nkls.nekovideo.services.SerializableFolderInfo { *; }
 -keep class com.nkls.nekovideo.services.SerializableVideoInfo { *; }
 -keep class com.nkls.nekovideo.services.FolderInfo { *; }
