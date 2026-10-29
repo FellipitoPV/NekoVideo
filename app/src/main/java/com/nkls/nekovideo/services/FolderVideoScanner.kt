@@ -456,7 +456,8 @@ object FolderVideoScanner {
     /** Also covers authentication after an already cached scan; counting remains inside the loading state. */
     @Synchronized internal fun requestPrivateMigrationCheck(context: Context, password: String,
                                                             pathsOverride: Collection<String>? = null) {
-        if (!BuildConfig.PORTABLE_PRIVATE_WRITES || password != LockedPlaybackSession.sessionPassword) return
+        if (!BuildConfig.PORTABLE_PRIVATE_WRITES || password != LockedPlaybackSession.sessionPassword ||
+            !com.nkls.nekovideo.components.helpers.FilesManager.SecureFoldersVisibility.areSecureFoldersVisible(context)) return
         if (scanJob?.isActive == true) {
             _isScanning.value = true
             return // Reuse the existing scan; authentication never starts another global scan.
@@ -495,6 +496,7 @@ object FolderVideoScanner {
                 !history.hasDiscovery() -> history.observe(paths + FolderLockManager.getAllLockedFolders(context).map { it.folderPath }, false)
             }
         }
+        if (!com.nkls.nekovideo.components.helpers.FilesManager.SecureFoldersVisibility.areSecureFoldersVisible(context)) return
         val password = LockedPlaybackSession.sessionPassword ?: return
         val credential = LockedPlaybackSession.credentialVersion
         val plan = when {
@@ -517,8 +519,10 @@ object FolderVideoScanner {
     /** Recover only ordinary directories already found by the regular scan, without traversing the device again. */
     private fun restoreQueuedExternalArrivals(context: Context, cache: MutableMap<String, FolderInfo>,
                                               roots: Collection<String>? = null): Boolean {
+        if (!com.nkls.nekovideo.components.helpers.FilesManager.SecureFoldersVisibility.areSecureFoldersVisible(context)) return false
         val password = LockedPlaybackSession.sessionPassword ?: return false
         var changed = false
+        val restoredFolders = mutableSetOf<String>()
         externalRecoveryPaths.toList().filter { path -> roots == null || roots.any { isSameOrDescendant(path, it) } }
             .forEach { path ->
                 val restored = PortablePrivateFolders.restoreExternalArrivals(context, path, password)
@@ -526,9 +530,11 @@ object FolderVideoScanner {
                     recomputeFolderInfo(context, cache, File(path))
                     recomputeAncestors(context, cache, path)
                     changed = true
+                    restoredFolders += path
                 }
                 if (!PortablePrivateFolders.hasExternalArrivals(context, path)) externalRecoveryPaths.remove(path)
             }
+        if (restoredFolders.isNotEmpty()) LocalFolderUpdates.mark(restoredFolders)
         return changed
     }
 

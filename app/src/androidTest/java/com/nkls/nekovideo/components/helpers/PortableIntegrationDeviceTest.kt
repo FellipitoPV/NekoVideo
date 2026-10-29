@@ -39,6 +39,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 @androidx.annotation.OptIn(UnstableApi::class)
 class PortableIntegrationDeviceTest {
+    private var previousVisibility: Boolean? = null
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
     private val password get() = checkNotNull(InstrumentationRegistry.getArguments().getString("privatePassword"))
     private val owned get() = File(checkNotNull(context.getExternalFilesDir(null)), "portable-integration").apply { mkdirs() }
@@ -51,9 +52,15 @@ class PortableIntegrationDeviceTest {
         assertTrue("Test credential must match Debug; do not change app preferences", FilesManager.SecureStorage.verifyPassword(context, password))
         TagSyncBridge.localTestMode = true
         LockedPlaybackSession.clear()
+        previousVisibility = FilesManager.SecureFoldersVisibility.areSecureFoldersVisible(context)
+        FilesManager.SecureFoldersVisibility.showSecureFolders(context)
     }
 
-    @org.junit.After fun restoreTagRouting() { TagSyncBridge.localTestMode = false }
+    @org.junit.After fun restoreTagRouting() {
+        previousVisibility?.let { FilesManager.SecureFoldersVisibility.setSecureFoldersVisible(context, it) }
+        LockedPlaybackSession.clear()
+        TagSyncBridge.localTestMode = false
+    }
 
     private fun samples() = input.listFiles().orEmpty().filter { it.extension == "mp4" }.sortedBy { it.name }.also {
         require(it.size >= 2) { "Copy two ordinary memes into the dedicated Debug test input" }
@@ -247,6 +254,117 @@ class PortableIntegrationDeviceTest {
         check(File(locked, entry.obfuscatedName).renameTo(moved))
         LockedPlaybackSession.clear()
         return ordinary to moved
+    }
+
+    private fun visibilityWork(test: (File) -> Unit) {
+        val root = work()
+        try { test(root) } finally {
+            LockedPlaybackSession.clear()
+            FolderLockManager.getAllLockedFolders(context).filter { it.folderPath.startsWith(root.path + "/") }
+                .forEach { FolderLockManager.removeFromRegistry(context, it.folderPath) }
+            check(checkedWork(root).deleteRecursively())
+            runBlocking { com.nkls.nekovideo.services.FolderVideoScanner.reconcileFolderEntry(context, root.path) }
+        }
+    }
+
+    private fun visibilitySample(root: File, name: String, testPassword: String): Pair<File, File> {
+        val source = File(root, "private-${UUID.randomUUID()}").apply { check(mkdir()) }
+        val reference = samples().first().copyTo(File(source, samples().first().name))
+        val store = PortableVideoStore(root)
+        val salt = store.newSalt()
+        val protected = File(source, UUID.randomUUID().toString().replace("-", ""))
+        PortableVideoStore.Keyring(testPassword.toCharArray()).use { keys -> store.protectCopy(reference, protected, keys, salt) }
+        File(source, PortablePrivateFolders.MARKER).writeText(java.util.Base64.getEncoder().encodeToString(salt))
+        check(reference.delete())
+        val ordinary = File(root, name).apply { check(mkdir()) }
+        val moved = File(ordinary, "movido-externamente")
+        check(protected.renameTo(moved))
+        LockedPlaybackSession.clear()
+        return ordinary to moved
+    }
+
+    @Test fun hiddenVisibilityBlocksRetainedPasswordAcrossBrowsingScanningAndRecursivePlayback() = visibilityWork { root ->
+        // Ancestor reconciliation cannot decrypt user files with this unique fixture credential.
+        val password = "VisibilityTest-${UUID.randomUUID()}"
+        val (ordinary, original) = visibilitySample(root, "normal", password)
+        val moved = File(ordinary, "renamed-externally.mp4").also { check(original.renameTo(it)) }
+        val hash = PortableVideoStore.sha256(moved)
+        LockedPlaybackSession.authorize(password)
+        FilesManager.SecureFoldersVisibility.hideSecureFolders(context)
+        assertEquals(password, LockedPlaybackSession.sessionPassword)
+        assertTrue(PortablePrivateFolders.restoreExternalArrivals(context, ordinary.path).isEmpty())
+        assertTrue(PortablePrivateFolders.restoreExternalArrivals(context, ordinary.path, password).isEmpty())
+        assertTrue(loadFolderContent(context, ordinary.path, SortType.NAME_ASC, false, false, false).isEmpty())
+        runBlocking {
+            com.nkls.nekovideo.services.FolderVideoScanner.refreshPaths(context, listOf(ordinary.path), scope = this)
+            com.nkls.nekovideo.services.FolderVideoScanner.isScanning.first { !it }
+            com.nkls.nekovideo.services.FolderVideoScanner.reconcileFolderEntry(context, ordinary.path)
+            assertTrue(FilesManager.getVideosRecursive(context, ordinary.path, false, false, sessionPassword = password).isEmpty())
+        }
+        assertEquals(hash, PortableVideoStore.sha256(moved))
+        assertTrue(PortableVideoStore.hasRecoveryRecord(moved))
+        assertFalse(File(ordinary, samples().first().name).exists())
+        val beforeReveal = LocalFolderUpdates.revision(ordinary.path)
+        FilesManager.SecureFoldersVisibility.showSecureFolders(context)
+        com.nkls.nekovideo.services.FolderVideoScanner.requestPrivateMigrationCheck(context, password, listOf(ordinary.path))
+        runBlocking { kotlinx.coroutines.withTimeout(15_000) {
+            com.nkls.nekovideo.services.FolderVideoScanner.isScanning.first { !it }
+        } }
+        assertEquals(PortableVideoStore.sha256(samples().first()), PortableVideoStore.sha256(File(ordinary, samples().first().name)))
+        assertFalse(moved.exists())
+        assertTrue(LocalFolderUpdates.revision(ordinary.path) > beforeReveal)
+    }
+
+    @Test fun hidingAtThePublicationBoundaryPreservesInputsIncludingInPlaceNamesAndVisibilityCycles() = visibilityWork { root ->
+        val password = "VisibilityTest-${UUID.randomUUID()}"
+        for ((sameName, revealImmediately) in listOf(false to false, true to false, false to true)) {
+            FilesManager.SecureFoldersVisibility.showSecureFolders(context)
+            val (ordinary, moved) = visibilitySample(root, "boundary-$sameName-$revealImmediately", password)
+            val protected = if (sameName) File(ordinary, samples().first().name).also { check(moved.renameTo(it)) } else moved
+            val hash = PortableVideoStore.sha256(protected)
+            LockedPlaybackSession.authorize(password)
+            var revoked = false
+            val result = PortablePrivateFolders.restoreExternalArrivals(context, ordinary.path, password,
+                createStore = { folder -> PortableVideoStore(folder, checkpoint = { stage, _ ->
+                    if (stage == PortableVideoStore.Stage.FILE_SYNCED) {
+                        revoked = true
+                        FilesManager.SecureFoldersVisibility.hideSecureFolders(context)
+                        if (revealImmediately) FilesManager.SecureFoldersVisibility.showSecureFolders(context)
+                    }
+                }) })
+            assertTrue(revoked)
+            assertTrue(result.isEmpty())
+            assertEquals(hash, PortableVideoStore.sha256(protected))
+            assertTrue(PortableVideoStore.hasRecoveryRecord(protected))
+            assertEquals(listOf(protected.name), ordinary.listFiles().orEmpty().map { it.name })
+            FilesManager.SecureFoldersVisibility.showSecureFolders(context)
+            val output = PortablePrivateFolders.restoreExternalArrivals(context, ordinary.path, password).single()
+            assertEquals(PortableVideoStore.sha256(samples().first()), PortableVideoStore.sha256(output))
+            assertFalse(PortableVideoStore.hasRecoveryRecord(output))
+        }
+    }
+
+    @Test fun deferredUnmanagedIndexCleanupWaitsForVisibility() = visibilityWork { root ->
+        val password = "VisibilityTest-${UUID.randomUUID()}"
+        val (ordinary, moved) = visibilitySample(root, "deferred-index", password)
+        val store = PortableVideoStore(ordinary)
+        val output = File(ordinary, samples().first().name)
+        PortableVideoStore.Keyring(password.toCharArray()).use { keys ->
+            val entry = store.inspectEntry(moved, null, keys)
+            store.writeIndex(File(ordinary, PortablePrivateFolders.INDEX), listOf(entry), keys, store.newSalt(), privateFolder = false)
+            store.restoreKnownCopy(moved, output, entry.metadata)
+            check(moved.delete())
+        }
+        val index = File(ordinary, PortablePrivateFolders.INDEX)
+        val hash = PortableVideoStore.sha256(output)
+        FilesManager.SecureFoldersVisibility.hideSecureFolders(context)
+        assertTrue(PortablePrivateFolders.restoreExternalArrivals(context, ordinary.path, password).isEmpty())
+        assertTrue(index.exists())
+        FilesManager.SecureFoldersVisibility.showSecureFolders(context)
+        assertTrue(PortablePrivateFolders.restoreExternalArrivals(context, ordinary.path, password).isEmpty())
+        assertFalse(index.exists())
+        assertFalse(FolderLockManager.isLocked(ordinary.path))
+        assertEquals(hash, PortableVideoStore.sha256(output))
     }
 
     @Test fun scannerRestoresOrdinaryArrivalsWithoutOpeningTheFolder() {

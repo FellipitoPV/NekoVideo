@@ -786,13 +786,23 @@ object FilesManager {
 
     object SecureFoldersVisibility {
         private const val PREF_SHOW_SECURE_FOLDERS = "show_secure_folders"
+        @Volatile internal var visibilityVersion = 0L
+            private set
 
         /**
          * Mostra/esconde as pastas seguras
          */
-        fun setSecureFoldersVisible(context: Context, visible: Boolean) {
+        @Synchronized fun setSecureFoldersVisible(context: Context, visible: Boolean) {
             val prefs = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+            visibilityVersion++
             prefs.edit().putBoolean(PREF_SHOW_SECURE_FOLDERS, visible).apply()
+        }
+
+        /** Serialize the final publication with hiding; copying/hashing never holds this lock. */
+        @Synchronized internal fun publishWhileVisible(context: Context, version: Long, publish: () -> Unit): Boolean {
+            if (version != visibilityVersion || !areSecureFoldersVisible(context)) return false
+            publish()
+            return true
         }
 
         /**

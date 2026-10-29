@@ -315,4 +315,30 @@ class PortableVideoStoreTest {
     }
 
     private fun <T : Any> assertNotNullValue(value: T?): T { assertNotNull(value); return value!! }
+
+    @Test fun revokedPublicationKeepsCiphertextAndRemovesPlaintextTemporaryFiles() = fixture { lab, _, file, entry, _, _ ->
+        val protected = file.readBytes()
+        val output = File(lab.workspace, "revoked.mp4")
+        assertThrows(IllegalStateException::class.java) {
+            lab.restoreKnownCopy(file, output, entry.metadata, commit = { error("Visibility revoked") })
+        }
+        assertFalse(output.exists())
+        assertArrayEquals(protected, file.readBytes())
+        assertFalse(lab.workspace.listFiles().orEmpty().any { it.name.endsWith(".part") })
+    }
+
+    @Test fun revocationDuringCopyAbortsWithoutPublishingPlaintext() = fixture { lab, _, file, entry, _, _ ->
+        val protected = file.readBytes()
+        val output = File(lab.workspace, "interrupted.mp4")
+        var chunks = 0
+        assertThrows(IllegalStateException::class.java) {
+            lab.restoreKnownCopy(file, output, entry.metadata, checkPermission = {
+                if (++chunks == 2) error("Visibility revoked during copy")
+            })
+        }
+        assertEquals(2, chunks)
+        assertFalse(output.exists())
+        assertArrayEquals(protected, file.readBytes())
+        assertFalse(lab.workspace.listFiles().orEmpty().any { it.name.endsWith(".part") })
+    }
 }

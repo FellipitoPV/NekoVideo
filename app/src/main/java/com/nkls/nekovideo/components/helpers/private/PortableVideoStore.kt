@@ -367,7 +367,9 @@ class PortableVideoStore(
         return resolved
     }
 
-    internal fun restoreKnownCopy(source: File, destination: File, metadata: Metadata) {
+    internal fun restoreKnownCopy(source: File, destination: File, metadata: Metadata,
+                                  checkPermission: () -> Unit = {},
+                                  commit: (() -> Unit) -> Unit = { it() }) {
         val input = checked(source)
         val output = checked(destination)
         require(!output.exists() && input != output)
@@ -376,12 +378,13 @@ class PortableVideoStore(
         val protectedHash = MessageDigest.getInstance("SHA-256")
         val key = Base64.getDecoder().decode(metadata.contentKey)
         try {
-            publish(output, replace = false) { temp ->
+            publish(output, replace = false, commit = commit) { temp ->
                 RandomAccessFile(input, "r").use { raf ->
                     temp.outputStream().buffered().use { out ->
                         val buffer = ByteArray(64 * 1024)
                         var position = 0L
                         while (position < metadata.payloadSize) {
+                            checkPermission()
                             val count = minOf(buffer.size.toLong(), metadata.payloadSize - position).toInt()
                             raf.readFully(buffer, 0, count)
                             protectedHash.update(buffer, 0, count)
@@ -453,7 +456,7 @@ class PortableVideoStore(
         require(metadata.folderName == null || validName(metadata.folderName))
     }
 
-    private fun publish(destination: File, replace: Boolean, write: (File) -> Unit) {
+    private fun publish(destination: File, replace: Boolean, commit: (() -> Unit) -> Unit = { it() }, write: (File) -> Unit) {
         checked(destination)
         val parent = checkNotNull(destination.parentFile)
         require(parent.isDirectory || parent.mkdirs())
@@ -465,13 +468,15 @@ class PortableVideoStore(
             write(temp)
             RandomAccessFile(temp, "rw").use { it.fd.sync() }
             checkpoint(Stage.FILE_SYNCED, destination)
-            if (replace) {
-                Files.move(temp.toPath(), destination.toPath(), StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING)
-            } else {
-                // No REPLACE_EXISTING: never replace an input or an existing export.
-                // Unlike hard links, this also works on Android's emulated shared storage.
-                Files.move(temp.toPath(), destination.toPath())
+            commit {
+                if (replace) {
+                    Files.move(temp.toPath(), destination.toPath(), StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING)
+                } else {
+                    // No REPLACE_EXISTING: never replace an input or an existing export.
+                    // Unlike hard links, this also works on Android's emulated shared storage.
+                    Files.move(temp.toPath(), destination.toPath())
+                }
             }
         } finally { if (temp.exists()) check(temp.delete()) }
     }

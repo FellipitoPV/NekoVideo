@@ -97,18 +97,36 @@ internal object PortablePrivateFolders {
     internal fun recoveryRecordsForScan(entries: List<File>): List<File> = candidates(entries)
         .filter(PortableVideoStore::hasRecoveryRecord)
 
+    private class RecoveryHidden : IllegalStateException()
+
     /** Called on IO while browsing/scanning. No credential, no plaintext publication. */
     @Synchronized fun restoreExternalArrivals(context: Context, folderPath: String,
-                                             password: String? = LockedPlaybackSession.sessionPassword): List<File> {
-        if (password == null) return emptyList()
+                                             password: String? = LockedPlaybackSession.sessionPassword,
+                                             createStore: (File) -> PortableVideoStore = { PortableVideoStore(it) }): List<File> {
+        val visibility = FilesManager.SecureFoldersVisibility
+        val visibilityVersion = visibility.visibilityVersion
+        if (password == null || !visibility.areSecureFoldersVisible(context)) return emptyList()
+        val credential = LockedPlaybackSession.credentialVersion
+        fun allowed() = visibility.visibilityVersion == visibilityVersion &&
+            LockedPlaybackSession.credentialVersion == credential && visibility.areSecureFoldersVisible(context)
+        fun checkPermission() { if (!allowed()) throw RecoveryHidden() }
+        fun commit(publish: () -> Unit) {
+            if (!visibility.publishWhileVisible(context, visibilityVersion) {
+                checkPermission()
+                publish()
+            }) throw RecoveryHidden()
+        }
         val folder = File(folderPath).canonicalFile
-        if (!folder.isDirectory || hasPrivateBoundary(context, folder, password) || !containsRecords(folder)) return emptyList()
+        if (!folder.isDirectory || hasPrivateBoundary(context, folder, password)) return emptyList()
+        if (!containsRecords(folder) && !File(folder, INDEX).exists()) return emptyList()
         val restored = mutableListOf<File>()
+        var retiredIndex = false
         unlocked(password) { keys ->
-            val store = PortableVideoStore(folder)
+            val store = createStore(folder)
             val indexFile = File(folder, INDEX)
             val index = store.readIndexOrNull(indexFile, keys)
-            candidates(folder).filter(PortableVideoStore::hasRecoveryRecord).forEach { source ->
+            for (source in candidates(folder).filter(PortableVideoStore::hasRecoveryRecord)) {
+                if (!allowed()) break
                 try {
                     val metadata = store.resolve(source, index, keys).metadata
                     var target = store.checked(File(folder, metadata.originalName))
@@ -120,29 +138,34 @@ internal object PortablePrivateFolders {
                         target = store.checked(File(folder, "${original.nameWithoutExtension} (${suffix++})$extension"))
                     }
                     // restoreEntry publishes only after both ciphertext and plaintext hashes match.
-                    val output = restoreEntry(folder, source.name, metadata.copy(originalName = target.name))
+                    val output = restoreEntry(folder, source.name, metadata.copy(originalName = target.name),
+                        ::checkPermission, ::commit, store)
                     if (output != source) {
+                        checkPermission()
                         check(store.matchesPayload(source, metadata)) { "Protected video changed during recovery" }
-                        check(source.delete()) { "Recovered video verified; protected copy could not be removed" }
+                        commit { check(source.delete()) { "Recovered video verified; protected copy could not be removed" } }
                     }
                     restored += output
                     runCatching { kotlinx.coroutines.runBlocking {
                         VideoTagStore.moveTagsForPath(context, source.absolutePath, output.absolutePath)
                     } }
+                } catch (_: RecoveryHidden) {
+                    break
                 } catch (failure: Exception) {
                     // Wrong password, corruption or unavailable space: retain the protected input.
                     Log.w("PortablePrivateFolders", "Could not restore external video ${source.name}", failure)
                 }
             }
-            if (index?.privateFolder == false && !candidates(folder).any(PortableVideoStore::hasRecoveryRecord)) {
-                check(indexFile.delete())
+            if (allowed() && index?.privateFolder == false && !candidates(folder).any(PortableVideoStore::hasRecoveryRecord)) {
+                try { commit { check(indexFile.delete()); retiredIndex = true } }
+                catch (_: RecoveryHidden) { /* Keep the index for the next reveal. */ }
             }
         }
-        if (restored.isNotEmpty()) {
+        if (restored.isNotEmpty() || retiredIndex) {
             invalidate(folder)
             LockedPlaybackSession.removeSession(folder.absolutePath)
             FolderLockManager.removeFromRegistry(context, folder.absolutePath)
-            MediaScannerConnection.scanFile(context, restored.map { it.absolutePath }.toTypedArray(), null, null)
+            if (restored.isNotEmpty()) MediaScannerConnection.scanFile(context, restored.map { it.absolutePath }.toTypedArray(), null, null)
         }
         return restored
     }
@@ -406,21 +429,24 @@ internal object PortablePrivateFolders {
         return restored to next.manifest(folder)
     }
 
-    internal fun restoreEntry(folder: File, diskName: String, metadata: PortableVideoStore.Metadata): File {
-        val store = PortableVideoStore(folder)
+    internal fun restoreEntry(folder: File, diskName: String, metadata: PortableVideoStore.Metadata,
+                              checkPermission: () -> Unit = {}, commit: (() -> Unit) -> Unit = { it() },
+                              store: PortableVideoStore = PortableVideoStore(folder)): File {
+        checkPermission()
         val source = store.checked(File(folder, diskName))
         val output = store.checked(File(folder, metadata.originalName))
         if (source == output) {
             val staged = store.checked(File(folder, ".neko_export_${UUID.randomUUID()}"))
             try {
-                store.restoreKnownCopy(source, staged, metadata)
-                Files.move(staged.toPath(), output.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+                store.restoreKnownCopy(source, staged, metadata, checkPermission, commit)
+                commit { Files.move(staged.toPath(), output.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING) }
             } finally { if (staged.exists()) staged.delete() }
         } else if (output.exists()) {
             require(output.isFile && PortableVideoStore.sha256(output) == metadata.originalSha256) {
                 "A different file already exists with the original name"
             }
-        } else store.restoreKnownCopy(source, output, metadata)
+            checkPermission()
+        } else store.restoreKnownCopy(source, output, metadata, checkPermission, commit)
         return output
     }
 

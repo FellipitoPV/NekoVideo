@@ -48,6 +48,7 @@ class PrivateVideoMigrationDeviceTest {
     private val roots = mutableListOf<File>()
     private val tagIds = mutableListOf<Long>()
     private val historyNames = mutableListOf<String>()
+    private var previousVisibility: Boolean? = null
 
     @Before fun requireDebugAndCredential() {
         assumeTrue(context.packageName == "com.nkls.nekovideo.debug" && BuildConfig.PORTABLE_PRIVATE_WRITES)
@@ -55,6 +56,8 @@ class PrivateVideoMigrationDeviceTest {
         assertTrue(FilesManager.SecureStorage.verifyPassword(context, password))
         TagSyncBridge.localTestMode = true
         LockedPlaybackSession.clear()
+        previousVisibility = FilesManager.SecureFoldersVisibility.areSecureFoldersVisible(context)
+        FilesManager.SecureFoldersVisibility.showSecureFolders(context)
     }
 
     private fun checkedRoot(file: File): File = file.canonicalFile.also {
@@ -78,6 +81,7 @@ class PrivateVideoMigrationDeviceTest {
             check(checked.deleteRecursively())
         }
         TagSyncBridge.localTestMode = false
+        previousVisibility?.let { FilesManager.SecureFoldersVisibility.setSecureFoldersVisible(context, it) }
     }
 
     private fun legacy(folder: File, withVideo: Boolean = true): File {
