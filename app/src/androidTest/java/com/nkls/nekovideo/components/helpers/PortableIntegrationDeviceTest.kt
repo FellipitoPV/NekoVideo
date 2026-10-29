@@ -275,27 +275,36 @@ class PortableIntegrationDeviceTest {
     }
 
     @Test fun authenticationRecoversOnlyPreviouslyDiscoveredArrivalDirectories() {
-        val (ordinary, moved) = moveTestVideoToNormalFolder(work(), "arrival-before-login")
-        runBlocking {
-            com.nkls.nekovideo.services.FolderVideoScanner.refreshPaths(context, listOf(ordinary.path), scope = this)
-            com.nkls.nekovideo.services.FolderVideoScanner.isScanning.first { !it }
-        }
-        assertTrue(moved.isFile)
-        assertFalse(File(ordinary, samples().first().name).exists())
-        LockedPlaybackSession.authorize(password)
-        com.nkls.nekovideo.services.FolderVideoScanner.requestPrivateMigrationCheck(context, password, listOf(ordinary.path))
-        runBlocking {
-            kotlinx.coroutines.withTimeout(15000) {
+        val root = work()
+        try {
+            val (ordinary, moved) = moveTestVideoToNormalFolder(root, "arrival-before-login")
+            runBlocking {
+                // Exercise discovery in the initial unauthenticated walk, not a targeted refresh.
+                com.nkls.nekovideo.services.FolderVideoScanner.startScan(context, scope = this, forceRefresh = true)
                 com.nkls.nekovideo.services.FolderVideoScanner.isScanning.first { !it }
             }
+            assertTrue(moved.isFile)
+            assertFalse(File(ordinary, samples().first().name).exists())
+            LockedPlaybackSession.authorize(password)
+            com.nkls.nekovideo.services.FolderVideoScanner.requestPrivateMigrationCheck(context, password, listOf(ordinary.path))
+            runBlocking {
+                kotlinx.coroutines.withTimeout(15000) {
+                    com.nkls.nekovideo.services.FolderVideoScanner.isScanning.first { !it }
+                }
+            }
+            val restored = File(ordinary, samples().first().name)
+            assertEquals(PortableVideoStore.sha256(samples().first()), PortableVideoStore.sha256(restored))
+            val info = checkNotNull(com.nkls.nekovideo.services.FolderVideoScanner.cache.value[ordinary.path])
+            assertFalse(info.isLocked)
+            assertTrue(info.videos.any { it.path == restored.path })
+            assertFalse(moved.exists())
+        } finally {
+            FolderLockManager.getAllLockedFolders(context).filter { it.folderPath.startsWith(root.path + "/") }
+                .forEach { FolderLockManager.removeFromRegistry(context, it.folderPath) }
+            check(checkedWork(root).deleteRecursively())
+            LockedPlaybackSession.clear()
+            runBlocking { com.nkls.nekovideo.services.FolderVideoScanner.refreshLocalPaths(context, listOf(root.path)).join() }
         }
-        val restored = File(ordinary, samples().first().name)
-        assertEquals(PortableVideoStore.sha256(samples().first()), PortableVideoStore.sha256(restored))
-        val info = checkNotNull(com.nkls.nekovideo.services.FolderVideoScanner.cache.value[ordinary.path])
-        assertFalse(info.isLocked)
-        assertTrue(info.videos.any { it.path == restored.path })
-        assertFalse(moved.exists())
-        LockedPlaybackSession.clear()
     }
 
     @Test fun automaticRestorePreservesNameCollisionsAndHandlesInPlaceNames() {

@@ -44,6 +44,7 @@ class TagSyncProvider : ContentProvider() {
             "count" -> listOf(dao.getTagCountForVideoPath(args.path))
             "allTags" -> dao.getAllTagsAllScopes()
             "allRefs" -> dao.getAllVideoTagRefs()
+            "refsForPaths" -> dao.getVideoTagRefsForPaths(args.paths)
             "paths" -> dao.getDistinctTaggedVideoPaths()
             "counts" -> dao.getTagCountsForVideoPaths(args.paths)
             else -> error("Unsupported TAG query")
@@ -62,6 +63,7 @@ class TagSyncProvider : ContentProvider() {
             val result: Any = runBlocking {
                 val db = VideoTagStore.localDatabase(ctx)
                 val dao = db.videoTagDao()
+                val resetPaths = if (arg == "resetTree") dao.getTaggedPathsForTree(args.path, args.pattern).toSet() else null
                 val result: Any = if (arg == "flushBackup") {
                     VideoTagStore.flushCanonicalBackup(ctx); true
                 } else if (arg == "moveTree") {
@@ -94,6 +96,7 @@ class TagSyncProvider : ContentProvider() {
                         "addRefs" -> args.refs.mapTo(HashSet()) { it.videoPath }
                         "removeRefs", "resetPaths" -> args.paths.toSet()
                         "moveRef" -> setOf(args.path, args.newPath)
+                        "resetTree" -> resetPaths
                         else -> null
                     }
                     VideoTagStore.changedByRemoteClient(ctx, affected)

@@ -549,4 +549,5 @@
     <string name="player_seek_backward">Перемотка назад</string>
     <string name="player_audio_track_number">Аудио %1$d</string>
     <string name="player_track_number">Дорожка %1$d</string>
+    <string name="tags_backup_save_failed">Теги сохранены в приложении, но создать резервную копию не удалось. Попытка будет повторена автоматически.</string>
 </resources>

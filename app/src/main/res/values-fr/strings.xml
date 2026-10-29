@@ -541,4 +541,5 @@
     <string name="player_seek_backward">Retour rapide</string>
     <string name="player_audio_track_number">Audio %1$d</string>
     <string name="player_track_number">Piste %1$d</string>
+    <string name="tags_backup_save_failed">Les TAGs ont été enregistrées dans l’application, mais la sauvegarde a échoué. Une nouvelle tentative sera effectuée automatiquement.</string>
 </resources>

@@ -209,6 +209,7 @@ class MainActivity : AppCompatActivity() {
         themeManager = ThemeManager(this)
         LanguageManager.initialize()
         com.nkls.nekovideo.components.helpers.TagSyncBridge.attach(this)
+        VideoTagStore.resumePendingAutomaticBackup(this)
 
         applySystemBarsForTheme(themeManager.themeMode.value)
         FilesManager.SecureFoldersVisibility.resetOnAppStart(this)

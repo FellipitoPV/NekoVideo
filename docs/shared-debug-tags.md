@@ -35,8 +35,9 @@ de leitura/escrita a partir de suas operações particulares.
 
 Conectado, o Debug não escreve backups da lista compartilhada e não pode importar um backup
 por cima dela. A restauração deve ser feita pelo app normal. Ao terminar alterações remotas,
-o normal conclui seu backup; em lotes, isso acontece depois dos blocos de gravação. Um Mutex
-serializa os escritores, e o snapshot local lê TAGs e vínculos na mesma transação Room.
+o normal conclui os registros dos caminhos afetados. Um Mutex serializa os escritores; a
+base e os registros parciais são reconstruídos durante a importação. Detalhes e verificação:
+[backup incremental](incremental-tag-backups.md).
 
 Normal: `Documents/NekoVideo/Backup/Tags/` (caminho existente, preservado).
 Debug desconectado: `Documents/NekoVideo/Backup/Debug/Tags/`.

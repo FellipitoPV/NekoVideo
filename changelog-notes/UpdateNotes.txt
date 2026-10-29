@@ -27,3 +27,7 @@ As mudanças anteriores foram incluídas na versão 1.9.1 (código 45).
 - Opção de conectar o Debug às TAGs do aplicativo normal, após autorizar a conexão, usando uma fonte única para consultas e alterações.
 - TAGs e vínculos com vídeos alterados em qualquer uma das versões ficam disponíveis nas duas, sem importar ou sobrepor listas separadas.
 - Backups da lista compartilhada ficam sob responsabilidade do app normal, com gravações serializadas; o Debug desconectado usa uma pasta de backup separada.
+- Backup das TAGs a cada alteração, salvando apenas os vínculos dos vídeos afetados e consolidando a base ocasionalmente.
+- Importação das TAGs com verificação de integridade e cópia do estado anterior para recuperação.
+- Falhas ao salvar o backup mantêm a pendência para nova tentativa e para retomada na próxima abertura do app.
+- Scan inicial mais rápido, reaproveitando listagens e contagens privadas inalteradas e evitando verificações repetidas dos mesmos diretórios.

@@ -190,6 +190,48 @@ class TagSyncHostDeviceTest {
 /** Explicit production verification: queries only. No mutation, backup flush, restore or test override. */
 @RunWith(AndroidJUnit4::class)
 class ProductionTagConnectionDeviceTest {
+    @Test fun auditsRequestedPrivateFoldersWithoutWriting() = runBlocking<Unit> {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val args = InstrumentationRegistry.getArguments()
+        assumeTrue(context.packageName == TagSyncBridge.CLIENT && args.getString("auditPrivateTags") == "true")
+        val password = checkNotNull(args.getString("privatePassword"))
+        assertNull(TagSyncBridge.testHost)
+        TagSyncBridge.localTestMode = false
+        assertTrue(TagSyncBridge.enabled(context))
+        val tags = TagSyncBridge.remoteDao(context).getAllTagsAllScopes()
+        val refs = TagSyncBridge.remoteDao(context).getAllVideoTagRefs()
+        val byPath = refs.groupBy { it.videoPath }
+        val byName = refs.groupBy { java.io.File(it.videoPath).name }
+        val skin = tags.filter { it.name.equals("Skincolored", true) }.mapTo(HashSet()) { it.id }
+        val visited = HashSet<String>()
+        fun files(path: String): List<String> {
+            if (!visited.add(path)) return emptyList()
+            // Read authenticated metadata only; no repair, scan or manifest write.
+            val manifest = if (PortablePrivateFolders.isPortable(path))
+                PortablePrivateFolders.manifestForLocalEdit(path, password)
+            else FolderLockManager.readLegacyManifest(path, password)
+            if (manifest == null) return emptyList()
+            return manifest.files.map { java.io.File(path, it.obfuscatedName).path } +
+                manifest.subfolders.flatMap { files(java.io.File(path, it.obfuscatedName).path) }
+        }
+        FolderLockManager.getAllLockedFolders(context).filter {
+            it.originalFolderName.equals("Marvel", true) || it.originalFolderName.equals("Overwatch", true)
+        }.forEach { folder ->
+            val paths = files(folder.folderPath)
+            val tagged = paths.count { byPath[it].orEmpty().isNotEmpty() }
+            val moved = paths.count { byPath[it].isNullOrEmpty() && !byName[java.io.File(it).name].isNullOrEmpty() }
+            val skinCount = paths.count { byPath[it].orEmpty().any { ref -> ref.tagId in skin } }
+            instrumentation.sendStatus(0, android.os.Bundle().apply {
+                putString("stream", "Read-only folder audit: folder=${folder.originalFolderName}, exists=${java.io.File(folder.folderPath).isDirectory}, videos=${paths.size}, tagged=$tagged, skincolored=$skinCount, oldParentCandidates=$moved\n")
+            })
+        }
+        instrumentation.sendStatus(0, android.os.Bundle().apply {
+            putString("stream", "Read-only total: taggedPaths=${byPath.size}, missingTaggedPaths=${byPath.keys.count { !java.io.File(it).exists() }}\n")
+        })
+        PortablePrivateFolders.clearSession()
+    }
+
     @Test fun readsCanonicalTagsWithoutChangingThem() = runBlocking<Unit> {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext

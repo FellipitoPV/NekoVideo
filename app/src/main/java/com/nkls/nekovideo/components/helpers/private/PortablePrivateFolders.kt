@@ -86,6 +86,13 @@ internal object PortablePrivateFolders {
         folder.isDirectory && !hasPrivateBoundary(context, folder, LockedPlaybackSession.sessionPassword) && containsRecords(folder)
     }.getOrDefault(false)
 
+    /** The initial walk already established the ancestor boundary and listed this directory. */
+    internal fun hasExternalArrivalsForScan(folder: File, entries: List<File>, privateBoundary: Boolean): Boolean =
+        !privateBoundary && containsRecords(folder, entries)
+
+    internal fun recoveryRecordsForScan(entries: List<File>): List<File> = candidates(entries)
+        .filter(PortableVideoStore::hasRecoveryRecord)
+
     /** Called on IO while browsing/scanning. No credential, no plaintext publication. */
     @Synchronized fun restoreExternalArrivals(context: Context, folderPath: String,
                                              password: String? = LockedPlaybackSession.sessionPassword): List<File> {
@@ -136,15 +143,17 @@ internal object PortablePrivateFolders {
         return restored
     }
 
-    private fun candidates(folder: File): List<File> = folder.listFiles().orEmpty().filter {
+    private fun candidates(folder: File): List<File> = candidates(folder.listFiles().orEmpty().toList())
+
+    private fun candidates(entries: List<File>): List<File> = entries.filter {
         it.isFile && !it.name.startsWith(".neko_") && !it.name.endsWith(".part") && it.name != ".nomedia" && it.name != ".nekovideo"
     }
 
-    private fun containsRecords(folder: File): Boolean {
+    private fun containsRecords(folder: File, entries: List<File>? = null): Boolean {
         if (!folder.isDirectory) return false
         val stamp = folder.lastModified()
         synchronized(detection) { detection[folder.absolutePath]?.takeIf { it.modified == stamp }?.let { return it.found } }
-        val found = candidates(folder).any(PortableVideoStore::hasRecoveryRecord)
+        val found = (entries?.let(::candidates) ?: candidates(folder)).any(PortableVideoStore::hasRecoveryRecord)
         synchronized(detection) { detection[folder.absolutePath] = Detection(stamp, found) }
         return found
     }

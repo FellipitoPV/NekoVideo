@@ -95,6 +95,24 @@ fun SerializableFolderInfo.toFolderInfo() = FolderInfo(
 )
 
 object FolderVideoScanner {
+    private class ScanProfile(context: Context) {
+        val nanos = linkedMapOf<String, Long>()
+        val visited = HashSet<String>()
+        val fastDiscovery = LockedPlaybackSession.sessionPassword == null
+        val registry = FolderLockManager.getAllLockedFolders(context).associateBy { it.folderPath }
+        val previousFolders = cache.value
+        val privateRoots = listOf(
+            com.nkls.nekovideo.components.helpers.FilesManager.SecureStorage.getNekoPrivateFolderPath(),
+            com.nkls.nekovideo.components.helpers.FilesManager.SecureStorage.getSecureFolderPath(context)
+        ).map { path -> runCatching { File(path).canonicalPath }.getOrDefault(File(path).absolutePath) }.toSet()
+        var directories = 0L
+        var uncachedPrivateCounts = 0L
+        fun record(name: String, start: Long) {
+            nanos[name] = (nanos[name] ?: 0L) + android.os.SystemClock.elapsedRealtimeNanos() - start
+        }
+    }
+    internal var lastScanTimings: Map<String, Long> = emptyMap()
+        private set
     private val _cache = MutableStateFlow<Map<String, FolderInfo>>(emptyMap())
     val cache: StateFlow<Map<String, FolderInfo>> = _cache.asStateFlow()
 
@@ -166,20 +184,33 @@ object FolderVideoScanner {
         _migrationCheck.value = null
 
         scanJob = scope.launch(Dispatchers.IO) {
+            val timings = linkedMapOf<String, Long>()
+            val profile = ScanProfile(context)
+            val started = android.os.SystemClock.elapsedRealtime()
+            var stage = started
+            fun measured(name: String) {
+                val now = android.os.SystemClock.elapsedRealtime()
+                timings[name] = now - stage
+                stage = now
+            }
             try {
                 val folderMap = ConcurrentHashMap<String, FolderInfo>()
 
                 // Scan normal folders via MediaStore
                 scanNormalFolders(context, folderMap)
+                measured("mediaStore")
 
                 // Scan secure folders (.nomedia/locked) and locked folders
-                scanSecureFolders(context, folderMap)
+                scanSecureFolders(context, folderMap, profile)
+                measured("filesystem")
 
                 // Scan direto das pastas principais para pegar arquivos não indexados
                 scanDirectFolders(context, folderMap)
+                measured("directFolders")
 
                 restoreQueuedExternalArrivals(context, folderMap)
                 prepareMigrationCheck(context, folderMap.keys, generation, fullScan = true)
+                measured("recoveryAndMigration")
                 if (generation != scanGeneration) return@launch
                 _cache.value = folderMap.toMap()
                 com.nkls.nekovideo.components.FolderContentCache.clear()
@@ -187,11 +218,18 @@ object FolderVideoScanner {
 
                 // ✅ Salva o cache após o scan
                 saveCacheToDisk(context)
+                measured("publishAndSave")
 
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 e.printStackTrace()
             } finally {
+                profile.nanos.forEach { (name, nanos) -> timings[name] = nanos / 1_000_000L }
+                timings["directoryCount"] = profile.directories
+                timings["uncachedPrivateCount"] = profile.uncachedPrivateCounts
+                timings["total"] = android.os.SystemClock.elapsedRealtime() - started
+                lastScanTimings = timings
+                android.util.Log.d("FolderVideoScanner", "Initial scan ms: $timings")
                 finishScan(generation)
             }
         }
@@ -521,7 +559,7 @@ object FolderVideoScanner {
         }
     }
 
-    private suspend fun scanSecureFolders(context: Context, folderMap: ConcurrentHashMap<String, FolderInfo>) {
+    private suspend fun scanSecureFolders(context: Context, folderMap: ConcurrentHashMap<String, FolderInfo>, profile: ScanProfile) {
         val rootDirs = listOf(
             "/storage/emulated/0/",
             "/storage/emulated/0/Download/",
@@ -531,31 +569,64 @@ object FolderVideoScanner {
         )
 
         rootDirs.forEach { rootPath ->
-            scanSecureFoldersRecursive(context, File(rootPath), folderMap)
+            scanSecureFoldersRecursive(context, File(rootPath), folderMap, profile)
         }
     }
 
     private suspend fun scanSecureFoldersRecursive(
         context: Context,
         directory: File,
-        folderMap: ConcurrentHashMap<String, FolderInfo>
+        folderMap: ConcurrentHashMap<String, FolderInfo>,
+        profile: ScanProfile? = null,
+        inheritedPrivateBoundary: Boolean = false
     ) {
         yield()
 
         if (!directory.exists() || !directory.isDirectory) return
+        if (profile != null && !profile.visited.add(directory.absolutePath)) return
 
-        val restored = PortablePrivateFolders.restoreExternalArrivals(context, directory.absolutePath)
+        profile?.let { it.directories++ }
+        var stage = android.os.SystemClock.elapsedRealtimeNanos()
+        var listedEntries = directory.listFiles()?.toList()
+        val names = listedEntries.orEmpty().mapTo(HashSet()) { it.name }
+        val fastDiscovery = profile?.fastDiscovery == true && LockedPlaybackSession.sessionPassword == null && listedEntries != null
+        // Keep this listing read-only even if authentication happens halfway through the walk.
+        // Queued arrivals are restored with fresh metadata after the discovery phase.
+        val restored = if (fastDiscovery) emptyList() else PortablePrivateFolders.restoreExternalArrivals(context, directory.absolutePath)
         if (restored.isNotEmpty()) folderMap.remove(directory.absolutePath) // Replace stale MediaStore rows.
-        val isSecure = File(directory, ".nomedia").exists()
-        val isLocked = FolderLockManager.isLocked(directory.absolutePath)
-        if (!isLocked && !isSecure && PortablePrivateFolders.hasExternalArrivals(context, directory.absolutePath)) {
+        if (restored.isNotEmpty()) listedEntries = directory.listFiles()?.toList()
+        val isSecure = if (fastDiscovery) ".nomedia" in names else File(directory, ".nomedia").exists()
+        val isLocked = if (fastDiscovery) ".neko_locked" in names || PortablePrivateFolders.MARKER in names ||
+            PortablePrivateFolders.INDEX in names || PortablePrivateFolders.PASSWORD_BACKUP in names
+            else FolderLockManager.isLocked(directory.absolutePath)
+        val privateBoundary = inheritedPrivateBoundary || directory.name.startsWith(".") || isSecure || isLocked ||
+            names.any { it == ".secure" || it == ".neko_lock_in_progress" } ||
+            profile?.privateRoots.orEmpty().any { isSameOrDescendant(directory.absolutePath, it) }
+        profile?.record("fsMarkersMs", stage)
+        stage = android.os.SystemClock.elapsedRealtimeNanos()
+        val external = if (isLocked || isSecure) false else if (fastDiscovery)
+            PortablePrivateFolders.hasExternalArrivalsForScan(directory, listedEntries.orEmpty(), privateBoundary)
+            else PortablePrivateFolders.hasExternalArrivals(context, directory.absolutePath)
+        if (external) {
             externalRecoveryPaths += directory.absolutePath
         }
+        profile?.record("fsExternalDiscoveryMs", stage)
+        stage = android.os.SystemClock.elapsedRealtimeNanos()
 
+        val knownPrivateRecords = HashSet<String>()
         if (isLocked) {
             // Locked folder: get file count from registry, do NOT scan by extension
-            val registryEntry = FolderLockManager.getRegistryEntry(context, directory.absolutePath)
-            val fileCount = registryEntry?.fileCount ?: FolderLockManager.getLockedFileCount(context, directory.absolutePath)
+            val registryEntry = if (profile != null) profile.registry[directory.absolutePath]
+                else FolderLockManager.getRegistryEntry(context, directory.absolutePath)
+            if (registryEntry == null) profile?.let { it.uncachedPrivateCounts++ }
+            val previous = profile?.previousFolders?.get(directory.absolutePath)?.takeIf {
+                it.isLocked && it.lastModified == directory.lastModified()
+            }
+            val fileCount = registryEntry?.fileCount ?: previous?.videoCount ?: if (fastDiscovery && ".neko_locked" !in names) {
+                PortablePrivateFolders.recoveryRecordsForScan(listedEntries.orEmpty()).also { records ->
+                    records.mapTo(knownPrivateRecords) { it.absolutePath }
+                }.size
+            } else FolderLockManager.getLockedFileCount(context, directory.absolutePath)
 
             folderMap[directory.absolutePath] = FolderInfo(
                 path = directory.absolutePath,
@@ -568,7 +639,7 @@ object FolderVideoScanner {
             )
             propagateToParents(folderMap, directory.absolutePath, directory.lastModified())
         } else if (isSecure) {
-            val videoFiles = directory.listFiles()?.filter { file ->
+            val videoFiles = listedEntries?.filter { file ->
                 file.isFile && file.extension.lowercase() in supportedVideoExtensions && !PortableVideoStore.hasRecoveryRecord(file)
             } ?: emptyList()
 
@@ -595,7 +666,7 @@ object FolderVideoScanner {
         } else if (!folderMap.containsKey(directory.absolutePath)) {
             // Pasta normal não coberta pelo MediaStore ainda (ex: recém destravada).
             // Só age se o MediaStore não a indexou — evita duplicatas.
-            val videoFiles = directory.listFiles()?.filter { file ->
+            val videoFiles = listedEntries?.filter { file ->
                 file.isFile && file.extension.lowercase() in supportedVideoExtensions && !PortableVideoStore.hasRecoveryRecord(file)
             } ?: emptyList()
 
@@ -621,19 +692,22 @@ object FolderVideoScanner {
             }
         }
 
+        profile?.record("fsFolderContentMs", stage)
+        stage = android.os.SystemClock.elapsedRealtimeNanos()
         val knownVideoPaths = if (isLocked) {
             LockedPlaybackSession.getManifestForFolder(directory.absolutePath)?.files
                 ?.mapTo(HashSet()) { File(directory, it.obfuscatedName).absolutePath }.orEmpty()
         } else {
             folderMap[directory.absolutePath]?.videos?.mapTo(HashSet()) { it.path }.orEmpty()
         }
-        readFolderChildren(directory, knownVideoPaths).subfolders.forEach { subDir ->
-            if (subDir.name == ".neko_thumbs") return@forEach
-            if (!subDir.name.startsWith(".") || isSecure || isLocked ||
-                File(subDir, ".nomedia").exists() || FolderLockManager.isLocked(subDir.absolutePath)) {
-                scanSecureFoldersRecursive(context, subDir, folderMap)
-            }
+        val subfolders = listedEntries.orEmpty().filter { child ->
+            child.absolutePath !in knownVideoPaths && child.absolutePath !in knownPrivateRecords && child.isDirectory
+        }.filter { subDir ->
+            subDir.name != ".neko_thumbs" && (!subDir.name.startsWith(".") || isSecure || isLocked ||
+                File(subDir, ".nomedia").exists() || FolderLockManager.isLocked(subDir.absolutePath))
         }
+        profile?.record("fsChildDirectoriesMs", stage)
+        subfolders.forEach { scanSecureFoldersRecursive(context, it, folderMap, profile, privateBoundary) }
     }
 
     private fun addVideoToFolder(

@@ -566,4 +566,5 @@
     <string name="tag_sync_revoke">Desconectar NekoVideo Debug</string>
     <string name="tag_sync_unavailable">Actualiza NekoVideo normal y autoriza la conexión para usar sus etiquetas.</string>
     <string name="tag_sync_restore_in_normal">Restaura las copias de seguridad desde NekoVideo normal mientras las etiquetas estén compartidas.</string>
+    <string name="tags_backup_save_failed">Las TAGs se guardaron en la aplicación, pero la copia de seguridad falló. Se volverá a intentar automáticamente.</string>
 </resources>

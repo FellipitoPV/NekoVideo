@@ -541,4 +541,5 @@
     <string name="player_seek_backward">Rückwärts suchen</string>
     <string name="player_audio_track_number">Audio %1$d</string>
     <string name="player_track_number">Spur %1$d</string>
+    <string name="tags_backup_save_failed">Die TAGs wurden in der App gespeichert, aber die Sicherung ist fehlgeschlagen. Sie wird automatisch erneut versucht.</string>
 </resources>

@@ -4,7 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
-import androidx.core.content.edit
+import android.util.AtomicFile
 import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
@@ -27,6 +27,7 @@ import com.google.gson.stream.JsonToken
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -156,6 +157,9 @@ interface VideoTagDao {
     @Query("SELECT * FROM video_tag_refs")
     suspend fun getAllVideoTagRefs(): List<VideoTagCrossRef>
 
+    @Query("SELECT * FROM video_tag_refs WHERE videoPath IN (:paths)")
+    suspend fun getVideoTagRefsForPaths(paths: List<String>): List<VideoTagCrossRef>
+
     @Query("SELECT DISTINCT videoPath FROM video_tag_refs")
     suspend fun getDistinctTaggedVideoPaths(): List<String>
 
@@ -219,20 +223,20 @@ object VideoTagStore {
         @SerializedName(value = "tagIds", alternate = ["b"]) val tagIds: List<Long>
     )
 
-    private data class TagBackupPayload(
+    internal data class TagBackupPayload(
         @SerializedName(value = "version", alternate = ["a"]) val version: Int,
         @SerializedName(value = "exportedAt", alternate = ["b"]) val exportedAt: Long,
         @SerializedName(value = "tags", alternate = ["c"]) val tags: List<TagBackupTag>,
         @SerializedName(value = "refs", alternate = ["d"]) val refs: List<TagBackupRef>
     )
 
-    private data class TagBackupTag(
+    internal data class TagBackupTag(
         @SerializedName(value = "name", alternate = ["a"]) val name: String,
         @SerializedName(value = "scope", alternate = ["b"]) val scope: TagScope,
         @SerializedName(value = "createdAt", alternate = ["c"]) val createdAt: Long
     )
 
-    private data class TagBackupRef(
+    internal data class TagBackupRef(
         @SerializedName(value = "videoPath", alternate = ["a"]) val videoPath: String,
         @SerializedName(value = "tagName", alternate = ["b"]) val tagName: String,
         @SerializedName(value = "scope", alternate = ["c"]) val scope: TagScope
@@ -262,14 +266,14 @@ object VideoTagStore {
 
     private val automaticBackupScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var automaticBackupJob: Job? = null
-    private var automaticBackupPending = false
-    private var lastAutomaticBackupWriteAt = 0L
+    @Volatile private var automaticBackupPending = false
 
     private val gson = Gson()
 
     private const val BACKUP_VERSION = 1
     private const val SETTINGS_PREFS = "nekovideo_settings"
     private const val KEY_LAST_AUTO_BACKUP_AT = "tags_last_auto_backup_at"
+    private const val KEY_AUTO_BACKUP_PENDING = "tags_auto_backup_pending"
     private const val AUTO_BACKUP_LEGACY_FILE_NAME = "tags-backup.json"
     private const val AUTO_BACKUP_MANIFEST_FILE_NAME = "manifest.json"
     private const val AUTO_BACKUP_TAGS_FILE_NAME = "tags.json"
@@ -284,7 +288,7 @@ object VideoTagStore {
         "com.nkls.nekovideo.tagsynchost" -> "Documents/NekoVideo/Backup/Testing/TagSyncHost/Legacy/"
         else -> "Documents/NekoVideo/Backup/"
     }
-    private const val AUTO_BACKUP_INTERVAL_MS = 5 * 60 * 1000L
+    private const val AUTO_BACKUP_RETRY_MS = 30_000L
 
     private val migration1To2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -298,7 +302,7 @@ object VideoTagStore {
         TagSyncBridge.remoteDao(context) else localDao(context)
     internal fun receiveSyncedTagChange(paths: Set<String>?) { emitTagChange(paths) }
     internal suspend fun changedByRemoteClient(context: Context, paths: Set<String>?) {
-        writeAutomaticBackupSafely(context, minimumDelayMs = 1000L)
+        writeAutomaticBackupSafely(context, paths)
         notifyTagChange(paths)
     }
     private fun getDatabase(context: Context): VideoTagDatabase {
@@ -344,7 +348,7 @@ object VideoTagStore {
         }
 
         if (removedTagLinks > 0) {
-            writeAutomaticBackupSafely(context)
+            writeAutomaticBackupSafely(context, missingPaths.toSet())
             notifyTagChange(missingPaths.toSet())
         }
 
@@ -431,7 +435,7 @@ object VideoTagStore {
         }
 
         getDao(context).insertVideoTagRefs(refs)
-        writeAutomaticBackupSafely(context)
+        writeAutomaticBackupSafely(context, videoPaths.toSet())
         notifyTagChange(videoPaths.toSet())
     }
 
@@ -466,7 +470,7 @@ object VideoTagStore {
             dao.deleteVideoTagRefs(distinctPaths, tagsToRemove.toList())
         }
 
-        writeAutomaticBackupSafely(context)
+        writeAutomaticBackupSafely(context, distinctPaths.toSet())
         notifyTagChange(distinctPaths.toSet())
     }
 
@@ -514,8 +518,9 @@ object VideoTagStore {
                 dao.updateVideoPath(taggedPath, "$newPath$suffix")
             }
 
-        writeAutomaticBackupSafely(context)
-        notifyTagChange((taggedPaths + taggedPaths.map { newPath + it.removePrefix(oldPath) }).toSet())
+        val affected = (taggedPaths + taggedPaths.map { newPath + it.removePrefix(oldPath) }).toSet()
+        writeAutomaticBackupSafely(context, affected)
+        notifyTagChange(affected)
     }
 
     suspend fun resetTagsForPathTree(context: Context, path: String) {
@@ -524,7 +529,7 @@ object VideoTagStore {
         val affected = dao.getTaggedPathsForTree(path, childPattern).toSet()
         if (affected.isEmpty()) return
         dao.deleteVideoTagRefsForTree(path, childPattern)
-        writeAutomaticBackupSafely(context)
+        writeAutomaticBackupSafely(context, affected)
         notifyTagChange(affected)
     }
 
@@ -536,22 +541,21 @@ object VideoTagStore {
         if (TagSyncBridge.enabled(context)) return TagSyncBridge.checked(context) {
             TagSyncBridge.read(context, "backup", TagRpc(), TagRemoteBackup::class.java).single().updatedAt
         }
-        val storedValue = context.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE)
-            .getLong(KEY_LAST_AUTO_BACKUP_AT, 0L)
-        val backupFiles = findLatestUsableAutomaticBackup(context) ?: return 0L
-        return maxOf(storedValue, backupFiles.updatedAt)
+        val backupFiles = runCatching { findLatestUsableAutomaticBackup(context) }.getOrNull() ?: return 0L
+        return backupFiles.updatedAt
     }
 
     suspend fun hasAutomaticBackup(context: Context): Boolean {
         if (TagSyncBridge.enabled(context)) return TagSyncBridge.checked(context) {
             TagSyncBridge.read(context, "backup", TagRpc(), TagRemoteBackup::class.java).single().exists
         }
-        return findLatestUsableAutomaticBackup(context) != null
+        return runCatching { findLatestUsableAutomaticBackup(context) }.getOrNull() != null
     }
 
     suspend fun shouldOfferAutomaticImport(context: Context): Boolean {
         if (TagSyncBridge.enabled(context)) return false
-        val backupEntry = findLatestUsableAutomaticBackup(context) ?: return false
+        if (context.getSharedPreferences(SETTINGS_PREFS, 0).getBoolean(KEY_AUTO_BACKUP_PENDING, false)) return false
+        val backupEntry = runCatching { findLatestUsableAutomaticBackup(context) }.getOrNull() ?: return false
         val storedSyncAt = getStoredAutomaticBackupSyncAt(context)
         return backupEntry.updatedAt > storedSyncAt
     }
@@ -569,8 +573,13 @@ object VideoTagStore {
     }
 
     suspend fun importLatestAutomaticBackup(context: Context): Result<TagBackupImportResult> = runCatching {
+        val incremental = TagBackupJournal(context, AUTO_BACKUP_RELATIVE_PATH + "Incremental/").load()
+        val hasMultipart = listOf(AUTO_BACKUP_MANIFEST_FILE_NAME, AUTO_BACKUP_TAGS_FILE_NAME, AUTO_BACKUP_REFS_FILE_NAME)
+            .any { findAutomaticBackupFileEntry(context, it, AUTO_BACKUP_RELATIVE_PATH) != null }
+        check(incremental != null || !hasMultipart || findUsableAutomaticBackupFiles(context) != null) { "automatic_backup_incomplete_generation" }
         val entry = findLatestUsableAutomaticBackup(context) ?: error("automatic_backup_not_found")
         val payload = when (entry) {
+            is AutomaticBackupSource.Incremental -> entry.payload
             is AutomaticBackupSource.MultiFile -> readAutomaticBackupPayload(context, entry.files)
             is AutomaticBackupSource.LegacySingleFile -> readPayloadFromUri(context, entry.entry.uri)
         }
@@ -579,148 +588,137 @@ object VideoTagStore {
         result
     }
 
-    private suspend fun writeAutomaticBackupSafely(context: Context, minimumDelayMs: Long = 0L) {
+    private val backupStateLock = Any()
+    private var backupRevision = 0L
+    private var backupFailureReported = false
+    private var forceFullBackup = false
+    private val automaticBackupMutex = Mutex()
+
+    private fun markBackupPending(context: Context) = synchronized(backupStateLock) {
+        if (!automaticBackupPending && context.getSharedPreferences(SETTINGS_PREFS, 0)
+                .getBoolean(KEY_AUTO_BACKUP_PENDING, false)) forceFullBackup = true
+        backupRevision++
+        automaticBackupPending = true
+        check(context.getSharedPreferences(SETTINGS_PREFS, 0).edit()
+            .putBoolean(KEY_AUTO_BACKUP_PENDING, true).commit())
+    }
+
+    /** Each completed edit waits for its backup attempt; there is no five-minute window. */
+    private suspend fun writeAutomaticBackupSafely(context: Context, paths: Set<String>? = null): Unit = withContext(NonCancellable + Dispatchers.IO) {
         if (TagSyncBridge.enabled(context)) {
             TagSyncBridge.checked(context) {
                 TagSyncBridge.write(context, "flushBackup", TagRpc(), Boolean::class.javaObjectType)
             }
-            return
+            return@withContext
         }
         val appContext = context.applicationContext
-        automaticBackupPending = true
-
-        if (automaticBackupJob != null) {
-            return
+        try {
+            markBackupPending(appContext)
+            writeAutomaticBackup(appContext, paths)
+        } catch (failure: Exception) {
+            android.util.Log.e("VideoTagBackup", "Automatic TAG backup failed; database retained", failure)
+            val report = synchronized(backupStateLock) {
+                (!backupFailureReported).also { backupFailureReported = true }
+            }
+            if (report) android.os.Handler(android.os.Looper.getMainLooper()).post {
+                SortRowMessageCenter.showError(appContext.getString(com.nkls.nekovideo.R.string.tags_backup_save_failed))
+            }
+            scheduleBackupRetry(appContext)
         }
+    }
 
-        val now = System.currentTimeMillis()
-        val elapsed = now - lastAutomaticBackupWriteAt
-        val delayMs = if (lastAutomaticBackupWriteAt == 0L || elapsed >= AUTO_BACKUP_INTERVAL_MS) {
-            0L
-        } else {
-            AUTO_BACKUP_INTERVAL_MS - elapsed
-        }
-
+    private fun scheduleBackupRetry(context: Context): Unit = synchronized(backupStateLock) {
+        if (automaticBackupJob?.isActive == true) return@synchronized
         automaticBackupJob = automaticBackupScope.launch {
-            delay(maxOf(delayMs, minimumDelayMs))
-            runCatching {
-                writeAutomaticBackup(appContext)
-                lastAutomaticBackupWriteAt = System.currentTimeMillis()
-                automaticBackupPending = false
-            }.also {
-                automaticBackupJob = null
-                if (automaticBackupPending) {
-                    launch { writeAutomaticBackupSafely(appContext) }
-                }
+            delay(AUTO_BACKUP_RETRY_MS)
+            synchronized(backupStateLock) { automaticBackupJob = null }
+            if (context.getSharedPreferences(SETTINGS_PREFS, 0).getBoolean(KEY_AUTO_BACKUP_PENDING, false)) {
+                writeAutomaticBackupSafely(context)
             }
         }
+    }
+
+    /** A failed backup remains pending across process death and app updates. */
+    fun resumePendingAutomaticBackup(context: Context) {
+        if (TagSyncBridge.enabled(context) || !context.getSharedPreferences(SETTINGS_PREFS, 0)
+                .getBoolean(KEY_AUTO_BACKUP_PENDING, false)) return
+        automaticBackupScope.launch { writeAutomaticBackupSafely(context.applicationContext) }
     }
 
     fun flushAutomaticBackupNow(context: Context) {
         if (TagSyncBridge.enabled(context)) { stopLocalAutomaticBackup(); return }
-        if (!automaticBackupPending) return
+        if (!automaticBackupPending && !context.getSharedPreferences(SETTINGS_PREFS, 0)
+                .getBoolean(KEY_AUTO_BACKUP_PENDING, false)) return
+        runBlocking(Dispatchers.IO) { writeAutomaticBackupSafely(context.applicationContext) }
+    }
 
-        val appContext = context.applicationContext
-        automaticBackupJob?.cancel()
-        automaticBackupJob = null
+    private var backupJournal: TagBackupJournal? = null
+    private fun journal(context: Context): TagBackupJournal = backupJournal ?: TagBackupJournal(
+        context.applicationContext, AUTO_BACKUP_RELATIVE_PATH + "Incremental/"
+    ).also { backupJournal = it }
 
-        runBlocking(Dispatchers.IO) {
-            runCatching {
-                writeAutomaticBackup(appContext)
-                lastAutomaticBackupWriteAt = System.currentTimeMillis()
-                automaticBackupPending = false
+    private suspend fun writeAutomaticBackup(context: Context, paths: Set<String>? = null) = automaticBackupMutex.withLock {
+        if (TagSyncBridge.enabled(context)) return@withLock
+        try {
+            val revision = synchronized(backupStateLock) { backupRevision }
+            val target = journal(context)
+            val current = runCatching { target.current() }.getOrNull()
+            val payload = if (paths != null && !forceFullBackup && current != null && current.changes < 64) {
+                val changed = buildBackupPayload(context, paths)
+                if (changed.tags.toSet() == current.data.tags.toSet()) {
+                    target.savePaths(paths, changed)
+                    changed
+                } else buildBackupPayload(context).also { target.saveFull(it) }
+            } else buildBackupPayload(context).also { target.saveFull(it) }
+            synchronized(backupStateLock) {
+                if (revision == backupRevision) {
+                    check(context.getSharedPreferences(SETTINGS_PREFS, 0).edit()
+                        .putLong(KEY_LAST_AUTO_BACKUP_AT, payload.exportedAt)
+                        .putBoolean(KEY_AUTO_BACKUP_PENDING, false).commit())
+                    automaticBackupPending = false
+                    backupFailureReported = false
+                }
             }
+            forceFullBackup = false
+        } catch (failure: Exception) {
+            // The next successful attempt must include earlier failed paths as well.
+            forceFullBackup = true
+            throw failure
         }
     }
 
-    private val automaticBackupMutex = Mutex()
-    private suspend fun writeAutomaticBackup(context: Context) = automaticBackupMutex.withLock {
-        if (TagSyncBridge.enabled(context)) return@withLock
-        val payload = buildBackupPayload(context)
-        val files = ensureAutomaticBackupFiles(context)
-        writeAutomaticBackupPayload(context, files, payload)
-        updateStoredAutomaticBackupSyncAt(context, System.currentTimeMillis())
+    internal suspend fun flushCanonicalBackup(context: Context) = withContext(NonCancellable + Dispatchers.IO) {
+        // Remote batches already persisted each changed set; do not rewrite the full base again.
+        if (automaticBackupPending || context.getSharedPreferences(SETTINGS_PREFS, 0)
+                .getBoolean(KEY_AUTO_BACKUP_PENDING, false)) {
+            markBackupPending(context)
+            writeAutomaticBackup(context)
+        }
     }
-    internal suspend fun flushCanonicalBackup(context: Context) {
-        automaticBackupJob?.cancel()
-        automaticBackupJob = null
-        writeAutomaticBackup(context)
-        lastAutomaticBackupWriteAt = System.currentTimeMillis()
-        automaticBackupPending = false
-    }
-    internal fun stopLocalAutomaticBackup() {
+
+    internal fun stopLocalAutomaticBackup() = synchronized(backupStateLock) {
         automaticBackupJob?.cancel()
         automaticBackupJob = null
         automaticBackupPending = false
-    }
-
-    private fun buildAutomaticBackupTagsPayload(payload: TagBackupPayload): AutomaticBackupTagsPayload {
-        return AutomaticBackupTagsPayload(
-            version = payload.version,
-            updatedAt = payload.exportedAt,
-            tags = payload.tags.mapIndexed { index, tag ->
-                AutomaticBackupTag(
-                    id = index.toLong() + 1L,
-                    name = tag.name,
-                    scope = tag.scope,
-                    createdAt = tag.createdAt
-                )
-            }
-        )
-    }
-
-    private fun buildAutomaticBackupRefsPayload(
-        payload: TagBackupPayload,
-        tagsPayload: AutomaticBackupTagsPayload
-    ): AutomaticBackupRefsPayload {
-        val tagIdByKey = tagsPayload.tags.associate { backupTagKey(it.name, it.scope) to it.id }
-
-        return AutomaticBackupRefsPayload(
-            version = payload.version,
-            updatedAt = payload.exportedAt,
-            refs = payload.refs
-                .groupBy { it.videoPath }
-                .mapNotNull { (videoPath, refs) ->
-                    val tagIds = refs.mapNotNull { ref ->
-                        tagIdByKey[backupTagKey(ref.tagName, ref.scope)]
-                    }.distinct().sorted()
-
-                    if (videoPath.isBlank() || tagIds.isEmpty()) {
-                        null
-                    } else {
-                        AutomaticBackupVideoRef(videoPath = videoPath, tagIds = tagIds)
-                    }
-                }
-                .sortedBy { it.videoPath.lowercase(Locale.ROOT) }
-        )
-    }
-
-    private fun buildAutomaticBackupManifest(payload: TagBackupPayload): AutomaticBackupManifest {
-        return AutomaticBackupManifest(
-            version = payload.version,
-            exportedAt = payload.exportedAt,
-            files = listOf(AUTO_BACKUP_TAGS_FILE_NAME, AUTO_BACKUP_REFS_FILE_NAME)
-        )
-    }
-
-    private fun writeAutomaticBackupPayload(
-        context: Context,
-        files: AutomaticBackupFiles,
-        payload: TagBackupPayload
-    ) {
-        val tagsPayload = buildAutomaticBackupTagsPayload(payload)
-        val refsPayload = buildAutomaticBackupRefsPayload(payload, tagsPayload)
-        val manifestPayload = buildAutomaticBackupManifest(payload)
-
-        writeJsonToUri(context, files.tags.uri, tagsPayload)
-        writeJsonToUri(context, files.refs.uri, refsPayload)
-        writeJsonToUri(context, files.manifest.uri, manifestPayload)
     }
 
     private fun readAutomaticBackupPayload(context: Context, files: AutomaticBackupFiles): TagBackupPayload {
         val manifest = readJsonFromUri(context, files.manifest.uri, AutomaticBackupManifest::class.java)
         val tagsPayload = readJsonFromUri(context, files.tags.uri, AutomaticBackupTagsPayload::class.java)
         val refsPayload = readJsonFromUri(context, files.refs.uri, AutomaticBackupRefsPayload::class.java)
+
+        check(manifest.version == BACKUP_VERSION && tagsPayload.version == BACKUP_VERSION &&
+            refsPayload.version == BACKUP_VERSION) { "automatic_backup_version_invalid" }
+        check(manifest.exportedAt == tagsPayload.updatedAt && manifest.exportedAt == refsPayload.updatedAt) {
+            "automatic_backup_incomplete_generation"
+        }
+        check(tagsPayload.tags.map { it.id }.distinct().size == tagsPayload.tags.size) {
+            "automatic_backup_duplicate_tag_ids"
+        }
+        val knownIds = tagsPayload.tags.mapTo(HashSet()) { it.id }
+        check(refsPayload.refs.all { ref -> ref.videoPath.isNotBlank() && ref.tagIds.all { it in knownIds } }) {
+            "automatic_backup_unknown_tag_reference"
+        }
 
         if (!manifest.files.contains(AUTO_BACKUP_TAGS_FILE_NAME) || !manifest.files.contains(AUTO_BACKUP_REFS_FILE_NAME)) {
             error("automatic_backup_manifest_invalid")
@@ -755,11 +753,14 @@ object VideoTagStore {
         )
     }
 
-    private suspend fun buildBackupPayload(context: Context): TagBackupPayload {
+    private suspend fun buildBackupPayload(context: Context, paths: Set<String>? = null): TagBackupPayload {
         val dao = getDao(context)
         val (tags, refs) = if (TagSyncBridge.enabled(context)) {
             dao.getAllTagsAllScopes() to dao.getAllVideoTagRefs()
-        } else getDatabase(context).withTransaction { dao.getAllTagsAllScopes() to dao.getAllVideoTagRefs() }
+        } else getDatabase(context).withTransaction {
+            dao.getAllTagsAllScopes() to if (paths == null) dao.getAllVideoTagRefs()
+            else paths.toList().chunked(500).flatMap { dao.getVideoTagRefsForPaths(it) }
+        }
         val tagIndex = tags.associateBy { it.id }
 
         return TagBackupPayload(
@@ -791,6 +792,19 @@ object VideoTagStore {
         val database = getDatabase(context)
         val result = database.withTransaction {
             val dao = database.videoTagDao()
+
+            // Keep the previous database before a restore replaces either scope.
+            val before = buildBackupPayload(context)
+            val recoveryFolder = File(context.filesDir, "tag-restore-recovery").apply { check(mkdirs() || isDirectory) }
+            val recovery = AtomicFile(File(recoveryFolder, "before-import-${java.util.UUID.randomUUID()}.json"))
+            val stream = recovery.startWrite()
+            try {
+                stream.write(gson.toJson(before).toByteArray(Charsets.UTF_8))
+                recovery.finishWrite(stream)
+            } catch (failure: Exception) {
+                recovery.failWrite(stream)
+                throw failure
+            }
 
             val normalizedTags = buildList {
                 payload.tags.forEach { tag ->
@@ -949,33 +963,6 @@ object VideoTagStore {
         return candidates.lastOrNull()
     }
 
-    private fun ensureAutomaticBackupFiles(context: Context): AutomaticBackupFiles {
-        val manifest = ensureAutomaticBackupFileUri(context, AUTO_BACKUP_MANIFEST_FILE_NAME)
-        val tags = ensureAutomaticBackupFileUri(context, AUTO_BACKUP_TAGS_FILE_NAME)
-        val refs = ensureAutomaticBackupFileUri(context, AUTO_BACKUP_REFS_FILE_NAME)
-
-        return AutomaticBackupFiles(
-            manifest = AutomaticBackupEntry(uri = manifest, updatedAt = 0L),
-            tags = AutomaticBackupEntry(uri = tags, updatedAt = 0L),
-            refs = AutomaticBackupEntry(uri = refs, updatedAt = 0L)
-        )
-    }
-
-    private fun ensureAutomaticBackupFileUri(context: Context, fileName: String): Uri {
-        findAutomaticBackupFileEntry(context, fileName, AUTO_BACKUP_RELATIVE_PATH)?.let { return it.uri }
-
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-            put(MediaStore.MediaColumns.MIME_TYPE, "application/json")
-            put(MediaStore.MediaColumns.RELATIVE_PATH, AUTO_BACKUP_RELATIVE_PATH)
-        }
-
-        return context.contentResolver.insert(
-            MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
-            values
-        ) ?: error("automatic_backup_create_failed")
-    }
-
     private fun findAutomaticBackupFileEntry(
         context: Context,
         fileName: String,
@@ -1003,6 +990,9 @@ object VideoTagStore {
 
     private sealed interface AutomaticBackupSource {
         val updatedAt: Long
+        data class Incremental(val payload: TagBackupPayload) : AutomaticBackupSource {
+            override val updatedAt: Long = payload.exportedAt
+        }
 
         data class MultiFile(val files: AutomaticBackupFiles) : AutomaticBackupSource {
             override val updatedAt: Long = files.updatedAt
@@ -1014,6 +1004,9 @@ object VideoTagStore {
     }
 
     private suspend fun findLatestUsableAutomaticBackup(context: Context): AutomaticBackupSource? {
+        TagBackupJournal(context, AUTO_BACKUP_RELATIVE_PATH + "Incremental/").load()?.let {
+            return AutomaticBackupSource.Incremental(it.data)
+        }
         val candidates = buildList {
             findUsableAutomaticBackupFiles(context)?.let {
                 add(AutomaticBackupSource.MultiFile(it))
@@ -1035,11 +1028,9 @@ object VideoTagStore {
             ?: return null
 
         val files = AutomaticBackupFiles(manifest = manifest, tags = tags, refs = refs)
-        return if (runCatching { readAutomaticBackupPayload(context, files) }.isSuccess) {
-            files
-        } else {
-            null
-        }
+        val payload = runCatching { readAutomaticBackupPayload(context, files) }.getOrNull() ?: return null
+        return files.copy(manifest = manifest.copy(updatedAt = payload.exportedAt),
+            tags = tags.copy(updatedAt = payload.exportedAt), refs = refs.copy(updatedAt = payload.exportedAt))
     }
 
     private suspend fun findUsableLegacyAutomaticBackupEntry(context: Context): AutomaticBackupEntry? {
@@ -1049,11 +1040,8 @@ object VideoTagStore {
             AUTO_BACKUP_LEGACY_RELATIVE_PATH
         ) ?: return null
 
-        return if (runCatching { readPayloadFromUri(context, entry.uri) }.isSuccess) {
-            entry
-        } else {
-            null
-        }
+        val payload = runCatching { readPayloadFromUri(context, entry.uri) }.getOrNull() ?: return null
+        return entry.copy(updatedAt = payload.exportedAt)
     }
 
     private fun getStoredAutomaticBackupSyncAt(context: Context): Long {
@@ -1061,8 +1049,4 @@ object VideoTagStore {
             .getLong(KEY_LAST_AUTO_BACKUP_AT, 0L)
     }
 
-    private fun updateStoredAutomaticBackupSyncAt(context: Context, timestamp: Long) {
-        context.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE)
-            .edit { putLong(KEY_LAST_AUTO_BACKUP_AT, timestamp) }
-    }
 }

@@ -316,6 +316,7 @@
     <string name="tags_cleanup_missing_none">Verificação concluída: %1$d caminhos verificados, nenhum vídeo ausente</string>
     <string name="tags_cleanup_missing_failed">Não foi possível verificar os vídeos associados às tags</string>
     <string name="tags_backup_action_failed">Nao foi possivel concluir a operacao de backup</string>
+    <string name="tags_backup_save_failed">As TAGs foram salvas no app, mas o backup falhou. Uma nova tentativa será feita automaticamente.</string>
     <string name="tags_create_hint">Criar nova tag</string>
     <string name="tags_list_title">Lista de tags</string>
     <string name="tags_count">%1$d tags</string>

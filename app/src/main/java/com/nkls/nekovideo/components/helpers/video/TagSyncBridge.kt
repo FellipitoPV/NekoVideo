@@ -135,6 +135,8 @@ internal object TagSyncBridge {
 }
 
 private class RemoteTagDao(private val context: Context) : VideoTagDao {
+    override suspend fun getVideoTagRefsForPaths(paths: List<String>): List<VideoTagCrossRef> =
+        paths.distinct().chunked(250).flatMap { read("refsForPaths", TagRpc(paths = it), VideoTagCrossRef::class.java) }
     private suspend fun <T> read(op: String, arg: TagRpc, type: Class<T>) = TagSyncBridge.checked(context) { TagSyncBridge.read(context, op, arg, type) }
     private suspend fun <T> write(op: String, arg: TagRpc, type: Class<T>) = TagSyncBridge.checked(context) { TagSyncBridge.write(context, op, arg, type) }
     private suspend fun change(op: String, arg: TagRpc) { write(op, arg, java.lang.Boolean::class.java) }

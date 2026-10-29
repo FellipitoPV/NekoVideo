@@ -311,6 +311,7 @@
     <string name="tags_cleanup_missing_none">Scan complete: checked %1$d paths, no missing videos found</string>
     <string name="tags_cleanup_missing_failed">Could not check the videos linked to tags</string>
     <string name="tags_backup_action_failed">Could not complete the backup operation</string>
+    <string name="tags_backup_save_failed">TAGs were saved in the app, but the backup failed. It will be retried automatically.</string>
     <string name="tags_create_hint">Create new tag</string>
     <string name="tags_list_title">Tag list</string>
     <string name="tags_count">%1$d tags</string>

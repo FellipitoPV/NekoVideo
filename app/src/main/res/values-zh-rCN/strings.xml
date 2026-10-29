@@ -527,4 +527,5 @@
     <string name="player_seek_backward">快退</string>
     <string name="player_audio_track_number">音频 %1$d</string>
     <string name="player_track_number">轨道 %1$d</string>
+    <string name="tags_backup_save_failed">标签已保存在应用中，但备份失败。稍后将自动重试。</string>
 </resources>

@@ -541,4 +541,5 @@
     <string name="player_seek_backward">पीछे खोजें</string>
     <string name="player_audio_track_number">ऑडियो %1$d</string>
     <string name="player_track_number">ट्रैक %1$d</string>
+    <string name="tags_backup_save_failed">TAGs ऐप में सहेज दिए गए हैं, लेकिन बैकअप विफल रहा। अपने आप फिर से कोशिश की जाएगी।</string>
 </resources>
