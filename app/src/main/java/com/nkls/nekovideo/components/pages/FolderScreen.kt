@@ -1393,14 +1393,12 @@ fun FolderScreen(
     var loadedFolderPath by remember { mutableStateOf<String?>(null) }
     var loadedStorageVersion by remember { mutableIntStateOf(-1) }
     LaunchedEffect(folderPath, isSecureMode, showPrivateFolders, folderContentRevision, fullScanVersion, storageVolumesVersion, silentRefreshVersion) {
+        val validateAfterDisplay = loadedFolderPath != folderPath || loadedStorageVersion != storageVolumesVersion
         // Keep the current list/empty state visible during a silent revalidation.
         if (folderPath !in itemsByPath) loadingPaths = loadingPaths + folderPath
 
         var privateFolderUnavailable = false
         val loadedItems = withContext(Dispatchers.IO) {
-            if (loadedFolderPath != folderPath || loadedStorageVersion != storageVolumesVersion) {
-                FolderVideoScanner.reconcileFolderEntry(context, folderPath)
-            }
             val allItems = loadFolderContent(
                 context, folderPath, SortType.NAME_ASC, isSecureMode, isRootLevel, showPrivateFolders,
                 privateFolderSummaries,
@@ -1438,6 +1436,9 @@ fun FolderScreen(
         loadedStorageVersion = storageVolumesVersion
 
         loadingPaths = loadingPaths - folderPath
+
+        // Cached folders must be usable before awaiting an ongoing startup scan.
+        if (validateAfterDisplay) refreshCurrentFolderSilently()
     }
 
     // Tag edits update only affected counts; the folder contents stay cached.
@@ -1478,7 +1479,7 @@ fun FolderScreen(
     }
 
     // ✅ Loading inicial grande (primeira vez)
-    if (scannerCache.isEmpty() && isScanning) {
+    if (scannerCache.isEmpty() && isScanning && folderPath !in itemsByPath) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center

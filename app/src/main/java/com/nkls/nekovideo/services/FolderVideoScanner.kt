@@ -177,7 +177,8 @@ object FolderVideoScanner {
         }
     }
 
-    @Synchronized fun startScan(context: Context, scope: CoroutineScope = GlobalScope, forceRefresh: Boolean = false) {
+    @Synchronized fun startScan(context: Context, scope: CoroutineScope = GlobalScope, forceRefresh: Boolean = false,
+                                dispatcher: CoroutineDispatcher = Dispatchers.IO) {
         // Se não for refresh forçado e já tem cache, não escaneia
         if (!forceRefresh && _cache.value.isNotEmpty()) {
             return
@@ -188,7 +189,7 @@ object FolderVideoScanner {
         _isScanning.value = true
         _migrationCheck.value = null
 
-        scanJob = scope.launch(Dispatchers.IO) {
+        scanJob = scope.launch(dispatcher) {
             val timings = linkedMapOf<String, Long>()
             val profile = ScanProfile(context)
             val started = android.os.SystemClock.elapsedRealtime()

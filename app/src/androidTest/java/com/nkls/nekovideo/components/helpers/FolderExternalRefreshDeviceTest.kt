@@ -24,6 +24,14 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeout
+import kotlin.coroutines.CoroutineContext
 import org.junit.*
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
@@ -123,6 +131,68 @@ class FolderExternalRefreshDeviceTest {
     private class Owner : LifecycleOwner {
         val registry = LifecycleRegistry(this)
         override val lifecycle get() = registry
+    }
+
+    private class PausedDispatcher : CoroutineDispatcher() {
+        private var paused = true
+        private val queued = mutableListOf<Pair<CoroutineContext, Runnable>>()
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            synchronized(queued) {
+                if (paused) { queued += context to block; return }
+            }
+            Dispatchers.IO.dispatch(context, block)
+        }
+        fun release() {
+            val pending = synchronized(queued) {
+                paused = false
+                queued.toList().also { queued.clear() }
+            }
+            pending.forEach { (context, block) -> Dispatchers.IO.dispatch(context, block) }
+        }
+    }
+
+    @Test fun cachedFoldersRemainVisibleAndNavigableBeforeStartupScanFinishes() = runBlocking<Unit> {
+        verifyStartupDoesNotBlockNavigation(emptyScannerCache = false)
+    }
+
+    @Test fun firstLocalListingIsUsableEvenWithoutScannerCache() = runBlocking<Unit> {
+        verifyStartupDoesNotBlockNavigation(emptyScannerCache = true)
+    }
+
+    private suspend fun verifyStartupDoesNotBlockNavigation(emptyScannerCache: Boolean) {
+        val folder = File(root, if (emptyScannerCache) "Download" else "cached-folder").apply { check(mkdir()) }
+        val cachedVideo = video(folder, "cached.mp4")
+        FolderVideoScanner.reconcileFolderEntry(context, root.path)
+        if (emptyScannerCache) {
+            // Only derived Debug metadata is cleared; the held scan rebuilds it before cleanup.
+            check(context.getSharedPreferences("nekovideo_cache", 0).edit().putString("folder_cache", "{}").commit())
+            FolderVideoScanner.loadCacheFromDisk(context)
+            assertTrue(FolderVideoScanner.cache.value.isEmpty())
+        }
+        val dispatcher = PausedDispatcher()
+        val scanScope = CoroutineScope(SupervisorJob() + dispatcher)
+        val currentPath = mutableStateOf(root.path)
+        val visible = java.util.concurrent.atomic.AtomicReference<List<String>>(emptyList())
+        FolderVideoScanner.startScan(context, scanScope, forceRefresh = true, dispatcher = dispatcher)
+        try {
+            assertTrue(FolderVideoScanner.isScanning.value)
+            compose.setContent { MaterialTheme {
+                FolderScreen(currentPath.value, { path, _, _ -> currentPath.value = path },
+                    selectedItems = mutableStateListOf(), onSelectionChange = {},
+                    onVisibleItemsChange = { visible.set(it) }, renameTrigger = 0,
+                    isRootLevel = currentPath.value == root.path)
+            } }
+            compose.waitUntil(10_000) { folder.path in visible.get() }
+            assertTrue("Cached folders must render before the scan is allowed to finish", FolderVideoScanner.isScanning.value)
+            compose.onNodeWithText(folder.name).performClick()
+            compose.waitUntil(10_000) { cachedVideo.path in visible.get() }
+            assertEquals(folder.path, currentPath.value)
+            assertTrue("Navigation must remain available during the startup scan", FolderVideoScanner.isScanning.value)
+        } finally {
+            dispatcher.release()
+            withTimeout(60_000) { FolderVideoScanner.isScanning.first { !it } }
+            scanScope.cancel()
+        }
     }
 
     @Test fun enteringDownloadsFindsANewVideoWithoutLeavingTheApp() = runBlocking<Unit> {

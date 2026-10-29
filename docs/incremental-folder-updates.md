@@ -42,9 +42,20 @@ contínuo de cada arquivo enquanto a tela permanece aberta.
 
 29/10/2026: corrigida a dependência exclusiva do cache global para mostrar subpastas novas.
 Antes, a primeira leitura podia salvar o carimbo atualizado antes da verificação de retomada,
-e a raiz sequer participava dessa verificação. A reconciliação agora ocorre antes da leitura
-da lista ao navegar e novamente ao retomar, sem dar às alterações externas o caminho de
+e a raiz sequer participava dessa verificação. A reconciliação agora ocorre após exibir a
+lista disponível ao navegar e novamente ao retomar, sem dar às alterações externas o caminho de
 confiança reservado às operações do app.
+
+Na abertura, a lista disponível é publicada antes de aguardar qualquer scan em andamento.
+Assim, o cache anterior fica visível e a navegação continua funcionando durante a atualização.
+Mesmo sem cache do scanner, a tela deixa o loading grande assim que a primeira listagem
+local estiver disponível; não precisa esperar o scan completo para começar a navegar.
+
+Dois testes de inicialização mantêm o scan deliberadamente pendente por um dispatcher de
+teste. Com cache e sem cache do scanner, verificam a exibição da pasta, o clique para entrar
+nela e a lista de vídeos enquanto `isScanning` ainda é verdadeiro. Depois liberam e concluem
+o scan normal. Os seis cenários de atualização silenciosa/inicialização passaram juntos no
+telefone após essa correção. Os 34 testes locais e a compilação Kotlin release também passaram.
 
 `FolderExternalRefreshDeviceTest` passou nos quatro cenários de 29/10: subpasta antes vazia
 que recebe vídeo sem alterar a data do pai; nova árvore de pastas e vídeo direto; navegação
