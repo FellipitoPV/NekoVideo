@@ -90,6 +90,10 @@ internal object PortablePrivateFolders {
     internal fun hasExternalArrivalsForScan(folder: File, entries: List<File>, privateBoundary: Boolean): Boolean =
         !privateBoundary && containsRecords(folder, entries)
 
+    internal fun hasPrivateAncestorForScan(context: Context, folder: File): Boolean = folder.parentFile?.let {
+        hasPrivateBoundary(context, it, LockedPlaybackSession.sessionPassword)
+    } ?: false
+
     internal fun recoveryRecordsForScan(entries: List<File>): List<File> = candidates(entries)
         .filter(PortableVideoStore::hasRecoveryRecord)
 

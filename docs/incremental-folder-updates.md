@@ -30,10 +30,33 @@ O shuffle reutiliza pastas privadas já carregadas e não prepara a mesma sessã
 O cache de conteúdo guarda no máximo 12 pastas, é vinculado à versão da credencial e é limpo
 ao bloquear a sessão. Não grava nomes privados descriptografados em armazenamento adicional.
 
-Ao retomar a tela, a validação silenciosa ocorre quando os carimbos da pasta/índices mudaram.
-Uma mudança externa detectada invalida o cache afetado e usa a leitura verificada. Alterações
-externas in-place que não mudem esses carimbos são conferidas na nova entrada ou no refresh
-manual; não foi criado monitoramento de cada arquivo em segundo plano.
+Ao entrar ou retomar a tela, incluindo a raiz, a validação silenciosa compara as datas dos
+diretórios já descobertos naquele trecho da biblioteca. Diretórios vazios também são observados:
+um vídeo recebido em uma subpasta existente é percebido mesmo sem mudança na data do pai.
+Somente os trechos alterados são relidos, e a visibilidade é propagada aos ancestrais sem abrir
+os vídeos de subpastas inalteradas. A lista atual continua visível e não há loading global.
+As operações conhecidas do próprio app também atualizam essas observações, evitando outra
+validação ao retornar. Alterações externas in-place que preservem os carimbos dos diretórios
+continuam dependendo da nova leitura de conteúdo ou do refresh manual; não há monitoramento
+contínuo de cada arquivo enquanto a tela permanece aberta.
+
+29/10/2026: corrigida a dependência exclusiva do cache global para mostrar subpastas novas.
+Antes, a primeira leitura podia salvar o carimbo atualizado antes da verificação de retomada,
+e a raiz sequer participava dessa verificação. A reconciliação agora ocorre antes da leitura
+da lista ao navegar e novamente ao retomar, sem dar às alterações externas o caminho de
+confiança reservado às operações do app.
+
+`FolderExternalRefreshDeviceTest` passou nos quatro cenários de 29/10: subpasta antes vazia
+que recebe vídeo sem alterar a data do pai; nova árvore de pastas e vídeo direto; navegação
+real para Downloads mantendo o app aberto; e retomada da tela principal por eventos de
+ciclo de vida. Todos usam cópias em `Memes/NekoRefreshTest-UUID`, removidas ao final. O teste
+com 16 vídeos na pasta irmã registrou zero aberturas desses arquivos. Uma exclusão feita
+pelo app também não causou outra validação. O contador do scan global permaneceu inalterado.
+
+Também passaram os sete cenários incrementais anteriores, a recuperação autenticada após
+descoberta inicial e os 34 testes locais. A compilação Kotlin release passou e o Debug foi
+atualizado no aparelho. A medição final do scan inicial levou 3.668 ms nessa execução; as
+TAGs e os arquivos do acervo real não foram editados pelos testes.
 
 ## Remoção da configuração antiga
 

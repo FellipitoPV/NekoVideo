@@ -31,3 +31,8 @@ As mudanças anteriores foram incluídas na versão 1.9.1 (código 45).
 - Importação das TAGs com verificação de integridade e cópia do estado anterior para recuperação.
 - Falhas ao salvar o backup mantêm a pendência para nova tentativa e para retomada na próxima abertura do app.
 - Scan inicial mais rápido, reaproveitando listagens e contagens privadas inalteradas e evitando verificações repetidas dos mesmos diretórios.
+
+29/10/2026
+
+- Atualização silenciosa ao entrar nas pastas e voltar ao app, incluindo a tela principal, para mostrar vídeos e subpastas recebidos externamente sem refresh manual.
+- Verificação limitada aos diretórios alterados, preservando a lista visível e evitando um novo scan completo do aparelho.

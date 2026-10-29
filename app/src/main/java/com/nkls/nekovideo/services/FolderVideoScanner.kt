@@ -11,6 +11,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.readFolderChildren
 import com.nkls.nekovideo.components.helpers.FolderLockManager
@@ -98,6 +100,7 @@ object FolderVideoScanner {
     private class ScanProfile(context: Context) {
         val nanos = linkedMapOf<String, Long>()
         val visited = HashSet<String>()
+        val directoryStamps = linkedMapOf<String, Long>()
         val fastDiscovery = LockedPlaybackSession.sessionPassword == null
         val registry = FolderLockManager.getAllLockedFolders(context).associateBy { it.folderPath }
         val previousFolders = cache.value
@@ -129,6 +132,8 @@ object FolderVideoScanner {
     private var scanJob: Job? = null
     @Volatile private var scanGeneration = 0L
     private val externalRecoveryPaths = ConcurrentHashMap.newKeySet<String>()
+    private val observedDirectoryStamps = ConcurrentHashMap<String, Long>()
+    private val entryRefreshMutex = Mutex()
     private const val PREFS_NAME = "nekovideo_cache"
     private const val CACHE_KEY = "folder_cache"
 
@@ -213,6 +218,8 @@ object FolderVideoScanner {
                 measured("recoveryAndMigration")
                 if (generation != scanGeneration) return@launch
                 _cache.value = folderMap.toMap()
+                observedDirectoryStamps.clear()
+                observedDirectoryStamps.putAll(profile.directoryStamps)
                 com.nkls.nekovideo.components.FolderContentCache.clear()
                 _fullScanVersion.value++
 
@@ -237,6 +244,59 @@ object FolderVideoScanner {
 
     private var localRefreshJob: Job? = null
 
+    /** Check directory metadata on entry/resume; read videos only below changed directories. */
+    internal suspend fun reconcileFolderEntry(context: Context, path: String): Boolean = withContext(Dispatchers.IO) {
+        entryRefreshMutex.withLock {
+            scanJob?.join()
+            localRefreshJob?.join()
+            val generation = scanGeneration
+            val root = File(path).absolutePath
+            val known = observedDirectoryStamps.filterKeys { isSameOrDescendant(it, root) }
+            val changed = known.filter { (directory, stamp) -> File(directory).lastModified() != stamp }.keys.toMutableSet()
+            if (root !in known) changed += root
+            if (changed.isEmpty()) return@withLock false
+            val targets = changed.sortedBy { it.length }.fold(mutableListOf<String>()) { result, candidate ->
+                if (result.none { isSameOrDescendant(candidate, it) }) result += candidate
+                result
+            }
+            val updated = ConcurrentHashMap(_cache.value)
+            val profile = ScanProfile(context)
+            targets.forEach { target ->
+                updated.keys.filter { isSameOrDescendant(it, target) }.forEach(updated::remove)
+                val folder = File(target)
+                if (folder.isDirectory) {
+                    scanSecureFoldersRecursive(context, folder, updated, profile,
+                        PortablePrivateFolders.hasPrivateAncestorForScan(context, folder))
+                }
+            }
+            // Ancestors keep their unchanged direct videos; only visibility is propagated.
+            targets.forEach { target ->
+                var parent = File(target).parentFile
+                while (parent != null) {
+                    val parentPath = parent.path
+                    val existing = updated[parentPath]
+                    val hasVideos = (existing?.videoCount ?: 0) > 0 || updated.any { (child, info) ->
+                        child.startsWith("$parentPath/") && info.hasVideos
+                    }
+                    if (existing != null) updated[parentPath] = existing.copy(hasVideos = hasVideos)
+                    else if (hasVideos && parent.isDirectory) updated[parentPath] = FolderInfo(parentPath, hasVideos = true)
+                    parent = parent.parentFile
+                }
+            }
+            synchronized(this@FolderVideoScanner) {
+                if (generation != scanGeneration) return@withLock false
+                _cache.value = updated.toMap()
+                targets.forEach { target ->
+                    observedDirectoryStamps.keys.filter { isSameOrDescendant(it, target) }.forEach(observedDirectoryStamps::remove)
+                }
+                observedDirectoryStamps.putAll(profile.directoryStamps)
+                com.nkls.nekovideo.components.FolderContentCache.invalidate(listOf(root))
+                saveCacheToDisk(context)
+            }
+            true
+        }
+    }
+
     /** Known app edits reuse unchanged entries; only new subtrees need discovery. */
     @Synchronized internal fun refreshLocalPaths(context: Context, paths: Collection<String>): Job {
         val targets = paths.filter { it.isNotBlank() }.map { File(it).absolutePath }.toSet()
@@ -247,12 +307,14 @@ object FolderVideoScanner {
                 previousLocal?.join()
                 currentScan?.join()
                 val updated = ConcurrentHashMap(_cache.value)
+                val profile = ScanProfile(context)
                 val touched = targets.toMutableSet()
                 targets.sortedByDescending { it.length }.forEach { path ->
                     val folder = File(path)
                     if (!folder.isDirectory) {
                         com.nkls.nekovideo.components.FolderContentCache.invalidate(listOf(path))
                         updated.keys.filter { isSameOrDescendant(it, path) }.toList().forEach(updated::remove)
+                        observedDirectoryStamps.keys.filter { isSameOrDescendant(it, path) }.forEach(observedDirectoryStamps::remove)
                         return@forEach
                     }
                     val children = folder.listFiles().orEmpty()
@@ -260,6 +322,7 @@ object FolderVideoScanner {
                     updated.keys.filter { File(it).parent == path && File(it).name !in names }.toList().forEach { missing ->
                         com.nkls.nekovideo.components.FolderContentCache.invalidate(listOf(missing))
                         updated.keys.filter { isSameOrDescendant(it, missing) }.toList().forEach(updated::remove)
+                        observedDirectoryStamps.keys.filter { isSameOrDescendant(it, missing) }.forEach(observedDirectoryStamps::remove)
                     }
                     val locked = FolderLockManager.isLocked(path)
                     val loadedVideos = com.nkls.nekovideo.components.FolderContentCache.loadedItems(path).orEmpty()
@@ -274,7 +337,8 @@ object FolderVideoScanner {
                             child.name in privateNames) return@childLoop
                         if (updated.containsKey(child.path)) return@childLoop
                         if (child.isDirectory) {
-                            scanSecureFoldersRecursive(context, child, updated)
+                            scanSecureFoldersRecursive(context, child, updated, profile,
+                                PortablePrivateFolders.hasPrivateAncestorForScan(context, child))
                             touched += child.path
                         } else if (!locked && child.extension.lowercase() in supportedVideoExtensions &&
                             child.isFile && !PortableVideoStore.hasRecoveryRecord(child)) {
@@ -298,7 +362,12 @@ object FolderVideoScanner {
                         parent = parent.parentFile
                     }
                 }
-                synchronized(this@FolderVideoScanner) { _cache.value = updated.toMap(); saveCacheToDisk(context) }
+                synchronized(this@FolderVideoScanner) {
+                    _cache.value = updated.toMap()
+                    targets.filter { File(it).isDirectory }.forEach { observedDirectoryStamps[it] = File(it).lastModified() }
+                    observedDirectoryStamps.putAll(profile.directoryStamps)
+                    saveCacheToDisk(context)
+                }
                 PrivateMigrationHistory(context).observe(touched, false)
                 LocalFolderUpdates.mark(touched)
             } catch (failure: Exception) {
@@ -342,6 +411,7 @@ object FolderVideoScanner {
             try {
                 val updatedCache = _cache.value.toMutableMap()
                 val observedPaths = mutableSetOf<String>()
+                val profile = ScanProfile(context)
 
                 targetPaths.forEach { rootPath ->
                     observedPaths += rootPath
@@ -353,7 +423,8 @@ object FolderVideoScanner {
                     val rootDir = File(rootPath)
                     if (rootDir.exists() && rootDir.isDirectory) {
                         val subtreeMap = ConcurrentHashMap<String, FolderInfo>()
-                        scanSecureFoldersRecursive(context, rootDir, subtreeMap)
+                        scanSecureFoldersRecursive(context, rootDir, subtreeMap, profile,
+                            PortablePrivateFolders.hasPrivateAncestorForScan(context, rootDir))
                         observedPaths += subtreeMap.keys
                         updatedCache.putAll(subtreeMap)
                     }
@@ -365,6 +436,10 @@ object FolderVideoScanner {
                 prepareMigrationCheck(context, updatedCache.keys, generation, observedPaths = observedPaths)
                 if (generation != scanGeneration) return@launch
                 _cache.value = updatedCache.toMap()
+                targetPaths.forEach { root ->
+                    observedDirectoryStamps.keys.filter { isSameOrDescendant(it, root) }.forEach(observedDirectoryStamps::remove)
+                }
+                observedDirectoryStamps.putAll(profile.directoryStamps)
                 com.nkls.nekovideo.components.FolderContentCache.invalidate(targetPaths)
                 LocalFolderUpdates.mark(targetPaths)
                 saveCacheToDisk(context)
@@ -595,6 +670,7 @@ object FolderVideoScanner {
         val restored = if (fastDiscovery) emptyList() else PortablePrivateFolders.restoreExternalArrivals(context, directory.absolutePath)
         if (restored.isNotEmpty()) folderMap.remove(directory.absolutePath) // Replace stale MediaStore rows.
         if (restored.isNotEmpty()) listedEntries = directory.listFiles()?.toList()
+        if (listedEntries != null) profile?.directoryStamps?.put(directory.absolutePath, directory.lastModified())
         val isSecure = if (fastDiscovery) ".nomedia" in names else File(directory, ".nomedia").exists()
         val isLocked = if (fastDiscovery) ".neko_locked" in names || PortablePrivateFolders.MARKER in names ||
             PortablePrivateFolders.INDEX in names || PortablePrivateFolders.PASSWORD_BACKUP in names

@@ -1341,29 +1341,21 @@ fun FolderScreen(
         FolderVideoScanner.startScan(context, forceRefresh = true)
     }
 
-    fun refreshCurrentFolderSilently(scope: CoroutineScope) {
-        if (isRootLevel || !hasPermission || isScanning) return
-        if (!FolderContentCache.externallyChanged(folderPath)) return
-
-        FolderVideoScanner.refreshPaths(
-            context = context,
-            paths = listOf(folderPath),
-            scope = scope,
-            showProgress = false,
-            cancelOngoing = false
-        )
+    var silentRefreshVersion by remember { mutableIntStateOf(0) }
+    suspend fun refreshCurrentFolderSilently() {
+        if (!hasPermission) return
+        if (FolderVideoScanner.reconcileFolderEntry(context, folderPath)) silentRefreshVersion++
     }
 
     LaunchedEffect(lifecycleOwner, folderPath, isRootLevel, hasPermission) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             if (isRootLevel) {
                 reloadContinueWatching()
-            } else {
-                delay(500)
-                // Let the initial list finish before a validation scan competes for disk access.
-                snapshotFlow { folderPath in itemsByPath && folderPath !in loadingPaths }.first { it }
-                refreshCurrentFolderSilently(this)
             }
+            delay(500)
+            // Also cover children that received files while the parent itself did not change.
+            snapshotFlow { folderPath in itemsByPath && folderPath !in loadingPaths }.first { it }
+            refreshCurrentFolderSilently()
 
             awaitCancellation()
         }
@@ -1400,12 +1392,15 @@ fun FolderScreen(
     // Carrega items para a pasta atual e mantém cache das anteriores
     var loadedFolderPath by remember { mutableStateOf<String?>(null) }
     var loadedStorageVersion by remember { mutableIntStateOf(-1) }
-    LaunchedEffect(folderPath, isSecureMode, showPrivateFolders, folderContentRevision, fullScanVersion, storageVolumesVersion) {
-        // Marca esta pasta como carregando
-        loadingPaths = loadingPaths + folderPath
+    LaunchedEffect(folderPath, isSecureMode, showPrivateFolders, folderContentRevision, fullScanVersion, storageVolumesVersion, silentRefreshVersion) {
+        // Keep the current list/empty state visible during a silent revalidation.
+        if (folderPath !in itemsByPath) loadingPaths = loadingPaths + folderPath
 
         var privateFolderUnavailable = false
         val loadedItems = withContext(Dispatchers.IO) {
+            if (loadedFolderPath != folderPath || loadedStorageVersion != storageVolumesVersion) {
+                FolderVideoScanner.reconcileFolderEntry(context, folderPath)
+            }
             val allItems = loadFolderContent(
                 context, folderPath, SortType.NAME_ASC, isSecureMode, isRootLevel, showPrivateFolders,
                 privateFolderSummaries,
