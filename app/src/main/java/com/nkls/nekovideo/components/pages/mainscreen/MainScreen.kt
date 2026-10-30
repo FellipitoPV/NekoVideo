@@ -612,9 +612,8 @@ fun MainScreen(
 
     fun launchFolderLockAction(folders: List<String>, isUnlock: Boolean, password: String) {
         coroutineScope.launch {
-            var unlockedPaths: List<String> = emptyList()
             if (isUnlock) {
-                unlockedPaths = LockedFolderOperations.unlockFolders(
+                LockedFolderOperations.unlockFolders(
                     context = context,
                     folderPaths = folders,
                     password = password,
@@ -637,16 +636,6 @@ fun MainScreen(
 
             lockProgress = ""
             selectedItems.clear()
-            renameTrigger++
-            refreshAffectedPaths(
-                if (isUnlock && unlockedPaths.isNotEmpty()) {
-                    unlockedPaths
-                } else if (isAtRootLevel) {
-                    listOf(folderPath)
-                } else {
-                    folders
-                }
-            )
         }
     }
 

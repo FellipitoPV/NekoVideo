@@ -22,6 +22,9 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
+import kotlin.coroutines.CoroutineContext
 import org.junit.*
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
@@ -152,6 +155,72 @@ class IncrementalFolderDeviceTest {
         unchanged.forEach { (name, hash) -> assertEquals(hash, PortableVideoStore.sha256(File(folder, name))) }
     }
 
+    @Test fun privacyChangesPublishBeforeQueuedScanAndKeepSiblingVideosUntouched() = runBlocking<Unit> {
+        val target = folder("change-privacy", 2, false)
+        val sibling = folder("unaffected", 12, false)
+        val child = File(target, "nested").apply { check(mkdir()) }
+        File(sibling, "Video000.mp4").copyTo(File(child, "nested.mp4"))
+        refresh(root)
+        load(root, false)
+        val observer = Opens(sibling, sibling.listFiles().orEmpty().mapTo(HashSet()) { it.name }).apply { startWatching() }
+        val visible = AtomicReference<List<String>>(emptyList())
+        compose.setContent { MaterialTheme {
+            FolderScreen(root.path, { _, _, _ -> }, selectedItems = mutableStateListOf(), onSelectionChange = {},
+                onVisibleItemsChange = { visible.set(it) }, renameTrigger = 0, showPrivateFolders = true)
+        } }
+        compose.waitUntil(10_000) { target.path in visible.get() }
+        val dispatcher = object : CoroutineDispatcher() {
+            val queued = mutableListOf<Pair<CoroutineContext, Runnable>>()
+            var paused = true
+            override fun dispatch(context: CoroutineContext, block: Runnable) {
+                synchronized(queued) { if (paused) { queued += context to block; return } }
+                Dispatchers.IO.dispatch(context, block)
+            }
+            fun release() {
+                val pending = synchronized(queued) { paused = false; queued.toList().also { queued.clear() } }
+                pending.forEach { (context, block) -> Dispatchers.IO.dispatch(context, block) }
+            }
+        }
+        val scanScope = CoroutineScope(SupervisorJob() + dispatcher)
+        val previousVisibility = FilesManager.SecureFoldersVisibility.areSecureFoldersVisible(context)
+        FolderVideoScanner.startScan(context, scanScope, forceRefresh = true, dispatcher = dispatcher)
+        try {
+            var lockedPath: String? = null
+            LockedFolderOperations.lockFolders(context, listOf(target.path), password,
+                onError = { error(it) }, onFolderLocked = {
+                    lockedPath = FolderLockManager.getAllLockedFolders(context)
+                        .single { File(it.folderPath).parent == root.path && it.originalFolderName == target.name }.folderPath
+                    assertTrue(FolderVideoScanner.cache.value[lockedPath]?.isLocked == true)
+                }, onStateChange = { active -> if (!active) assertNotNull(lockedPath) })
+            val locked = checkNotNull(lockedPath)
+            assertFalse(FolderVideoScanner.cache.value.containsKey(target.path))
+            assertTrue(FolderVideoScanner.cache.value.keys.any { it.startsWith("$locked/") })
+            compose.waitUntil(10_000) { locked in visible.get() && target.path !in visible.get() }
+            assertTrue("Privacy publication must not wait for the held global scan", FolderVideoScanner.isScanning.value)
+            val restored = LockedFolderOperations.unlockFolders(context, listOf(locked), password,
+                onError = { error(it) }, onFolderUnlocked = {
+                    assertTrue(FolderVideoScanner.cache.value[target.path]?.isLocked == false)
+                })
+            assertEquals(listOf(target.path), restored)
+            assertFalse(FolderVideoScanner.cache.value.containsKey(locked))
+            assertNotNull(FolderVideoScanner.cache.value[child.path])
+            assertEquals(1, FolderVideoScanner.cache.value[child.path]?.videos?.size)
+            assertEquals(File(child, "nested.mp4").path, FolderVideoScanner.cache.value[child.path]?.videos?.single()?.path)
+            compose.waitUntil(10_000) { target.path in visible.get() && locked !in visible.get() }
+            assertTrue(FolderVideoScanner.isScanning.value)
+            observer.finish()
+            assertEquals("Other folders must not reopen their videos", 0, observer.media.get())
+        } finally {
+            LockedPlaybackSession.clear()
+            FilesManager.SecureFoldersVisibility.hideSecureFolders(context)
+            dispatcher.release()
+            withTimeout(60_000) { FolderVideoScanner.isScanning.first { !it } }
+            FolderVideoScanner.refreshLocalPaths(context, listOf(root.path)).join()
+            scanScope.cancel()
+            FilesManager.SecureFoldersVisibility.setSecureFoldersVisible(context, previousVisibility)
+        }
+    }
+
     @Test fun normalDeleteRenameCreateAndFailedPrivateBatchStayConsistent() {
         val normal = folder("normal", 12, false)
         val initial = load(normal, false)
@@ -182,6 +251,8 @@ class IncrementalFolderDeviceTest {
 
     @Test fun searchSortPinsAndUnrelatedChangesDoNotReopenTheFolder() {
         val folder = folder("ui", 12, true)
+        // Drain initial external discovery before measuring purely visual interactions.
+        runBlocking { FolderVideoScanner.reconcileFolderEntry(context, folder.path) }
         val items = load(folder, true)
         val names = items.mapTo(HashSet()) { File(it.path).name }
         items.forEach {

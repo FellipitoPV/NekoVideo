@@ -39,3 +39,8 @@ As mudanças anteriores foram incluídas na versão 1.9.1 (código 45).
 - Abertura sem bloqueio pelo scan inicial: a lista disponível aparece primeiro e continua permitindo navegar enquanto a biblioteca é atualizada em segundo plano.
 - Recuperação de vídeos privados movidos externamente passa a respeitar o toggle de visibilidade, mesmo com uma senha ainda disponível na sessão.
 - Ocultar as pastas durante uma recuperação interrompe a publicação do vídeo descriptografado e preserva o arquivo protegido para uma nova tentativa.
+
+30/10/2026
+
+- Privar/desprivar publica o estado e o caminho final das pastas assim que a operação termina, sem esperar a fila de scans para atualizar a tela.
+- Reconciliação posterior limitada às pastas alteradas, removendo a atualização da raiz do armazenamento ao privar pela tela principal.

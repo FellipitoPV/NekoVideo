@@ -21,6 +21,7 @@ object LockedFolderOperations {
         try {
             withContext(Dispatchers.IO) {
                 folderPaths.forEach { folderPath ->
+                    var resolvedPath = folderPath
                     FolderLockManager.lockFolder(
                         context = context,
                         folderPath = folderPath,
@@ -29,11 +30,18 @@ object LockedFolderOperations {
                             runBlocking { notifyProgress(onProgress, current, total) }
                         },
                         onError = { message ->
+                            com.nkls.nekovideo.services.FolderVideoScanner.refreshLocalPaths(context, listOf(folderPath, resolvedPath))
                             runBlocking { notifyError(onError, message) }
                         },
                         onSuccess = {
+                            val manifest = LockedPlaybackSession.getManifestForFolder(resolvedPath)
+                                ?: FolderLockManager.readManifestForLocalEdit(resolvedPath, password)
+                            if (manifest != null) com.nkls.nekovideo.services.FolderVideoScanner
+                                .publishPrivacyChange(context, folderPath, resolvedPath, manifest, locked = true)
+                            else com.nkls.nekovideo.services.FolderVideoScanner.refreshLocalPaths(context, listOf(folderPath, resolvedPath))
                             runBlocking { notifySuccess(onFolderLocked) }
-                        }
+                        },
+                        onResolvedPath = { resolvedPath = it }
                     )
                 }
             }
@@ -56,6 +64,7 @@ object LockedFolderOperations {
         try {
             withContext(Dispatchers.IO) {
                 folderPaths.forEach { folderPath ->
+                    val manifest = FolderLockManager.readManifestForLocalEdit(folderPath, password)
                     FolderLockManager.unlockFolder(
                         context = context,
                         folderPath = folderPath,
@@ -64,10 +73,14 @@ object LockedFolderOperations {
                             runBlocking { notifyProgress(onProgress, current, total) }
                         },
                         onError = { message ->
+                            com.nkls.nekovideo.services.FolderVideoScanner.refreshLocalPaths(context, listOf(folderPath))
                             runBlocking { notifyError(onError, message) }
                         },
                         onSuccess = { restoredPath ->
                             unlockedPaths += restoredPath
+                            if (manifest != null) com.nkls.nekovideo.services.FolderVideoScanner
+                                .publishPrivacyChange(context, folderPath, restoredPath, manifest, locked = false)
+                            else com.nkls.nekovideo.services.FolderVideoScanner.refreshLocalPaths(context, listOf(folderPath, restoredPath))
                             runBlocking { notifySuccess(onFolderUnlocked) }
                         }
                     )

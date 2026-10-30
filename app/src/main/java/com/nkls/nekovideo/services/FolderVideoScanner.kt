@@ -298,6 +298,53 @@ object FolderVideoScanner {
         }
     }
 
+    /** Publish confirmed privacy changes before any queued scan or disk-cache write. */
+    @Synchronized internal fun publishPrivacyChange(context: Context, oldPath: String, newPath: String,
+                                                    manifest: com.nkls.nekovideo.components.helpers.LockedFolderManifest,
+                                                    locked: Boolean) {
+        val updated = _cache.value.toMutableMap()
+        val previous = updated.filterKeys { isSameOrDescendant(it, oldPath) }
+        previous.keys.forEach(updated::remove)
+        fun remap(path: String): String {
+            val relative = path.removePrefix(oldPath).removePrefix("/")
+            if (relative.isEmpty()) return newPath
+            val first = relative.substringBefore('/')
+            val directory = manifest.subfolders.orEmpty().firstOrNull {
+                (if (locked) it.originalName else it.obfuscatedName) == first
+            }
+            val mapped = directory?.let { if (locked) it.obfuscatedName else it.originalName } ?: first
+            return "$newPath/$mapped" + relative.removePrefix(first)
+        }
+        previous.filterKeys { it != oldPath }.forEach { (path, info) ->
+            val mapped = remap(path)
+            updated[mapped] = info.copy(path = mapped, videos = info.videos.map { video ->
+                val target = remap(video.path)
+                video.copy(path = target, uri = Uri.fromFile(File(target)))
+            })
+        }
+        val folder = File(newPath)
+        val videos = if (locked) emptyList() else manifest.files.map { entry ->
+            val video = File(folder, entry.originalName)
+            VideoInfo(video.path, Uri.fromFile(video), video.lastModified(), entry.originalSize)
+        }
+        updated[newPath] = FolderInfo(newPath, manifest.files.isNotEmpty() ||
+            updated.any { (path, info) -> path.startsWith("$newPath/") && info.hasVideos },
+            manifest.files.size, locked || File(folder, ".nomedia").exists(), locked,
+            folder.lastModified(), videos)
+        var parent = folder.parentFile
+        while (parent != null) {
+            val path = parent.path
+            updated[path]?.let { info -> updated[path] = info.copy(hasVideos = info.videoCount > 0 ||
+                updated.any { (child, childInfo) -> child.startsWith("$path/") && childInfo.hasVideos }) }
+            parent = parent.parentFile
+        }
+        com.nkls.nekovideo.components.FolderContentCache.invalidate(listOf(oldPath, newPath))
+        _cache.value = updated
+        LocalFolderUpdates.mark(listOf(oldPath, newPath))
+        // Reconcile only the changed directories after in-flight scans; never the storage root.
+        refreshLocalPaths(context, listOf(oldPath, newPath))
+    }
+
     /** Known app edits reuse unchanged entries; only new subtrees need discovery. */
     @Synchronized internal fun refreshLocalPaths(context: Context, paths: Collection<String>): Job {
         val targets = paths.filter { it.isNotBlank() }.map { File(it).absolutePath }.toSet()
