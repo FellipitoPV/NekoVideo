@@ -10,6 +10,8 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.Base64
 import java.util.UUID
+import java.nio.file.attribute.BasicFileAttributes
+import java.nio.file.attribute.FileTime
 
 /** Folder integration for new private files. Legacy folders retain their existing implementation. */
 internal object PortablePrivateFolders {
@@ -23,6 +25,21 @@ internal object PortablePrivateFolders {
     }
     private var keyring: PortableVideoStore.Keyring? = null
     private var keyringPassword: String? = null
+    private data class RecordStamp(val size: Long, val modified: FileTime, val created: FileTime, val inode: Any?)
+    private data class VerifiedRecord(val stamp: RecordStamp, val fingerprint: String)
+    private val verifiedRecords = object : LinkedHashMap<String, VerifiedRecord>(256, .75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, VerifiedRecord>?) = size > 8192
+    }
+    private data class ShuffleSnapshot(val stamp: com.nkls.nekovideo.components.FolderContentCache.Stamp,
+        val snapshot: Snapshot, val manifest: LockedFolderManifest, val index: PortableVideoStore.Index)
+    private val shuffleSnapshots = object : LinkedHashMap<String, ShuffleSnapshot>(32, .75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ShuffleSnapshot>?) = size > 128
+    }
+    private fun recordStamp(file: File): RecordStamp? = runCatching {
+        val attributes = Files.readAttributes(file.toPath(), BasicFileAttributes::class.java)
+        if (!attributes.isRegularFile) null else RecordStamp(attributes.size(), attributes.lastModifiedTime(),
+            attributes.creationTime(), attributes.fileKey())
+    }.getOrNull()
 
     private data class Snapshot(
         val entries: List<PortableVideoStore.Entry>,
@@ -36,6 +53,8 @@ internal object PortablePrivateFolders {
         keyring?.close()
         keyring = null
         keyringPassword = null
+        verifiedRecords.clear()
+        shuffleSnapshots.clear()
     }
 
     @Synchronized private fun <T> unlocked(password: String, action: (PortableVideoStore.Keyring) -> T): T {
@@ -185,7 +204,10 @@ internal object PortablePrivateFolders {
         return found
     }
 
-    private fun invalidate(folder: File) { synchronized(detection) { detection.remove(folder.absolutePath) } }
+    private fun invalidate(folder: File) {
+        synchronized(detection) { detection.remove(folder.absolutePath) }
+        synchronized(this) { shuffleSnapshots.remove(folder.absolutePath) }
+    }
 
     fun fileCount(folderPath: String): Int = candidates(File(folderPath)).count(PortableVideoStore::hasRecoveryRecord)
 
@@ -202,6 +224,7 @@ internal object PortablePrivateFolders {
     }.getOrNull()
 
     private fun read(folder: File, password: String, verifyKnownRecords: Boolean = true): Snapshot? = unlocked(password) { keys ->
+        if (verifyKnownRecords) shuffleSnapshots.remove(folder.path)
         if (!folder.isDirectory) return@unlocked null
         val store = PortableVideoStore(folder)
         val indexFile = File(folder, INDEX)
@@ -215,14 +238,20 @@ internal object PortablePrivateFolders {
             val cached = known[file.name]
             // Local edits use the authenticated index for unchanged entries. Unknown arrivals
             // still recover from their record; navigation/manual refresh verifies every record.
-            if (!verifyKnownRecords && cached != null) return@mapNotNull cached
-            if (!file.isFile) return@mapNotNull null
+            if (cached != null && !verifyKnownRecords) return@mapNotNull cached
+            val stamp = recordStamp(file) ?: return@mapNotNull null
             // A protected file is longer than its payload. Check possible plaintext restoration
             // only at that exact length; inspectEntry validates every other record in one read.
-            if (cached != null && file.length() == cached.metadata.payloadSize &&
-                PortableVideoStore.sha256(file) == cached.metadata.originalSha256) return@mapNotNull null
-            runCatching { store.inspectEntry(file, index, keys, allowManifestRecovery = true) }
-                .getOrNull() ?: cached // Keep an authenticated damaged entry visible; export will reject damage.
+            if (cached != null && stamp.size == cached.metadata.payloadSize &&
+                PortableVideoStore.sha256(file) == cached.metadata.originalSha256) {
+                verifiedRecords.remove(file.path)
+                return@mapNotNull null
+            }
+            val verified = runCatching { store.inspectEntry(file, index, keys, allowManifestRecovery = true) }.getOrNull()
+            if (verified != null && recordStamp(file) == stamp) {
+                verifiedRecords[file.path] = VerifiedRecord(stamp, verified.envelopeSha256)
+            } else verifiedRecords.remove(file.path)
+            verified ?: cached // Keep an authenticated damaged entry visible; export will reject damage.
         }
         if (index == null && entries.isEmpty()) return@unlocked null
         val directoryNames = index?.directories.orEmpty().associateBy { it.diskName }
@@ -253,6 +282,64 @@ internal object PortablePrivateFolders {
     internal fun manifestForLocalEdit(folderPath: String, password: String): LockedFolderManifest? = runCatching {
         val folder = File(folderPath)
         read(folder, password, verifyKnownRecords = false)?.manifest(folder)
+    }.getOrNull()
+
+    private fun shuffleSnapshot(folder: File, password: String, keys: PortableVideoStore.Keyring): ShuffleSnapshot? {
+        val stamp = com.nkls.nekovideo.components.FolderContentCache.stamp(folder.path)
+        shuffleSnapshots[folder.path]?.takeIf { it.stamp == stamp }?.let { return it }
+        val snapshot = read(folder, password, verifyKnownRecords = false) ?: return null
+        val result = ShuffleSnapshot(stamp, snapshot, snapshot.manifest(folder),
+            PortableVideoStore.Index(entries = snapshot.entries).bind(keys))
+        if (com.nkls.nekovideo.components.FolderContentCache.stamp(folder.path) == stamp) shuffleSnapshots[folder.path] = result
+        return result
+    }
+
+    internal fun manifestForShuffleCandidates(folderPath: String, password: String): LockedFolderManifest? = runCatching {
+        unlocked(password) { keys -> shuffleSnapshot(File(folderPath), password, keys)?.manifest }
+    }.getOrNull()
+
+    /** Use already discovered folders; never start a scan or reduce the KDF work factor. */
+    internal fun prewarmShuffleKeys(paths: Collection<String>, password: String, checkActive: () -> Unit,
+                                   onProgress: (Int, Int) -> Unit = { _, _ -> }) {
+        val salts = paths.mapNotNull { path -> if (isPortable(path)) salt(path) else null }
+        checkActive()
+        unlocked(password) { keys -> keys.prewarm(salts, checkActive, onProgress) }
+    }
+
+    /** Authenticate once per folder change; inspect only selected records, reusing verified unchanged files. */
+    internal fun manifestForShufflePlayback(folderPath: String, password: String, names: Set<String>,
+                                            onPrepared: () -> Unit = {}): LockedFolderManifest? = runCatching {
+        unlocked(password) { keys ->
+            val folder = File(folderPath)
+            val previous = shuffleSnapshot(folder, password, keys) ?: return@unlocked null
+            val store = PortableVideoStore(folder)
+            val replacements = mutableMapOf<String, PortableVideoStore.Entry?>()
+            previous.snapshot.entries.filter { it.diskName in names }.forEach { entry ->
+                try {
+                val file = File(folder, entry.diskName)
+                val stamp = recordStamp(file)
+                if (stamp == null) { replacements[entry.diskName] = null; verifiedRecords.remove(file.path); return@forEach }
+                if (verifiedRecords[file.path] == VerifiedRecord(stamp, entry.envelopeSha256)) return@forEach
+                if (stamp.size == entry.metadata.payloadSize && PortableVideoStore.sha256(file) == entry.metadata.originalSha256) {
+                    replacements[entry.diskName] = null; verifiedRecords.remove(file.path); return@forEach
+                }
+                val verified = runCatching { store.inspectEntry(file, previous.index, keys, allowManifestRecovery = true) }.getOrNull()
+                if (verified != null && recordStamp(file) == stamp) {
+                    verifiedRecords[file.path] = VerifiedRecord(stamp, verified.envelopeSha256)
+                    if (verified != entry) replacements[entry.diskName] = verified
+                } else verifiedRecords.remove(file.path)
+                } finally { onPrepared() }
+            }
+            if (replacements.isEmpty()) previous.manifest else {
+                val snapshot = previous.snapshot.copy(entries = previous.snapshot.entries.mapNotNull {
+                    if (it.diskName in replacements) replacements[it.diskName] else it
+                })
+                val updated = previous.copy(snapshot = snapshot, manifest = snapshot.manifest(folder),
+                    index = PortableVideoStore.Index(entries = snapshot.entries).bind(keys))
+                if (com.nkls.nekovideo.components.FolderContentCache.stamp(folder.path) == previous.stamp) shuffleSnapshots[folder.path] = updated
+                updated.manifest
+            }
+        }
     }.getOrNull()
 
     fun mergeLegacy(folderPath: String, password: String, legacy: LockedFolderManifest): LockedFolderManifest = unlocked(password) { keys ->

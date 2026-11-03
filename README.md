@@ -29,6 +29,8 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Browses your storage as real folders instead of forcing a media-library-only view
 - Detects mounted SD cards and USB storage automatically for direct folder browsing
 - Scans and caches folders that contain videos for faster navigation
+- Keeps the last folder list available while the startup scan runs in the background
+- Silently checks for external additions when you enter a folder or return to the app
 - Supports common formats such as `mp4`, `mkv`, `webm`, `avi`, `mov`, `wmv`, `m4v`, `3gp`, and `flv`
 - Generates thumbnails and caches them in memory and on disk
 - Lets you search items inside the current folder
@@ -36,6 +38,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Can show video duration and file size in the grid/list
 - Allows pinning up to 10 folders for quick access from the home screen
 - Allows creating folders, renaming items, moving items, deleting items, and sharing videos
+- Reuses loaded lists after file operations instead of rechecking unchanged videos; privacy changes update the view as each operation completes
 - Supports opening videos from other apps via `VIEW` and `SEND_MULTIPLE` intents
 
 ### Playback
@@ -94,17 +97,23 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Keep separate tag scopes for normal content and private content
 - Shuffle videos using tag include/exclude filters
 - Preserves tag references when files or folders are renamed or moved
-- Automatic tag backups saved on-device, with import, manual export, and cleanup of stale video associations
+- Automatic on-device tag backups after each change, with smaller writes for video associations and retries after failed saves
+- Backup import with integrity checks and a recovery copy of the previous tag state, plus manual export and cleanup of stale video associations
 
 ### Private Folders and Protected Content
 
-- Supports a dedicated secure folder path and hidden app-managed folders
-- Can lock folders behind a password
+- Provides a main private folder and lets you protect other folders with a password
+- Supports hidden app-managed folders; the old custom secure-folder setting has been removed
 - Supports biometric unlock after password setup
 - Keeps protected folders hidden by default when the app starts
 - Plays locked content without creating decrypted temporary copies on disk
+- Stores recovery information inside new or updated private videos as well as in the folder index, so the app can recognize them after external moves or renames
+- Offers an in-app update for older private videos after password entry and confirmation; conversion includes subfolders, preserves paths and tags, and can resume after interruption
+- Restores recognized protected videos moved into ordinary folders only while private-folder visibility is enabled, without making the destination folder private
 
-Important: the current protection model is not full-file encryption for every byte of the video. It uses password-derived data, obfuscated file and folder names, protected manifests, and on-the-fly header deobfuscation during playback.
+Prefer moving protected videos through NekoVideo. Recovery information helps restore recognized files, but external file managers can still disrupt folder organization or tag associations. This recovery format does not replace a separate backup of your videos.
+
+Important: the current protection model is not full-file encryption for every byte of the video. It uses password-derived data, obfuscated file and folder names, protected folder indexes and per-file recovery information, and on-the-fly header deobfuscation during playback.
 
 ### Settings
 
@@ -170,7 +179,7 @@ Project info:
 
 - `minSdk = 30`
 - `targetSdk = 36`
-- Current app version in the project: `1.9.1`
+- Current app version in the project: `1.10.0` (`versionCode = 46`)
 
 ## License
 

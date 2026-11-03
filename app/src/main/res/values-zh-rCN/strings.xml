@@ -210,20 +210,20 @@
     <string name="changelog_rotation_title">新增屏幕旋转模式</string>
     <string name="changelog_rotation_desc">点击播放器中的旋转按钮即可切换以下模式。你的选择会被保存：</string>
     <string-array name="changelog_item_titles">
-        <item>文件夹浏览更流畅</item>
-        <item>无标签筛选</item>
-        <item>按字母顺序排序</item>
-        <item>提示不再干扰操作</item>
-        <item>移动文件</item>
-        <item>视频预览</item>
+        <item>私密视频恢复</item>
+        <item>更新私密文件夹</item>
+        <item>更快的视频库</item>
+        <item>操作后无需完整重载</item>
+        <item>更可靠的标签备份</item>
+        <item>提示与进度窗口修复</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>加快打开和浏览大量视频文件夹的速度，包括返回主私密文件夹。缩略图会在视频出现在屏幕上时加载。</item>
-        <item>在排序菜单中开启或关闭无标签筛选时，菜单不会关闭。保存标签后，视频会从筛选列表中消失，无需重新加载整个文件夹。</item>
-        <item>按名称排序现在采用字母顺序，以减少处理开销。数字按文本处理：视频 10 会排在视频 2 前面。</item>
-        <item>操作提示不再推动列表显示位置。提示显示时，仍可点击视频和标签。</item>
-        <item>修复移动文件时的文件夹选择器偶尔无法完全展开，并在尝试调整时关闭的问题。</item>
-        <item>调整了视频预览，包括标签对话框中的预览，避免视频缩小显示在播放区域的角落。</item>
+        <item>新建或更新后的私密视频在被其他应用移动或重命名后仍可识别。在普通文件夹中，只有开启私密文件夹显示时才会自动还原。建议通过 NekoVideo 移动视频。</item>
+        <item>输入密码后，可在应用内确认更新旧版私密视频。转换会保留路径和标签，包含子文件夹，并可在中断后继续。</item>
+        <item>视频库在后台更新时，上次的文件夹列表仍可使用。私密文件夹打开更快；在应用外添加的视频会在进入文件夹或返回应用时被发现。</item>
+        <item>删除、移动、重命名和创建文件夹会复用已加载的列表，避免重新检查未更改的视频。设为私密或取消保护后，操作完成即可更新界面，无需等待再次完整扫描。</item>
+        <item>标签每次更改后都会更新备份，修改视频标签时写入的数据更少。导入会验证完整性并保留先前状态的副本。写入失败的更改会保留为待处理任务，以便重试。</item>
+        <item>修复私密文件夹没有待处理任务时仍反复提示的问题，以及取消保护的操作。进度窗口遵循应用主题，无法通过下拉、点击外部或返回键关闭。</item>
     </string-array>
     <string name="changelog_pinned_folders_title">私密文件夹更快</string>
     <string name="changelog_pinned_folders_desc">修复了快速切换私密文件夹中的视频时可能出现卡顿的问题。</string>
@@ -528,4 +528,9 @@
     <string name="player_audio_track_number">音频 %1$d</string>
     <string name="player_track_number">轨道 %1$d</string>
     <string name="tags_backup_save_failed">标签已保存在应用中，但备份失败。稍后将自动重试。</string>
+    <string name="shuffle_progress_filtering">正在准备播放列表…</string>
+    <string name="shuffle_progress_discovering">正在查找视频…</string>
+    <string name="shuffle_progress_private">正在准备私密视频…</string>
+    <string name="shuffle_progress_collecting">正在加载视频列表…</string>
+    <string name="shuffle_progress_building">正在生成播放列表…</string>
 </resources>

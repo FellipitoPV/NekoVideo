@@ -538,8 +538,20 @@ object FilesManager {
         isSecureMode: Boolean,
         showPrivateFolders: Boolean,
         selectedItems: List<String> = emptyList(),
-        sessionPassword: String? = null
+        sessionPassword: String? = null,
+        includedPaths: Set<String>? = null,
+        excludedPaths: Set<String> = emptySet(),
+        preparePlayback: Boolean = true,
+        onPrivateManifest: (String, LockedFolderManifest) -> Unit = { _, _ -> },
+        onDiscovery: (Int) -> Unit = {},
+        onDiscoveryComplete: (Set<String>, Int) -> Unit = { _, _ -> },
+        onFolderCollected: (Int, Int) -> Unit = { _, _ -> }
     ): List<String> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        if (includedPaths?.isEmpty() == true) return@withContext emptyList()
+        fun accepts(path: String) = (includedPaths == null || path in includedPaths) && path !in excludedPaths
+        val candidateDirectories = includedPaths?.flatMapTo(HashSet()) { path ->
+            generateSequence(File(path).parentFile) { it.parentFile }.map { it.path }.toList()
+        }
 
         fun isSecureFolder(folderPath: String): Boolean {
             return folderPath.contains("/.private/") ||
@@ -550,11 +562,54 @@ object FilesManager {
                     File(folderPath, ".nomedia").exists()
         }
 
+        fun canEnterPrivateFolder(directory: File, isSecure: Boolean): Boolean = showPrivateFolders || isSecure ||
+            !(directory.name.startsWith(".") || File(directory, ".nomedia").exists() ||
+                File(directory, ".nekovideo").exists() || FolderLockManager.isLocked(directory.absolutePath))
+
+        fun hasDirectCandidates(children: FolderChildren): Boolean {
+            val directories = children.subfolders.mapTo(HashSet()) { it.path }
+            return children.entries.any { it.path !in directories && !it.name.startsWith(".neko_") &&
+                it.name !in setOf(".nomedia", ".nekovideo") && !it.name.endsWith(".part") }
+        }
+
+        val discovered = mutableMapOf<String, FolderChildren>()
+        val access = mutableMapOf<String, Boolean>()
+        val privateFolders = mutableSetOf<String>()
+        fun discover(path: String, secure: Boolean, recurse: Boolean = true) {
+            if (candidateDirectories != null && path !in candidateDirectories) return
+            val previous = access[path]
+            if (previous == true || (previous == false && !secure)) return
+            val folder = File(path)
+            if (!folder.isDirectory) return
+            val children = discovered.getOrPut(path) { readFolderChildren(folder, emptySet()) }
+            access[path] = secure
+            onDiscovery(discovered.size)
+            val locked = FolderLockManager.isLocked(path) && sessionPassword != null
+            if (locked && hasDirectCandidates(children)) privateFolders += path
+            if (recurse) children.subfolders.forEach { child ->
+                if (child.name != ".neko_thumbs" && canEnterPrivateFolder(child, secure))
+                    discover(child.path, if (locked) true else isSecureFolder(child.path))
+            }
+        }
+
+        if (!preparePlayback) {
+            if (selectedItems.isEmpty()) discover(folderPath, isSecureMode) else selectedItems.forEach { path ->
+                val file = File(path)
+                if (file.isDirectory) discover(path, isSecureFolder(path))
+                else if (file.isFile) file.parent?.let { discover(it, true, recurse = false) }
+            }
+            onDiscoveryComplete(privateFolders, discovered.size)
+        }
+        var collected = 0
+
         fun getLockedVideos(path: String, password: String): List<String> {
-            val cached = com.nkls.nekovideo.components.FolderContentCache.reusable(path, showPrivateFolders, true)
-            if (cached != null) return cached.filterNot { it.isFolder }.map { "locked://${it.path}" }
-            val manifest = FolderLockManager.readManifest(path, password) ?: return emptyList()
-            if (LockedPlaybackSession.sessionPassword == password) {
+            val cached = if (preparePlayback) com.nkls.nekovideo.components.FolderContentCache.reusable(path, showPrivateFolders, true) else null
+            if (cached != null) return cached.filter { !it.isFolder && accepts(it.path) }.map { "locked://${it.path}" }
+            val manifest = (if (preparePlayback) FolderLockManager.readManifest(path, password)
+                else if (PortablePrivateFolders.isPortable(path)) PortablePrivateFolders.manifestForShuffleCandidates(path, password)
+                else FolderLockManager.readManifestForLocalEdit(path, password)) ?: return emptyList()
+            onPrivateManifest(path, manifest)
+            if (preparePlayback && LockedPlaybackSession.sessionPassword == password) {
                 FolderLockManager.getSalt(path)?.let { salt ->
                     val key = FolderLockManager.deriveXorKey(password, salt)
                     try { if (LockedPlaybackSession.sessionPassword == password) {
@@ -562,7 +617,7 @@ object FilesManager {
                     } } finally { key.fill(0) }
                 }
             }
-            return manifest.files.map { entry ->
+            return manifest.files.filter { accepts(File(path, it.obfuscatedName).absolutePath) }.map { entry ->
                 "locked://${File(path, entry.obfuscatedName).absolutePath}"
             }
         }
@@ -571,27 +626,21 @@ object FilesManager {
             val videos = mutableListOf<String>()
             val folder = File(path)
 
+            if (candidateDirectories != null && path !in candidateDirectories) return videos
+
             if (!folder.exists() || !folder.isDirectory) return videos
-            PortablePrivateFolders.restoreExternalArrivals(context, path,
+            val restored = PortablePrivateFolders.restoreExternalArrivals(context, path,
                 sessionPassword ?: LockedPlaybackSession.sessionPassword)
-
-            fun canEnterPrivateFolder(directory: File): Boolean {
-                if (showPrivateFolders || isSecure) return true
-
-                val isPrivateDirectory = directory.name.startsWith(".") ||
-                        File(directory, ".nomedia").exists() ||
-                        File(directory, ".nekovideo").exists() ||
-                        FolderLockManager.isLocked(directory.absolutePath)
-
-                return !isPrivateDirectory
-            }
+            val children = if (restored.isEmpty()) discovered[path] ?: readFolderChildren(folder, emptySet())
+                else readFolderChildren(folder, emptySet())
 
             // If this folder is locked, get videos from manifest and continue scanning subfolders
             if (FolderLockManager.isLocked(path) && sessionPassword != null) {
-                videos.addAll(getLockedVideos(path, sessionPassword))
+                if (hasDirectCandidates(children)) videos.addAll(getLockedVideos(path, sessionPassword))
+                onFolderCollected(++collected, discovered.size)
                 // Continue into subdirectories for recursive locked subfolder support
-                File(path).listFiles()?.forEach { file ->
-                    if (file.isDirectory && file.name !in listOf(".neko_thumbs") && canEnterPrivateFolder(file)) {
+                children.subfolders.forEach { file ->
+                    if (file.name != ".neko_thumbs" && canEnterPrivateFolder(file, isSecure)) {
                         videos.addAll(scanFolder(file.absolutePath, true))
                     }
                 }
@@ -599,15 +648,16 @@ object FilesManager {
             }
 
             try {
-                folder.listFiles()?.forEach { file ->
+                val directories = children.subfolders.mapTo(HashSet()) { it.path }
+                children.entries.forEach { file ->
                     when {
-                        file.isFile && file.extension.lowercase() in listOf(
+                        file.path !in directories && file.isFile && file.extension.lowercase() in listOf(
                             "mp4", "mkv", "webm", "avi", "mov", "wmv", "m4v", "3gp", "flv"
-                        ) && !PortableVideoStore.hasRecoveryRecord(file) -> {
+                        ) && accepts(file.absolutePath) && !PortableVideoStore.hasRecoveryRecord(file) -> {
                             videos.add("file://${file.absolutePath}")
                         }
-                        file.isDirectory && file.name !in listOf(".neko_thumbs") -> {
-                            if (canEnterPrivateFolder(file)) {
+                        file.path in directories && file.name != ".neko_thumbs" -> {
+                            if (canEnterPrivateFolder(file, isSecure)) {
                                 val subFolderSecure = isSecureFolder(file.absolutePath)
                                 videos.addAll(scanFolder(file.absolutePath, subFolderSecure))
                             }
@@ -615,8 +665,10 @@ object FilesManager {
                     }
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 android.util.Log.e("FilesManager", "Erro ao escanear: $path", e)
             }
+            onFolderCollected(++collected, discovered.size)
 
             return videos
         }
@@ -632,7 +684,12 @@ object FilesManager {
                         val isSelectedSecure = isSecureFolder(selectedPath)
                         allVideos.addAll(scanFolder(selectedPath, isSelectedSecure))
                     }
-                    file.isFile && !PortableVideoStore.hasRecoveryRecord(file) -> {
+                    file.isFile && accepts(selectedPath) && sessionPassword != null &&
+                        FolderLockManager.isLocked(checkNotNull(file.parent)) -> {
+                        allVideos.addAll(getLockedVideos(checkNotNull(file.parent), sessionPassword)
+                            .filter { it == "locked://$selectedPath" })
+                    }
+                    file.isFile && accepts(selectedPath) && !PortableVideoStore.hasRecoveryRecord(file) -> {
                         allVideos.add("file://$selectedPath")
                     }
                 }

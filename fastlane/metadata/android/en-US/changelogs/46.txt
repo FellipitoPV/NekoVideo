@@ -1,0 +1,5 @@
+Easier recovery of private videos after external moves. Update older videos in the app, with resumable conversion. Restoration respects private visibility.
+
+Browse your library during the initial scan, open folders faster, and update lists without rechecking unchanged videos.
+
+Tag backups after each change, integrity checks on import, and automatic retries after failed saves.

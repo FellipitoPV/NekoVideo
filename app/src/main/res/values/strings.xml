@@ -215,20 +215,20 @@
     <string name="changelog_rotation_title">Novos modos de rotação</string>
     <string name="changelog_rotation_desc">Toque no botão de rotação do player para alternar entre estes modos. Sua escolha fica salva:</string>
     <string-array name="changelog_item_titles">
-        <item>Pastas mais rápidas</item>
-        <item>Filtro Sem tags</item>
-        <item>Ordenação alfabética</item>
-        <item>Avisos sem interromper</item>
-        <item>Mover arquivos</item>
-        <item>Preview de vídeos</item>
+        <item>Recuperação de vídeos privados</item>
+        <item>Atualize suas pastas privadas</item>
+        <item>Biblioteca mais rápida</item>
+        <item>Ações sem recarregar tudo</item>
+        <item>Backups de TAGs mais confiáveis</item>
+        <item>Ajustes nos avisos e no progresso</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Abertura e navegação mais rápidas em pastas com muitos vídeos, incluindo o retorno à pasta privada principal. As miniaturas são carregadas conforme os vídeos aparecem na tela.</item>
-        <item>Ative ou desative Sem tags no menu de ordenação sem fechar o menu. Ao salvar uma tag, o vídeo sai do filtro sem recarregar a pasta inteira.</item>
-        <item>A ordenação por nome agora usa ordem alfabética para reduzir o processamento. Números são tratados como texto: vídeo 10 aparece antes de vídeo 2.</item>
-        <item>Os avisos de ações não deslocam mais a lista e permitem tocar nos vídeos e nas tags enquanto estão visíveis.</item>
-        <item>Corrigida a abertura do seletor de pastas ao mover arquivos, que às vezes aparecia parcialmente e fechava ao tentar ajustá-lo.</item>
-        <item>Ajustado o preview, inclusive no diálogo de tags, para evitar que o vídeo apareça pequeno no canto da área de reprodução.</item>
+        <item>Vídeos privados novos ou atualizados podem ser reconhecidos após movimentações e renomeações externas. Em pastas comuns, a restauração automática só acontece com as pastas privadas visíveis. Prefira mover os vídeos pelo NekoVideo.</item>
+        <item>Após informar a senha, confirme a atualização dos vídeos privados antigos pelo próprio app. A conversão mantém caminhos e TAGs, inclui subpastas e pode ser retomada se for interrompida.</item>
+        <item>Sua última lista de pastas fica disponível enquanto a biblioteca é atualizada em segundo plano. A abertura de pastas privadas ficou mais rápida, e vídeos recebidos por fora são detectados ao entrar na pasta ou voltar ao app.</item>
+        <item>Excluir, mover, renomear e criar pastas reaproveitam as listas carregadas, evitando reconferir os vídeos inalterados. Privar e desprivar atualizam a tela ao concluir a operação, sem esperar outro scan completo.</item>
+        <item>Os backups acompanham cada alteração de TAGs, com gravações menores ao editar os vídeos. A importação verifica a integridade e preserva uma cópia do estado anterior. Falhas de gravação ficam pendentes para nova tentativa.</item>
+        <item>Corrigidos avisos repetidos sobre pastas privadas sem pendências reais e a opção Desprivar no menu de ações. As janelas de progresso acompanham o tema e não podem ser fechadas por arraste, toque fora ou Voltar.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Pastas privadas mais rápidas</string>
     <string name="changelog_pinned_folders_desc">Corrigido um problema que podia causar travamentos ao trocar rapidamente entre vídeos de pastas privadas.</string>
@@ -568,4 +568,9 @@
     <string name="tag_sync_revoke">Desconectar NekoVideo Debug</string>
     <string name="tag_sync_unavailable">Atualize o NekoVideo normal e autorize a conexão para usar suas TAGs.</string>
     <string name="tag_sync_restore_in_normal">Restaure backups pelo NekoVideo normal enquanto as TAGs estiverem compartilhadas.</string>
+    <string name="shuffle_progress_filtering">Preparando playlist…</string>
+    <string name="shuffle_progress_discovering">Localizando vídeos…</string>
+    <string name="shuffle_progress_private">Preparando vídeos privados…</string>
+    <string name="shuffle_progress_collecting">Carregando lista de vídeos…</string>
+    <string name="shuffle_progress_building">Montando playlist…</string>
 </resources>

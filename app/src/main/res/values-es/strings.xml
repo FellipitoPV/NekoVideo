@@ -212,20 +212,20 @@
     <string name="changelog_rotation_title">Nuevos modos de rotación</string>
     <string name="changelog_rotation_desc">Toca el botón de rotación del reproductor para cambiar entre estos modos. Tu elección se guarda:</string>
     <string-array name="changelog_item_titles">
-        <item>Carpetas más rápidas</item>
-        <item>Filtro Sin tags</item>
-        <item>Orden alfabético</item>
-        <item>Avisos sin interrupciones</item>
-        <item>Mover archivos</item>
-        <item>Vista previa de vídeos</item>
+        <item>Recuperación de vídeos privados</item>
+        <item>Actualiza tus carpetas privadas</item>
+        <item>Biblioteca más rápida</item>
+        <item>Acciones sin recargar todo</item>
+        <item>Copias de tags más fiables</item>
+        <item>Ajustes en avisos y progreso</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Apertura y navegación más rápidas en carpetas con muchos vídeos, incluido el regreso a la carpeta privada principal. Las miniaturas se cargan a medida que los vídeos aparecen en pantalla.</item>
-        <item>Activa o desactiva Sin tags en el menú de ordenación sin cerrarlo. Al guardar un tag, el vídeo desaparece de la lista filtrada sin recargar toda la carpeta.</item>
-        <item>La ordenación por nombre ahora usa el orden alfabético para reducir el procesamiento. Los números se tratan como texto: vídeo 10 aparece antes que vídeo 2.</item>
-        <item>Los avisos de acciones ya no desplazan la lista y permiten tocar los vídeos y los tags mientras están visibles.</item>
-        <item>Corregido el selector de carpetas al mover archivos: a veces se abría parcialmente y se cerraba al intentar ajustarlo.</item>
-        <item>Ajustada la vista previa, también en el diálogo de tags, para evitar que el vídeo aparezca pequeño en una esquina del área de reproducción.</item>
+        <item>Los vídeos privados nuevos o actualizados pueden reconocerse tras moverlos o renombrarlos con otras apps. En carpetas normales, la restauración automática solo se realiza con las carpetas privadas visibles. Es preferible mover los vídeos desde NekoVideo.</item>
+        <item>Tras introducir la contraseña, confirma la actualización de los vídeos privados antiguos desde la app. La conversión conserva rutas y tags, incluye subcarpetas y puede reanudarse si se interrumpe.</item>
+        <item>La última lista de carpetas sigue disponible mientras la biblioteca se actualiza en segundo plano. Las carpetas privadas se abren más rápido y los vídeos añadidos desde fuera se detectan al entrar en la carpeta o volver a la app.</item>
+        <item>Al eliminar, mover, renombrar o crear carpetas, se reutilizan las listas cargadas sin volver a comprobar los vídeos sin cambios. Al hacer privada una carpeta o quitarle la protección, la pantalla se actualiza al terminar, sin esperar otro análisis completo.</item>
+        <item>Las copias de seguridad siguen cada cambio de tags, con escrituras más pequeñas al editar los vídeos. La importación comprueba la integridad y conserva una copia del estado anterior. Los fallos de guardado quedan pendientes para reintentarlos.</item>
+        <item>Corregidos los avisos repetidos de carpetas privadas sin tareas pendientes y la acción para quitar la protección. Los diálogos de progreso respetan el tema y no se cierran al arrastrar, tocar fuera ni pulsar Atrás.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Carpetas privadas más rápidas</string>
     <string name="changelog_pinned_folders_desc">Se corrigió un problema que podía causar bloqueos al cambiar rápidamente entre videos de carpetas privadas.</string>
@@ -567,4 +567,9 @@
     <string name="tag_sync_unavailable">Actualiza NekoVideo normal y autoriza la conexión para usar sus etiquetas.</string>
     <string name="tag_sync_restore_in_normal">Restaura las copias de seguridad desde NekoVideo normal mientras las etiquetas estén compartidas.</string>
     <string name="tags_backup_save_failed">Las TAGs se guardaron en la aplicación, pero la copia de seguridad falló. Se volverá a intentar automáticamente.</string>
+    <string name="shuffle_progress_filtering">Preparando lista de reproducción…</string>
+    <string name="shuffle_progress_discovering">Buscando vídeos…</string>
+    <string name="shuffle_progress_private">Preparando vídeos privados…</string>
+    <string name="shuffle_progress_collecting">Cargando lista de vídeos…</string>
+    <string name="shuffle_progress_building">Montando lista de reproducción…</string>
 </resources>

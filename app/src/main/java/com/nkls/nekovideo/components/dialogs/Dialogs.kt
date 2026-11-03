@@ -1428,7 +1428,8 @@ fun DeleteVideoDialog(
 @Composable
 fun ProcessingDialog(
     title: String,
-    message: String
+    message: String,
+    progress: Float? = null
 ) {
     NonDismissibleBottomSheet(
         title = title,
@@ -1440,7 +1441,13 @@ fun ProcessingDialog(
             bottom = 28.dp
         )
     ) {
-        CircularProgressIndicator(
+        if (progress == null) CircularProgressIndicator(
+            modifier = Modifier.size(36.dp),
+            strokeWidth = 3.dp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        )
+        else CircularProgressIndicator(
+            progress = { progress.coerceIn(0f, 1f) },
             modifier = Modifier.size(36.dp),
             strokeWidth = 3.dp,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
@@ -1451,6 +1458,11 @@ fun ProcessingDialog(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
+        )
+        if (progress != null) Text(
+            text = java.text.NumberFormat.getPercentInstance().format(progress.coerceIn(0f, 1f)),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }

@@ -11,10 +11,14 @@ import java.security.SecureRandom
 import java.util.Base64
 import java.util.UUID
 import javax.crypto.Cipher
-import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 /**
  * Versioned portable private-file format. Payload protection intentionally remains the legacy 8 KiB XOR scheme;
@@ -80,9 +84,36 @@ class PortableVideoStore(
             require(salt.size == 16)
             return keys.getOrPut(Base64.getEncoder().encodeToString(salt)) {
                 derivations++
-                val spec = PBEKeySpec(password, salt, ITERATIONS, 256)
-                try { SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded }
-                finally { spec.clearPassword() }
+                derive(salt)
+            }
+        }
+
+        private fun derive(salt: ByteArray): ByteArray = PortableKeyDerivation.derive256(password, salt, ITERATIONS)
+
+        /** Owner serializes use/close. Only independent KDF computations run concurrently. */
+        internal fun prewarm(salts: Collection<ByteArray>, checkActive: () -> Unit = {},
+                             onProgress: (Int, Int) -> Unit = { _, _ -> }) {
+            requireOpen()
+            salts.forEach { require(it.size == 16) }
+            val missing = salts.associateBy { Base64.getEncoder().encodeToString(it) }.filterKeys { it !in keys }
+            onProgress(0, missing.size)
+            runBlocking {
+                val workers = (Runtime.getRuntime().availableProcessors() - 2).coerceIn(1, 6)
+                val gate = Semaphore(workers)
+                val results = Channel<Pair<String, ByteArray>>(workers, onUndeliveredElement = { it.second.fill(0) })
+                try {
+                    checkActive()
+                    missing.forEach { (id, salt) -> launch(Dispatchers.Default) {
+                        gate.withPermit { results.send(id to derive(salt)) }
+                    } }
+                    repeat(missing.size) { completed ->
+                        checkActive()
+                        val (id, key) = results.receive()
+                        keys[id] = key
+                        derivations++
+                        onProgress(completed + 1, missing.size)
+                    }
+                } finally { results.cancel() }
             }
         }
 

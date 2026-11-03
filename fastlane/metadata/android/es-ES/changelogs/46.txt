@@ -1,0 +1,5 @@
+Recuperación mejorada de vídeos privados tras movimientos externos. Actualiza los vídeos antiguos desde la app con conversión reanudable. La restauración respeta la visibilidad privada.
+
+Biblioteca disponible durante el análisis inicial, carpetas más rápidas y listas actualizadas sin revisar vídeos sin cambios.
+
+Copias de tags tras cada cambio, importación con verificación de integridad y reintentos automáticos si falla el guardado.

@@ -212,20 +212,20 @@
     <string name="changelog_rotation_title">New rotation modes</string>
     <string name="changelog_rotation_desc">Tap the rotation button in the player to switch between these modes. Your choice is saved:</string>
     <string-array name="changelog_item_titles">
-        <item>Faster folders</item>
-        <item>No tags filter</item>
-        <item>Alphabetical sorting</item>
-        <item>Unobtrusive messages</item>
-        <item>Moving files</item>
-        <item>Video previews</item>
+        <item>Private video recovery</item>
+        <item>Update your private folders</item>
+        <item>Faster library</item>
+        <item>Actions without full reloads</item>
+        <item>More reliable tag backups</item>
+        <item>Messages and progress fixes</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Open and browse folders with many videos faster, including returning to the main private folder. Thumbnails load as videos appear on screen.</item>
-        <item>Toggle No tags in the sort menu without closing it. After saving a tag, the video leaves the filtered list without reloading the entire folder.</item>
-        <item>Sorting by name now uses alphabetical order to reduce processing. Numbers are treated as text: video 10 appears before video 2.</item>
-        <item>Action messages no longer shift the list and let you tap videos and tags while they are visible.</item>
-        <item>Fixed the folder picker when moving files: it could open only partially and close when you tried to adjust it.</item>
-        <item>Adjusted previews, including in the tags dialog, to prevent videos from appearing small in the corner of the playback area.</item>
+        <item>New or updated private videos can be recognized after external moves and renames. In ordinary folders, automatic restoration only runs while private folders are visible. Prefer moving videos through NekoVideo.</item>
+        <item>After entering your password, confirm the update of older private videos within the app. Conversion preserves paths and tags, includes subfolders, and can resume if interrupted.</item>
+        <item>Your last folder list stays available while the library updates in the background. Private folders open faster, and videos added outside the app are detected when entering the folder or returning to the app.</item>
+        <item>Deleting, moving, renaming, and creating folders reuse loaded lists instead of rechecking unchanged videos. Making folders private or removing protection updates the screen when the operation finishes, without waiting for another full scan.</item>
+        <item>Backups follow each tag change, with smaller writes when editing video tags. Imports verify integrity and preserve a copy of the previous state. Failed writes remain pending for another attempt.</item>
+        <item>Fixed repeated private-folder warnings without actual pending work and the Remove protection action. Progress dialogs follow the app theme and cannot be dismissed by dragging, tapping outside, or pressing Back.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Faster private folders</string>
     <string name="changelog_pinned_folders_desc">Fixed an issue that could cause stutters when quickly switching between videos in private folders.</string>
@@ -568,4 +568,9 @@
     <string name="tag_sync_revoke">Disconnect NekoVideo Debug</string>
     <string name="tag_sync_unavailable">Update the normal NekoVideo app and authorize the connection to use its tags.</string>
     <string name="tag_sync_restore_in_normal">Restore backups in the normal NekoVideo app while tags are shared.</string>
+    <string name="shuffle_progress_filtering">Preparing playlist…</string>
+    <string name="shuffle_progress_discovering">Finding videos…</string>
+    <string name="shuffle_progress_private">Preparing private videos…</string>
+    <string name="shuffle_progress_collecting">Loading video list…</string>
+    <string name="shuffle_progress_building">Building playlist…</string>
 </resources>

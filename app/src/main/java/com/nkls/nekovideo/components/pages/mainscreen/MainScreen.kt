@@ -96,10 +96,13 @@ import com.nkls.nekovideo.components.PasswordDialog
 import com.nkls.nekovideo.components.ProcessingDialog
 import com.nkls.nekovideo.components.PrivateMigrationCoordinator
 import com.nkls.nekovideo.components.ShuffleTagsDialog
+import com.nkls.nekovideo.components.ShuffleProgressDialog
 import com.nkls.nekovideo.components.ShuffleTagFilter
 import com.nkls.nekovideo.components.VideoTagsDialog
 import com.nkls.nekovideo.components.buildVideoPreviewUri
 import com.nkls.nekovideo.components.helpers.BiometricHelper
+import com.nkls.nekovideo.components.helpers.ShufflePlaylistBuilder
+import com.nkls.nekovideo.components.helpers.ShuffleProgress
 import com.nkls.nekovideo.components.LockedRenameDialog
 import com.nkls.nekovideo.components.RenameDialog
 import com.nkls.nekovideo.components.SortType
@@ -252,6 +255,7 @@ fun MainScreen(
     var isMoving by remember { mutableStateOf(false) }
     var isDeleting by remember { mutableStateOf(false) }
     var isShuffling by remember { mutableStateOf(false) }
+    val shuffleProgressFlow = remember { kotlinx.coroutines.flow.MutableStateFlow(ShuffleProgress()) }
     var moveProgress by remember { mutableStateOf("") }
     var deleteProgress by remember { mutableStateOf("") }
     var lockProgress by remember { mutableStateOf("") }
@@ -482,66 +486,20 @@ fun MainScreen(
     }
 
     suspend fun playShuffledVideos(tagFilter: ShuffleTagFilter? = null) {
-        val tagScope = currentTagScope()
-        val videos = FilesManager.getVideosRecursive(
+        val shuffleCandidates = ShufflePlaylistBuilder.build(
             context = context,
             folderPath = folderPath,
             isSecureMode = isSecureFolder(folderPath),
             showPrivateFolders = showPrivateFolders,
             selectedItems = selectedItems.toList(),
-            sessionPassword = sessionPassword
+            password = sessionPassword,
+            tagScope = currentTagScope(),
+            filter = tagFilter,
+            limit = MAX_SHUFFLE_PLAYLIST_SIZE,
+            onProgress = { shuffleProgressFlow.value = it }
         )
 
-        val filteredVideos = if (tagFilter == null) {
-            videos
-        } else {
-            val requiredPaths = withContext(Dispatchers.IO) {
-                VideoTagStore.getVideoPathsForAllTagIds(context, tagFilter.requiredTagIds, tagScope)
-            }
-            val includePaths = withContext(Dispatchers.IO) {
-                VideoTagStore.getVideoPathsForAnyTagIds(context, tagFilter.includeTagIds, tagScope)
-            }
-            val excludePaths = withContext(Dispatchers.IO) {
-                VideoTagStore.getVideoPathsForAnyTagIds(context, tagFilter.excludeTagIds, tagScope)
-            }
-            videos.filter { path ->
-                val normalizedPath = path.removePrefix("locked://").removePrefix("file://")
-                val matchesRequired = tagFilter.requiredTagIds.isEmpty() || normalizedPath in requiredPaths
-                val matchesInclude = tagFilter.includeTagIds.isEmpty() || normalizedPath in includePaths
-                val matchesExclude = normalizedPath in excludePaths
-                matchesRequired && matchesInclude && !matchesExclude
-            }
-        }
-
-        if (filteredVideos.isNotEmpty()) {
-            val shuffleCandidates = if (filteredVideos.size > MAX_SHUFFLE_PLAYLIST_SIZE) {
-                filteredVideos.shuffled().take(MAX_SHUFFLE_PLAYLIST_SIZE)
-            } else {
-                filteredVideos
-            }
-
-            val lockedVideos = shuffleCandidates.filter { it.startsWith("locked://") }
-            if (lockedVideos.isNotEmpty()) {
-                val pwd = sessionPassword
-                if (pwd != null) {
-                    val lockedFolderPaths = lockedVideos
-                        .map { it.removePrefix("locked://") }
-                        .mapNotNull { File(it).parent }
-                        .distinct()
-
-                    for (lockedPath in lockedFolderPaths) {
-                        if (!LockedPlaybackSession.hasSessionForFolder(lockedPath)) {
-                            val salt = FolderLockManager.getSalt(lockedPath)
-                            val manifest = FolderLockManager.readManifest(lockedPath, pwd)
-                            if (salt != null && manifest != null) {
-                                val xorKey = FolderLockManager.deriveXorKey(pwd, salt)
-                                LockedPlaybackSession.start(xorKey, manifest, lockedPath, pwd)
-                            }
-                        }
-                    }
-                }
-            }
-
+        if (shuffleCandidates.isNotEmpty()) {
             val castManager = DLNACastManager.getInstance(context)
             if (castManager.isConnected) {
                 val shuffled = shuffleCandidates.shuffled()
@@ -570,6 +528,7 @@ fun MainScreen(
 
     fun executeShufflePlayback(tagFilter: ShuffleTagFilter? = null) {
         coroutineScope.launch {
+            shuffleProgressFlow.value = ShuffleProgress()
             isShuffling = true
             try {
                 playShuffledVideos(tagFilter)
@@ -1059,10 +1018,7 @@ fun MainScreen(
     }
 
     if (isShuffling) {
-        ProcessingDialog(
-            title = context.getString(R.string.action_shuffle_play),
-            message = context.getString(R.string.indexing_videos)
-        )
+        ShuffleProgressDialog(shuffleProgressFlow)
     }
 
     if (showMoveDestinationDialog) {

@@ -12,6 +12,19 @@ import org.junit.rules.TemporaryFolder
 class PortableVideoStoreTest {
     @get:Rule val temporary = TemporaryFolder()
 
+    @Test fun boundedParallelWarmupKeepsTheSameKeysAndDeduplicatesSalts() {
+        val salts = (0..3).map { seed -> ByteArray(16) { (it + seed).toByte() } }
+        PortableVideoStore.Keyring("parallel-test".toCharArray()).use { warmed ->
+            warmed.prewarm(salts + salts.first())
+            assertEquals(4, warmed.derivations)
+            PortableVideoStore.Keyring("parallel-test".toCharArray()).use { serial ->
+                salts.forEach { assertArrayEquals(serial.key(it), warmed.key(it)) }
+            }
+            warmed.prewarm(salts)
+            assertEquals(4, warmed.derivations)
+        }
+    }
+
     private fun fixture(test: (PortableVideoStore, File, File, PortableVideoStore.Entry,
         PortableVideoStore.Keyring, ByteArray) -> Unit) {
         val lab = PortableVideoStore(temporary.newFolder())
