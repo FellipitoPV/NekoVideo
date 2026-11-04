@@ -1,5 +1,5 @@
 Récupération améliorée des vidéos privées déplacées ailleurs. Conversion des anciennes vidéos dans l’app, avec reprise possible et respect de la visibilité privée.
 
-Bibliothèque accessible pendant l’analyse initiale, dossiers plus rapides et listes actualisées sans revérifier les vidéos inchangées.
+Bibliothèque accessible pendant l’analyse. Dossiers et lecture aléatoire plus rapides, avec progression en pourcentage. Listes actualisées sans revérifier les vidéos inchangées.
 
 Sauvegarde des tags après chaque modification, vérification de l’intégrité à l’importation et nouvelles tentatives automatiques en cas d’échec d’écriture.

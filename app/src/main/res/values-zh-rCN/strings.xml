@@ -220,7 +220,7 @@
     <string-array name="changelog_item_descriptions">
         <item>新建或更新后的私密视频在被其他应用移动或重命名后仍可识别。在普通文件夹中，只有开启私密文件夹显示时才会自动还原。建议通过 NekoVideo 移动视频。</item>
         <item>输入密码后，可在应用内确认更新旧版私密视频。转换会保留路径和标签，包含子文件夹，并可在中断后继续。</item>
-        <item>视频库在后台更新时，上次的文件夹列表仍可使用。私密文件夹打开更快；在应用外添加的视频会在进入文件夹或返回应用时被发现。</item>
+        <item>视频库在后台更新时，上次的文件夹列表仍可使用。私密文件夹打开更快；在应用外添加的视频会在进入文件夹或返回应用时被发现。 私密视频的随机播放列表准备更快，并显示当前阶段和准备进度百分比。</item>
         <item>删除、移动、重命名和创建文件夹会复用已加载的列表，避免重新检查未更改的视频。设为私密或取消保护后，操作完成即可更新界面，无需等待再次完整扫描。</item>
         <item>标签每次更改后都会更新备份，修改视频标签时写入的数据更少。导入会验证完整性并保留先前状态的副本。写入失败的更改会保留为待处理任务，以便重试。</item>
         <item>修复私密文件夹没有待处理任务时仍反复提示的问题，以及取消保护的操作。进度窗口遵循应用主题，无法通过下拉、点击外部或返回键关闭。</item>
@@ -533,4 +533,28 @@
     <string name="shuffle_progress_private">正在准备私密视频…</string>
     <string name="shuffle_progress_collecting">正在加载视频列表…</string>
     <string name="shuffle_progress_building">正在生成播放列表…</string>
+    <string name="password_save_failed">无法保存密码。请在关闭应用前重试。</string>
+    <string name="password_cleanup_failed">密码已保存。部分旧的恢复数据无法删除。</string>
+    <string name="private_migration_title">更新私密视频</string>
+    <plurals name="private_migration_offer">
+        <item quantity="other">在 %2$d 个私密文件夹中发现 %1$d 个使用旧格式的视频。\n\n此次加密格式改进支持在视频被其他应用移动或重命名后恢复。视频仍保持私密，并继续使用当前密码。\n\n你可以立即更新或稍后再更新。</item>
+    </plurals>
+    <string name="private_migration_update">立即更新</string>
+    <string name="private_migration_later">稍后</string>
+    <string name="private_migration_progress">正在更新私密视频… %1$d/%2$d</string>
+    <string name="private_migration_complete">已更新 %1$d 个视频。</string>
+    <string name="private_migration_partial">已更新 %1$d 个视频。%2$d 个文件夹需要重试。待处理文件已保留。</string>
+    <string name="private_migration_unavailable">无法检查 %1$d 个私密文件夹。文件已保留。</string>
+    <string name="private_migration_retry">更新尚未完成。视频仍保持私密；请在解锁私密访问后重试。</string>
+    <string name="tag_sync_title">共享标签</string>
+    <string name="tag_sync_description">在 Debug 中使用正式版 NekoVideo 的标签及其与视频的关联。Debug 的本地列表不会发送至正式版。</string>
+    <string name="tag_sync_connected_description">两个应用使用同一列表。更改和备份由正式版 NekoVideo 保存。</string>
+    <string name="tag_sync_authorize_title">与 Debug 共享标签</string>
+    <string name="tag_sync_authorize_description">NekoVideo Debug 将能够读取和修改你的普通标签、私密标签及其与视频的关联。此应用的当前数据库仍是唯一数据来源。</string>
+    <string name="tag_sync_allow">允许连接</string>
+    <string name="tag_sync_connect">连接至 NekoVideo</string>
+    <string name="tag_sync_disconnect">断开连接</string>
+    <string name="tag_sync_revoke">断开 NekoVideo Debug</string>
+    <string name="tag_sync_unavailable">请更新正式版 NekoVideo 并授权连接，以使用其标签。</string>
+    <string name="tag_sync_restore_in_normal">共享标签期间，请在正式版 NekoVideo 中恢复备份。</string>
 </resources>

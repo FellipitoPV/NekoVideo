@@ -220,7 +220,7 @@
     <string-array name="changelog_item_descriptions">
         <item>Les vidéos privées nouvelles ou mises à jour peuvent être reconnues après un déplacement ou un renommage externe. Dans les dossiers ordinaires, la restauration automatique exige que les dossiers privés soient visibles. Privilégiez les déplacements via NekoVideo.</item>
         <item>Après avoir saisi le mot de passe, confirmez la mise à jour des anciennes vidéos privées dans l’application. La conversion conserve les chemins et les tags, inclut les sous-dossiers et peut reprendre après une interruption.</item>
-        <item>La dernière liste de dossiers reste disponible pendant la mise à jour de la bibliothèque en arrière-plan. Les dossiers privés s’ouvrent plus vite. Les vidéos ajoutées ailleurs sont détectées à l’ouverture du dossier ou au retour dans l’application.</item>
+        <item>La dernière liste de dossiers reste disponible pendant la mise à jour de la bibliothèque en arrière-plan. Les dossiers privés s’ouvrent plus vite. Les vidéos ajoutées ailleurs sont détectées à l’ouverture du dossier ou au retour dans l’application. La lecture aléatoire des vidéos privées est plus rapide et affiche désormais l’étape et le pourcentage de préparation.</item>
         <item>La suppression, le déplacement, le renommage et la création de dossiers réutilisent les listes chargées sans revérifier les vidéos inchangées. Activer ou retirer la protection privée actualise l’écran en fin d’opération, sans attendre une nouvelle analyse complète.</item>
         <item>Les sauvegardes suivent chaque modification des tags, avec des écritures plus petites pour les vidéos modifiées. L’importation vérifie l’intégrité et conserve une copie de l’état précédent. Les échecs d’écriture restent en attente d’une nouvelle tentative.</item>
         <item>Correction des avertissements répétés de dossiers privés sans tâche en attente et de l’action de retrait de la protection. Les fenêtres de progression suivent le thème et ne se ferment ni par glissement, ni en touchant à l’extérieur, ni avec Retour.</item>
@@ -547,4 +547,29 @@
     <string name="shuffle_progress_private">Préparation des vidéos privées…</string>
     <string name="shuffle_progress_collecting">Chargement de la liste des vidéos…</string>
     <string name="shuffle_progress_building">Création de la liste de lecture…</string>
+    <string name="password_save_failed">Impossible d’enregistrer le mot de passe. Réessayez avant de fermer l’application.</string>
+    <string name="password_cleanup_failed">Mot de passe enregistré. Certaines anciennes données de récupération n’ont pas pu être supprimées.</string>
+    <string name="private_migration_title">Mettre à jour les vidéos privées</string>
+    <plurals name="private_migration_offer">
+        <item quantity="one">Nous avons trouvé %1$d vidéo dans %2$d dossiers privés utilisant l’ancien format.\n\nCette amélioration du format de chiffrement permet la récupération après un déplacement ou un renommage externe. Vos vidéos restent privées et conservent le mot de passe actuel.\n\nVous pouvez les mettre à jour maintenant ou plus tard.</item>
+        <item quantity="other">Nous avons trouvé %1$d vidéos dans %2$d dossiers privés utilisant l’ancien format.\n\nCette amélioration du format de chiffrement permet la récupération après un déplacement ou un renommage externe. Vos vidéos restent privées et conservent le mot de passe actuel.\n\nVous pouvez les mettre à jour maintenant ou plus tard.</item>
+    </plurals>
+    <string name="private_migration_update">Mettre à jour</string>
+    <string name="private_migration_later">Plus tard</string>
+    <string name="private_migration_progress">Mise à jour des vidéos privées… %1$d/%2$d</string>
+    <string name="private_migration_complete">Vidéos mises à jour : %1$d.</string>
+    <string name="private_migration_partial">Vidéos mises à jour : %1$d. Une nouvelle tentative est nécessaire pour %2$d dossiers. Les fichiers en attente ont été conservés.</string>
+    <string name="private_migration_unavailable">Impossible de vérifier %1$d dossiers privés. Les fichiers ont été conservés.</string>
+    <string name="private_migration_retry">La mise à jour n’est pas terminée. Vos vidéos restent privées ; réessayez après avoir déverrouillé l’accès privé.</string>
+    <string name="tag_sync_title">Tags partagés</string>
+    <string name="tag_sync_description">Utilisez les tags et les associations aux vidéos de NekoVideo normal dans Debug. La liste locale de Debug ne sera pas envoyée à l’application normale.</string>
+    <string name="tag_sync_connected_description">Les deux applications utilisent la même liste. Les modifications et les sauvegardes sont enregistrées par NekoVideo normal.</string>
+    <string name="tag_sync_authorize_title">Partager les tags avec Debug</string>
+    <string name="tag_sync_authorize_description">NekoVideo Debug pourra lire et modifier vos tags normaux et privés ainsi que leurs associations aux vidéos. La base actuelle de cette application reste la source unique.</string>
+    <string name="tag_sync_allow">Autoriser la connexion</string>
+    <string name="tag_sync_connect">Connecter à NekoVideo</string>
+    <string name="tag_sync_disconnect">Déconnecter</string>
+    <string name="tag_sync_revoke">Déconnecter NekoVideo Debug</string>
+    <string name="tag_sync_unavailable">Mettez à jour NekoVideo normal et autorisez la connexion pour utiliser ses tags.</string>
+    <string name="tag_sync_restore_in_normal">Restaurez les sauvegardes dans NekoVideo normal tant que les tags sont partagés.</string>
 </resources>

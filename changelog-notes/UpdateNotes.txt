@@ -4,7 +4,7 @@ Anotações para próxima atualização
 
 As mudanças anteriores foram incluídas na versão 1.9.1 (código 45).
 
-Preparação da versão 1.10.0 (código 46): arquivos e textos validados por build e testes automatizados; em testes de uso antes da publicação. A tag continua pendente. As anotações abaixo permanecem como referência.
+Versão 1.10.0 (código 46): preparação e revisão final concluídas, com validação por build, testes automatizados e testes de uso no aparelho. Publicação autorizada com a tag v1.10.0. As anotações abaixo permanecem como referência.
 
 27/10/2026
 
@@ -52,3 +52,7 @@ Preparação da versão 1.10.0 (código 46): arquivos e textos validados por bui
 - Shuffle de pastas privadas mais rápido, com e sem TAGs: filtra os vídeos antes de preparar a playlist e reaproveita as informações já verificadas.
 - A montagem prepara apenas os vídeos que entram no limite da playlist, mantendo a recuperação após movimentações e renomeações externas e o suporte ao formato privado antigo.
 - O diálogo do shuffle agora mostra a porcentagem e a etapa atual da preparação, com progresso ligado ao trabalho concluído.
+
+04/11/2026
+
+- Revisão final dos textos da versão 1.10.0, incluindo o shuffle com porcentagem nos changelogs e completando traduções dos avisos de senha, conversão privada e conexão de TAGs que ainda usavam o idioma padrão.

@@ -1,5 +1,5 @@
 Private Videos nach externem Verschieben leichter wiederherstellen. Ältere Videos in der App umstellen und bei Bedarf fortsetzen. Die private Sichtbarkeit wird beachtet.
 
-Bibliothek schon während des ersten Scans nutzen, Ordner schneller öffnen und Listen ohne erneute Prüfung unveränderter Videos aktualisieren.
+Bibliothek während des Scans nutzen. Schnellere Ordner und Zufallswiedergabe mit Prozentanzeige beim Vorbereiten. Listen ohne erneute Prüfung unveränderter Videos aktualisieren.
 
 Tag-Sicherungen nach jeder Änderung, Integritätsprüfung beim Import und automatische Wiederholungen bei fehlgeschlagenem Speichern.

@@ -1,5 +1,5 @@
 Vídeos privados mais fáceis de recuperar após movimentos externos. Atualize os vídeos antigos pelo app, com opção de retomar a conversão. A restauração respeita a visibilidade privada.
 
-Biblioteca disponível durante o scan inicial, pastas mais rápidas e listas atualizadas sem reconferir vídeos inalterados.
+Biblioteca disponível durante o scan inicial, pastas e modo aleatório mais rápidos, com porcentagem ao preparar a playlist. Listas atualizadas sem reconferir vídeos inalterados.
 
 Backups de TAGs a cada alteração, importação com verificação de integridade e nova tentativa automática quando houver falha ao salvar.

@@ -45,7 +45,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 
 - Uses Media3 / ExoPlayer for local playback
 - Folder playback with playlist navigation
-- Shuffle playback for the current folder tree, respecting private-folder visibility and confirming before replacing an active playlist
+- Shuffle playback for the current folder tree, respecting private-folder visibility and confirming before replacing an active playlist; preparation shows its current stage and percentage
 - Double-tap seek with configurable skip duration
 - Gesture-based seeking in the player, including stacked double-tap skips
 - Vertical swipe gestures for volume and brightness control
