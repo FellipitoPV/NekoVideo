@@ -65,6 +65,7 @@ import androidx.compose.ui.text.style.TextAlign
 import android.content.ContextWrapper
 import androidx.compose.material.icons.filled.Favorite
 import androidx.fragment.app.FragmentActivity
+import com.nkls.nekovideo.components.HandleDragModalBottomSheet
 import com.nkls.nekovideo.components.ChangePasswordDialog
 import com.nkls.nekovideo.components.PasswordDialog
 import com.nkls.nekovideo.components.helpers.BiometricHelper
@@ -79,10 +80,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
@@ -1684,18 +1683,9 @@ private fun TagNameBottomSheet(
         }
     }
 
-    ModalBottomSheet(
+    HandleDragModalBottomSheet(
         onDismissRequest = { if (!isSubmitting) onDismiss() },
-        sheetState = bottomSheetState,
-        dragHandle = {
-            Surface(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(2.dp)
-            ) {
-                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
-            }
-        }
+        sheetState = bottomSheetState
     ) {
         Column(
             modifier = Modifier

@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import com.nkls.nekovideo.components.HandleDragModalBottomSheet
 import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
@@ -74,7 +75,7 @@ fun ActionFAB(
     onActionLongClick: (ActionType) -> Unit = {}
 ) {
     var showBottomSheet by remember { mutableStateOf(false) }
-    val bottomSheetState = rememberModalBottomSheetState()
+    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val screenWidthPx = remember(configuration.screenWidthDp, density) {
@@ -376,20 +377,11 @@ fun ActionFAB(
 
     // Bottom Sheet Modal
     if (showBottomSheet) {
-        ModalBottomSheet(
+        HandleDragModalBottomSheet(
             onDismissRequest = {
                 showBottomSheet = false
             },
-            sheetState = bottomSheetState,
-            dragHandle = {
-                Surface(
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    shape = RoundedCornerShape(2.dp)
-                ) {
-                    Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
-                }
-            }
+            sheetState = bottomSheetState
         ) {
             val density = LocalDensity.current
             var isWide by remember { mutableStateOf(false) }

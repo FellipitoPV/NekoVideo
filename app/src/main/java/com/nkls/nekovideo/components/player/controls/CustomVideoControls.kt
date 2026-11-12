@@ -76,7 +76,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
@@ -108,6 +107,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.nkls.nekovideo.components.HandleDragModalBottomSheet
 import com.nkls.nekovideo.BuildConfig
 import com.nkls.nekovideo.R
 import com.nkls.nekovideo.components.AppBottomSheet
@@ -1059,20 +1059,11 @@ fun CustomVideoControls(
         }
 
         if (showSleepTimerDialog) {
-            ModalBottomSheet(
+            HandleDragModalBottomSheet(
                 onDismissRequest = { closeSleepTimerDialog() },
                 sheetState = sleepTimerSheetState,
                 containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                dragHandle = {
-                    Surface(
-                        modifier = Modifier.padding(vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(2.dp)
-                    ) {
-                        Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
-                    }
-                }
+                contentColor = MaterialTheme.colorScheme.onSurface
             ) {
                 Column(
                     modifier = Modifier
@@ -1181,20 +1172,11 @@ fun CustomVideoControls(
         }
 
         if (showSleepTimerStatusDialog && sleepTimerActive) {
-            ModalBottomSheet(
+            HandleDragModalBottomSheet(
                 onDismissRequest = { closeSleepTimerStatusDialog(shouldResumePlayback = true) },
                 sheetState = sleepTimerStatusSheetState,
                 containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                dragHandle = {
-                    Surface(
-                        modifier = Modifier.padding(vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(2.dp)
-                    ) {
-                        Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
-                    }
-                }
+                contentColor = MaterialTheme.colorScheme.onSurface
             ) {
                 Column(
                     modifier = Modifier

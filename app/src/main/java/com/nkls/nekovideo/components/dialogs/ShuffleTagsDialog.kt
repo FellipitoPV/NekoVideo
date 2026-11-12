@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -17,7 +16,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -84,18 +82,9 @@ fun ShuffleTagsDialog(
     val includeCount = tagModes.count { it.value == TagFilterMode.INCLUDE }
     val excludeCount = tagModes.count { it.value == TagFilterMode.EXCLUDE }
 
-    ModalBottomSheet(
+    HandleDragModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = bottomSheetState,
-        dragHandle = {
-            Surface(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                shape = MaterialTheme.shapes.extraSmall
-            ) {
-                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp))
-            }
-        }
+        sheetState = bottomSheetState
     ) {
         Column(
             modifier = Modifier

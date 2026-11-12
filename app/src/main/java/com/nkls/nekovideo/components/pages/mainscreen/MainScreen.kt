@@ -60,6 +60,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -1741,7 +1742,7 @@ fun MainScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MoveDestinationDialog(
+internal fun MoveDestinationDialog(
     startPath: String,
     itemsToMove: List<String>,
     showPrivateFolders: Boolean,
@@ -1780,8 +1781,7 @@ private fun MoveDestinationDialog(
         val nekoPrivatePath = FilesManager.SecureStorage.getNekoPrivateFolderPath()
         return folderPath == nekoPrivatePath ||
             folder.name.startsWith(".") ||
-            File(folder, ".nomedia").exists() ||
-            File(folder, ".nekovideo").exists()
+            File(folder, ".nomedia").exists()
     }
 
     fun destinationDisplayName(folder: com.nkls.nekovideo.components.MediaItem): String {
@@ -1936,7 +1936,7 @@ private fun MoveDestinationDialog(
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
-            modifier = Modifier.fillMaxWidth().height(folderGridHeight),
+            modifier = Modifier.fillMaxWidth().height(folderGridHeight).testTag("move_destination_grid"),
             contentPadding = PaddingValues(vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)

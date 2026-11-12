@@ -2,57 +2,5 @@
 
 Anotações para próxima atualização
 
-As mudanças anteriores foram incluídas na versão 1.9.1 (código 45).
-
-Versão 1.10.0 (código 46): preparação e revisão final concluídas, com validação por build, testes automatizados e testes de uso no aparelho. Publicação autorizada com a tag v1.10.0. As anotações abaixo permanecem como referência.
-
-27/10/2026
-
-- Melhoria no formato dos vídeos privados, permitindo reconhecê-los após movimentações e renomeações feitas por outros aplicativos.
-- Conversão das pastas privadas antigas pelo próprio app, após informar a senha e confirmar a atualização, incluindo subpastas e mantendo as TAGs e os caminhos atuais.
-- Possibilidade de retomar uma conversão interrompida, reaproveitando os arquivos já atualizados.
-- Vídeos privados do novo formato movidos externamente para pastas comuns são restaurados automaticamente após a autenticação, sem tornar a pasta de destino privada.
-- Correção da opção Desprivar no menu de ações das pastas com o novo formato.
-- Aviso de atualização no estilo dos outros bottom sheets, com a contagem preparada durante o loading.
-- A senha não inicia mais um scan global adicional: a conclusão da conversão fica salva, e eventuais pendências são verificadas de forma direcionada.
-- Janelas de progresso fixas, sem fechamento por arraste, toque fora ou Voltar, com a área dos botões de navegação acompanhando o tema do app.
-- Correção de avisos repetidos de verificação de pastas privadas causados por diretórios do sistema, sem pendências reais nos vídeos.
-- Abertura mais rápida de pastas privadas, reduzindo leituras repetidas dos vídeos e mostrando o carregamento ao entrar.
-
-28/10/2026
-
-- Atualização das listas após excluir, renomear, criar pastas e mover arquivos sem reconferir os vídeos que não foram alterados.
-- Busca, ordenação e pastas fixadas passam a aproveitar a lista já carregada.
-- Exclusões privadas em lote atualizam o índice uma vez por pasta, incluindo tratamento de operações parcialmente concluídas.
-- Reaproveitamento das listas e sessões ao abrir vídeos e usar o shuffle.
-- Remoção da opção antiga de definir uma pasta segura personalizada, mantendo a liberdade de privar qualquer pasta.
-- Opção de conectar o Debug às TAGs do aplicativo normal, após autorizar a conexão, usando uma fonte única para consultas e alterações.
-- TAGs e vínculos com vídeos alterados em qualquer uma das versões ficam disponíveis nas duas, sem importar ou sobrepor listas separadas.
-- Backups da lista compartilhada ficam sob responsabilidade do app normal, com gravações serializadas; o Debug desconectado usa uma pasta de backup separada.
-- Backup das TAGs a cada alteração, salvando apenas os vínculos dos vídeos afetados e consolidando a base ocasionalmente.
-- Importação das TAGs com verificação de integridade e cópia do estado anterior para recuperação.
-- Falhas ao salvar o backup mantêm a pendência para nova tentativa e para retomada na próxima abertura do app.
-- Scan inicial mais rápido, reaproveitando listagens e contagens privadas inalteradas e evitando verificações repetidas dos mesmos diretórios.
-
-29/10/2026
-
-- Atualização silenciosa ao entrar nas pastas e voltar ao app, incluindo a tela principal, para mostrar vídeos e subpastas recebidos externamente sem refresh manual.
-- Verificação limitada aos diretórios alterados, preservando a lista visível e evitando um novo scan completo do aparelho.
-- Abertura sem bloqueio pelo scan inicial: a lista disponível aparece primeiro e continua permitindo navegar enquanto a biblioteca é atualizada em segundo plano.
-- Recuperação de vídeos privados movidos externamente passa a respeitar o toggle de visibilidade, mesmo com uma senha ainda disponível na sessão.
-- Ocultar as pastas durante uma recuperação interrompe a publicação do vídeo descriptografado e preserva o arquivo protegido para uma nova tentativa.
-
-30/10/2026
-
-- Privar/desprivar publica o estado e o caminho final das pastas assim que a operação termina, sem esperar a fila de scans para atualizar a tela.
-- Reconciliação posterior limitada às pastas alteradas, removendo a atualização da raiz do armazenamento ao privar pela tela principal.
-
-03/11/2026
-
-- Shuffle de pastas privadas mais rápido, com e sem TAGs: filtra os vídeos antes de preparar a playlist e reaproveita as informações já verificadas.
-- A montagem prepara apenas os vídeos que entram no limite da playlist, mantendo a recuperação após movimentações e renomeações externas e o suporte ao formato privado antigo.
-- O diálogo do shuffle agora mostra a porcentagem e a etapa atual da preparação, com progresso ligado ao trabalho concluído.
-
-04/11/2026
-
-- Revisão final dos textos da versão 1.10.0, incluindo o shuffle com porcentagem nos changelogs e completando traduções dos avisos de senha, conversão privada e conexão de TAGs que ainda usavam o idioma padrão.
+- Os diálogos de gaveta só fecham por arraste pelo puxador no topo. Puxões curtos voltam ao lugar, e continuar rolando a lista depois de chegar ao topo não fecha o diálogo.
+- No seletor de Mover, pastas comuns criadas pelo app agora aparecem com o ícone azul padrão, sem estrela. As pastas privadas mantêm seu visual próprio.

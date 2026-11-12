@@ -3,7 +3,6 @@ package com.nkls.nekovideo.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -36,12 +35,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -373,18 +369,9 @@ fun MultipleRenameDialog(
         }
     }
 
-    ModalBottomSheet(
+    HandleDragModalBottomSheet(
         onDismissRequest = { if (!isRenaming) onDismiss() },
-        sheetState = bottomSheetState,
-        dragHandle = {
-            Surface(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(2.dp)
-            ) {
-                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
-            }
-        }
+        sheetState = bottomSheetState
     ) {
         Column(
             modifier = Modifier
@@ -536,18 +523,9 @@ fun CreateFolderDialog(
         }
     }
 
-    ModalBottomSheet(
+    HandleDragModalBottomSheet(
         onDismissRequest = { if (!isCreating) onDismiss() },
-        sheetState = bottomSheetState,
-        dragHandle = {
-            Surface(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(2.dp)
-            ) {
-                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
-            }
-        }
+        sheetState = bottomSheetState
     ) {
         Column(
             modifier = Modifier
@@ -1214,18 +1192,9 @@ fun DeleteConfirmationDialog(
 ) {
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(
+    HandleDragModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = bottomSheetState,
-        dragHandle = {
-            Surface(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(2.dp)
-            ) {
-                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
-            }
-        }
+        sheetState = bottomSheetState
     ) {
         Column(
             modifier = Modifier
@@ -1286,18 +1255,9 @@ fun UnpinFolderConfirmationDialog(
 ) {
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(
+    HandleDragModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = bottomSheetState,
-        dragHandle = {
-            Surface(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(2.dp)
-            ) {
-                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
-            }
-        }
+        sheetState = bottomSheetState
     ) {
         Column(
             modifier = Modifier
@@ -1358,18 +1318,9 @@ fun DeleteVideoDialog(
     val fileName = File(videoPath).nameWithoutExtension
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(
+    HandleDragModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = bottomSheetState,
-        dragHandle = {
-            Surface(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(2.dp)
-            ) {
-                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
-            }
-        }
+        sheetState = bottomSheetState
     ) {
         Column(
             modifier = Modifier
