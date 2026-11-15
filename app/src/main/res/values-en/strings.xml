@@ -138,6 +138,9 @@
     <string name="edit_tag">Edit tag</string>
     <string name="video_tags_new_label">Tag name</string>
     <string name="video_tags_save">Save tags</string>
+    <string name="video_tags_preview_timeline">Preview playback position</string>
+    <string name="video_tags_preview_mute">Mute preview</string>
+    <string name="video_tags_preview_unmute">Unmute preview</string>
     <string name="video_tags_choose">Choose the tags to add to the selected videos</string>
     <string name="video_tags_add_success">Tags updated for videos</string>
     <string name="video_tags_create_success">Tag created</string>

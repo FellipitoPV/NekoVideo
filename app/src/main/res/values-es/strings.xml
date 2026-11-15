@@ -138,6 +138,9 @@
     <string name="edit_tag">Editar tag</string>
     <string name="video_tags_new_label">Nombre de la tag</string>
     <string name="video_tags_save">Guardar tags</string>
+    <string name="video_tags_preview_timeline">Posición de reproducción de la vista previa</string>
+    <string name="video_tags_preview_mute">Silenciar vista previa</string>
+    <string name="video_tags_preview_unmute">Activar sonido de la vista previa</string>
     <string name="video_tags_choose">Elige las tags que deseas agregar a los videos seleccionados</string>
     <string name="video_tags_add_success">Tags actualizadas en los videos</string>
     <string name="video_tags_create_success">Tag creada</string>

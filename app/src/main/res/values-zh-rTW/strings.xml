@@ -136,6 +136,9 @@
     <string name="edit_tag">編輯標籤</string>
     <string name="video_tags_new_label">標籤名稱</string>
     <string name="video_tags_save">儲存標籤</string>
+    <string name="video_tags_preview_timeline">預覽播放位置</string>
+    <string name="video_tags_preview_mute">將預覽靜音</string>
+    <string name="video_tags_preview_unmute">取消預覽靜音</string>
     <string name="video_tags_choose">選擇要新增至所選影片的標籤</string>
     <string name="video_tags_add_success">影片標籤已更新</string>
     <string name="video_tags_create_success">標籤已建立</string>

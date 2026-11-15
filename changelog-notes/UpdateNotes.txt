@@ -4,3 +4,6 @@ Anotações para próxima atualização
 
 - Os diálogos de gaveta só fecham por arraste pelo puxador no topo. Puxões curtos voltam ao lugar, e continuar rolando a lista depois de chegar ao topo não fecha o diálogo.
 - No seletor de Mover, pastas comuns criadas pelo app agora aparecem com o ícone azul padrão, sem estrela. As pastas privadas mantêm seu visual próprio.
+- No diálogo de Tags, o preview se ajusta melhor a vídeos horizontais e verticais. Quando falta espaço, dá para rolar as tags com os botões de ação sempre visíveis.
+- O preview de Tags toca o vídeo completo sem pausar outros áudios. Use a barra para navegar pelo vídeo e o ícone de som para silenciar ou reativar o áudio. A escolha fica salva para os próximos previews.
+- Ao terminar, o preview fica aberto no último quadro. O nome do vídeo e o botão Fechar ficam logo acima das tags.
