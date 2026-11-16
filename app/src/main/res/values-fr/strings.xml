@@ -357,6 +357,9 @@
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Informations Vidéo</string>
+    <string name="display_folders">Dossiers</string>
+    <string name="display_show_all_folders">Afficher tous les dossiers</string>
+    <string name="display_show_all_folders_desc">Inclut les dossiers sans vidéo. Les dossiers masqués apparaissent aussi lorsque les dossiers privés sont visibles.</string>
     <string name="display_show_thumbnails">Afficher les Vignettes</string>
     <string name="display_show_thumbnails_desc">Afficher les vignettes des vidéos</string>
     <string name="display_show_durations">Afficher les Durées</string>

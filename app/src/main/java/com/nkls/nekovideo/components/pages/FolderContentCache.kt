@@ -8,7 +8,8 @@ import java.io.File
 internal object FolderContentCache {
     data class Stamp(val directory: Long, val index: Long, val indexSize: Long, val legacy: Long, val legacySize: Long)
     data class Entry(val items: List<MediaItem>, val stamp: Stamp, val localRevision: Long,
-                     val privateVisible: Boolean, val credential: Long, val secure: Boolean)
+                     val privateVisible: Boolean, val credential: Long, val secure: Boolean,
+                     val showAllFolders: Boolean)
     private val entries = object : LinkedHashMap<String, Entry>(16, .75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Entry>?) = size > 12
     }
@@ -26,13 +27,14 @@ internal object FolderContentCache {
         entries.keys.filter { cached -> paths.any { cached == it || cached.startsWith("$it/") } }
             .toList().forEach(entries::remove)
     }
-    @Synchronized fun find(path: String, privateVisible: Boolean, secure: Boolean): Entry? = entries[path]?.takeIf {
-        it.privateVisible == privateVisible && it.credential == LockedPlaybackSession.credentialVersion && it.secure == secure
+    @Synchronized fun find(path: String, privateVisible: Boolean, secure: Boolean, showAllFolders: Boolean = false): Entry? = entries[path]?.takeIf {
+        it.privateVisible == privateVisible && it.credential == LockedPlaybackSession.credentialVersion &&
+            it.secure == secure && it.showAllFolders == showAllFolders
     }
     @Synchronized fun save(path: String, items: List<MediaItem>, privateVisible: Boolean, secure: Boolean,
-                            credential: Long, revision: Long) {
+                            credential: Long, revision: Long, showAllFolders: Boolean) {
         if (credential == LockedPlaybackSession.credentialVersion) {
-            entries[path] = Entry(items, stamp(path), revision, privateVisible, credential, secure)
+            entries[path] = Entry(items, stamp(path), revision, privateVisible, credential, secure, showAllFolders)
         }
     }
     @Synchronized fun externallyChanged(path: String): Boolean = entries[path]?.let {

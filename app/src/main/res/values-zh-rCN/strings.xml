@@ -357,6 +357,9 @@
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">视频信息</string>
+    <string name="display_folders">文件夹</string>
+    <string name="display_show_all_folders">显示所有文件夹</string>
+    <string name="display_show_all_folders_desc">显示没有视频的文件夹。显示私密文件夹时，也会显示隐藏文件夹。</string>
     <string name="display_show_thumbnails">显示缩略图</string>
     <string name="display_show_thumbnails_desc">显示视频缩略图</string>
     <string name="display_show_durations">显示时长</string>

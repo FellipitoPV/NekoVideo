@@ -133,6 +133,7 @@ import com.nkls.nekovideo.components.settings.ChangelogSettingsScreen
 import com.nkls.nekovideo.components.settings.StorageSettingsScreen
 import com.nkls.nekovideo.components.settings.TagsSettingsScreen
 import com.nkls.nekovideo.components.settings.DisplaySettingsScreen
+import com.nkls.nekovideo.components.settings.SHOW_ALL_FOLDERS_KEY
 import com.nkls.nekovideo.components.settings.InterfaceSettingsScreen
 import com.nkls.nekovideo.components.settings.PlaybackSettingsScreen
 import com.nkls.nekovideo.components.settings.SecuritySettingsScreen
@@ -383,7 +384,9 @@ fun MainScreen(
             isSecureMode = targetIsSecure,
             isRootLevel = targetIsRootLevel,
             showPrivateFolders = showPrivateFolders,
-            reuseLoadedContent = true
+            reuseLoadedContent = true,
+            showAllFolders = context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
+                .getBoolean(SHOW_ALL_FOLDERS_KEY, false)
         ) }
         val videoItems = items.filter { !it.isFolder }
 

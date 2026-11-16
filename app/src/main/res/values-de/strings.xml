@@ -357,6 +357,9 @@
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Video-Informationen</string>
+    <string name="display_folders">Ordner</string>
+    <string name="display_show_all_folders">Alle Ordner anzeigen</string>
+    <string name="display_show_all_folders_desc">Auch Ordner ohne Videos anzeigen. Versteckte Ordner erscheinen, wenn private Ordner angezeigt werden.</string>
     <string name="display_show_thumbnails">Vorschaubilder anzeigen</string>
     <string name="display_show_thumbnails_desc">Video-Vorschaubilder anzeigen</string>
     <string name="display_show_durations">Dauer anzeigen</string>

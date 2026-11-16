@@ -357,6 +357,9 @@
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Информация о видео</string>
+    <string name="display_folders">Папки</string>
+    <string name="display_show_all_folders">Показывать все папки</string>
+    <string name="display_show_all_folders_desc">Включает папки без видео. Скрытые папки также видны, когда включён показ приватных папок.</string>
     <string name="display_show_thumbnails">Показывать миниатюры</string>
     <string name="display_show_thumbnails_desc">Отображать миниатюры видео</string>
     <string name="display_show_durations">Показывать длительность</string>

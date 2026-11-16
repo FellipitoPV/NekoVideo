@@ -359,6 +359,9 @@
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Información del Video</string>
+    <string name="display_folders">Carpetas</string>
+    <string name="display_show_all_folders">Mostrar todas las carpetas</string>
+    <string name="display_show_all_folders_desc">Incluye carpetas sin vídeos. Las carpetas ocultas también aparecen al mostrar las privadas.</string>
     <string name="display_show_thumbnails">Mostrar Miniaturas</string>
     <string name="display_show_thumbnails_desc">Mostrar miniaturas de videos</string>
     <string name="display_show_durations">Mostrar Duraciones</string>

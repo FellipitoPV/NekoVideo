@@ -665,6 +665,7 @@ fun DisplaySettingsScreen() {
 
     var showDurations by remember { mutableStateOf(prefs.getBoolean("show_durations", true)) }
     var showFileSizes by remember { mutableStateOf(prefs.getBoolean("show_file_sizes", false)) }
+    var showAllFolders by remember(prefs) { mutableStateOf(prefs.getBoolean(SHOW_ALL_FOLDERS_KEY, false)) }
     val displaySettingsItems = listOf(
         DisplaySettingItem.Section(R.string.display_video_info),
         DisplaySettingItem.Switch(
@@ -685,6 +686,17 @@ fun DisplaySettingsScreen() {
             onCheckedChange = {
                 showFileSizes = it
                 prefs.edit { putBoolean("show_file_sizes", it) }
+            }
+        ),
+        DisplaySettingItem.Section(R.string.display_folders),
+        DisplaySettingItem.Switch(
+            icon = Icons.Default.Folder,
+            titleRes = R.string.display_show_all_folders,
+            subtitleRes = R.string.display_show_all_folders_desc,
+            checked = showAllFolders,
+            onCheckedChange = {
+                showAllFolders = it
+                prefs.edit { putBoolean(SHOW_ALL_FOLDERS_KEY, it) }
             }
         )
     )
@@ -2198,6 +2210,8 @@ private fun SettingsInfoItem(
         }
     }
 }
+
+internal const val SHOW_ALL_FOLDERS_KEY = "show_all_folders"
 
 object SettingsManager {
 

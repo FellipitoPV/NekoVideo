@@ -357,6 +357,9 @@
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">वीडियो जानकारी</string>
+    <string name="display_folders">फ़ोल्डर</string>
+    <string name="display_show_all_folders">सभी फ़ोल्डर दिखाएँ</string>
+    <string name="display_show_all_folders_desc">बिना वीडियो वाले फ़ोल्डर भी दिखाएँ। निजी फ़ोल्डर दिखाने पर छिपे हुए फ़ोल्डर भी दिखेंगे।</string>
     <string name="display_show_thumbnails">थंबनेल दिखाएं</string>
     <string name="display_show_thumbnails_desc">वीडियो थंबनेल दिखाएं</string>
     <string name="display_show_durations">अवधि दिखाएं</string>

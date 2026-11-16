@@ -357,6 +357,9 @@
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">影片資訊</string>
+    <string name="display_folders">資料夾</string>
+    <string name="display_show_all_folders">顯示所有資料夾</string>
+    <string name="display_show_all_folders_desc">顯示沒有影片的資料夾。顯示私人資料夾時，也會顯示隱藏資料夾。</string>
     <string name="display_show_thumbnails">顯示縮圖</string>
     <string name="display_show_thumbnails_desc">顯示影片縮圖</string>
     <string name="display_show_durations">顯示長度</string>

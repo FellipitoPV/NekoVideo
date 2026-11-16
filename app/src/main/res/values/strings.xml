@@ -365,6 +365,9 @@
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Informações dos Vídeos</string>
+    <string name="display_folders">Pastas</string>
+    <string name="display_show_all_folders">Mostrar todas as pastas</string>
+    <string name="display_show_all_folders_desc">Inclui pastas sem vídeos e mostra as ocultas quando as pastas privadas estão visíveis.</string>
     <string name="display_show_thumbnails">Mostrar Miniaturas</string>
     <string name="display_show_thumbnails_desc">Exibir thumbnails dos vídeos</string>
     <string name="display_show_durations">Mostrar Durações</string>

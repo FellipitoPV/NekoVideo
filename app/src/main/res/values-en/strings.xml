@@ -360,6 +360,9 @@
 
     <!-- Display Settings Screen -->
     <string name="display_video_info">Video Information</string>
+    <string name="display_folders">Folders</string>
+    <string name="display_show_all_folders">Show all folders</string>
+    <string name="display_show_all_folders_desc">Include folders without videos. Hidden folders also appear when private folders are visible.</string>
     <string name="display_show_thumbnails">Show Thumbnails</string>
     <string name="display_show_thumbnails_desc">Display video thumbnails</string>
     <string name="display_show_durations">Show Durations</string>
