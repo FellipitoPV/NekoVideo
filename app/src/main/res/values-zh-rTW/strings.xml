@@ -205,6 +205,13 @@
     <string name="settings_tags">標籤</string>
     <string name="settings_tags_desc">管理一般和私密影片標籤</string>
     <string name="settings_about">關於</string>
+    <string name="settings_connections">連線</string>
+    <string name="settings_connections_desc">管理與其他應用程式的有效連線</string>
+    <string name="nekotrim_connection_authorize">連線至 NekoTrim</string>
+    <string name="nekotrim_connection_request">%1$s 要求連線至此 NekoVideo。你可以在設定中中斷連線。</string>
+    <string name="nekotrim_connection_allow">允許連線</string>
+    <string name="nekotrim_connection_connected">已在此裝置上授權連線。</string>
+    <string name="nekotrim_connection_disconnect">中斷 NekoTrim</string>
     <string name="settings_about_desc">應用程式資訊和支援</string>
     <string name="settings_changelog">Changelog (v%1$s)</string>
     <string name="settings_changelog_desc">查看更新內容以及如何使用新功能</string>
@@ -563,4 +570,11 @@
     <string name="tag_sync_revoke">中斷 NekoVideo Debug</string>
     <string name="tag_sync_unavailable">請更新正式版 NekoVideo 並授權連線，以使用其標籤。</string>
     <string name="tag_sync_restore_in_normal">共用標籤期間，請在正式版 NekoVideo 中還原備份。</string>
+    <string name="action_quick_trim">快速剪輯</string>
+    <string name="quick_trim_choose_app">使用哪個 NekoTrim 開啟影片？</string>
+    <string name="quick_trim_error">無法開啟影片。請檢查連線並更新 NekoTrim。</string>
+    <string name="nekotrim_video_queued">排隊中</string>
+    <string name="nekotrim_video_processing">處理中</string>
+    <string name="nekotrim_video_done">已完成</string>
+    <string name="nekotrim_video_failed">失敗</string>
 </resources>

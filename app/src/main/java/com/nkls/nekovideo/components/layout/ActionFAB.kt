@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -25,10 +26,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,7 +49,7 @@ import com.nkls.nekovideo.components.helpers.FolderLockManager
 enum class ActionType {
     UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS, PASTE,
     PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE, SHARE, TAGS,
-    PIN_FOLDER, UNPIN_FOLDER
+    PIN_FOLDER, UNPIN_FOLDER, QUICK_TRIM
 }
 
 data class ActionItem(
@@ -68,6 +71,7 @@ fun ActionFAB(
     itemsToMoveCount: Int = 0,
     isInsideLockedFolder: Boolean = false,
     pinnedFolderPaths: Set<String> = emptySet(),
+    hasNekoTrimConnection: Boolean = false,
     showShuffleLongPressHint: Boolean = false,
     onShuffleLongPressHintShown: () -> Unit = {},
     onFabOpened: () -> Unit = {},
@@ -101,6 +105,7 @@ fun ActionFAB(
     val settingsText = stringResource(R.string.action_settings)
     val shareText = stringResource(R.string.action_share)
     val tagsText = stringResource(R.string.action_tags)
+    val quickTrimText = stringResource(R.string.action_quick_trim)
     val pinFolderText = stringResource(R.string.action_pin_folder)
     val unpinFolderText = stringResource(R.string.action_unpin_folder)
     val moveItemsText = pluralStringResource(R.plurals.move_items_count, itemsToMoveCount, itemsToMoveCount)
@@ -156,7 +161,7 @@ fun ActionFAB(
         selectedItems.any { path -> java.io.File(path).absolutePath == nekoPrivatePath }
     }
 
-    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder, hasOnlyFiles, tagsText, areAllSelectedItemsFolders, areAllSelectedFoldersPinned, areAllSelectedFoldersUnpinned, pinFolderText, unpinFolderText, hasNekoPrivateFolderSelected) {
+    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder, hasOnlyFiles, tagsText, areAllSelectedItemsFolders, areAllSelectedFoldersPinned, areAllSelectedFoldersUnpinned, pinFolderText, unpinFolderText, hasNekoPrivateFolderSelected, hasNekoTrimConnection, quickTrimText) {
         when {
             isMoveMode -> {
                 listOf(
@@ -231,6 +236,9 @@ fun ActionFAB(
 
                 }
 
+                if (hasOnlyFiles && hasNekoTrimConnection && !isInsideLockedFolder && !isSecureMode) {
+                    actionsList.add(ActionItem(ActionType.QUICK_TRIM, Icons.Default.ContentCut, quickTrimText))
+                }
                 actionsList
             }
             else -> {
@@ -553,6 +561,7 @@ private fun ActionGridItem(
                     else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
                 }
 
+                Box(Modifier.size(iconSurfaceSize)) {
                 Surface(
                     modifier = Modifier.size(iconSurfaceSize),
                     shape = RoundedCornerShape(10.dp),
@@ -569,6 +578,18 @@ private fun ActionGridItem(
                             modifier = Modifier.size(iconSize)
                         )
                     }
+                }
+                if (action.type == ActionType.QUICK_TRIM) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_nekotrim),
+                        contentDescription = "NekoTrim",
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(16.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
+                    )
+                }
                 }
 
                 Spacer(modifier = Modifier.height(if (isCompact) 4.dp else 8.dp))

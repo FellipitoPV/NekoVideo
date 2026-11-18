@@ -245,6 +245,13 @@ fun TopBar(
                         fontWeight = FontWeight.Medium
                     )
                 }
+                currentRoute == "settings/connections" -> {
+                    Text(
+                        text = stringResource(R.string.settings_connections),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
                 currentRoute == "settings/performance" -> {
                     Text(
                         text = stringResource(R.string.settings_performance),

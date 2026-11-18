@@ -11,6 +11,7 @@ import com.nkls.nekovideo.BuildConfig
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.nkls.nekovideo.components.OptimizedThumbnailManager
+import com.nkls.nekovideo.components.EmbeddedVideoArtwork
 import java.io.File
 import java.io.RandomAccessFile
 import java.security.SecureRandom
@@ -1409,15 +1410,18 @@ object FolderLockManager {
 
         val retriever = MediaMetadataRetriever()
         return try {
-            retriever.setDataSource(XorMediaDataSource(file, xorKey))
-            val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-            val middleTimeUs = (durationMs * 1000L) / 2
-            val bitmap = retriever.getScaledFrameAtTime(
-                middleTimeUs,
-                MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
-                targetSize,
-                targetSize
-            )
+            val bitmap = EmbeddedVideoArtwork.fromMatroska(file, targetSize, xorKey) ?: run {
+                retriever.setDataSource(XorMediaDataSource(file, xorKey))
+                EmbeddedVideoArtwork.fromMetadata(retriever, targetSize) ?: run {
+                    val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                    retriever.getScaledFrameAtTime(
+                        (durationMs * 1000L) / 2,
+                        MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                        targetSize,
+                        targetSize
+                    )
+                }
+            }
             if (bitmap != null) {
                 val thumbFile = File(thumbsDir, file.name)
                 val baos = java.io.ByteArrayOutputStream()

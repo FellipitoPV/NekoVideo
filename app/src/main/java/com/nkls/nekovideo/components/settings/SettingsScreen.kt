@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocalOffer
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
@@ -245,6 +246,8 @@ private sealed interface SecuritySettingItem {
 
 @Composable
 fun SettingsScreen(navController: NavController) {
+    val nekoTrimClients = com.nkls.nekovideo.components.helpers.rememberConnectedNekoTrimClients()
+    val tagSyncConnected = com.nkls.nekovideo.components.helpers.rememberTagSyncConnected()
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         @Suppress("UnusedBoxWithConstraintsScope")
         val isCompact = this.maxWidth > 600.dp
@@ -315,6 +318,18 @@ fun SettingsScreen(navController: NavController) {
                 )
             }
 
+            if (nekoTrimClients.isNotEmpty() || tagSyncConnected) {
+                item {
+                    SettingsCategoryCard(
+                        icon = Icons.Default.Link,
+                        title = stringResource(R.string.settings_connections),
+                        subtitle = stringResource(R.string.settings_connections_desc),
+                        onClick = { navController.navigate("settings/connections") },
+                        isCompact = isCompact
+                    )
+                }
+            }
+
             item {
                 SettingsCategoryCard(
                     icon = Icons.Default.Info,
@@ -335,6 +350,30 @@ fun SettingsScreen(navController: NavController) {
                 )
             }
 
+        }
+    }
+}
+
+@Composable
+fun ConnectionsSettingsScreen(onEmpty: () -> Unit) {
+    val nekoTrimClients = com.nkls.nekovideo.components.helpers.rememberConnectedNekoTrimClients()
+    val tagSyncConnected = com.nkls.nekovideo.components.helpers.rememberTagSyncConnected()
+    val hasConnections = nekoTrimClients.isNotEmpty() || tagSyncConnected
+    LaunchedEffect(hasConnections) {
+        if (!hasConnections) onEmpty()
+    }
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val isCompact = maxWidth > 600.dp
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(if (isCompact) 8.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
+        ) {
+            if (tagSyncConnected) {
+                item { com.nkls.nekovideo.components.helpers.TagSyncSettingsItem() }
+            }
+            items(nekoTrimClients, key = { it }) { client ->
+                com.nkls.nekovideo.components.helpers.NekoTrimConnectionSettingsItem(client)
+            }
         }
     }
 }
@@ -878,6 +917,7 @@ fun StorageSettingsScreen() {
 
 @Composable
 fun TagsSettingsScreen() {
+    val tagSyncConnected = com.nkls.nekovideo.components.helpers.rememberTagSyncConnected()
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val hasPassword = remember { FilesManager.SecureStorage.hasPassword(context) }
@@ -1025,7 +1065,9 @@ fun TagsSettingsScreen() {
                 .padding(if (isCompact) 8.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 12.dp)
         ) {
-            item { com.nkls.nekovideo.components.helpers.TagSyncSettingsItem() }
+            if (!tagSyncConnected) {
+                item { com.nkls.nekovideo.components.helpers.TagSyncSettingsItem() }
+            }
             item { SettingsSectionHeader(stringResource(R.string.tags_normal_section), isCompact) }
             item {
                 TagScopeManagerCard(

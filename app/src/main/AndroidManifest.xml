@@ -18,6 +18,8 @@
         <package android:name="com.nkls.nekovideo" />
         <package android:name="com.nkls.nekovideo.debug" />
         <package android:name="com.nkls.nekovideo.tagsynchost" />
+        <package android:name="com.nkls.nekotrim" />
+        <package android:name="com.nkls.nekotrim.debug" />
     </queries>
 
     <application
@@ -117,6 +119,14 @@
 
         <activity android:name=".components.helpers.TagSyncAuthorizationActivity"
             android:exported="true" android:enabled="${tagSyncHostEnabled}" />
+        <activity android:name=".components.helpers.NekoTrimAuthorizationActivity"
+            android:exported="true" />
+        <provider android:name=".components.helpers.NekoTrimConnectionProvider"
+            android:authorities="${applicationId}.nekotrim"
+            android:exported="true" />
+        <provider android:name=".components.helpers.NekoTrimVideoProvider"
+            android:authorities="${applicationId}.nekotrim.videos"
+            android:exported="true" />
         <provider android:name=".components.helpers.TagSyncProvider"
             android:authorities="${applicationId}.tagsync"
             android:exported="true" android:enabled="${tagSyncHostEnabled}" />

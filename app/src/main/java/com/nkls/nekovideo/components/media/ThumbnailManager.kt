@@ -194,7 +194,7 @@ object OptimizedThumbnailManager {
     }
 
     /**
-     * Gera thumbnail de forma síncrona usando MediaMetadataRetriever.
+     * Reutiliza a capa incorporada ou extrai um quadro quando não há capa válida.
      * DEVE ser chamada em thread de background (IO).
      * Retorna a thumbnail gerada e salva no disco, ou null se falhar.
      */
@@ -226,19 +226,20 @@ object OptimizedThumbnailManager {
             }
         }
 
-        // 3. Gera nova thumbnail
+        // 3. Busca a capa incorporada antes de extrair um quadro.
         val retriever = MediaMetadataRetriever()
         return try {
             if (!File(cleanPath).exists()) return null
 
-            retriever.setDataSource(cleanPath)
-
-            val bitmap = retriever.getScaledFrameAtTime(
-                getMiddleFrameTimeUs(retriever),
-                MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
-                thumbnailSize,
-                thumbnailSize
-            )
+            val bitmap = EmbeddedVideoArtwork.fromMatroska(File(cleanPath), thumbnailSize) ?: run {
+                retriever.setDataSource(cleanPath)
+                EmbeddedVideoArtwork.fromMetadata(retriever, thumbnailSize) ?: retriever.getScaledFrameAtTime(
+                    getMiddleFrameTimeUs(retriever),
+                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                    thumbnailSize,
+                    thumbnailSize
+                )
+            }
 
             if (bitmap != null) {
                 // Redimensiona para tamanho otimizado COM CENTER CROP

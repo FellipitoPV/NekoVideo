@@ -205,6 +205,13 @@
     <string name="settings_tags">Tags</string>
     <string name="settings_tags_desc">Tags für normale und private Videos verwalten</string>
     <string name="settings_about">Über</string>
+    <string name="settings_connections">Verbindungen</string>
+    <string name="settings_connections_desc">Aktive Verbindungen zu anderen Apps verwalten</string>
+    <string name="nekotrim_connection_authorize">Mit NekoTrim verbinden</string>
+    <string name="nekotrim_connection_request">%1$s möchte eine Verbindung zu dieser NekoVideo-Installation herstellen. Sie können die Verbindung in den Einstellungen trennen.</string>
+    <string name="nekotrim_connection_allow">Verbindung erlauben</string>
+    <string name="nekotrim_connection_connected">Verbindung auf diesem Gerät autorisiert.</string>
+    <string name="nekotrim_connection_disconnect">NekoTrim trennen</string>
     <string name="settings_about_desc">App-Informationen und Support</string>
     <string name="settings_changelog">Changelog (v%1$s)</string>
     <string name="settings_changelog_desc">Sieh, was sich geändert hat und wie du die Neuerungen nutzt</string>
@@ -578,4 +585,11 @@
     <string name="tag_sync_revoke">NekoVideo Debug trennen</string>
     <string name="tag_sync_unavailable">Aktualisiere die normale NekoVideo-App und erlaube die Verbindung, um ihre Tags zu nutzen.</string>
     <string name="tag_sync_restore_in_normal">Stelle Sicherungen in der normalen NekoVideo-App wieder her, solange die Tags gemeinsam genutzt werden.</string>
+    <string name="action_quick_trim">Schnell zuschneiden</string>
+    <string name="quick_trim_choose_app">Mit welchem NekoTrim öffnen?</string>
+    <string name="quick_trim_error">Videos konnten nicht geöffnet werden. Verbindung prüfen und NekoTrim aktualisieren.</string>
+    <string name="nekotrim_video_queued">In Warteschlange</string>
+    <string name="nekotrim_video_processing">Wird verarbeitet</string>
+    <string name="nekotrim_video_done">Abgeschlossen</string>
+    <string name="nekotrim_video_failed">Fehlgeschlagen</string>
 </resources>

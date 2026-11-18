@@ -205,6 +205,13 @@
     <string name="settings_tags">Теги</string>
     <string name="settings_tags_desc">Управление тегами для обычных и приватных видео</string>
     <string name="settings_about">О программе</string>
+    <string name="settings_connections">Подключения</string>
+    <string name="settings_connections_desc">Управление активными подключениями к другим приложениям</string>
+    <string name="nekotrim_connection_authorize">Подключение к NekoTrim</string>
+    <string name="nekotrim_connection_request">%1$s запрашивает подключение к этой установке NekoVideo. Отключить его можно в настройках.</string>
+    <string name="nekotrim_connection_allow">Разрешить подключение</string>
+    <string name="nekotrim_connection_connected">Подключение разрешено на этом устройстве.</string>
+    <string name="nekotrim_connection_disconnect">Отключить NekoTrim</string>
     <string name="settings_about_desc">Информация о приложении и поддержка</string>
     <string name="settings_changelog">Changelog (v%1$s)</string>
     <string name="settings_changelog_desc">Посмотрите, что изменилось и как использовать новые функции</string>
@@ -588,4 +595,11 @@
     <string name="tag_sync_revoke">Отключить NekoVideo Debug</string>
     <string name="tag_sync_unavailable">Обновите обычное приложение NekoVideo и разрешите подключение для использования его тегов.</string>
     <string name="tag_sync_restore_in_normal">Пока теги общие, восстанавливайте резервные копии в обычном NekoVideo.</string>
+    <string name="action_quick_trim">Быстрая обрезка</string>
+    <string name="quick_trim_choose_app">В каком NekoTrim открыть видео?</string>
+    <string name="quick_trim_error">Не удалось открыть видео. Проверьте подключение и обновите NekoTrim.</string>
+    <string name="nekotrim_video_queued">В очереди</string>
+    <string name="nekotrim_video_processing">Обработка</string>
+    <string name="nekotrim_video_done">Завершено</string>
+    <string name="nekotrim_video_failed">Ошибка</string>
 </resources>

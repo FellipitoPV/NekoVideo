@@ -205,6 +205,13 @@
     <string name="settings_tags">टैग्स</string>
     <string name="settings_tags_desc">सामान्य और निजी वीडियो के लिए टैग्स प्रबंधित करें</string>
     <string name="settings_about">के बारे में</string>
+    <string name="settings_connections">कनेक्शन</string>
+    <string name="settings_connections_desc">अन्य ऐप के साथ सक्रिय कनेक्शन प्रबंधित करें</string>
+    <string name="nekotrim_connection_authorize">NekoTrim से कनेक्ट करें</string>
+    <string name="nekotrim_connection_request">%1$s इस NekoVideo इंस्टॉलेशन से कनेक्ट करना चाहता है। आप सेटिंग में कनेक्शन हटा सकते हैं।</string>
+    <string name="nekotrim_connection_allow">कनेक्शन की अनुमति दें</string>
+    <string name="nekotrim_connection_connected">इस डिवाइस पर कनेक्शन की अनुमति है।</string>
+    <string name="nekotrim_connection_disconnect">NekoTrim डिस्कनेक्ट करें</string>
     <string name="settings_about_desc">ऐप की जानकारी और सहायता</string>
     <string name="settings_changelog">Changelog (v%1$s)</string>
     <string name="settings_changelog_desc">देखें क्या बदला और नई सुविधाओं का उपयोग कैसे करें</string>
@@ -578,4 +585,11 @@
     <string name="tag_sync_revoke">NekoVideo Debug को डिस्कनेक्ट करें</string>
     <string name="tag_sync_unavailable">टैग इस्तेमाल करने के लिए सामान्य NekoVideo ऐप अपडेट करें और कनेक्शन की अनुमति दें।</string>
     <string name="tag_sync_restore_in_normal">जब तक टैग साझा हैं, बैकअप सामान्य NekoVideo ऐप में बहाल करें।</string>
+    <string name="action_quick_trim">त्वरित ट्रिम</string>
+    <string name="quick_trim_choose_app">वीडियो किस NekoTrim में खोलें?</string>
+    <string name="quick_trim_error">वीडियो नहीं खुले। कनेक्शन जाँचें और NekoTrim अपडेट करें।</string>
+    <string name="nekotrim_video_queued">कतार में</string>
+    <string name="nekotrim_video_processing">प्रोसेस हो रहा है</string>
+    <string name="nekotrim_video_done">पूर्ण</string>
+    <string name="nekotrim_video_failed">विफल</string>
 </resources>

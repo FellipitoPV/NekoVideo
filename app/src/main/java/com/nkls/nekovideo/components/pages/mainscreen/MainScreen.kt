@@ -7,6 +7,7 @@ import android.os.storage.StorageManager
 import android.util.Log
 import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -49,6 +50,7 @@ import androidx.compose.material.icons.filled.FolderSpecial
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -66,6 +68,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -114,6 +117,11 @@ import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.LockedFolderOperations
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import com.nkls.nekovideo.components.helpers.PinnedFoldersStore
+import com.nkls.nekovideo.components.helpers.NekoTrimConnection
+import com.nkls.nekovideo.components.helpers.NekoTrimVideoAccess
+import com.nkls.nekovideo.components.helpers.LocalNekoTrimVideoStatuses
+import com.nkls.nekovideo.components.helpers.rememberNekoTrimVideoStatuses
+import com.nkls.nekovideo.components.helpers.rememberConnectedNekoTrimClients
 import com.nkls.nekovideo.components.helpers.PinFolderResult
 import com.nkls.nekovideo.components.helpers.PlaylistManager
 import com.nkls.nekovideo.components.helpers.SortRowMessageCenter
@@ -138,6 +146,7 @@ import com.nkls.nekovideo.components.settings.InterfaceSettingsScreen
 import com.nkls.nekovideo.components.settings.PlaybackSettingsScreen
 import com.nkls.nekovideo.components.settings.SecuritySettingsScreen
 import com.nkls.nekovideo.components.settings.SettingsScreen
+import com.nkls.nekovideo.components.settings.ConnectionsSettingsScreen
 import com.nkls.nekovideo.findActivity
 import com.nkls.nekovideo.services.FolderVideoScanner
 import com.nkls.nekovideo.components.helpers.DLNACastManager
@@ -191,6 +200,54 @@ fun MainScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
     val pinnedFolders by PinnedFoldersStore.entries.collectAsState()
+    val nekoTrimClients = rememberConnectedNekoTrimClients()
+    val nekoTrimVideoStatuses = rememberNekoTrimVideoStatuses(nekoTrimClients)
+    var pendingQuickTrim by remember { mutableStateOf<List<String>>(emptyList()) }
+    var openingQuickTrim by remember { mutableStateOf(false) }
+    val quickTrimLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
+
+    fun openQuickTrim(client: String, videos: List<String>) {
+        if (openingQuickTrim) return
+        openingQuickTrim = true
+        coroutineScope.launch {
+            try {
+                val request = withContext(Dispatchers.IO) {
+                    NekoTrimVideoAccess.createIntent(context, client, videos)
+                }
+                quickTrimLauncher.launch(request)
+                selectedItems.clear()
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.w("NekoTrim", "Could not open selected videos", error)
+                SortRowMessageCenter.showError(context.getString(R.string.quick_trim_error))
+            } finally {
+                openingQuickTrim = false
+            }
+        }
+    }
+
+    if (pendingQuickTrim.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { pendingQuickTrim = emptyList() },
+            title = { Text(stringResource(R.string.quick_trim_choose_app)) },
+            text = {
+                Column {
+                    nekoTrimClients.forEach { client ->
+                        TextButton(onClick = {
+                            val videos = pendingQuickTrim
+                            pendingQuickTrim = emptyList()
+                            openQuickTrim(client, videos)
+                        }) { Text(NekoTrimConnection.label(client)) }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { pendingQuickTrim = emptyList() }) { Text(stringResource(android.R.string.cancel)) }
+            }
+        )
+    }
 
     var showPlayerOverlay by remember { mutableStateOf(false) }
     val castManager = remember { DLNACastManager.getInstance(context) }
@@ -1258,6 +1315,7 @@ fun MainScreen(
         )
     }
 
+    CompositionLocalProvider(LocalNekoTrimVideoStatuses provides nekoTrimVideoStatuses) {
     Scaffold(
         topBar = {
             if (currentRoute != "video_player" && !showPlayerOverlay) {
@@ -1314,6 +1372,7 @@ fun MainScreen(
                     itemsToMoveCount = itemsToMove.size,
                     isInsideLockedFolder = FolderLockManager.isLocked(folderPath) && LockedPlaybackSession.isActive && LockedPlaybackSession.hasSessionForFolder(folderPath),
                     pinnedFolderPaths = pinnedFolders.map { it.path }.toSet(),
+                    hasNekoTrimConnection = nekoTrimClients.isNotEmpty(),
                     showShuffleLongPressHint = showShuffleLongPressHint,
                     onFabOpened = {
                         coroutineScope.launch {
@@ -1329,6 +1388,11 @@ fun MainScreen(
                     },
                     onActionClick = { action ->
                         when (action) {
+                            ActionType.QUICK_TRIM -> {
+                                val videos = selectedItems.toList()
+                                if (nekoTrimClients.size == 1) openQuickTrim(nekoTrimClients.single(), videos)
+                                else if (nekoTrimClients.isNotEmpty()) pendingQuickTrim = videos
+                            }
                             ActionType.SETTINGS -> {
                                 navController.navigate("settings")
                             }
@@ -1620,6 +1684,9 @@ fun MainScreen(
                 composable("settings") {
                     SettingsScreen(navController)
                 }
+                composable("settings/connections") {
+                    ConnectionsSettingsScreen(onEmpty = { navController.popBackStack() })
+                }
                 composable("settings/playback") {
                     PlaybackSettingsScreen()
                 }
@@ -1740,6 +1807,7 @@ fun MainScreen(
             }
         )
 
+    }
     }
 }
 

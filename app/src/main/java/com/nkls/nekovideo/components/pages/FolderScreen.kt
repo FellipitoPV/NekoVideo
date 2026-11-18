@@ -2634,13 +2634,16 @@ private fun VideoContent(
             }
 
             // Tamanho
-            fileSize?.let {
-                Text(
-                    text = it,
-                    fontSize = textSize,
-                    color = Color.White,
-                    modifier = Modifier.align(Alignment.TopStart).padding(6.dp).background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(4.dp)).padding(4.dp, 2.dp)
-                )
+            Column(Modifier.align(Alignment.TopStart).padding(6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                com.nkls.nekovideo.components.layout.NekoTrimVideoBadge(path = item.path)
+                fileSize?.let {
+                    Text(
+                        text = it,
+                        fontSize = textSize,
+                        color = Color.White,
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(4.dp)).padding(4.dp, 2.dp)
+                    )
+                }
             }
 
             if (tagCount > 0) {

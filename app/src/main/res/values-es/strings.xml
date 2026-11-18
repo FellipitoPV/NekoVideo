@@ -207,6 +207,13 @@
     <string name="settings_tags">Tags</string>
     <string name="settings_tags_desc">Administra tags para videos normales y privados</string>
     <string name="settings_about">Acerca de</string>
+    <string name="settings_connections">Conexiones</string>
+    <string name="settings_connections_desc">Gestiona las conexiones activas con otras aplicaciones</string>
+    <string name="nekotrim_connection_authorize">Conectar con NekoTrim</string>
+    <string name="nekotrim_connection_request">%1$s solicita conectarse a esta instalación de NekoVideo. Puedes desconectarlo en los ajustes.</string>
+    <string name="nekotrim_connection_allow">Permitir conexión</string>
+    <string name="nekotrim_connection_connected">Conexión autorizada en este dispositivo.</string>
+    <string name="nekotrim_connection_disconnect">Desconectar NekoTrim</string>
     <string name="settings_about_desc">Información de la app y soporte</string>
     <string name="settings_changelog">Changelog (v%1$s)</string>
     <string name="settings_changelog_desc">Ve qué cambió y cómo usar las novedades</string>
@@ -578,4 +585,11 @@
     <string name="shuffle_progress_private">Preparando vídeos privados…</string>
     <string name="shuffle_progress_collecting">Cargando lista de vídeos…</string>
     <string name="shuffle_progress_building">Montando lista de reproducción…</string>
+    <string name="action_quick_trim">Recorte rápido</string>
+    <string name="quick_trim_choose_app">¿Con qué NekoTrim abrir los vídeos?</string>
+    <string name="quick_trim_error">No se pudieron abrir los vídeos. Comprueba la conexión y actualiza NekoTrim.</string>
+    <string name="nekotrim_video_queued">En cola</string>
+    <string name="nekotrim_video_processing">Procesando</string>
+    <string name="nekotrim_video_done">Completado</string>
+    <string name="nekotrim_video_failed">Error</string>
 </resources>

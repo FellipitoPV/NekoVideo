@@ -205,6 +205,13 @@
     <string name="settings_tags">Tags</string>
     <string name="settings_tags_desc">Gérer les tags pour les vidéos normales et privées</string>
     <string name="settings_about">À Propos</string>
+    <string name="settings_connections">Connexions</string>
+    <string name="settings_connections_desc">Gérer les connexions actives avec les autres applications</string>
+    <string name="nekotrim_connection_authorize">Connexion à NekoTrim</string>
+    <string name="nekotrim_connection_request">%1$s demande à se connecter à cette installation de NekoVideo. Vous pouvez le déconnecter dans les paramètres.</string>
+    <string name="nekotrim_connection_allow">Autoriser la connexion</string>
+    <string name="nekotrim_connection_connected">Connexion autorisée sur cet appareil.</string>
+    <string name="nekotrim_connection_disconnect">Déconnecter NekoTrim</string>
     <string name="settings_about_desc">Informations de lapplication et support</string>
     <string name="settings_changelog">Changelog (v%1$s)</string>
     <string name="settings_changelog_desc">Voir les changements et comment utiliser les nouveautés</string>
@@ -578,4 +585,11 @@
     <string name="tag_sync_revoke">Déconnecter NekoVideo Debug</string>
     <string name="tag_sync_unavailable">Mettez à jour NekoVideo normal et autorisez la connexion pour utiliser ses tags.</string>
     <string name="tag_sync_restore_in_normal">Restaurez les sauvegardes dans NekoVideo normal tant que les tags sont partagés.</string>
+    <string name="action_quick_trim">Découpe rapide</string>
+    <string name="quick_trim_choose_app">Avec quel NekoTrim ouvrir les vidéos ?</string>
+    <string name="quick_trim_error">Impossible d’ouvrir les vidéos. Vérifiez la connexion et mettez NekoTrim à jour.</string>
+    <string name="nekotrim_video_queued">En attente</string>
+    <string name="nekotrim_video_processing">Traitement en cours</string>
+    <string name="nekotrim_video_done">Terminé</string>
+    <string name="nekotrim_video_failed">Échec</string>
 </resources>

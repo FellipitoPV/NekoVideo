@@ -46,6 +46,15 @@ class TagSyncAuthorizationActivity : ComponentActivity() {
 }
 
 @Composable
+internal fun rememberTagSyncConnected(): Boolean {
+    val context = LocalContext.current
+    val revision by TagSyncBridge.revision.collectAsState()
+    return remember(context, revision) {
+        if (TagSyncBridge.isClient(context)) TagSyncBridge.enabled(context) else TagSyncBridge.authorized(context)
+    }
+}
+
+@Composable
 internal fun TagSyncSettingsItem() {
     val context = LocalContext.current
     val revision by TagSyncBridge.revision.collectAsState()
