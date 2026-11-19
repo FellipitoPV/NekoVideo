@@ -577,4 +577,5 @@
     <string name="nekotrim_video_processing">處理中</string>
     <string name="nekotrim_video_done">已完成</string>
     <string name="nekotrim_video_failed">失敗</string>
+    <string name="action_quick_convert">快速轉為 MKV</string>
 </resources>

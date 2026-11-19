@@ -592,4 +592,5 @@
     <string name="nekotrim_video_processing">Procesando</string>
     <string name="nekotrim_video_done">Completado</string>
     <string name="nekotrim_video_failed">Error</string>
+    <string name="action_quick_convert">Conversión rápida MKV</string>
 </resources>

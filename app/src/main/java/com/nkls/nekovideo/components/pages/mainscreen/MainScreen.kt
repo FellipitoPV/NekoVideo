@@ -203,16 +203,18 @@ fun MainScreen(
     val nekoTrimClients = rememberConnectedNekoTrimClients()
     val nekoTrimVideoStatuses = rememberNekoTrimVideoStatuses(nekoTrimClients)
     var pendingQuickTrim by remember { mutableStateOf<List<String>>(emptyList()) }
+    var pendingQuickTrimPrivate by remember { mutableStateOf(false) }
+    var pendingQuickConvert by remember { mutableStateOf(false) }
     var openingQuickTrim by remember { mutableStateOf(false) }
     val quickTrimLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
 
-    fun openQuickTrim(client: String, videos: List<String>) {
+    fun openQuickTrim(client: String, videos: List<String>, privateContext: Boolean = false, fastConvert: Boolean = false) {
         if (openingQuickTrim) return
         openingQuickTrim = true
         coroutineScope.launch {
             try {
                 val request = withContext(Dispatchers.IO) {
-                    NekoTrimVideoAccess.createIntent(context, client, videos)
+                    NekoTrimVideoAccess.createIntent(context, client, videos, privateContext, fastConvert)
                 }
                 quickTrimLauncher.launch(request)
                 selectedItems.clear()
@@ -237,7 +239,7 @@ fun MainScreen(
                         TextButton(onClick = {
                             val videos = pendingQuickTrim
                             pendingQuickTrim = emptyList()
-                            openQuickTrim(client, videos)
+                            openQuickTrim(client, videos, pendingQuickTrimPrivate, pendingQuickConvert)
                         }) { Text(NekoTrimConnection.label(client)) }
                     }
                 }
@@ -1388,10 +1390,15 @@ fun MainScreen(
                     },
                     onActionClick = { action ->
                         when (action) {
-                            ActionType.QUICK_TRIM -> {
+                            ActionType.QUICK_TRIM, ActionType.QUICK_CONVERT -> {
                                 val videos = selectedItems.toList()
-                                if (nekoTrimClients.size == 1) openQuickTrim(nekoTrimClients.single(), videos)
-                                else if (nekoTrimClients.isNotEmpty()) pendingQuickTrim = videos
+                                val fastConvert = action == ActionType.QUICK_CONVERT
+                                if (nekoTrimClients.size == 1) openQuickTrim(nekoTrimClients.single(), videos, isSecureFolder(folderPath), fastConvert)
+                                else if (nekoTrimClients.isNotEmpty()) {
+                                    pendingQuickTrimPrivate = isSecureFolder(folderPath)
+                                    pendingQuickConvert = fastConvert
+                                    pendingQuickTrim = videos
+                                }
                             }
                             ActionType.SETTINGS -> {
                                 navController.navigate("settings")

@@ -423,6 +423,17 @@ internal object PortablePrivateFolders {
         true
     }.getOrDefault(false)
 
+    internal fun importFiles(context: Context, folderPath: String, password: String, files: List<File>) {
+        val folder = File(folderPath)
+        val base = checkNotNull(read(folder, password, false)) { "Unlock the output folder first" }
+        require(files.isNotEmpty() && files.all { it.isFile && it.extension.lowercase() in supportedVideoExtensions })
+        val staging = File(context.cacheDir, "nekotrim-outputs").canonicalFile
+        require(files.all { it.canonicalFile.toPath().startsWith(staging.toPath()) })
+        protectFiles(context, folder, password, base, files, false, { _, _, _ -> }, staging)
+        val manifest = checkNotNull(FolderLockManager.readManifestForLocalEdit(folderPath, password))
+        LockedPlaybackSession.start(FolderLockManager.deriveXorKey(password, base.salt), manifest, folderPath, password)
+    }
+
     fun addFiles(context: Context, folderPath: String, password: String, files: List<File>,
                  onProgress: (Int, Int, String) -> Unit, onError: (String) -> Unit, onSuccess: () -> Unit) {
         try {
@@ -437,7 +448,8 @@ internal object PortablePrivateFolders {
     }
 
     private fun protectFiles(context: Context, folder: File, password: String, base: Snapshot,
-                             sources: List<File>, renameDirectories: Boolean, progress: (Int, Int, String) -> Unit) {
+                             sources: List<File>, renameDirectories: Boolean, progress: (Int, Int, String) -> Unit,
+                             importRoot: File? = null) {
         val store = PortableVideoStore(folder)
         val created = mutableListOf<PortableVideoStore.Entry>()
         val pendingSources = mutableListOf<Pair<File, PortableVideoStore.Entry>>()
@@ -455,8 +467,9 @@ internal object PortablePrivateFolders {
                         existing
                     } else {
                         val output = File(folder, UUID.randomUUID().toString().replace("-", ""))
-                        store.protectCopy(source, output, keys, base.salt, base.name,
-                            FolderLockManager.getFormattedVideoDuration(source)).also { created += it }
+                        val duration = FolderLockManager.getFormattedVideoDuration(source)
+                        (if (importRoot == null) store.protectCopy(source, output, keys, base.salt, base.name, duration)
+                        else store.protectImport(source, output, keys, base.salt, importRoot, base.name, duration)).also { created += it }
                     }
                     pendingSources += source to entry
                 }

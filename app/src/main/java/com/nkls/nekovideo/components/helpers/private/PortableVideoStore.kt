@@ -140,7 +140,20 @@ class PortableVideoStore(
 
     fun protectCopy(source: File, destination: File, keyring: Keyring, salt: ByteArray,
                     folderName: String? = null, duration: String? = null): Entry {
-        val input = checked(source)
+        return protectInput(checked(source), destination, keyring, salt, folderName, duration)
+    }
+
+    /** An explicit second read root permits imports from the app-owned export cache only. */
+    internal fun protectImport(source: File, destination: File, keyring: Keyring, salt: ByteArray,
+                               sourceRoot: File, folderName: String?, duration: String?): Entry {
+        val input = source.canonicalFile
+        val root = sourceRoot.canonicalFile
+        require(input != root && input.toPath().startsWith(root.toPath())) { "Export is outside the app-owned staging area" }
+        return protectInput(input, destination, keyring, salt, folderName, duration)
+    }
+
+    private fun protectInput(input: File, destination: File, keyring: Keyring, salt: ByteArray,
+                             folderName: String?, duration: String?): Entry {
         val output = checked(destination)
         require(input.isFile && !output.exists() && input != output)
         require(validName(input.name))

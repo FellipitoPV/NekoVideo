@@ -12,6 +12,29 @@ import org.junit.rules.TemporaryFolder
 class PortableVideoStoreTest {
     @get:Rule val temporary = TemporaryFolder()
 
+    @Test fun explicitStagingImportDoesNotExpandTheProtectedWriteBoundary() {
+        val staging = temporary.newFolder("app-export-cache")
+        val source = File(staging, "trim.mkv").apply { writeBytes(ByteArray(25_000) { (it * 31).toByte() }) }
+        val outside = temporary.newFile("unrelated.mkv").apply { writeText("keep untouched") }
+        val store = PortableVideoStore(temporary.newFolder("private-folder"))
+        val output = File(store.workspace, "protected-output")
+        val bytes = source.readBytes()
+        PortableVideoStore.Keyring("import-test".toCharArray()).use { keys ->
+            val salt = store.newSalt()
+            assertTrue(runCatching { store.protectCopy(source, output, keys, salt) }.isFailure)
+            store.protectImport(source, output, keys, salt, staging, "NekoTrim", null)
+            val restored = File(store.workspace, "restored.mkv")
+            store.restoreCopy(output, restored, keys, null)
+            assertArrayEquals(bytes, restored.readBytes())
+            assertArrayEquals(bytes, source.readBytes())
+            assertTrue(runCatching { store.protectImport(outside, File(store.workspace, "forbidden"), keys, salt, staging, null, null) }.isFailure)
+            assertTrue(runCatching { store.protectImport(source, File(staging, "forbidden"), keys, salt, staging, null, null) }.isFailure)
+            assertEquals("keep untouched", outside.readText())
+            assertFalse(File(store.workspace, "forbidden").exists())
+            assertFalse(File(staging, "forbidden").exists())
+        }
+    }
+
     @Test fun boundedParallelWarmupKeepsTheSameKeysAndDeduplicatesSalts() {
         val salts = (0..3).map { seed -> ByteArray(16) { (it + seed).toByte() } }
         PortableVideoStore.Keyring("parallel-test".toCharArray()).use { warmed ->

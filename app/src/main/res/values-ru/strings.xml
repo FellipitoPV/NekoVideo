@@ -602,4 +602,5 @@
     <string name="nekotrim_video_processing">Обработка</string>
     <string name="nekotrim_video_done">Завершено</string>
     <string name="nekotrim_video_failed">Ошибка</string>
+    <string name="action_quick_convert">Быстро в MKV</string>
 </resources>

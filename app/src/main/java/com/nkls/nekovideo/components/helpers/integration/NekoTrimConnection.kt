@@ -47,6 +47,7 @@ internal object NekoTrimConnection {
     }
 
     fun revoke(context: Context, client: String) {
+        NekoTrimOutputAccess.revoke(context, client)
         preferences(context).edit { remove("$client.identity"); remove("$client.id") }
         NekoTrimVideoAccess.revoke(context, client)
         context.contentResolver.notifyChange(uri(context), null)

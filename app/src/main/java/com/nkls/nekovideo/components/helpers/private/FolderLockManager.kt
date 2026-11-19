@@ -805,6 +805,44 @@ object FolderLockManager {
      * Add new files to an already-locked folder.
      * XORs headers, renames to UUIDs, saves thumbnails, and updates the encrypted manifest.
      */
+    /** Import an app-owned completed export without exposing a plaintext file in shared storage. */
+    internal fun importTrimOutput(context: Context, folderPath: String, password: String, source: File): File {
+        require(source.canonicalFile.toPath().startsWith(File(context.cacheDir, "nekotrim-outputs").canonicalFile.toPath()))
+        if (PortablePrivateFolders.isPortable(folderPath)) {
+            PortablePrivateFolders.importFiles(context, folderPath, password, listOf(source))
+        } else {
+            val manifest = checkNotNull(readManifestForLocalEdit(folderPath, password))
+            require(manifest.files.none { it.originalName == source.name })
+            val salt = checkNotNull(getSalt(folderPath))
+            val key = deriveXorKey(password, salt)
+            val size = source.length()
+            val name = source.name
+            val duration = getFormattedVideoDuration(source)
+            val target = File(folderPath, UUID.randomUUID().toString().replace("-", ""))
+            var committed = false
+            try {
+                xorFileHeader(source, key)
+                source.copyTo(target, overwrite = false)
+                check(target.length() == size)
+                val next = manifest.copy(files = manifest.files + LockedFileEntry(target.name, name, size, duration))
+                val manifestFile = android.util.AtomicFile(File(folderPath, MANIFEST_FILE))
+                val stream = manifestFile.startWrite()
+                try { stream.write(encryptManifest(next, password, salt)); manifestFile.finishWrite(stream) }
+                catch (error: Exception) { manifestFile.failWrite(stream); throw error }
+                committed = true
+                LockedPlaybackSession.start(key, next, folderPath, password)
+                addToRegistry(context, folderPath, next.originalFolderName, next.files.size)
+                check(source.delete())
+            } finally {
+                if (!committed) { target.delete(); if (source.exists()) xorFileHeader(source, key) }
+                key.fill(0)
+            }
+        }
+        val manifest = checkNotNull(readManifestForLocalEdit(folderPath, password))
+        val entry = checkNotNull(manifest.files.firstOrNull { it.originalName == source.name })
+        return File(folderPath, entry.obfuscatedName)
+    }
+
     fun addFilesToLockedFolder(
         context: Context,
         folderPath: String,

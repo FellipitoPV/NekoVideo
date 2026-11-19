@@ -49,7 +49,7 @@ import com.nkls.nekovideo.components.helpers.FolderLockManager
 enum class ActionType {
     UNLOCK, SECURE, DELETE, RENAME, MOVE, SHUFFLE_PLAY, CREATE_FOLDER, SETTINGS, PASTE,
     PRIVATIZE, UNPRIVATIZE, CANCEL_MOVE, SHARE, TAGS,
-    PIN_FOLDER, UNPIN_FOLDER, QUICK_TRIM
+    PIN_FOLDER, UNPIN_FOLDER, QUICK_TRIM, QUICK_CONVERT
 }
 
 data class ActionItem(
@@ -106,6 +106,7 @@ fun ActionFAB(
     val shareText = stringResource(R.string.action_share)
     val tagsText = stringResource(R.string.action_tags)
     val quickTrimText = stringResource(R.string.action_quick_trim)
+    val quickConvertText = stringResource(R.string.action_quick_convert)
     val pinFolderText = stringResource(R.string.action_pin_folder)
     val unpinFolderText = stringResource(R.string.action_unpin_folder)
     val moveItemsText = pluralStringResource(R.plurals.move_items_count, itemsToMoveCount, itemsToMoveCount)
@@ -161,7 +162,7 @@ fun ActionFAB(
         selectedItems.any { path -> java.io.File(path).absolutePath == nekoPrivatePath }
     }
 
-    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder, hasOnlyFiles, tagsText, areAllSelectedItemsFolders, areAllSelectedFoldersPinned, areAllSelectedFoldersUnpinned, pinFolderText, unpinFolderText, hasNekoPrivateFolderSelected, hasNekoTrimConnection, quickTrimText) {
+    val actions = remember(hasSelectedItems, isSecureMode, hasLockedFolders, hasLockableFolders, isMoveMode, moveItemsText, isRootDirectory, selectedItems, isInsideLockedFolder, hasOnlyFiles, tagsText, areAllSelectedItemsFolders, areAllSelectedFoldersPinned, areAllSelectedFoldersUnpinned, pinFolderText, unpinFolderText, hasNekoPrivateFolderSelected, hasNekoTrimConnection, quickTrimText, quickConvertText) {
         when {
             isMoveMode -> {
                 listOf(
@@ -236,8 +237,9 @@ fun ActionFAB(
 
                 }
 
-                if (hasOnlyFiles && hasNekoTrimConnection && !isInsideLockedFolder && !isSecureMode) {
+                if (hasOnlyFiles && hasNekoTrimConnection) {
                     actionsList.add(ActionItem(ActionType.QUICK_TRIM, Icons.Default.ContentCut, quickTrimText))
+                    actionsList.add(ActionItem(ActionType.QUICK_CONVERT, Icons.Default.VideoFile, quickConvertText))
                 }
                 actionsList
             }
@@ -579,7 +581,7 @@ private fun ActionGridItem(
                         )
                     }
                 }
-                if (action.type == ActionType.QUICK_TRIM) {
+                if (action.type == ActionType.QUICK_TRIM || action.type == ActionType.QUICK_CONVERT) {
                     Image(
                         painter = painterResource(R.drawable.ic_nekotrim),
                         contentDescription = "NekoTrim",
