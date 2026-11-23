@@ -1,0 +1,5 @@
+Tag-Vorschauen spielen das ganze Video mit Ton, Zeitleiste und gespeicherter Stummschaltung. Vorschaubilder nutzen eingebettete Cover.
+
+Mehr Kontrolle über leere, versteckte und .nomedia-Ordner, mit optionaler Authentifizierung.
+
+Dialoge und Verschiebeauswahl verbessert.

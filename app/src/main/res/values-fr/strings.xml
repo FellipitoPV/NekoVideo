@@ -220,20 +220,18 @@
     <string name="changelog_rotation_title">Nouveaux modes de rotation</string>
     <string name="changelog_rotation_desc">Touchez le bouton de rotation du lecteur pour choisir un de ces modes. Votre choix est enregistré :</string>
     <string-array name="changelog_item_titles">
-        <item>Récupération des vidéos privées</item>
-        <item>Mise à jour des dossiers privés</item>
-        <item>Bibliothèque plus rapide</item>
-        <item>Actions sans tout recharger</item>
-        <item>Sauvegardes de tags plus fiables</item>
-        <item>Messages et progression corrigés</item>
+        <item>Aperçu complet dans Tags</item>
+        <item>Pochettes vidéo intégrées</item>
+        <item>Plus de contrôle sur les dossiers</item>
+        <item>Dossiers avec .nomedia</item>
+        <item>Navigation et dialogues</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Les vidéos privées nouvelles ou mises à jour peuvent être reconnues après un déplacement ou un renommage externe. Dans les dossiers ordinaires, la restauration automatique exige que les dossiers privés soient visibles. Privilégiez les déplacements via NekoVideo.</item>
-        <item>Après avoir saisi le mot de passe, confirmez la mise à jour des anciennes vidéos privées dans l’application. La conversion conserve les chemins et les tags, inclut les sous-dossiers et peut reprendre après une interruption.</item>
-        <item>La dernière liste de dossiers reste disponible pendant la mise à jour de la bibliothèque en arrière-plan. Les dossiers privés s’ouvrent plus vite. Les vidéos ajoutées ailleurs sont détectées à l’ouverture du dossier ou au retour dans l’application. La lecture aléatoire des vidéos privées est plus rapide et affiche désormais l’étape et le pourcentage de préparation.</item>
-        <item>La suppression, le déplacement, le renommage et la création de dossiers réutilisent les listes chargées sans revérifier les vidéos inchangées. Activer ou retirer la protection privée actualise l’écran en fin d’opération, sans attendre une nouvelle analyse complète.</item>
-        <item>Les sauvegardes suivent chaque modification des tags, avec des écritures plus petites pour les vidéos modifiées. L’importation vérifie l’intégrité et conserve une copie de l’état précédent. Les échecs d’écriture restent en attente d’une nouvelle tentative.</item>
-        <item>Correction des avertissements répétés de dossiers privés sans tâche en attente et de l’action de retrait de la protection. Les fenêtres de progression suivent le thème et ne se ferment ni par glissement, ni en touchant à l’extérieur, ni avec Retour.</item>
+        <item>Les aperçus lisent la vidéo entière avec son sans interrompre les autres audios. Utilisez la timeline pour naviguer et le bouton audio pour couper le son ; ce choix est mémorisé. La mise en page suit le format de la vidéo, reste ouverte à la fin et garde le nom et Fermer près des tags.</item>
+        <item>Les miniatures utilisent la pochette intégrée à la vidéo lorsqu’elle est disponible, y compris pour les fichiers MKV. Sans pochette, l’application génère une miniature comme auparavant.</item>
+        <item>Dans Affichage, Afficher tous les dossiers inclut les dossiers ordinaires sans vidéo sur l’accueil et dans les sous-dossiers. Avec cette option et les dossiers privés visibles, les dossiers vides dont le nom commence par un point apparaissent aussi.</item>
+        <item>Découvrez les dossiers avec .nomedia sans activer Afficher tous les dossiers. L’option secondaire peut exiger l’authentification des dossiers privés et est activée par défaut. Les dossiers réellement protégés conservent leur protection.</item>
+        <item>Les panneaux se ferment par glissement uniquement depuis la poignée supérieure ; poursuivre le défilement ne ferme pas le dialogue. Les dossiers ordinaires créés par l’application utilisent l’icône bleue standard dans Déplacer. Les options d’affichage sont alignées.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Dossiers privés plus rapides</string>
     <string name="changelog_pinned_folders_desc">Correction d\'un problème pouvant provoquer des blocages lors du passage rapide entre des vidéos de dossiers privés.</string>
@@ -593,4 +591,8 @@
     <string name="nekotrim_video_done">Terminé</string>
     <string name="nekotrim_video_failed">Échec</string>
     <string name="action_quick_convert">Conversion rapide MKV</string>
+    <string name="display_show_nomedia_folders">Afficher les dossiers avec .nomedia</string>
+    <string name="display_show_nomedia_folders_desc">Découvre les dossiers contenant un fichier .nomedia sans afficher tous les dossiers.</string>
+    <string name="display_nomedia_require_auth">Exiger une authentification des dossiers privés</string>
+    <string name="display_nomedia_require_auth_desc">Affiche ces dossiers et leurs vidéos uniquement après authentification des dossiers privés.</string>
 </resources>

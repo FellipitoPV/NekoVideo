@@ -1,0 +1,5 @@
+Les aperçus Tags lisent la vidéo entière avec son, timeline et sourdine mémorisée. Les miniatures utilisent les pochettes intégrées.
+
+Plus de contrôle sur les dossiers vides, masqués et .nomedia, avec authentification facultative.
+
+Dialogues et sélecteur Déplacer améliorés.

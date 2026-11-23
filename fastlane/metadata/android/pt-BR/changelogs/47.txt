@@ -1,0 +1,5 @@
+Preview nas Tags com vídeo completo, som, timeline e mute salvo. Miniaturas aproveitam capas incorporadas.
+
+Mais controle sobre pastas vazias, ocultas e com .nomedia, com opção de autenticação.
+
+Ajustes nos diálogos e no seletor de Mover.

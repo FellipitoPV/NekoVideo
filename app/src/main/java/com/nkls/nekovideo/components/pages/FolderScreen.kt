@@ -76,6 +76,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nkls.nekovideo.components.helpers.ContinueWatchingEntry
 import com.nkls.nekovideo.components.helpers.ContinueWatchingStore
+import com.nkls.nekovideo.components.helpers.FolderVisibilityPolicy
+import com.nkls.nekovideo.components.helpers.NomediaVisibilitySettings
+import com.nkls.nekovideo.components.helpers.SHOW_NOMEDIA_FOLDERS_KEY
+import com.nkls.nekovideo.components.helpers.NOMEDIA_REQUIRE_AUTH_KEY
 import com.nkls.nekovideo.components.helpers.FilesManager
 import com.nkls.nekovideo.components.helpers.FolderLockManager
 import com.nkls.nekovideo.components.helpers.PortablePrivateFolders
@@ -266,13 +270,18 @@ internal fun loadFolderContent(
     privateFolderSummaries: PrivateFolderSummaryCache = PrivateFolderSummaryCache(),
     onPrivateFolderUnavailable: () -> Unit = {},
     reuseLoadedContent: Boolean = false,
-    showAllFolders: Boolean = false
+    showAllFolders: Boolean = false,
+    nomediaSettings: NomediaVisibilitySettings = NomediaVisibilitySettings.read(context)
 ): List<MediaItem> {
+    val policy = FolderVisibilityPolicy(context, showPrivateFolders, nomediaSettings)
+    val folder = File(folderPath)
+    if (!policy.canAccess(folder)) return emptyList()
+    val plainNomedia = policy.isPlainNomedia(folder)
     val credential = LockedPlaybackSession.credentialVersion
     val revision = LocalFolderUpdates.revision(folderPath)
-    val includeAllFolders = showAllFolders && !isSecureMode
+    val includeAllFolders = showAllFolders && (!isSecureMode || plainNomedia)
     val previous = if (reuseLoadedContent) {
-        FolderContentCache.find(folderPath, showPrivateFolders, isSecureMode, includeAllFolders)
+        FolderContentCache.find(folderPath, showPrivateFolders, isSecureMode, includeAllFolders, nomediaSettings)
     } else null
     val localEdit = previous != null && revision > previous.localRevision
     if (previous != null && !localEdit && previous.stamp == FolderContentCache.stamp(folderPath)) {
@@ -282,13 +291,13 @@ internal fun loadFolderContent(
     val changedFolders = if (localEdit) LocalFolderUpdates.changedSince(checkNotNull(previous).localRevision) else emptySet()
     val restored = if (localEdit) emptyList() else PortablePrivateFolders.restoreExternalArrivals(context, folderPath)
     if (FolderLockManager.isLocked(folderPath) && !showPrivateFolders) return emptyList()
-    val items = if ((isSecureMode && restored.isEmpty()) || FolderLockManager.isLocked(folderPath)) {
+    val items = if ((isSecureMode && !plainNomedia && restored.isEmpty()) || FolderLockManager.isLocked(folderPath)) {
         loadSecureContent(context, folderPath, sortType, privateFolderSummaries, onPrivateFolderUnavailable, unchangedItems, changedFolders)
     } else {
         loadNormalContentFromCache(context, folderPath, sortType, isRootLevel, showPrivateFolders,
-            includeAllFolders, restored.isNotEmpty(), unchangedItems, changedFolders)
+            includeAllFolders, policy, restored.isNotEmpty(), unchangedItems, changedFolders)
     }
-    FolderContentCache.save(folderPath, items, showPrivateFolders, isSecureMode, credential, revision, includeAllFolders)
+    FolderContentCache.save(folderPath, items, showPrivateFolders, isSecureMode, credential, revision, includeAllFolders, nomediaSettings)
     return items
 }
 
@@ -461,23 +470,26 @@ private fun shouldShowNormalSubfolder(
     isRootLevel: Boolean,
     showPrivateFolders: Boolean,
     showAllFolders: Boolean,
+    policy: FolderVisibilityPolicy,
     isLocked: Boolean = FolderLockManager.isLocked(folder.absolutePath),
     isSecure: Boolean = File(folder, ".nomedia").exists()
 ): Boolean {
-    if (folder.name in internalFolderNames) return false
+    if (!policy.canAccess(folder) || folder.name in internalFolderNames) return false
     if (isRootLevel && folder.name == "Android") return false
 
     val folderInfo = folderCache[folder.absolutePath]
     val hasVideos = folderInfo?.hasVideos == true
     val canShowPrivateFolders = !isRootLevel || showPrivateFolders
     return when {
-        isRootLevel && folder.name in defaultAndroidFolders -> true
         isLocked -> showPrivateFolders
+        policy.isPlainNomedia(folder) && isSecure -> true
+        isRootLevel && folder.name in defaultAndroidFolders -> true
         File(folder, ".nekovideo").exists() -> !folder.name.startsWith(".") || showPrivateFolders
         folder.name.startsWith(".") -> canShowPrivateFolders &&
             ((showAllFolders && showPrivateFolders) ||
                 hasVideos || hasSecureSubfolderInCache(folder.absolutePath, folderCache))
         hasVideos -> true
+        policy.hasVisibleNomediaDescendant(folder, folderCache) -> true
         isSecure -> canShowPrivateFolders
         !isRootLevel && showAllFolders && canShowOrdinaryFolderWithoutVideos(folder, folderInfo) -> true
         hasSecureSubfolderInCache(folder.absolutePath, folderCache) -> canShowPrivateFolders
@@ -492,6 +504,7 @@ private fun loadNormalContentFromCache(
     isRootLevel: Boolean,
     showPrivateFolders: Boolean,
     showAllFolders: Boolean,
+    policy: FolderVisibilityPolicy,
     refreshFiles: Boolean = false,
     previousItems: List<MediaItem>? = null,
     changedFolders: Set<String> = emptySet()
@@ -527,7 +540,7 @@ private fun loadNormalContentFromCache(
             null
         }
         val shouldShow = shouldShowNormalSubfolder(
-            subfolder, folderCache, isRootLevel, showPrivateFolders, showAllFolders,
+            subfolder, folderCache, isRootLevel, showPrivateFolders, showAllFolders, policy,
             isLocked = isFolderLocked, isSecure = isSecure
         )
 
@@ -550,26 +563,15 @@ private fun loadNormalContentFromCache(
                         shouldCountVisibleSubfolder(child, folderCache, showPrivateFolders)
                     } ?: 0
                 } catch (e: Exception) { 0 }
-                isSecure -> try {
-                    subfolderChildren?.count { child ->
-                        shouldCountVisibleSubfolder(child, folderCache, showPrivateFolders)
-                    } ?: 0
-                } catch (e: Exception) {
-                    folderCache.count { (cachedPath, cachedInfo) ->
-                        File(cachedPath).parent == subfolder.absolutePath &&
-                        (cachedInfo.hasVideos || cachedInfo.isLocked) &&
-                        (showPrivateFolders || (!cachedInfo.isSecure && !cachedInfo.isLocked && !File(cachedPath).name.startsWith(".")))
-                    }
-                }
-                showAllFolders -> subfolderChildren?.count { child ->
+                isSecure || showAllFolders -> subfolderChildren?.count { child ->
                     child.isDirectory && shouldShowNormalSubfolder(
-                        child, folderCache, isRootLevel = false, showPrivateFolders, showAllFolders
+                        child, folderCache, isRootLevel = false, showPrivateFolders, showAllFolders, policy
                     )
                 } ?: 0
-                else -> folderCache.count { (cachedPath, cachedInfo) ->
-                    File(cachedPath).parent == subfolder.absolutePath &&
-                    (cachedInfo.hasVideos || cachedInfo.isLocked) &&
-                    (showPrivateFolders || (!cachedInfo.isSecure && !cachedInfo.isLocked && !File(cachedPath).name.startsWith(".")))
+                else -> folderCache.count { (cachedPath, _) ->
+                    File(cachedPath).parent == subfolder.absolutePath && shouldShowNormalSubfolder(
+                        File(cachedPath), folderCache, isRootLevel = false, showPrivateFolders, showAllFolders, policy
+                    )
                 }
             }
             val totalFolderSize = when {
@@ -646,7 +648,8 @@ private fun loadNormalContentFromCache(
             folderCache = folderCache,
             existingPaths = existingPaths,
             showPrivateFolders = showPrivateFolders,
-            showAllFolders = showAllFolders
+            showAllFolders = showAllFolders,
+            policy = policy
         )
     }
 
@@ -687,10 +690,11 @@ private fun buildPinnedFolderItem(
     folderCache: Map<String, FolderInfo>,
     existingPaths: Set<String>,
     showPrivateFolders: Boolean,
-    showAllFolders: Boolean
+    showAllFolders: Boolean,
+    policy: FolderVisibilityPolicy
 ): MediaItem? {
     val folder = File(path)
-    if (folder.name in internalFolderNames || !folder.isDirectory || path in existingPaths) return null
+    if (!policy.canAccess(folder) || folder.name in internalFolderNames || !folder.isDirectory || path in existingPaths) return null
 
     val folderInfo = folderCache[path]
     val isSecure = File(folder, ".nomedia").exists()
@@ -705,9 +709,11 @@ private fun buildPinnedFolderItem(
 
     val shouldShow = when {
         isLocked -> showPrivateFolders
+        policy.isPlainNomedia(folder) && isSecure -> true
         isAppManagedFolder -> if (folder.name.startsWith(".")) showPrivateFolders else true
         folder.name.startsWith(".") -> showPrivateFolders && (showAllFolders || hasVideos || hasSecureSubfolders)
         hasVideos -> true
+        policy.hasVisibleNomediaDescendant(folder, folderCache) -> true
         isSecure -> showPrivateFolders
         hasSecureSubfolders -> showPrivateFolders
         else -> showAllFolders && canShowOrdinaryFolderWithoutVideos(folder, folderInfo)
@@ -723,9 +729,9 @@ private fun buildPinnedFolderItem(
         }
     }
     val subfolderCount = children.count { child ->
-        if (showAllFolders && !isLocked && !isSecure) {
+        if (!isLocked) {
             child.isDirectory && shouldShowNormalSubfolder(
-                child, folderCache, isRootLevel = false, showPrivateFolders, showAllFolders
+                child, folderCache, isRootLevel = false, showPrivateFolders, showAllFolders, policy
             )
         } else {
             shouldCountVisibleSubfolder(child, folderCache, showPrivateFolders)
@@ -1290,6 +1296,7 @@ fun FolderScreen(
     var showDurations by remember { mutableStateOf(displayPrefs.getBoolean("show_durations", true)) }
     var showFileSizes by remember { mutableStateOf(displayPrefs.getBoolean("show_file_sizes", false)) }
     var showAllFolders by remember(displayPrefs) { mutableStateOf(displayPrefs.getBoolean(SHOW_ALL_FOLDERS_KEY, false)) }
+    var nomediaSettings by remember(displayPrefs) { mutableStateOf(NomediaVisibilitySettings.read(context)) }
 
     DisposableEffect(displayPrefs) {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -1301,12 +1308,18 @@ fun FolderScreen(
                 "show_durations" -> showDurations = displayPrefs.getBoolean(key, true)
                 "show_file_sizes" -> showFileSizes = displayPrefs.getBoolean(key, false)
                 SHOW_ALL_FOLDERS_KEY -> showAllFolders = displayPrefs.getBoolean(key, false)
+                SHOW_NOMEDIA_FOLDERS_KEY, NOMEDIA_REQUIRE_AUTH_KEY -> nomediaSettings = NomediaVisibilitySettings.read(context)
             }
         }
         displayPrefs.registerOnSharedPreferenceChangeListener(listener)
         onDispose { displayPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
 
+    val visibleContinueWatchingEntry = remember(continueWatchingEntry, nomediaSettings, showPrivateFolders) {
+        continueWatchingEntry?.takeIf {
+            FolderVisibilityPolicy(context, showPrivateFolders, nomediaSettings).canAccess(File(it.folderPath))
+        }
+    }
     var searchQuery by remember { mutableStateOf("") }
     var isSearchExpanded by remember { mutableStateOf(false) }
     var showUntaggedOnly by rememberSaveable { mutableStateOf(false) }
@@ -1404,7 +1417,7 @@ fun FolderScreen(
     // Carrega items para a pasta atual e mantém cache das anteriores
     var loadedFolderPath by remember { mutableStateOf<String?>(null) }
     var loadedStorageVersion by remember { mutableIntStateOf(-1) }
-    LaunchedEffect(folderPath, isSecureMode, showPrivateFolders, showAllFolders, folderContentRevision, fullScanVersion, storageVolumesVersion, silentRefreshVersion) {
+    LaunchedEffect(folderPath, isSecureMode, showPrivateFolders, showAllFolders, nomediaSettings, folderContentRevision, fullScanVersion, storageVolumesVersion, silentRefreshVersion) {
         val validateAfterDisplay = loadedFolderPath != folderPath || loadedStorageVersion != storageVolumesVersion
         // Keep the current list/empty state visible during a silent revalidation.
         if (folderPath !in itemsByPath) loadingPaths = loadingPaths + folderPath
@@ -1416,7 +1429,8 @@ fun FolderScreen(
                 privateFolderSummaries,
                 onPrivateFolderUnavailable = { privateFolderUnavailable = true },
                 reuseLoadedContent = loadedFolderPath == folderPath && loadedStorageVersion == storageVolumesVersion,
-                showAllFolders = showAllFolders
+                showAllFolders = showAllFolders,
+                nomediaSettings = nomediaSettings
             )
             allItems
         }
@@ -1476,15 +1490,16 @@ fun FolderScreen(
     }
 
     // Root shortcuts change independently of the directory's physical contents.
-    LaunchedEffect(folderPath, pinnedFolders, showPrivateFolders, itemsByPath[folderPath]?.map { it.path }) {
+    LaunchedEffect(folderPath, pinnedFolders, showPrivateFolders, showAllFolders, nomediaSettings, itemsByPath[folderPath]?.map { it.path }) {
         if (!isRootLevel) return@LaunchedEffect
         val current = itemsByPath[folderPath] ?: return@LaunchedEffect
         val pinnedPaths = pinnedFolders.mapTo(HashSet()) { it.path }
         val retained = current.filter { !it.showPinnedPathHint || it.path in pinnedPaths }
         val existing = retained.mapTo(HashSet()) { it.path }
         val additions = withContext(Dispatchers.IO) {
+            val policy = FolderVisibilityPolicy(context, showPrivateFolders, nomediaSettings)
             pinnedFolders.filter { it.path !in existing }.mapNotNull {
-                buildPinnedFolderItem(context, it.path, scannerCache, existing, showPrivateFolders, showAllFolders)
+                buildPinnedFolderItem(context, it.path, scannerCache, existing, showPrivateFolders, showAllFolders, policy)
             }
         }
         val updated = additions + retained
@@ -1661,7 +1676,7 @@ fun FolderScreen(
 
                         val hasOverlayContent =
                             (showPrivateFolderHint && hintAlpha > 0f) ||
-                            (isRootLevel && !hasVisiblePlaybackSession && continueWatchingEntry != null)
+                            (isRootLevel && !hasVisiblePlaybackSession && visibleContinueWatchingEntry != null)
 
                         val shouldShowEmptyState = !isPathLoading && pathItems.isEmpty() && !hasOverlayContent
 
@@ -1782,7 +1797,7 @@ fun FolderScreen(
                                         }
 
                                         if (isRootLevel && !hasVisiblePlaybackSession) {
-                                            continueWatchingEntry?.let { entry ->
+                                            visibleContinueWatchingEntry?.let { entry ->
                                                 item(key = "continue_watching") {
                                                     ContinueWatchingCard(
                                                         entry = entry,

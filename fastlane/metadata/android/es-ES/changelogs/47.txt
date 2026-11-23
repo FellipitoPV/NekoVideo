@@ -1,0 +1,5 @@
+La vista previa de Tags reproduce el vídeo completo con sonido, timeline y silencio guardado. Miniaturas con portadas incorporadas.
+
+Más control de carpetas vacías, ocultas y con .nomedia, con autenticación opcional.
+
+Mejoras en diálogos y en el selector Mover.

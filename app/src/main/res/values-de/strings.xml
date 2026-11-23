@@ -220,20 +220,18 @@
     <string name="changelog_rotation_title">Neue Ausrichtungsmodi</string>
     <string name="changelog_rotation_desc">Tippe im Player auf die Schaltfläche für die Ausrichtung, um zwischen diesen Modi zu wechseln. Deine Auswahl wird gespeichert:</string>
     <string-array name="changelog_item_titles">
-        <item>Private Videos wiederherstellen</item>
-        <item>Private Ordner aktualisieren</item>
-        <item>Schnellere Bibliothek</item>
-        <item>Aktionen ohne komplettes Neuladen</item>
-        <item>Zuverlässigere Tag-Sicherungen</item>
-        <item>Hinweise und Fortschritt verbessert</item>
+        <item>Vollständige Vorschau in Tags</item>
+        <item>Eingebettete Video-Cover</item>
+        <item>Mehr Kontrolle über Ordner</item>
+        <item>Ordner mit .nomedia</item>
+        <item>Navigation und Dialoge</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Neue oder aktualisierte private Videos lassen sich nach externem Verschieben oder Umbenennen erkennen. In normalen Ordnern erfolgt die automatische Wiederherstellung nur bei sichtbaren privaten Ordnern. Verschiebe Videos möglichst über NekoVideo.</item>
-        <item>Bestätige nach der Passworteingabe die Aktualisierung älterer privater Videos in der App. Die Umstellung erhält Pfade und Tags, umfasst Unterordner und lässt sich nach einer Unterbrechung fortsetzen.</item>
-        <item>Die letzte Ordnerliste bleibt verfügbar, während die Bibliothek im Hintergrund aktualisiert wird. Private Ordner öffnen sich schneller. Extern hinzugefügte Videos werden beim Öffnen des Ordners oder bei der Rückkehr zur App erkannt. Die Zufallswiedergabe privater Videos ist schneller und zeigt jetzt den aktuellen Schritt und den Fortschritt in Prozent.</item>
-        <item>Löschen, Verschieben, Umbenennen und das Erstellen von Ordnern nutzen geladene Listen, ohne unveränderte Videos erneut zu prüfen. Beim Aktivieren oder Entfernen des privaten Schutzes wird die Ansicht nach Abschluss aktualisiert, ohne einen weiteren vollständigen Scan abzuwarten.</item>
-        <item>Jede Tag-Änderung wird für die Sicherung erfasst; beim Bearbeiten von Videos werden kleinere Datenmengen geschrieben. Importe prüfen die Integrität und bewahren eine Kopie des vorherigen Zustands. Fehlgeschlagene Schreibvorgänge werden erneut versucht.</item>
-        <item>Wiederholte Warnungen zu privaten Ordnern ohne offene Aufgaben und die Aktion zum Entfernen des Schutzes wurden korrigiert. Fortschrittsdialoge folgen dem App-Design und lassen sich weder wegziehen noch durch Tippen außerhalb oder Zurück schließen.</item>
+        <item>Die Vorschau spielt das ganze Video mit Ton, ohne andere Audiowiedergaben zu pausieren. Nutze die Zeitleiste zum Springen und die Tontaste zum Stummschalten; die Auswahl wird gespeichert. Das Layout passt sich dem Video an, bleibt am Ende geöffnet und zeigt Name und Schließen nahe den Tags.</item>
+        <item>Vorschaubilder nutzen vorhandene eingebettete Video-Cover, auch bei MKV-Dateien. Ohne Cover erstellt die App wie bisher ein Vorschaubild.</item>
+        <item>Unter Anzeige schließt Alle Ordner anzeigen auch normale Ordner ohne Videos auf der Startseite und in Unterordnern ein. Mit dieser Option und sichtbaren privaten Ordnern erscheinen auch leere Ordner mit einem Punkt am Namensanfang.</item>
+        <item>Finde Ordner mit .nomedia, ohne Alle Ordner anzeigen einzuschalten. Die untergeordnete Option kann die Authentifizierung privater Ordner verlangen und ist standardmäßig aktiviert. Tatsächlich geschützte Ordner behalten ihren eigenen Schutz.</item>
+        <item>Panels lassen sich nur durch Ziehen am oberen Griff schließen; weiteres Scrollen schließt den Dialog nicht. Normale von der App erstellte Ordner verwenden in der Verschiebeauswahl das blaue Standardsymbol. Anzeigeoptionen sind bündig ausgerichtet.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Schnellere private Ordner</string>
     <string name="changelog_pinned_folders_desc">Ein Problem wurde behoben, das beim schnellen Wechseln zwischen Videos in privaten Ordnern zu Rucklern führen konnte.</string>
@@ -593,4 +591,8 @@
     <string name="nekotrim_video_done">Abgeschlossen</string>
     <string name="nekotrim_video_failed">Fehlgeschlagen</string>
     <string name="action_quick_convert">Schnell in MKV konvertieren</string>
+    <string name="display_show_nomedia_folders">Ordner mit .nomedia anzeigen</string>
+    <string name="display_show_nomedia_folders_desc">Findet Ordner mit einer .nomedia-Datei, ohne alle Ordner anzuzeigen.</string>
+    <string name="display_nomedia_require_auth">Authentifizierung für private Ordner verlangen</string>
+    <string name="display_nomedia_require_auth_desc">Diese Ordner und ihre Videos erst nach der Authentifizierung privater Ordner anzeigen.</string>
 </resources>

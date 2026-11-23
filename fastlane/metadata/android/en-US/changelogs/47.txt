@@ -1,0 +1,5 @@
+Tag previews now play the full video with sound, timeline seeking and saved mute. Thumbnails use embedded covers when available.
+
+More control over empty, hidden and .nomedia folders, with optional authentication.
+
+Improved bottom sheets and the Move picker.

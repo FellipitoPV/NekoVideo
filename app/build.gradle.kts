@@ -15,8 +15,8 @@ android {
         applicationId = "com.nkls.nekovideo"
         minSdk = 30
         targetSdk = 36
-        versionCode = 46
-        versionName = "1.10.0"
+        versionCode = 47
+        versionName = "1.11.0"
         buildConfigField("boolean", "PORTABLE_PRIVATE_WRITES", "true")
         manifestPlaceholders["tagSyncHostEnabled"] = "true"
 

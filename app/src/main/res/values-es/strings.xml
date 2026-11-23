@@ -222,20 +222,18 @@
     <string name="changelog_rotation_title">Nuevos modos de rotación</string>
     <string name="changelog_rotation_desc">Toca el botón de rotación del reproductor para cambiar entre estos modos. Tu elección se guarda:</string>
     <string-array name="changelog_item_titles">
-        <item>Recuperación de vídeos privados</item>
-        <item>Actualiza tus carpetas privadas</item>
-        <item>Biblioteca más rápida</item>
-        <item>Acciones sin recargar todo</item>
-        <item>Copias de tags más fiables</item>
-        <item>Ajustes en avisos y progreso</item>
+        <item>Vista previa completa en Tags</item>
+        <item>Portadas incorporadas</item>
+        <item>Más control de las carpetas</item>
+        <item>Carpetas con .nomedia</item>
+        <item>Navegación y diálogos</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Los vídeos privados nuevos o actualizados pueden reconocerse tras moverlos o renombrarlos con otras apps. En carpetas normales, la restauración automática solo se realiza con las carpetas privadas visibles. Es preferible mover los vídeos desde NekoVideo.</item>
-        <item>Tras introducir la contraseña, confirma la actualización de los vídeos privados antiguos desde la app. La conversión conserva rutas y tags, incluye subcarpetas y puede reanudarse si se interrumpe.</item>
-        <item>La última lista de carpetas sigue disponible mientras la biblioteca se actualiza en segundo plano. Las carpetas privadas se abren más rápido y los vídeos añadidos desde fuera se detectan al entrar en la carpeta o volver a la app. El modo aleatorio de vídeos privados es más rápido y ahora muestra la etapa y el porcentaje de preparación.</item>
-        <item>Al eliminar, mover, renombrar o crear carpetas, se reutilizan las listas cargadas sin volver a comprobar los vídeos sin cambios. Al hacer privada una carpeta o quitarle la protección, la pantalla se actualiza al terminar, sin esperar otro análisis completo.</item>
-        <item>Las copias de seguridad siguen cada cambio de tags, con escrituras más pequeñas al editar los vídeos. La importación comprueba la integridad y conserva una copia del estado anterior. Los fallos de guardado quedan pendientes para reintentarlos.</item>
-        <item>Corregidos los avisos repetidos de carpetas privadas sin tareas pendientes y la acción para quitar la protección. Los diálogos de progreso respetan el tema y no se cierran al arrastrar, tocar fuera ni pulsar Atrás.</item>
+        <item>La vista previa reproduce el vídeo completo con sonido sin pausar otros audios. Usa la timeline para navegar y el botón de sonido para silenciar; se guarda tu elección. El diseño se adapta al vídeo, permanece abierto al terminar y mantiene el nombre y Cerrar cerca de Tags.</item>
+        <item>Las miniaturas aprovechan la portada incorporada al vídeo cuando está disponible, incluidos los archivos MKV. Si no hay portada, la aplicación sigue generando la miniatura normalmente.</item>
+        <item>En Visualización, Mostrar todas las carpetas incluye carpetas comunes sin vídeos en el inicio y las subcarpetas. Con esta opción y las carpetas privadas visibles, también aparecen las carpetas vacías cuyo nombre empieza por un punto.</item>
+        <item>Descubre carpetas con .nomedia sin activar Mostrar todas las carpetas. La opción secundaria permite exigir autenticación de carpetas privadas y está activada por defecto. Las carpetas realmente protegidas conservan su protección.</item>
+        <item>Los paneles se cierran al arrastrar únicamente desde el tirador superior; seguir desplazando la lista no cierra el diálogo. Las carpetas comunes creadas por la aplicación usan el icono azul estándar en Mover. Las opciones de visualización están alineadas.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Carpetas privadas más rápidas</string>
     <string name="changelog_pinned_folders_desc">Se corrigió un problema que podía causar bloqueos al cambiar rápidamente entre videos de carpetas privadas.</string>
@@ -593,4 +591,8 @@
     <string name="nekotrim_video_done">Completado</string>
     <string name="nekotrim_video_failed">Error</string>
     <string name="action_quick_convert">Conversión rápida MKV</string>
+    <string name="display_show_nomedia_folders">Mostrar carpetas con .nomedia</string>
+    <string name="display_show_nomedia_folders_desc">Descubre carpetas con el archivo .nomedia sin mostrar todas las carpetas.</string>
+    <string name="display_nomedia_require_auth">Exigir autenticación de carpetas privadas</string>
+    <string name="display_nomedia_require_auth_desc">Muestra estas carpetas y sus vídeos solo después de autenticar las carpetas privadas.</string>
 </resources>

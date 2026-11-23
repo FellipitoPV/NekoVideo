@@ -386,7 +386,6 @@ fun MainScreen(
                 folderPath.contains(".secure_videos") ||
                 folderPath.endsWith(".secure_videos") ||
                 File(folderPath, ".secure").exists() ||
-                File(folderPath, ".nomedia").exists() ||
                 FolderLockManager.isLocked(folderPath)
     }
 

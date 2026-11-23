@@ -225,20 +225,18 @@
     <string name="changelog_rotation_title">Novos modos de rotação</string>
     <string name="changelog_rotation_desc">Toque no botão de rotação do player para alternar entre estes modos. Sua escolha fica salva:</string>
     <string-array name="changelog_item_titles">
-        <item>Recuperação de vídeos privados</item>
-        <item>Atualize suas pastas privadas</item>
-        <item>Biblioteca mais rápida</item>
-        <item>Ações sem recarregar tudo</item>
-        <item>Backups de TAGs mais confiáveis</item>
-        <item>Ajustes nos avisos e no progresso</item>
+        <item>Preview completo nas Tags</item>
+        <item>Capas incorporadas nos vídeos</item>
+        <item>Mais controle sobre as pastas</item>
+        <item>Pastas com .nomedia</item>
+        <item>Navegação e diálogos</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>Vídeos privados novos ou atualizados podem ser reconhecidos após movimentações e renomeações externas. Em pastas comuns, a restauração automática só acontece com as pastas privadas visíveis. Prefira mover os vídeos pelo NekoVideo.</item>
-        <item>Após informar a senha, confirme a atualização dos vídeos privados antigos pelo próprio app. A conversão mantém caminhos e TAGs, inclui subpastas e pode ser retomada se for interrompida.</item>
-        <item>Sua última lista de pastas fica disponível enquanto a biblioteca é atualizada em segundo plano. A abertura de pastas privadas ficou mais rápida, e vídeos recebidos por fora são detectados ao entrar na pasta ou voltar ao app. O modo aleatório de vídeos privados ficou mais rápido e agora mostra a etapa e a porcentagem da preparação.</item>
-        <item>Excluir, mover, renomear e criar pastas reaproveitam as listas carregadas, evitando reconferir os vídeos inalterados. Privar e desprivar atualizam a tela ao concluir a operação, sem esperar outro scan completo.</item>
-        <item>Os backups acompanham cada alteração de TAGs, com gravações menores ao editar os vídeos. A importação verifica a integridade e preserva uma cópia do estado anterior. Falhas de gravação ficam pendentes para nova tentativa.</item>
-        <item>Corrigidos avisos repetidos sobre pastas privadas sem pendências reais e a opção Desprivar no menu de ações. As janelas de progresso acompanham o tema e não podem ser fechadas por arraste, toque fora ou Voltar.</item>
+        <item>O preview toca o vídeo completo com som sem pausar outros áudios. Use a timeline para navegar e o botão de som para silenciar; a escolha fica salva. O layout se adapta ao vídeo, permanece aberto no final e mantém o nome e o botão Fechar próximos das Tags.</item>
+        <item>As miniaturas aproveitam a capa incorporada ao vídeo quando disponível, incluindo arquivos MKV. Se não houver capa, o app continua gerando a miniatura normalmente.</item>
+        <item>Em Visualização, Mostrar todas as pastas inclui pastas comuns sem vídeos na tela inicial e nas subpastas. Com essa opção e as pastas privadas visíveis, pastas com ponto no início também aparecem quando estão vazias.</item>
+        <item>Descubra pastas com .nomedia sem ativar Mostrar todas as pastas. A opção filha permite exigir autenticação das pastas privadas e começa ativada. As pastas realmente protegidas continuam seguindo a própria proteção.</item>
+        <item>As gavetas fecham por arraste apenas pelo puxador no topo; continuar rolando a lista não fecha o diálogo. No seletor de Mover, pastas comuns criadas pelo app usam o ícone azul padrão. As opções de visualização ficam alinhadas.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Pastas privadas mais rápidas</string>
     <string name="changelog_pinned_folders_desc">Corrigido um problema que podia causar travamentos ao trocar rapidamente entre vídeos de pastas privadas.</string>
@@ -594,4 +592,8 @@
     <string name="nekotrim_video_done">Concluído</string>
     <string name="nekotrim_video_failed">Falhou</string>
     <string name="action_quick_convert">Conversão rápida MKV</string>
+    <string name="display_show_nomedia_folders">Mostrar pastas com .nomedia</string>
+    <string name="display_show_nomedia_folders_desc">Descobre pastas com o arquivo .nomedia sem precisar mostrar todas as pastas.</string>
+    <string name="display_nomedia_require_auth">Exigir autenticação de pastas privadas</string>
+    <string name="display_nomedia_require_auth_desc">Mostra essas pastas e seus vídeos somente após autenticar as pastas privadas.</string>
 </resources>

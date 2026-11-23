@@ -220,20 +220,18 @@
     <string name="changelog_rotation_title">新增屏幕旋转模式</string>
     <string name="changelog_rotation_desc">点击播放器中的旋转按钮即可切换以下模式。你的选择会被保存：</string>
     <string-array name="changelog_item_titles">
-        <item>私密视频恢复</item>
-        <item>更新私密文件夹</item>
-        <item>更快的视频库</item>
-        <item>操作后无需完整重载</item>
-        <item>更可靠的标签备份</item>
-        <item>提示与进度窗口修复</item>
+        <item>标签中的完整视频预览</item>
+        <item>视频内嵌封面</item>
+        <item>更多文件夹显示选项</item>
+        <item>含 .nomedia 的文件夹</item>
+        <item>导航与对话框</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>新建或更新后的私密视频在被其他应用移动或重命名后仍可识别。在普通文件夹中，只有开启私密文件夹显示时才会自动还原。建议通过 NekoVideo 移动视频。</item>
-        <item>输入密码后，可在应用内确认更新旧版私密视频。转换会保留路径和标签，包含子文件夹，并可在中断后继续。</item>
-        <item>视频库在后台更新时，上次的文件夹列表仍可使用。私密文件夹打开更快；在应用外添加的视频会在进入文件夹或返回应用时被发现。 私密视频的随机播放列表准备更快，并显示当前阶段和准备进度百分比。</item>
-        <item>删除、移动、重命名和创建文件夹会复用已加载的列表，避免重新检查未更改的视频。设为私密或取消保护后，操作完成即可更新界面，无需等待再次完整扫描。</item>
-        <item>标签每次更改后都会更新备份，修改视频标签时写入的数据更少。导入会验证完整性并保留先前状态的副本。写入失败的更改会保留为待处理任务，以便重试。</item>
-        <item>修复私密文件夹没有待处理任务时仍反复提示的问题，以及取消保护的操作。进度窗口遵循应用主题，无法通过下拉、点击外部或返回键关闭。</item>
+        <item>预览可带声音播放完整视频，不会暂停其他音频。使用时间轴跳转，点击声音按钮静音，应用会记住选择。布局适应视频方向，播放结束后仍保持打开，名称和关闭按钮位于标签附近。</item>
+        <item>缩略图会优先使用视频内嵌封面，包括 MKV 文件中的可用封面。如果没有封面，应用会照常生成缩略图。</item>
+        <item>在显示设置中，显示所有文件夹可在主页和子文件夹中显示不含视频的普通文件夹。同时显示私密文件夹时，以点开头的空文件夹也会出现。</item>
+        <item>无需开启显示所有文件夹，即可发现含 .nomedia 的文件夹。子选项可要求先验证私密文件夹身份，且默认开启。真正受保护的文件夹仍保留其自身保护。</item>
+        <item>底部面板仅能通过拖动顶部把手关闭，继续滚动列表不会关闭对话框。移动选择器中由应用创建的普通文件夹使用标准蓝色图标。显示设置中的选项保持对齐。</item>
     </string-array>
     <string name="changelog_pinned_folders_title">私密文件夹更快</string>
     <string name="changelog_pinned_folders_desc">修复了快速切换私密文件夹中的视频时可能出现卡顿的问题。</string>
@@ -578,4 +576,8 @@
     <string name="nekotrim_video_done">已完成</string>
     <string name="nekotrim_video_failed">失败</string>
     <string name="action_quick_convert">快速转为 MKV</string>
+    <string name="display_show_nomedia_folders">显示含 .nomedia 的文件夹</string>
+    <string name="display_show_nomedia_folders_desc">无需显示所有文件夹，即可发现含 .nomedia 文件的文件夹。</string>
+    <string name="display_nomedia_require_auth">要求私密文件夹身份验证</string>
+    <string name="display_nomedia_require_auth_desc">仅在私密文件夹身份验证后显示这些文件夹及其中的视频。</string>
 </resources>

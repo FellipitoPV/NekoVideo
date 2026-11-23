@@ -217,8 +217,10 @@ Confirmar que entram apenas arquivos esperados, normalmente:
 - fastlane/metadata/android/<locale>/changelogs/<versionCode>.txt
 - app/src/main/res/values*/strings.xml
 - app/src/main/java/com/nkls/nekovideo/components/settings/SettingsScreen.kt, se houver card especial
-- changelog-notes/UpdateNotes.txt, quando as anotacoes tambem forem atualizadas
+- changelog-notes/HowToUpdate.txt, quando o fluxo de atualizacao tiver sido ajustado
 - README.md, se a release mudou informacoes publicas do app
+
+O arquivo changelog-notes/UpdateNotes.txt e exclusivamente local e deve permanecer ignorado pelo Git. Nunca o inclua em commit ou push.
 
 
 8. Commit e push

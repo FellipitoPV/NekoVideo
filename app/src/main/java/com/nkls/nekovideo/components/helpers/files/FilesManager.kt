@@ -558,13 +558,17 @@ object FilesManager {
                     folderPath.contains("/secure/") ||
                     folderPath.contains(".secure_videos") ||
                     folderPath.endsWith(".secure_videos") ||
-                    File(folderPath, ".secure").exists() ||
-                    File(folderPath, ".nomedia").exists()
+                    File(folderPath, ".secure").exists()
         }
 
-        fun canEnterPrivateFolder(directory: File, isSecure: Boolean): Boolean = showPrivateFolders || isSecure ||
-            !(directory.name.startsWith(".") || File(directory, ".nomedia").exists() ||
-                File(directory, ".nekovideo").exists() || FolderLockManager.isLocked(directory.absolutePath))
+        val visibilityPolicy = FolderVisibilityPolicy(context, showPrivateFolders)
+        fun canEnterPrivateFolder(directory: File, isSecure: Boolean): Boolean {
+            if (!visibilityPolicy.canAccess(directory)) return false
+            if (visibilityPolicy.isPlainNomedia(directory) && File(directory, ".nomedia").exists()) return true
+            return showPrivateFolders || isSecure ||
+                !(directory.name.startsWith(".") || File(directory, ".nekovideo").exists() ||
+                    FolderLockManager.isLocked(directory.absolutePath))
+        }
 
         fun hasDirectCandidates(children: FolderChildren): Boolean {
             val directories = children.subfolders.mapTo(HashSet()) { it.path }
@@ -580,7 +584,7 @@ object FilesManager {
             val previous = access[path]
             if (previous == true || (previous == false && !secure)) return
             val folder = File(path)
-            if (!folder.isDirectory) return
+            if (!folder.isDirectory || !visibilityPolicy.canAccess(folder)) return
             val children = discovered.getOrPut(path) { readFolderChildren(folder, emptySet()) }
             access[path] = secure
             onDiscovery(discovered.size)
@@ -628,7 +632,7 @@ object FilesManager {
 
             if (candidateDirectories != null && path !in candidateDirectories) return videos
 
-            if (!folder.exists() || !folder.isDirectory) return videos
+            if (!folder.exists() || !folder.isDirectory || !visibilityPolicy.canAccess(folder)) return videos
             val restored = PortablePrivateFolders.restoreExternalArrivals(context, path,
                 sessionPassword ?: LockedPlaybackSession.sessionPassword)
             val children = if (restored.isEmpty()) discovered[path] ?: readFolderChildren(folder, emptySet())
@@ -689,7 +693,8 @@ object FilesManager {
                         allVideos.addAll(getLockedVideos(checkNotNull(file.parent), sessionPassword)
                             .filter { it == "locked://$selectedPath" })
                     }
-                    file.isFile && accepts(selectedPath) && !PortableVideoStore.hasRecoveryRecord(file) -> {
+                    file.isFile && accepts(selectedPath) && visibilityPolicy.canAccess(checkNotNull(file.parentFile)) &&
+                        !PortableVideoStore.hasRecoveryRecord(file) -> {
                         allVideos.add("file://$selectedPath")
                     }
                 }

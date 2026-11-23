@@ -222,20 +222,18 @@
     <string name="changelog_rotation_title">New rotation modes</string>
     <string name="changelog_rotation_desc">Tap the rotation button in the player to switch between these modes. Your choice is saved:</string>
     <string-array name="changelog_item_titles">
-        <item>Private video recovery</item>
-        <item>Update your private folders</item>
-        <item>Faster library</item>
-        <item>Actions without full reloads</item>
-        <item>More reliable tag backups</item>
-        <item>Messages and progress fixes</item>
+        <item>Full video previews in Tags</item>
+        <item>Embedded video covers</item>
+        <item>More control over folders</item>
+        <item>Folders with .nomedia</item>
+        <item>Navigation and dialogs</item>
     </string-array>
     <string-array name="changelog_item_descriptions">
-        <item>New or updated private videos can be recognized after external moves and renames. In ordinary folders, automatic restoration only runs while private folders are visible. Prefer moving videos through NekoVideo.</item>
-        <item>After entering your password, confirm the update of older private videos within the app. Conversion preserves paths and tags, includes subfolders, and can resume if interrupted.</item>
-        <item>Your last folder list stays available while the library updates in the background. Private folders open faster, and videos added outside the app are detected when entering the folder or returning to the app. Private-video shuffle is faster and now shows the current stage and preparation percentage.</item>
-        <item>Deleting, moving, renaming, and creating folders reuse loaded lists instead of rechecking unchanged videos. Making folders private or removing protection updates the screen when the operation finishes, without waiting for another full scan.</item>
-        <item>Backups follow each tag change, with smaller writes when editing video tags. Imports verify integrity and preserve a copy of the previous state. Failed writes remain pending for another attempt.</item>
-        <item>Fixed repeated private-folder warnings without actual pending work and the Remove protection action. Progress dialogs follow the app theme and cannot be dismissed by dragging, tapping outside, or pressing Back.</item>
+        <item>Previews play the full video with sound without pausing other audio. Seek with the timeline and mute with the sound button; your choice is saved. The layout adapts to the video, stays open at the end and keeps the name and Close button near the tags.</item>
+        <item>Thumbnails use an embedded video cover when available, including MKV files. If no cover is available, the app generates a thumbnail as before.</item>
+        <item>In Display, Show all folders includes ordinary folders without videos on the home screen and in subfolders. With this option enabled and private folders visible, empty dot-prefixed folders also appear.</item>
+        <item>Discover folders with .nomedia without enabling Show all folders. Its child option can require private folder authentication and is enabled by default. Genuinely protected folders retain their own protection.</item>
+        <item>Bottom sheets dismiss by dragging only from the top handle; continuing to scroll the list does not close the dialog. Ordinary app-created folders use the standard blue icon in the Move picker. Display options are aligned.</item>
     </string-array>
     <string name="changelog_pinned_folders_title">Faster private folders</string>
     <string name="changelog_pinned_folders_desc">Fixed an issue that could cause stutters when quickly switching between videos in private folders.</string>
@@ -594,4 +592,8 @@
     <string name="nekotrim_video_done">Completed</string>
     <string name="nekotrim_video_failed">Failed</string>
     <string name="action_quick_convert">Fast convert MKV</string>
+    <string name="display_show_nomedia_folders">Show folders with .nomedia</string>
+    <string name="display_show_nomedia_folders_desc">Discover folders containing a .nomedia file without showing all folders.</string>
+    <string name="display_nomedia_require_auth">Require private folder authentication</string>
+    <string name="display_nomedia_require_auth_desc">Show these folders and their videos only after authenticating private folders.</string>
 </resources>

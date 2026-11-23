@@ -773,26 +773,24 @@ object FolderVideoScanner {
                 file.isFile && file.extension.lowercase() in supportedVideoExtensions && !PortableVideoStore.hasRecoveryRecord(file)
             } ?: emptyList()
 
-            if (videoFiles.isNotEmpty()) {
-                val videos = videoFiles.map { file ->
-                    VideoInfo(
-                        path = file.absolutePath,
-                        uri = Uri.fromFile(file),
-                        lastModified = file.lastModified(),
-                        sizeInBytes = file.length()
-                    )
-                }
-
-                folderMap[directory.absolutePath] = FolderInfo(
-                    path = directory.absolutePath,
-                    hasVideos = true,
-                    videoCount = videos.size,
-                    isSecure = true,
-                    lastModified = directory.lastModified(),
-                    videos = videos
+            val videos = videoFiles.map { file ->
+                VideoInfo(
+                    path = file.absolutePath,
+                    uri = Uri.fromFile(file),
+                    lastModified = file.lastModified(),
+                    sizeInBytes = file.length()
                 )
-                propagateToParents(folderMap, directory.absolutePath, directory.lastModified())
             }
+
+            folderMap[directory.absolutePath] = FolderInfo(
+                path = directory.absolutePath,
+                hasVideos = videos.isNotEmpty(),
+                videoCount = videos.size,
+                isSecure = true,
+                lastModified = directory.lastModified(),
+                videos = videos
+            )
+            if (videos.isNotEmpty()) propagateToParents(folderMap, directory.absolutePath, directory.lastModified())
         } else if (!folderMap.containsKey(directory.absolutePath)) {
             // Pasta normal não coberta pelo MediaStore ainda (ex: recém destravada).
             // Só age se o MediaStore não a indexou — evita duplicatas.

@@ -20,6 +20,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 - DLNA / UPnP casting to TVs and renderers on the local network
 - Private folders with password protection, hidden folders, and biometric unlock support
 - Video tags with separate normal/private scopes and automatic backups
+- Optional NekoTrim connection for quick trimming and MKV conversion of selected videos
 - No ads, no analytics, no cloud dependency
 
 ## What The App Does
@@ -32,7 +33,9 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Keeps the last folder list available while the startup scan runs in the background
 - Silently checks for external additions when you enter a folder or return to the app
 - Supports common formats such as `mp4`, `mkv`, `webm`, `avi`, `mov`, `wmv`, `m4v`, `3gp`, and `flv`
-- Generates thumbnails and caches them in memory and on disk
+- Uses embedded video covers when available, otherwise generates thumbnails, with memory and disk caching
+- Can show ordinary folders without videos at every level, including empty dot-prefixed folders when private folders are visible
+- Discovers folders containing `.nomedia` independently of showing all folders, with optional private-folder authentication enabled by default
 - Lets you search items inside the current folder
 - Supports alphabetical sorting by name (numbers are treated as text), date, and file size, and remembers the selected order
 - Can show video duration and file size in the grid/list
@@ -93,12 +96,20 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Create, rename, and delete tags
 - Assign tags to one or many videos
 - Filter untagged videos with the No tags toggle in the sort menu; saving tags updates the filtered list without reloading the folder
-- Preview a single selected video directly from the tags dialog
+- Preview a single selected video directly from the tags dialog, with continuous playback, audio, timeline seeking and a remembered mute setting, without pausing other audio
+- Adapts the preview to horizontal and vertical videos, keeps it open at the end, and places its name and close control near the tags
 - Keep separate tag scopes for normal content and private content
 - Shuffle videos using tag include/exclude filters
 - Preserves tag references when files or folders are renamed or moved
 - Automatic on-device tag backups after each change, with smaller writes for video associations and retries after failed saves
 - Backup import with integrity checks and a recovery copy of the previous tag state, plus manual export and cleanup of stale video associations
+
+### NekoTrim Connection
+
+- Start the connection from NekoTrim; the Connections section appears in NekoVideo settings once an app is connected
+- Select one or more video files to open Quick Trim or Quick MKV Conversion in NekoTrim, including protected videos
+- Saves linked results in a `NekoTrim` subfolder beside the source videos; protected sources keep their results protected
+- Shows queued, processing, completed and failed indicators on videos, following the connected app history and its cleanup
 
 ### Private Folders and Protected Content
 
@@ -106,6 +117,7 @@ The app focuses on local playback, folder-based organization, private folders, t
 - Supports hidden app-managed folders; the old custom secure-folder setting has been removed
 - Supports biometric unlock after password setup
 - Keeps protected folders hidden by default when the app starts
+- Treats ordinary `.nomedia` folders separately from protected folders; disabling authentication for `.nomedia` discovery does not unlock protected content
 - Plays locked content without creating decrypted temporary copies on disk
 - Stores recovery information inside new or updated private videos as well as in the folder index, so the app can recognize them after external moves or renames
 - Offers an in-app update for older private videos after password entry and confirmation; conversion includes subfolders, preserves paths and tags, and can resume after interruption
@@ -119,7 +131,8 @@ Important: the current protection model is not full-file encryption for every by
 
 - Playback settings for background playback, auto-hide controls, seek gestures, volume/brightness gestures, continue watching, and sleep timer
 - Interface settings for theme (light, dark, or system; dark mode uses pure black / AMOLED styling) and app language
-- Display settings for durations and file sizes
+- Display settings for durations, file sizes, folders without videos, and `.nomedia` discovery with optional authentication
+- Connections settings are visible only while at least one app is connected
 - Storage settings for clearing the thumbnail cache and continue-watching history
 - Security settings for password changes and biometric unlock
 - Tag management screens with backup and restore for normal and private tags
@@ -179,7 +192,7 @@ Project info:
 
 - `minSdk = 30`
 - `targetSdk = 36`
-- Current app version in the project: `1.10.0` (`versionCode = 46`)
+- Current app version in the project: `1.11.0` (`versionCode = 47`)
 
 ## License
 

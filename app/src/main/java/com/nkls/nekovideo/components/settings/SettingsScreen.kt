@@ -43,6 +43,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderOpen
+import com.nkls.nekovideo.components.helpers.SHOW_NOMEDIA_FOLDERS_KEY
+import com.nkls.nekovideo.components.helpers.NOMEDIA_REQUIRE_AUTH_KEY
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
@@ -705,6 +708,8 @@ fun DisplaySettingsScreen() {
     var showDurations by remember { mutableStateOf(prefs.getBoolean("show_durations", true)) }
     var showFileSizes by remember { mutableStateOf(prefs.getBoolean("show_file_sizes", false)) }
     var showAllFolders by remember(prefs) { mutableStateOf(prefs.getBoolean(SHOW_ALL_FOLDERS_KEY, false)) }
+    var showNomediaFolders by remember(prefs) { mutableStateOf(prefs.getBoolean(SHOW_NOMEDIA_FOLDERS_KEY, true)) }
+    var nomediaRequireAuth by remember(prefs) { mutableStateOf(prefs.getBoolean(NOMEDIA_REQUIRE_AUTH_KEY, true)) }
     val displaySettingsItems = listOf(
         DisplaySettingItem.Section(R.string.display_video_info),
         DisplaySettingItem.Switch(
@@ -736,6 +741,27 @@ fun DisplaySettingsScreen() {
             onCheckedChange = {
                 showAllFolders = it
                 prefs.edit { putBoolean(SHOW_ALL_FOLDERS_KEY, it) }
+            }
+        ),
+        DisplaySettingItem.Switch(
+            icon = Icons.Default.FolderOpen,
+            titleRes = R.string.display_show_nomedia_folders,
+            subtitleRes = R.string.display_show_nomedia_folders_desc,
+            checked = showNomediaFolders,
+            onCheckedChange = {
+                showNomediaFolders = it
+                prefs.edit { putBoolean(SHOW_NOMEDIA_FOLDERS_KEY, it) }
+            }
+        ),
+        DisplaySettingItem.Switch(
+            icon = Icons.Default.Lock,
+            titleRes = R.string.display_nomedia_require_auth,
+            subtitleRes = R.string.display_nomedia_require_auth_desc,
+            checked = nomediaRequireAuth,
+            visible = showNomediaFolders,
+            onCheckedChange = {
+                nomediaRequireAuth = it
+                prefs.edit { putBoolean(NOMEDIA_REQUIRE_AUTH_KEY, it) }
             }
         )
     )
