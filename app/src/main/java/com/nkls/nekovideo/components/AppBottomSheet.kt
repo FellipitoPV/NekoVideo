@@ -204,27 +204,7 @@ fun NonDismissibleBottomSheet(
             decorFitsSystemWindows = false
         )
     ) {
-        val view = LocalView.current
-        val darkSystemBarIcons = MaterialTheme.colorScheme.surface.luminance() > 0.5f
-        DisposableEffect(view, darkSystemBarIcons) {
-            (view.parent as? DialogWindowProvider)?.window?.let { window ->
-                // The app surfaces provide the background; the dialog must not add a system bar color/scrim.
-                window.setDimAmount(0f)
-                window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS or
-                    WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION)
-                window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-                window.statusBarColor = Color.TRANSPARENT
-                window.navigationBarColor = Color.TRANSPARENT
-                window.navigationBarDividerColor = Color.TRANSPARENT
-                window.isNavigationBarContrastEnforced = false
-                window.isStatusBarContrastEnforced = false
-                WindowCompat.getInsetsController(window, window.decorView).apply {
-                    isAppearanceLightNavigationBars = darkSystemBarIcons
-                    isAppearanceLightStatusBars = darkSystemBarIcons
-                }
-            }
-            onDispose { }
-        }
+        ConfigureBottomSheetDialogWindow()
         Box(Modifier.fillMaxSize().background(BottomSheetDefaults.ScrimColor), contentAlignment = Alignment.BottomCenter) {
             Surface(
                 modifier = Modifier.widthIn(max = sheetMaxWidth).fillMaxWidth(),
@@ -239,7 +219,33 @@ fun NonDismissibleBottomSheet(
 }
 
 @Composable
-private fun BottomSheetBody(
+@Suppress("DEPRECATION")
+internal fun ConfigureBottomSheetDialogWindow() {
+    val view = LocalView.current
+    val darkSystemBarIcons = MaterialTheme.colorScheme.surface.luminance() > 0.5f
+    DisposableEffect(view, darkSystemBarIcons) {
+        (view.parent as? DialogWindowProvider)?.window?.let { window ->
+            // The app surfaces provide the background; the dialog must not add a system bar color/scrim.
+            window.setDimAmount(0f)
+            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS or
+                WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION)
+            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+            window.statusBarColor = Color.TRANSPARENT
+            window.navigationBarColor = Color.TRANSPARENT
+            window.navigationBarDividerColor = Color.TRANSPARENT
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+            WindowCompat.getInsetsController(window, window.decorView).apply {
+                isAppearanceLightNavigationBars = darkSystemBarIcons
+                isAppearanceLightStatusBars = darkSystemBarIcons
+            }
+        }
+        onDispose { }
+    }
+}
+
+@Composable
+internal fun BottomSheetBody(
     title: String?, modifier: Modifier, contentPadding: PaddingValues, navigationBarsPadding: Boolean,
     horizontalAlignment: Alignment.Horizontal, verticalArrangement: Arrangement.Vertical,
     content: @Composable ColumnScope.() -> Unit

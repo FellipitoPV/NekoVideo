@@ -129,6 +129,7 @@
     <string name="new_name">新名称</string>
     <string name="rename_multiple_items">批量重命名</string>
     <string name="selected_items_count">已选择 %d 项</string>
+    <string name="video_tags_edit">编辑标签</string>
     <string name="video_tags_title">视频标签</string>
     <string name="video_tags_empty">尚未创建标签</string>
     <string name="video_tags_empty_desc">创建标签以整理视频，并在随机播放时复用。</string>

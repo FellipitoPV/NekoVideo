@@ -338,6 +338,9 @@ fun MainScreen(
     )
 
     var showVideoTagsDialog by remember { mutableStateOf(false) }
+    var videoTagsTargetPaths by remember { mutableStateOf<List<String>>(emptyList()) }
+    var clearTagSelectionOnSave by remember { mutableStateOf(false) }
+    var loadingVideoTags by remember { mutableStateOf(false) }
     var showShuffleTagsDialog by remember { mutableStateOf(false) }
     var showNewPlaylistConfirmDialog by remember { mutableStateOf(false) }
     var pendingVideoParams by remember { mutableStateOf<VideoParams?>(null) }
@@ -407,6 +410,36 @@ fun MainScreen(
             TagScope.PRIVATE
         } else {
             TagScope.NORMAL
+        }
+    }
+
+    fun openVideoTags(videoPaths: List<String>, clearSelectionOnSave: Boolean) {
+        if (loadingVideoTags || showVideoTagsDialog || videoPaths.isEmpty()) return
+        val targets = videoPaths.distinct()
+        val requestedFolder = folderPath
+        val scope = currentTagScope()
+        loadingVideoTags = true
+        coroutineScope.launch {
+            try {
+                val tags = getCachedTags(scope)
+                val selectedTagIds = withContext(Dispatchers.IO) {
+                    VideoTagStore.getCommonTagIds(context, targets, scope)
+                }
+                if (folderNavState.currentPath != requestedFolder || isMoveMode) return@launch
+                availableTags = tags
+                commonSelectedTagIds = selectedTagIds
+                // A quick edit targets only the tapped video, independently of any selection.
+                videoTagsTargetPaths = targets
+                clearTagSelectionOnSave = clearSelectionOnSave
+                showVideoTagsDialog = true
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.w("VideoTags", "Could not load video tags", error)
+                SortRowMessageCenter.showError(error.localizedMessage ?: context.getString(R.string.no_videos_found))
+            } finally {
+                loadingVideoTags = false
+            }
         }
     }
 
@@ -886,10 +919,10 @@ fun MainScreen(
     }
 
     if (showVideoTagsDialog) {
-        val targetVideos = selectedItems.filter { File(it).isFile }
+        val targetVideos = videoTagsTargetPaths
         val previewVideoPath = targetVideos.singleOrNull()
         VideoTagsDialog(
-            selectedVideoCount = selectedItems.size,
+            selectedVideoCount = targetVideos.size,
             tags = availableTags,
             initialSelectedTagIds = commonSelectedTagIds,
             previewVideoTitle = previewVideoPath?.let { File(it).name },
@@ -911,7 +944,7 @@ fun MainScreen(
                             selectedTagIds = selectedTagIds
                         )
                     }
-                    selectedItems.clear()
+                    if (clearTagSelectionOnSave) selectedItems.clear()
                     SortRowMessageCenter.showSuccess(context.getString(R.string.video_tags_add_success))
                     Result.success(Unit)
                 }
@@ -1479,15 +1512,7 @@ fun MainScreen(
                                 selectedItems.clear()
                             }
                             ActionType.TAGS -> {
-                                coroutineScope.launch {
-                                    val targetVideos = selectedItems.filter { File(it).isFile }
-                                    val tagScope = currentTagScope()
-                                    availableTags = getCachedTags(tagScope)
-                                    commonSelectedTagIds = withContext(Dispatchers.IO) {
-                                        VideoTagStore.getCommonTagIds(context, targetVideos, tagScope)
-                                    }
-                                    showVideoTagsDialog = true
-                                }
+                                openVideoTags(selectedItems.filter { File(it).isFile }, clearSelectionOnSave = true)
                             }
                             ActionType.DELETE -> showDeleteConfirmDialog = true
                             ActionType.RENAME -> showRenameDialog = true
@@ -1648,6 +1673,7 @@ fun MainScreen(
                         isPlayerOverlayVisible = showPlayerOverlay,
                         isMoveMode = isMoveMode,
                         itemsToMove = itemsToMove,
+                        onEditVideoTags = { path -> openVideoTags(listOf(path), clearSelectionOnSave = false) },
                         onContinueWatchingClick = { entry ->
                             selectedExternalSubtitleUri = entry.externalSubtitleUri?.let(Uri::parse)
                             selectedExternalSubtitleName = entry.externalSubtitleName

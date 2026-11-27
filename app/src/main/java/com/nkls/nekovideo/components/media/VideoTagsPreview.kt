@@ -7,7 +7,6 @@ import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -18,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,7 +26,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -45,7 +42,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -65,14 +61,9 @@ import com.nkls.nekovideo.components.helpers.HybridDataSourceFactory
 import com.nkls.nekovideo.components.helpers.LockedPlaybackSession
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import kotlin.math.roundToLong
 
-private const val PREVIEW_SEGMENT_DURATION_MS = 2_000L
-private const val PREVIEW_SEGMENT_SPACING_MS = 10_000L
-private const val MAX_PREVIEW_SEGMENTS = 10
-private const val PREVIEW_SEGMENT_GAP_MS = 120L
 private const val PREVIEW_MUTED_KEY = "video_tags_preview_muted"
 
 fun buildVideoPreviewUri(videoPath: String, isSecureMode: Boolean): Uri? {
@@ -87,37 +78,34 @@ fun buildVideoPreviewUri(videoPath: String, isSecureMode: Boolean): Uri? {
 
 @Composable
 @OptIn(UnstableApi::class)
-fun FloatingVideoPreview(
-    title: String,
+internal fun VideoTagsPreview(
     videoUri: Uri,
     modifier: Modifier = Modifier,
     maxCardWidth: Dp = 236.dp,
     maxVideoHeight: Dp = 260.dp,
-    playFullVideo: Boolean = false,
-    onClose: (() -> Unit)? = null,
-    onPreviewFinished: () -> Unit
+    onPreviewError: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val previewPreferences = remember(context, playFullVideo) {
-        if (playFullVideo) context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE) else null
+    val previewPreferences = remember(context) {
+        context.getSharedPreferences("nekovideo_settings", Context.MODE_PRIVATE)
     }
     var isMuted by remember(previewPreferences) {
-        mutableStateOf(previewPreferences?.getBoolean(PREVIEW_MUTED_KEY, false) ?: true)
+        mutableStateOf(previewPreferences.getBoolean(PREVIEW_MUTED_KEY, false))
     }
-    val latestOnPreviewFinished by rememberUpdatedState(onPreviewFinished)
-    var aspectRatio by remember(videoUri, playFullVideo) { mutableStateOf(16f / 9f) }
-    var isLoadingPreview by remember(videoUri, playFullVideo) { mutableStateOf(true) }
-    var videoDurationMs by remember(videoUri, playFullVideo) { mutableStateOf(0L) }
-    var currentPositionMs by remember(videoUri, playFullVideo) { mutableStateOf(0L) }
-    var canSeek by remember(videoUri, playFullVideo) { mutableStateOf(false) }
+    val latestOnPreviewError by rememberUpdatedState(onPreviewError)
+    var aspectRatio by remember(videoUri) { mutableStateOf(16f / 9f) }
+    var isLoadingPreview by remember(videoUri) { mutableStateOf(true) }
+    var videoDurationMs by remember(videoUri) { mutableStateOf(0L) }
+    var currentPositionMs by remember(videoUri) { mutableStateOf(0L) }
+    var canSeek by remember(videoUri) { mutableStateOf(false) }
 
     val cardPadding = 8.dp
     val availableVideoWidth = (maxCardWidth - cardPadding * 2).coerceAtLeast(0.dp)
     val previewWidth = minOf(availableVideoWidth, maxVideoHeight * aspectRatio)
     val previewHeight = previewWidth / aspectRatio
 
-    val player = remember(videoUri, playFullVideo, lifecycle) {
+    val player = remember(videoUri, lifecycle) {
         val dataSourceFactory = HybridDataSourceFactory(context)
         val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
         ExoPlayer.Builder(context)
@@ -143,7 +131,7 @@ fun FloatingVideoPreview(
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                if (playFullVideo) latestOnPreviewFinished()
+                latestOnPreviewError()
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -160,11 +148,9 @@ fun FloatingVideoPreview(
                 else -> Unit
             }
         }
-        if (playFullVideo) {
-            player.setMediaItem(ExoMediaItem.fromUri(videoUri))
-            player.prepare()
-            lifecycle.addObserver(lifecycleObserver)
-        }
+        player.setMediaItem(ExoMediaItem.fromUri(videoUri))
+        player.prepare()
+        lifecycle.addObserver(lifecycleObserver)
         onDispose {
             lifecycle.removeObserver(lifecycleObserver)
             player.removeListener(listener)
@@ -173,76 +159,11 @@ fun FloatingVideoPreview(
     }
 
     LaunchedEffect(player) {
-        if (playFullVideo) {
-            while (isActive) {
-                videoDurationMs = player.duration.coerceAtLeast(0L)
-                currentPositionMs = player.currentPosition
-                canSeek = videoDurationMs > 0L && player.isCurrentMediaItemSeekable
-                delay(100)
-            }
-            return@LaunchedEffect
-        }
-
-        try {
-            player.setMediaItem(ExoMediaItem.fromUri(videoUri))
-            player.prepare()
-
-            var durationMs = 0L
-            for (attempt in 0 until 40) {
-                durationMs = player.duration
-                if (durationMs > 0L) break
-                delay(100)
-            }
-
-            if (durationMs <= 0L) {
-                return@LaunchedEffect
-            }
-
-            videoDurationMs = durationMs
-
-            suspend fun playWindow(startMs: Long, requestedDurationMs: Long) {
-                val maxStart = (durationMs - 500L).coerceAtLeast(0L)
-                val segmentStart = startMs.coerceIn(0L, maxStart)
-                val remaining = (durationMs - segmentStart).coerceAtLeast(0L)
-                val segmentDuration = minOf(requestedDurationMs, remaining)
-                if (segmentDuration <= 0L) return
-
-                isLoadingPreview = true
-                player.seekTo(segmentStart)
-                player.play()
-                val targetPosition = (segmentStart + segmentDuration).coerceAtMost(durationMs)
-
-                withTimeoutOrNull(segmentDuration + 15_000L) {
-                    while (isActive) {
-                        if (player.playbackState == Player.STATE_ENDED) break
-                        if (player.currentPosition >= targetPosition) break
-                        currentPositionMs = player.currentPosition
-                        delay(if (player.isPlaying) 50L else 100L)
-                    }
-                }
-                player.pause()
-            }
-
-            val segmentCount = (durationMs / PREVIEW_SEGMENT_SPACING_MS)
-                .toInt()
-                .coerceIn(1, MAX_PREVIEW_SEGMENTS)
-            val spacing = durationMs.toFloat() / segmentCount
-            val segmentStarts = List(segmentCount) { index ->
-                val sampleCenter = spacing * (index + 0.5f)
-                (sampleCenter - (PREVIEW_SEGMENT_DURATION_MS / 2f)).toLong().coerceAtLeast(0L)
-            }
-
-            segmentStarts.forEachIndexed { index, startMs ->
-                playWindow(startMs, PREVIEW_SEGMENT_DURATION_MS)
-                if (index < segmentStarts.lastIndex) {
-                    delay(PREVIEW_SEGMENT_GAP_MS)
-                }
-            }
-        } finally {
-            if (isActive) {
-                player.stop()
-                latestOnPreviewFinished()
-            }
+        while (isActive) {
+            videoDurationMs = player.duration.coerceAtLeast(0L)
+            currentPositionMs = player.currentPosition
+            canSeek = videoDurationMs > 0L && player.isCurrentMediaItemSeekable
+            delay(100)
         }
     }
 
@@ -257,33 +178,6 @@ fun FloatingVideoPreview(
                 .width(previewWidth + cardPadding * 2)
                 .padding(cardPadding)
         ) {
-            if (onClose != null) {
-                Row(
-                    modifier = Modifier.width(previewWidth),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = title,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(
-                        onClick = onClose,
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Fechar preview",
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-
             Box(
                 modifier = Modifier
                     .size(width = previewWidth, height = previewHeight)
@@ -318,39 +212,23 @@ fun FloatingVideoPreview(
                 val progress = if (videoDurationMs > 0) {
                     (currentPositionMs.toDouble() / videoDurationMs).toFloat().coerceIn(0f, 1f)
                 } else 0f
-                if (previewPreferences != null) {
-                    PreviewPlaybackControls(
-                        modifier = Modifier.align(Alignment.BottomCenter),
-                        progress = progress,
-                        canSeek = canSeek,
-                        isMuted = isMuted,
-                        onSeek = { fraction ->
-                            val position = (videoDurationMs * fraction.toDouble()).roundToLong()
-                            player.seekTo(position)
-                            currentPositionMs = position
-                        },
-                        onToggleMute = {
-                            isMuted = !isMuted
-                            player.volume = if (isMuted) 0f else 1f
-                            previewPreferences.edit().putBoolean(PREVIEW_MUTED_KEY, isMuted).apply()
-                        }
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .width(previewWidth)
-                            .height(3.dp)
-                            .background(Color.White.copy(alpha = 0.3f))
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(previewWidth * progress)
-                                .height(3.dp)
-                                .background(MaterialTheme.colorScheme.primary)
-                        )
+                PreviewPlaybackControls(
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    progress = progress,
+                    compact = previewHeight < 84.dp,
+                    canSeek = canSeek,
+                    isMuted = isMuted,
+                    onSeek = { fraction ->
+                        val position = (videoDurationMs * fraction.toDouble()).roundToLong()
+                        player.seekTo(position)
+                        currentPositionMs = position
+                    },
+                    onToggleMute = {
+                        isMuted = !isMuted
+                        player.volume = if (isMuted) 0f else 1f
+                        previewPreferences.edit().putBoolean(PREVIEW_MUTED_KEY, isMuted).apply()
                     }
-                }
+                )
             }
         }
     }
@@ -360,6 +238,7 @@ fun FloatingVideoPreview(
 private fun PreviewPlaybackControls(
     modifier: Modifier,
     progress: Float,
+    compact: Boolean,
     canSeek: Boolean,
     isMuted: Boolean,
     onSeek: (Float) -> Unit,
@@ -375,7 +254,8 @@ private fun PreviewPlaybackControls(
     Column(modifier.fillMaxWidth()) {
         IconButton(
             onClick = onToggleMute,
-            modifier = Modifier.align(Alignment.End).padding(end = 4.dp),
+            modifier = Modifier.align(Alignment.End).padding(end = 4.dp)
+                .size(if (compact) 32.dp else 48.dp),
             colors = IconButtonDefaults.iconButtonColors(
                 containerColor = Color.Black.copy(alpha = 0.60f),
                 contentColor = Color.White
@@ -385,7 +265,8 @@ private fun PreviewPlaybackControls(
                 imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
                 contentDescription = stringResource(
                     if (isMuted) R.string.video_tags_preview_unmute else R.string.video_tags_preview_mute
-                )
+                ),
+                modifier = Modifier.size(if (compact) 20.dp else 24.dp)
             )
         }
         Slider(
@@ -419,7 +300,7 @@ private fun PreviewPlaybackControls(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(36.dp)
+                .height(if (compact) 28.dp else 36.dp)
                 .padding(horizontal = 8.dp)
                 .semantics { contentDescription = timelineLabel }
         )

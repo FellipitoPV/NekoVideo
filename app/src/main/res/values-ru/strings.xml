@@ -129,6 +129,7 @@
     <string name="new_name">Новое имя</string>
     <string name="rename_multiple_items">Переименовать несколько элементов</string>
     <string name="selected_items_count">Выбрано элементов: %d</string>
+    <string name="video_tags_edit">Изменить теги</string>
     <string name="video_tags_title">Теги видео</string>
     <string name="video_tags_empty">Теги ещё не созданы</string>
     <string name="video_tags_empty_desc">Создайте теги, чтобы упорядочить видео и позже использовать их в shuffle.</string>

@@ -131,6 +131,7 @@
     <string name="new_name">New name</string>
     <string name="rename_multiple_items">Rename multiple items</string>
     <string name="selected_items_count">%d item(s) selected</string>
+    <string name="video_tags_edit">Edit tags</string>
     <string name="video_tags_title">Video tags</string>
     <string name="video_tags_empty">No tags created yet</string>
     <string name="video_tags_empty_desc">Create tags to organize your videos and reuse them later in shuffle.</string>

@@ -129,6 +129,7 @@
     <string name="new_name">नया नाम</string>
     <string name="rename_multiple_items">कई आइटमों का नाम बदलें</string>
     <string name="selected_items_count">%d आइटम चुने गए</string>
+    <string name="video_tags_edit">टैग्स संपादित करें</string>
     <string name="video_tags_title">वीडियो टैग्स</string>
     <string name="video_tags_empty">अभी तक कोई टैग नहीं बनाई गई</string>
     <string name="video_tags_empty_desc">अपने वीडियो व्यवस्थित करने और बाद में शफल में उपयोग करने के लिए टैग्स बनाएं।</string>

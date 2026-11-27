@@ -238,14 +238,6 @@ private val colorCache = LruCache<String, Color>(500)
 private val defaultAndroidFolders = setOf("DCIM", "Download", "Downloads", "Movies")
 private val internalFolderNames = setOf(".nekovideo", ".neko_thumbs")
 
-private fun buildPreviewUri(item: MediaItem, isSecureMode: Boolean): Uri? {
-    return when {
-        LockedPlaybackSession.getXorKeyForFile(item.path) != null -> Uri.parse("locked://${item.path}")
-        isSecureMode -> Uri.fromFile(File(item.path))
-        else -> item.uri
-    }
-}
-
 // SIMPLIFICADO - Gerador de cores
 private fun getRandomColor(path: String): Color {
     return colorCache.get(path) ?: run {
@@ -1122,6 +1114,7 @@ fun SortRow(
                                     text = { Text(stringResource(R.string.filter_no_tags)) },
                                     onClick = {
                                         onUntaggedOnlyChange(!showUntaggedOnly)
+                                        showDropdown = false
                                     },
                                     leadingIcon = {
                                         Icon(Icons.Default.FilterAlt, contentDescription = null)
@@ -1229,7 +1222,8 @@ fun FolderScreen(
     showPrivateFolders: Boolean = false,
     isPlayerOverlayVisible: Boolean = false,
     isMoveMode: Boolean = false,
-    itemsToMove: List<String> = emptyList()
+    itemsToMove: List<String> = emptyList(),
+    onEditVideoTags: (String) -> Unit = {}
 ) {
     var hasPermission by remember { mutableStateOf(hasManageExternalStoragePermission()) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -1323,7 +1317,6 @@ fun FolderScreen(
     var searchQuery by remember { mutableStateOf("") }
     var isSearchExpanded by remember { mutableStateOf(false) }
     var showUntaggedOnly by rememberSaveable { mutableStateOf(false) }
-    var previewingPath by remember(folderPath) { mutableStateOf<String?>(null) }
     var previousShowPrivateFolders by remember { mutableStateOf(showPrivateFolders) }
     var pendingPrivateFolderReveal by remember(folderPath) { mutableStateOf(false) }
     var visiblePathsBeforePrivateReveal by remember(folderPath) { mutableStateOf<Set<String>>(emptySet()) }
@@ -1343,12 +1336,6 @@ fun FolderScreen(
         }
 
         previousShowPrivateFolders = showPrivateFolders
-    }
-
-    LaunchedEffect(selectedItems.size) {
-        if (selectedItems.isEmpty()) {
-            previewingPath = null
-        }
     }
 
     val privateFolderSummaries = remember { PrivateFolderSummaryCache() }
@@ -1815,7 +1802,7 @@ fun FolderScreen(
                                                 renameTrigger = renameTrigger,
                                                 isPlayerOverlayVisible = isPlayerOverlayVisible,
                                                 selectedItems = selectedItems,
-                                                previewingPath = previewingPath,
+                                                showQuickTagAction = showUntaggedOnly && !isMoveMode,
                                                 showThumbnails = true,
                                                 showDurations = showDurations,
                                                 showFileSizes = showFileSizes,
@@ -1830,40 +1817,13 @@ fun FolderScreen(
                                                 onPrivateFolderRevealFinished = { path ->
                                                     privateFolderRevealPaths = privateFolderRevealPaths - path
                                                 },
-                                                onPreviewToggle = { path ->
-                                                    previewingPath = if (previewingPath == path) null else path
-                                                },
-                                                onPreviewFinished = { path ->
-                                                    if (previewingPath == path) {
-                                                        previewingPath = null
-                                                    }
-                                                }
+                                                onEditVideoTags = onEditVideoTags
                                             )
                                         }
                                     }
                                 }
                             }
 
-                            val previewItem = pathItems.firstOrNull { it.path == previewingPath && !it.isFolder }
-                            val previewUri = previewItem?.let { buildPreviewUri(it, isSecureMode) }
-
-                            if (previewItem != null && previewUri != null) {
-                                key(previewItem.path) {
-                                    FloatingVideoPreview(
-                                        title = previewItem.displayName,
-                                        videoUri = previewUri,
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(top = 12.dp, end = 12.dp),
-                                        onClose = { previewingPath = null },
-                                        onPreviewFinished = {
-                                            if (previewingPath == previewItem.path) {
-                                                previewingPath = null
-                                            }
-                                        }
-                                    )
-                                }
-                            }
                         }
                     }
                 }
@@ -1883,7 +1843,7 @@ private fun MediaRow(
     renameTrigger: Int,
     isPlayerOverlayVisible: Boolean,
     selectedItems: MutableList<String>,
-    previewingPath: String?,
+    showQuickTagAction: Boolean,
     showThumbnails: Boolean,
     showDurations: Boolean,
     showFileSizes: Boolean,
@@ -1896,8 +1856,7 @@ private fun MediaRow(
     onFolderClick: (String, SortType, Boolean) -> Unit,
     onSelectionChange: (List<String>) -> Unit,
     onPrivateFolderRevealFinished: (String) -> Unit,
-    onPreviewToggle: (String) -> Unit,
-    onPreviewFinished: (String) -> Unit,
+    onEditVideoTags: (String) -> Unit,
 ) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         items.forEach { item ->
@@ -1907,10 +1866,9 @@ private fun MediaRow(
                 tagCount = tagCountsByPath[item.path] ?: 0,
                 isPlayerOverlayVisible = isPlayerOverlayVisible,
                 isSelected = item.path in selectedItems,
-                isPreviewing = previewingPath == item.path,
                 isBeingMoved = isMoveMode && item.path in itemsToMove,
                 shouldRevealAnimate = item.path in privateFolderRevealPaths,
-                canPreview = selectedItems.isNotEmpty(),
+                showQuickTagAction = showQuickTagAction,
                 showThumbnails = showThumbnails,
                 showDurations = showDurations,
                 showFileSizes = showFileSizes,
@@ -1939,11 +1897,8 @@ private fun MediaRow(
                 onRevealAnimationFinished = {
                     onPrivateFolderRevealFinished(item.path)
                 },
-                onPreviewToggle = {
-                    onPreviewToggle(item.path)
-                },
-                onPreviewFinished = {
-                    onPreviewFinished(item.path)
+                onEditVideoTags = {
+                    onEditVideoTags(item.path)
                 }
             )
         }
@@ -2085,10 +2040,9 @@ private fun MediaCard(
     tagCount: Int,
     isPlayerOverlayVisible: Boolean,
     isSelected: Boolean,
-    isPreviewing: Boolean,
     isBeingMoved: Boolean = false,
     shouldRevealAnimate: Boolean = false,
-    canPreview: Boolean,
+    showQuickTagAction: Boolean,
     showThumbnails: Boolean,
     showDurations: Boolean,
     showFileSizes: Boolean,
@@ -2099,8 +2053,7 @@ private fun MediaCard(
     onTap: () -> Unit,
     onLongPress: () -> Unit,
     onRevealAnimationFinished: () -> Unit = {},
-    onPreviewToggle: () -> Unit,
-    onPreviewFinished: () -> Unit
+    onEditVideoTags: () -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -2291,22 +2244,15 @@ private fun MediaCard(
                     progressEntry = progressEntry,
                     isLoading = isLoading,
                     isSelected = isSelected,
-                    isPreviewing = isPreviewing,
                     isBeingMoved = isBeingMoved,
-                    canPreview = canPreview,
+                    showQuickTagAction = showQuickTagAction,
                     showThumbnails = showThumbnails,
                     randomColor = randomColor,
                     gridColumns = gridColumns,
-                    previewUri = when {
-                        LockedPlaybackSession.getXorKeyForFile(item.path) != null -> Uri.parse("locked://${item.path}")
-                        isSecureMode -> Uri.fromFile(File(item.path))
-                        else -> item.uri
-                    },
                     hasError = hasError,
                     retryCount = retryCount,
                     onRetry = { regenerateThumbnail() },
-                    onPreviewToggle = onPreviewToggle,
-                    onPreviewFinished = onPreviewFinished
+                    onEditVideoTags = onEditVideoTags
                 )
             }
 
@@ -2467,18 +2413,15 @@ private fun VideoContent(
     progressEntry: VideoProgressEntry?,
     isLoading: Boolean,
     isSelected: Boolean,
-    isPreviewing: Boolean,
     isBeingMoved: Boolean,
-    canPreview: Boolean,
+    showQuickTagAction: Boolean,
     showThumbnails: Boolean,
     randomColor: Color,
     gridColumns: Int,
-    previewUri: Uri?,
     hasError: Boolean = false,
     retryCount: Int = 0,
     onRetry: () -> Unit = {},
-    onPreviewToggle: () -> Unit = {},
-    onPreviewFinished: () -> Unit = {}
+    onEditVideoTags: () -> Unit = {}
 ) {
     val textSize = when {
         gridColumns <= 2 -> 12.sp
@@ -2589,7 +2532,7 @@ private fun VideoContent(
             }
 
             // Play button - só mostra se tem thumbnail válido
-            if (!isPreviewing && thumbnail != null && !thumbnail.isRecycled && showThumbnails) {
+            if (thumbnail != null && !thumbnail.isRecycled && showThumbnails) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
@@ -2675,46 +2618,24 @@ private fun VideoContent(
             }
         }
 
-        if (canPreview && previewUri != null) {
+        if (showQuickTagAction) {
             FilledIconButton(
-                onClick = onPreviewToggle,
+                onClick = onEditVideoTags,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(6.dp)
-                    .size(28.dp),
+                    .padding(end = 6.dp, bottom = if (isSelected) 6.dp else 24.dp)
+                    .size(32.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = if (isPreviewing) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        Color.Black.copy(alpha = 0.55f)
-                    },
-                    contentColor = if (isPreviewing) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        Color.White
-                    }
+                    containerColor = Color.Black.copy(alpha = 0.65f),
+                    contentColor = Color.White
                 )
             ) {
                 Icon(
-                    imageVector = if (isPreviewing) Icons.Default.Stop else Icons.Default.Visibility,
-                    contentDescription = if (isPreviewing) "Parar preview" else "Preview do video",
+                    imageVector = Icons.Default.LocalOffer,
+                    contentDescription = "${stringResource(R.string.video_tags_edit)}: ${item.displayName}",
                     modifier = Modifier.size(16.dp)
                 )
             }
-        }
-
-        if (isPreviewing) {
-            Text(
-                text = "Preview ativo",
-                fontSize = textSize,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 6.dp)
-                    .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
-            )
         }
 
         if (isBeingMoved && !isSelected) {
